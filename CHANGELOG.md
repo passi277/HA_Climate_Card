@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.13.0 – Energiefluss
+- Neu: **Modern Energy Card** (`custom:ha-energy-card`) – animierter Energiefluss zwischen Solar, Batterie, Netz und Haus (Geschwindigkeit nach Leistung), Hausring nach Herkunft, Batterie-Ladestand als Ring, Autarkie, einzelne Verbraucher mit Balken; Konfiguration kompatibel zu power-flow-card-plus, visueller Editor
+
 ## 1.12.0 – Batterie-Einkaufsliste
 - Status Card: **Einkaufsliste** (`shopping_list: true`) – schwache Batterien nach Typ gruppiert und summiert („2× AA – Heizkörperthermostat“), aus Battery Notes
 - Status Card: „**gewechselt vor 12 Tagen**“ bzw. „gewechselt 08/2025“ je Batterie (Battery Notes, `show_replaced: false` blendet es aus)

@@ -624,5 +624,30 @@
     "show_ok": "Show \"all good\" instead of hiding",
     "ok_text": "Text when all good",
     "hint": "The card only appears while an alert is active. More alerts (e.g. vacuum error, alarm, battery) via YAML under \"alerts\":"
+  },
+  "energy": {
+    "solar": "Solar",
+    "grid": "Grid",
+    "home": "Home",
+    "battery": "Battery",
+    "charging": "charging",
+    "discharging": "discharging",
+    "idle": "idle",
+    "import": "import",
+    "export": "export",
+    "autarky": "Self-sufficiency",
+    "unavailable": "unavailable"
+  },
+  "energy_editor": {
+    "title": "Title",
+    "solar": "Solar power",
+    "grid_import": "Grid import",
+    "grid_export": "Grid export",
+    "battery_discharge": "Battery discharge power",
+    "battery_charge": "Battery charge power",
+    "battery_soc": "Battery state of charge",
+    "home": "Home consumption (otherwise calculated)",
+    "devices": "Individual consumers",
+    "hint": "Same config as power-flow-card-plus (entities: solar/battery/grid/home/individual). Names, icons and colors of consumers via YAML."
   }
 }

@@ -17,7 +17,7 @@ await p.waitForFunction(() => window.__ready, null, { timeout: 10000 });
 await p.waitForTimeout(500);
 
 const rendered = await p.evaluate(() =>
-  [...document.querySelectorAll("ha-climate-card, ha-climate-overview-card, ha-light-card, ha-light-group-card, ha-cover-card, ha-cover-group-card, ha-switch-time-card, ha-media-card, ha-room-card, ha-status-card, ha-vacuum-card, ha-presence-card, ha-alert-card")].filter((c) => c.shadowRoot?.querySelector("ha-card")).length);
+  [...document.querySelectorAll("ha-climate-card, ha-climate-overview-card, ha-light-card, ha-light-group-card, ha-cover-card, ha-cover-group-card, ha-switch-time-card, ha-media-card, ha-room-card, ha-status-card, ha-vacuum-card, ha-presence-card, ha-alert-card, ha-energy-card")].filter((c) => c.shadowRoot?.querySelector("ha-card")).length);
 rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Karten gerendert`);
 
 // Regler: Tippen in die Mitte verstellt nichts, Tippen auf den Ring schon
@@ -789,6 +789,40 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
   });
   res.shop.join() === "2× AA" && res.small.some((x) => /2× AAA · gewechselt vor 12 Tagen/.test(x)) && res.small.some((x) => /gewechselt \d\d\/\d{4}/.test(x))
     ? ok("Status: Einkaufsliste (2× AA) und „gewechselt vor …“") : fail(`Status Einkaufsliste: ${JSON.stringify(res)}`);
+}
+
+// Energiefluss: Werte, aktive Linien, Verbraucher
+{
+  const res = await p.evaluate(async () => {
+    const card = document.querySelector("ha-energy-card");
+    const root = card.shadowRoot;
+    const val = (k) => root.querySelector(`.n-${k} .val`)?.textContent.trim();
+    const active = [...root.querySelectorAll(".line.active")].map((l) => l.id.replace("p-", "")).sort();
+    const dots = root.querySelectorAll(".dot").length;
+    const devices = [...root.querySelectorAll(".device .d-name")].map((x) => x.textContent.trim());
+    const autarky = root.querySelector(".pill")?.textContent.trim();
+    const day = { solar: val("solar"), home: val("home"), grid: val("grid"), battery: val("battery") };
+    let info;
+    card.addEventListener("hass-more-info", (e) => (info = e.detail.entityId), { once: true });
+    root.querySelector(".n-battery").click();
+    // Abends: Batterie entlädt ins Haus
+    const h = card.hass;
+    const st = { ...h.states };
+    const set = (id, v) => (st[id] = { ...st[id], state: v });
+    set("sensor.solarbank_solar", "0"); set("sensor.solarbank_laden", "0"); set("sensor.solarbank_entladen", "161");
+    set("sensor.smart_meter_einspeisung", "0"); set("sensor.garten_hausbedarf", "161");
+    card.hass = { ...h, states: st };
+    await new Promise((r) => setTimeout(r, 100));
+    const night = [...root.querySelectorAll(".line.active")].map((l) => l.id.replace("p-", ""));
+    const nightSub = root.querySelector(".n-battery .sub").textContent.trim();
+    card.hass = h;
+    return { ...day, active, dots, devices, autarky, info, night, nightSub };
+  });
+  res.solar === "1,2 kW" && res.home === "410 W" && res.grid === "310 W" && res.battery === "81 %"
+    && res.active.join() === "sb,sg,sh" && res.dots === 6 && res.devices[0] === "Kühlschrank" && res.devices.at(-1) === "Pool"
+    && /Autarkie 100/.test(res.autarky) && res.info === "sensor.solarbank_ladestand"
+    && res.night.join() === "bh" && /entlädt · 161 W/.test(res.nightSub)
+    ? ok("Energiefluss: Solar → Haus/Batterie/Netz, Verbraucher sortiert, abends Batterie → Haus") : fail(`Energiefluss: ${JSON.stringify(res)}`);
 }
 
 // Moduswechsel: jede Karte, jeder Modus (außer Auto/Heizen-Kühlen, dort zählt die Tätigkeit)

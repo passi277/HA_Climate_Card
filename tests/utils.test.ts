@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { HassEntity } from "../src/types";
 import {
-  alertActive, batteryShoppingList, clockMinutes, upcomingPickups, wasteStyle, batteryIcon, doorDevices, doorKind, initials, isCharging, phoneSensors, brightnessPct, contactType, calibrationTransform, roomsFromMap, roomIcon, areaBatteries, batteryInfo, presetActive, presetData, DEFAULT_LIGHT_PRESETS, activityIcon, activityLabel, guessControlDevice, guessVolumeDevice, coverIcon, datetimeParts, nextOccurrence, coverPosition, skyPhase, sunPlacement, weatherOverlay, editorOptions, isNoEffect, lightEditorOptions, segmentIds, detectDeviceType, kelvinToRgb, lightColor, relatedScenes, supportsColor, supportsColorTemp, dewPoint, nextSwitch, parseSchedule, scheduleTempAt, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
+  energyFlows, formatPower, powerWatts, alertActive, batteryShoppingList, clockMinutes, upcomingPickups, wasteStyle, batteryIcon, doorDevices, doorKind, initials, isCharging, phoneSensors, brightnessPct, contactType, calibrationTransform, roomsFromMap, roomIcon, areaBatteries, batteryInfo, presetActive, presetData, DEFAULT_LIGHT_PRESETS, activityIcon, activityLabel, guessControlDevice, guessVolumeDevice, coverIcon, datetimeParts, nextOccurrence, coverPosition, skyPhase, sunPlacement, weatherOverlay, editorOptions, isNoEffect, lightEditorOptions, segmentIds, detectDeviceType, kelvinToRgb, lightColor, relatedScenes, supportsColor, supportsColorTemp, dewPoint, nextSwitch, parseSchedule, scheduleTempAt, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
   openContactsKey, powerOf, resolveContacts, secondsToDuration, stateIcon, temperatureOf, temperatureTint, trendSlope,
 } from "../src/utils";
 import { formatAttribute, localize } from "../src/localize/localize";
@@ -499,5 +499,26 @@ describe("battery shopping list", () => {
       { entity: "d", name: "Wandthermostat", low: false, type: "2× AAA" },
     ]);
     expect(list).toEqual([{ kind: "AA", count: 4, names: ["Heizkörper Pascal", "Heizkörper Bad"] }, { kind: "CR2450", count: 1, names: ["Schalter Küche"] }]);
+  });
+});
+
+describe("energy flows", () => {
+  it("splits solar, battery and grid between home, battery and grid", () => {
+    // Abends: Batterie versorgt das Haus
+    const night = energyFlows({ solar: 0, batteryDischarge: 161, gridImport: 0, home: 161 });
+    expect(night.batteryToHome).toBe(161);
+    expect(night.autarky).toBe(100);
+    // Mittags: Solar lädt Batterie, versorgt Haus und speist ein
+    const noon = energyFlows({ solar: 1200, batteryCharge: 500, gridExport: 300 });
+    expect(noon).toMatchObject({ solarToGrid: 300, solarToBattery: 500, solarToHome: 400, home: 400, gridToHome: 0 });
+    // Netz lädt Batterie und versorgt Haus
+    const grid = energyFlows({ gridImport: 800, batteryCharge: 300 });
+    expect(grid).toMatchObject({ gridToBattery: 300, gridToHome: 500, autarky: 0 });
+  });
+  it("converts and formats power", () => {
+    expect(powerWatts({ entity_id: "sensor.p", state: "1.5", attributes: { unit_of_measurement: "kW" }, last_changed: "", last_updated: "" })).toBe(1500);
+    expect(powerWatts({ entity_id: "sensor.p", state: "unavailable", attributes: {}, last_changed: "", last_updated: "" })).toBeUndefined();
+    expect(formatPower(161, "de")).toBe("161 W");
+    expect(formatPower(1530, "de")).toBe("1,5 kW");
   });
 });

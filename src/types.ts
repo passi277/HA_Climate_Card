@@ -465,3 +465,40 @@ export interface AlertCardConfig {
   ok_text?: string;
   animations?: "full" | "reduced" | "off";
 }
+
+/** Entität als Text (Vorzeichen) oder getrennt nach Richtung – wie power-flow-card-plus */
+export type EnergyEntity = string | { consumption?: string; production?: string };
+
+export interface EnergyIndividualConfig {
+  entity: string;
+  name?: string;
+  icon?: string;
+  color?: string;
+}
+
+export interface EnergyCardConfig {
+  type: string;
+  title?: string;
+  entities: {
+    solar?: { entity: string; name?: string; icon?: string; display_zero_state?: boolean };
+    /** consumption = Entladen (zum Haus), production = Laden; Text: positiv = Entladen */
+    battery?: { entity?: EnergyEntity; state_of_charge?: string; name?: string; icon?: string; invert_state?: boolean };
+    /** consumption = Netzbezug, production = Einspeisung; Text: positiv = Bezug */
+    grid?: { entity: EnergyEntity; name?: string; icon?: string; invert_state?: boolean };
+    home?: { entity?: string; name?: string; icon?: string };
+    individual?: EnergyIndividualConfig[];
+  };
+  /** Ab dieser Leistung in kW anzeigen (Standard 1000 W) */
+  watt_threshold?: number;
+  w_decimals?: number;
+  kw_decimals?: number;
+  /** Animationsdauer der Punkte in Sekunden (schnellster / langsamster Fluss) */
+  min_flow_rate?: number;
+  max_flow_rate?: number;
+  /** Linien ohne Fluss trotzdem zeigen (Standard an) */
+  display_zero_lines?: boolean;
+  /** Tippen öffnet Details (Standard an) */
+  clickable_entities?: boolean;
+  animations?: "full" | "reduced" | "off";
+  [key: string]: unknown;
+}

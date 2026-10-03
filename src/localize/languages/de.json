@@ -624,5 +624,30 @@
     "show_ok": "„Alles in Ordnung“ statt ausblenden",
     "ok_text": "Text bei alles in Ordnung",
     "hint": "Die Karte erscheint nur, wenn ein Hinweis aktiv ist. Weitere Hinweise (z.B. Saugroboter-Fehler, Alarm, Batterie) per YAML unter „alerts“:"
+  },
+  "energy": {
+    "solar": "Solar",
+    "grid": "Netz",
+    "home": "Haus",
+    "battery": "Batterie",
+    "charging": "lädt",
+    "discharging": "entlädt",
+    "idle": "Ruhe",
+    "import": "Bezug",
+    "export": "Einspeisung",
+    "autarky": "Autarkie",
+    "unavailable": "nicht erreichbar"
+  },
+  "energy_editor": {
+    "title": "Titel",
+    "solar": "Solarleistung",
+    "grid_import": "Netzbezug",
+    "grid_export": "Netzeinspeisung",
+    "battery_discharge": "Batterie Entladeleistung",
+    "battery_charge": "Batterie Ladeleistung",
+    "battery_soc": "Batterie Ladestand",
+    "home": "Hausverbrauch (sonst berechnet)",
+    "devices": "Einzelne Verbraucher",
+    "hint": "Konfiguration wie power-flow-card-plus (entities: solar/battery/grid/home/individual). Namen, Symbole und Farben der Verbraucher per YAML."
   }
 }

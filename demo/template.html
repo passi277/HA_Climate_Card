@@ -298,6 +298,18 @@
         start_time: (() => { const d = new Date(Date.now() + 86400000); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} 00:00:00`; })() } },
       "time.robo_ruhezeit_beginn": { state: "22:00:00", attributes: { friendly_name: "Bitte nicht stören Beginn" } },
       "switch.robo_nicht_stoeren": { state: "on", attributes: { friendly_name: "Bitte nicht stören" } },
+      "sensor.solarbank_solar": { state: "1240", attributes: { friendly_name: "Solarleistung", unit_of_measurement: "W", device_class: "power" } },
+      "sensor.solarbank_laden": { state: "520", attributes: { friendly_name: "Aufladeleistung", unit_of_measurement: "W", device_class: "power" } },
+      "sensor.solarbank_entladen": { state: "0", attributes: { friendly_name: "Entladeleistung", unit_of_measurement: "W", device_class: "power" } },
+      "sensor.solarbank_ladestand": { state: "81", attributes: { friendly_name: "Ladestand", unit_of_measurement: "%", device_class: "battery" } },
+      "sensor.smart_meter_bezug": { state: "0", attributes: { friendly_name: "Netzbezug", unit_of_measurement: "W", device_class: "power" } },
+      "sensor.smart_meter_einspeisung": { state: "310", attributes: { friendly_name: "Einspeisung", unit_of_measurement: "W", device_class: "power" } },
+      "sensor.garten_hausbedarf": { state: "410", attributes: { friendly_name: "Hausbedarf", unit_of_measurement: "W", device_class: "power" } },
+      "sensor.kuehlschrank_power": { state: "87.7", attributes: { friendly_name: "Kühlschrank", unit_of_measurement: "W", device_class: "power" } },
+      "sensor.aussenstrom_power": { state: "7.7", attributes: { friendly_name: "Außenstrom", unit_of_measurement: "W", device_class: "power" } },
+      "sensor.pumpe_power": { state: "0", attributes: { friendly_name: "Pumpe", unit_of_measurement: "W", device_class: "power" } },
+      "sensor.pool_power": { state: "unavailable", attributes: { friendly_name: "Pool", unit_of_measurement: "W", device_class: "power" } },
+      "sensor.starlink_leistung": { state: "53.4", attributes: { friendly_name: "Starlink", unit_of_measurement: "W", device_class: "power" } },
       "lock.klingel": { state: "locked", attributes: { friendly_name: "Klingel", supported_features: 1 } },
       "binary_sensor.klingel_klingelaktion": { state: "off", attributes: { friendly_name: "Klingel Klingelaktion" } },
       "binary_sensor.klingel_batterie": { state: "on", attributes: { friendly_name: "Klingel Batteriestand", device_class: "battery" } },
@@ -550,6 +562,13 @@
       ["Raum-Kopf – Pascal (Chips, Hinweis Fenster offen + Klima läuft)", { _room: true, title: "Pascal", icon: "mdi:account", light: "light.licht_mein_zimmer",
         contacts: [{ entity: "binary_sensor.fenster_pascal_schreibtisch", name: "Schreibtisch" }, { entity: "binary_sensor.fenster_pascal_tv", name: "TV" }],
         temperature: "climate.heizung_mein_zimmer", humidity: "climate.heizung_mein_zimmer", climate: "climate.1ed763d9", media: "remote.harmony_schlafzimmer", trash: "calendar.abfall" }],
+      ["Energiefluss – Solarbank, Netz, Haus + Verbraucher (Konfiguration wie power-flow-card-plus)", { _energy: true, entities: {
+        battery: { entity: { production: "sensor.solarbank_laden", consumption: "sensor.solarbank_entladen" }, state_of_charge: "sensor.solarbank_ladestand" },
+        solar: { entity: "sensor.solarbank_solar" }, home: { entity: "sensor.garten_hausbedarf" },
+        grid: { entity: { consumption: "sensor.smart_meter_bezug", production: "sensor.smart_meter_einspeisung" } },
+        individual: [{ entity: "sensor.kuehlschrank_power", name: "Kühlschrank", icon: "mdi:fridge" }, { entity: "sensor.aussenstrom_power", name: "Außenstrom", icon: "mdi:power-plug" },
+          { entity: "sensor.pumpe_power", name: "Pumpe", icon: "mdi:water-pump" }, { entity: "sensor.pool_power", name: "Pool", icon: "mdi:pool" },
+          { entity: "sensor.starlink_leistung", name: "Starlink", icon: "mdi:satellite-variant", color: "#049cdb" }] } }],
       ["Hinweis-Karte – erscheint nur, wenn etwas los ist (Fenster offen, Saugroboter putzt)", { _alert: true,
         contacts: [{ entity: "binary_sensor.buero_fenster", name: "Büro" }, { entity: "binary_sensor.wz_balkontuer", name: "Balkontür" }, "binary_sensor.wz_fenster"],
         alerts: [{ entity: "vacuum.roborock_s8_maxv_ultra", state: ["cleaning", "returning"], severity: "info", title: "Saugroboter putzt", icon: "mdi:robot-vacuum", navigation_path: "#roborock" },
@@ -595,9 +614,9 @@
         grid.appendChild(wrap);
         return;
       }
-      const { _overview, _light, _group, _cover, _coverGroup, _switchTime, _media, _room, _status, _vacuum, _presence, _alert, ...rest } = cfg;
+      const { _overview, _light, _group, _cover, _coverGroup, _switchTime, _media, _room, _status, _vacuum, _presence, _alert, _energy, ...rest } = cfg;
       const tag = _overview ? "ha-climate-overview-card" : _group ? "ha-light-group-card" : _light ? "ha-light-card"
-        : _cover ? "ha-cover-card" : _coverGroup ? "ha-cover-group-card" : _switchTime ? "ha-switch-time-card" : _media ? "ha-media-card" : _room ? "ha-room-card" : _status ? "ha-status-card" : _vacuum ? "ha-vacuum-card" : _presence ? "ha-presence-card" : _alert ? "ha-alert-card" : "ha-climate-card";
+        : _cover ? "ha-cover-card" : _coverGroup ? "ha-cover-group-card" : _switchTime ? "ha-switch-time-card" : _media ? "ha-media-card" : _room ? "ha-room-card" : _status ? "ha-status-card" : _vacuum ? "ha-vacuum-card" : _presence ? "ha-presence-card" : _alert ? "ha-alert-card" : _energy ? "ha-energy-card" : "ha-climate-card";
       const card = document.createElement(tag);
       card.id = "card" + i;
       card.setConfig({ type: `custom:${tag}`, ...rest });

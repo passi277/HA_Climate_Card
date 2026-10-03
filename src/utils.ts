@@ -980,3 +980,65 @@ export const alertActive = (st: HassEntity | undefined, c: AlertCondition): bool
   }
   return true;
 };
+
+// ---------- Energiefluss ----------
+
+export interface EnergyInput {
+  solar?: number;
+  gridImport?: number;
+  gridExport?: number;
+  batteryCharge?: number;
+  batteryDischarge?: number;
+  /** Hausverbrauch (sonst berechnet) */
+  home?: number;
+}
+
+export interface EnergyFlows {
+  solarToHome: number;
+  solarToBattery: number;
+  solarToGrid: number;
+  gridToHome: number;
+  gridToBattery: number;
+  batteryToHome: number;
+  batteryToGrid: number;
+  home: number;
+  /** Anteil des Hausverbrauchs aus eigener Erzeugung/Batterie (0–100) */
+  autarky?: number;
+}
+
+/** Leistungsflüsse zwischen Solar, Netz, Batterie und Haus (Solar zuerst, dann Batterie, dann Netz). */
+export const energyFlows = (i: EnergyInput): EnergyFlows => {
+  const p = (v?: number) => (v != null && Number.isFinite(v) && v > 0 ? v : 0);
+  const solar = p(i.solar);
+  const gi = p(i.gridImport);
+  const ge = p(i.gridExport);
+  const bc = p(i.batteryCharge);
+  const bd = p(i.batteryDischarge);
+  const solarToGrid = Math.min(solar, ge);
+  const batteryToGrid = Math.min(bd, ge - solarToGrid);
+  const solarToBattery = Math.min(solar - solarToGrid, bc);
+  const gridToBattery = Math.min(gi, bc - solarToBattery);
+  const solarToHome = Math.max(0, solar - solarToGrid - solarToBattery);
+  const batteryToHome = Math.max(0, bd - batteryToGrid);
+  const gridToHome = Math.max(0, gi - gridToBattery);
+  const home = i.home != null && Number.isFinite(i.home) ? Math.max(0, i.home) : solarToHome + batteryToHome + gridToHome;
+  const supplied = solarToHome + batteryToHome + gridToHome;
+  const autarky = supplied > 0 ? Math.round(((solarToHome + batteryToHome) / supplied) * 100) : undefined;
+  return { solarToHome, solarToBattery, solarToGrid, gridToHome, gridToBattery, batteryToHome, batteryToGrid, home, autarky };
+};
+
+/** Leistung in Watt (kW/MW werden umgerechnet); undefined bei nicht verfügbar. */
+export const powerWatts = (st?: HassEntity): number | undefined => {
+  if (!st || UNAVAILABLE.includes(st.state)) return undefined;
+  const v = Number(st.state);
+  if (!Number.isFinite(v)) return undefined;
+  const unit = String(st.attributes.unit_of_measurement ?? "W").toLowerCase();
+  return unit === "kw" ? v * 1000 : unit === "mw" ? v * 1_000_000 : v;
+};
+
+/** „161 W“ bzw. „1,2 kW“ ab Schwelle */
+export const formatPower = (w: number, lang = "de", threshold = 1000, wDecimals = 0, kwDecimals = 1): string => {
+  const abs = Math.abs(w);
+  if (abs >= threshold) return `${(w / 1000).toLocaleString(lang, { minimumFractionDigits: kwDecimals, maximumFractionDigits: kwDecimals })} kW`;
+  return `${w.toLocaleString(lang, { minimumFractionDigits: wDecimals, maximumFractionDigits: wDecimals })} W`;
+};

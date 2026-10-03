@@ -17,6 +17,7 @@ weiche Farbübergänge und Animationen. Ein HACS-Download, mehrere Karten:
 | **Modern Vacuum Card** | `custom:ha-vacuum-card` | Saugroboter mit Karte, Raumauswahl und Raumreinigung |
 | **Modern Presence Card** | `custom:ha-presence-card` | Personen mit Foto und Handy-Akku plus Haustür (Nuki Opener: Halten zum Öffnen, Ring to Open) |
 | **Modern Alert Card** | `custom:ha-alert-card` | Hinweise, die nur erscheinen, wenn etwas los ist („Fenster offen – Marcel“) |
+| **Modern Energy Card** | `custom:ha-energy-card` | Energiefluss Solar / Batterie / Netz / Haus + einzelne Verbraucher (Konfiguration wie power-flow-card-plus) |
 | **Climate Overview** | `custom:ha-climate-overview-card` | alle Klimageräte auf einen Blick |
 
 *Modern Lovelace cards for Home Assistant in one shared design – English summary below.*
@@ -492,6 +493,47 @@ alerts:
 # show_ok: true   # statt ausblenden „Alles in Ordnung“ zeigen
 ```
 
+## Modern Energy Card (Energiefluss)
+
+Animierter Energiefluss zwischen **Solar, Netz, Batterie und Haus** – Punkte laufen schneller, je mehr Leistung fließt.
+Der Hausring zeigt, woher der Strom gerade kommt (Solar/Batterie/Netz), die Batterie ihren Ladestand als Ring.
+Oben „Autarkie“ in Prozent, darunter die **einzelnen Verbraucher** als Kacheln mit Balken (sortiert nach Leistung).
+
+Die Konfiguration entspricht **power-flow-card-plus** – meist reicht es, `type` zu tauschen:
+
+```yaml
+type: custom:ha-energy-card
+entities:
+  battery:
+    entity:
+      production: sensor.solarbank_aufladeleistung    # in die Batterie (Laden)
+      consumption: sensor.solarbank_entladeleistung   # aus der Batterie (Entladen)
+    state_of_charge: sensor.solarbank_ladestand
+  solar:
+    entity: sensor.solarbank_solarleistung
+  home:
+    entity: sensor.hausbedarf                         # optional, sonst berechnet
+  grid:
+    entity:
+      consumption: sensor.smart_meter_netzbezug
+      production: sensor.smart_meter_netzeinspeisung
+  individual:
+    - entity: sensor.kuhlschrank_power
+      name: Kühlschrank
+      icon: mdi:fridge
+    - entity: sensor.starlink_leistung
+      name: Starlink
+      icon: mdi:satellite-variant
+      color: "#049cdb"
+watt_threshold: 1000   # ab hier kW
+w_decimals: 0
+kw_decimals: 1
+min_flow_rate: 0.75    # Sekunden je Durchlauf bei viel Leistung
+max_flow_rate: 6       # … bei wenig Leistung
+```
+
+Statt getrennter Sensoren geht auch ein Sensor mit Vorzeichen (`entity: sensor.grid_power`, positiv = Bezug bzw. Entladen; `invert_state: true` dreht es um).
+
 ## Heizungen (z.B. Homematic IP)
 
 Thermostate werden automatisch erkannt. Die Karte zeigt dann statt Lüfter, Lamellen und Luftstrom:
@@ -592,6 +634,7 @@ glow, smooth color transitions, animations), shipped as a single HACS download:
 - `custom:ha-vacuum-card` – robot vacuum with live map, tap rooms on the map for room cleaning, controls, modes, maintenance
 - `custom:ha-presence-card` – people as photo tiles (home/away, phone battery and charging found automatically) plus front door: hold to open (Nuki Opener), Ring to Open, doorbell
 - `custom:ha-alert-card` – alerts that only appear when something is going on (window open, vacuum error, low battery …), hidden otherwise
+- `custom:ha-energy-card` – animated energy flow between solar, battery, grid and home plus individual consumers (power-flow-card-plus compatible config)
 - `custom:ha-climate-overview-card` – all climate devices at a glance
 
 Install via HACS as a custom repository of type **Dashboard**. All cards have a visual editor and are
