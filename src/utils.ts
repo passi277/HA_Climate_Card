@@ -468,3 +468,44 @@ export const lightEditorOptions = (
   };
   return { show: all.filter((k) => ok[k] ?? true), segments };
 };
+
+// ---------- Rollläden ----------
+
+export const CoverFeature = {
+  OPEN: 1, CLOSE: 2, SET_POSITION: 4, STOP: 8, OPEN_TILT: 16, CLOSE_TILT: 32, STOP_TILT: 64, SET_TILT_POSITION: 128,
+} as const;
+
+export const coverSupports = (st: HassEntity | undefined, feature: number): boolean =>
+  !!st && ((Number(st.attributes.supported_features) || 0) & feature) !== 0;
+
+/** Öffnung in % (100 = ganz offen). Ohne Positionsangabe aus dem Zustand abgeleitet. */
+export const coverPosition = (st?: HassEntity): number | undefined => {
+  if (!st || UNAVAILABLE.includes(st.state)) return undefined;
+  const p = st.attributes.current_position;
+  if (p != null && Number.isFinite(Number(p))) return Math.round(Number(p));
+  if (st.state === "open") return 100;
+  if (st.state === "closed") return 0;
+  return undefined;
+};
+
+export const coverMoving = (st?: HassEntity): "opening" | "closing" | undefined =>
+  st?.state === "opening" || st?.state === "closing" ? st.state : undefined;
+
+const COVER_ICONS: Record<string, [string, string]> = {
+  shutter: ["mdi:window-shutter-open", "mdi:window-shutter"],
+  blind: ["mdi:blinds-horizontal", "mdi:blinds-horizontal-closed"],
+  awning: ["mdi:awning-outline", "mdi:awning-outline"],
+  curtain: ["mdi:curtains", "mdi:curtains-closed"],
+  garage: ["mdi:garage-open-variant", "mdi:garage-variant"],
+  gate: ["mdi:gate-open", "mdi:gate"],
+  door: ["mdi:door-open", "mdi:door-closed"],
+  window: ["mdi:window-open-variant", "mdi:window-closed-variant"],
+  shade: ["mdi:roller-shade", "mdi:roller-shade-closed"],
+};
+
+export const coverIcon = (st?: HassEntity): string => {
+  const [open, closed] = COVER_ICONS[String(st?.attributes.device_class ?? "shutter")] ?? COVER_ICONS.shutter;
+  if (st?.state === "opening") return "mdi:arrow-up-box";
+  if (st?.state === "closing") return "mdi:arrow-down-box";
+  return (coverPosition(st) ?? 0) > 0 ? open : closed;
+};

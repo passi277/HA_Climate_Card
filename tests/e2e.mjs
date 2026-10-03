@@ -17,7 +17,7 @@ await p.waitForFunction(() => window.__ready, null, { timeout: 10000 });
 await p.waitForTimeout(500);
 
 const rendered = await p.evaluate(() =>
-  [...document.querySelectorAll("ha-climate-card, ha-climate-overview-card, ha-light-card, ha-light-group-card")].filter((c) => c.shadowRoot?.querySelector("ha-card")).length);
+  [...document.querySelectorAll("ha-climate-card, ha-climate-overview-card, ha-light-card, ha-light-group-card, ha-cover-card, ha-cover-group-card")].filter((c) => c.shadowRoot?.querySelector("ha-card")).length);
 rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Karten gerendert`);
 
 // Regler: Tippen in die Mitte verstellt nichts, Tippen auf den Ring schon
@@ -286,6 +286,56 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
   const a = res.ac.names;
   a.includes("fan") && a.includes("swing") && a.includes("power_threshold") && !a.includes("valve_sensors")
     ? ok("Editor Klima: Lüfter, Lamellen, Leistungsschwelle, keine Heizungsfelder") : fail(`Editor Klima: ${JSON.stringify(res.ac)}`);
+}
+
+// Rollläden: Fenster ziehen, Schnellwahl, Fahrt-Animation, Gruppe mit gemischten Fähigkeiten
+{
+  const card = p.locator("ha-cover-card").first();
+  await card.scrollIntoViewIfNeeded();
+  const glass = await p.evaluateHandle(() =>
+    document.querySelector("ha-cover-card").shadowRoot.querySelector("hcc-cover-window").shadowRoot.querySelector(".glass"));
+  const box = await glass.boundingBox();
+  const before = await p.evaluate(() => window.serviceCalls.length);
+  await p.mouse.click(box.x + box.width / 2, box.y + box.height * 0.25);
+  await p.waitForTimeout(400);
+  const moving = await p.evaluate(() => {
+    const root = document.querySelector("ha-cover-card").shadowRoot;
+    return { window: root.querySelector("hcc-cover-window").shadowRoot.querySelector(".window").className, badge: root.querySelector(".icon-badge").dataset.moving };
+  });
+  await p.waitForTimeout(1800);
+  const res = await p.evaluate(async (n) => {
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const root = document.querySelector("ha-cover-card").shadowRoot;
+    const after = root.querySelector(".dial-big").textContent.trim();
+    root.querySelector(".pos").click();
+    await wait(300);
+    const g = document.querySelector("ha-cover-group-card").shadowRoot;
+    const rows = Object.fromEntries([...g.querySelectorAll("hcc-cover-row")].map((r) => [r.entity.split(".")[1], {
+      slider: !!r.shadowRoot.querySelector("hcc-gradient-slider"), buttons: r.shadowRoot.querySelectorAll(".btn").length }]));
+    const b2 = window.serviceCalls.length;
+    const slider = g.querySelector(".group-slider");
+    slider.value = 50; slider.dispatchEvent(new CustomEvent("value-changed", { detail: { value: 50 } }));
+    await wait(300);
+    g.querySelectorAll(".header .round")[2].click();
+    await wait(200);
+    const groupCalls = window.serviceCalls.slice(b2).map((c) => ({ s: c.service, ids: [].concat(c.data.entity_id), p: c.data.position }));
+    const compact = [...document.querySelectorAll("ha-cover-card")].find((c) => c._config.layout === "compact").shadowRoot;
+    return { after, calls: window.serviceCalls.slice(n).map((c) => `${c.service}:${c.data.entity_id}:${c.data.position ?? ""}`), rows, groupCalls,
+      tilt: [...compact.querySelectorAll("hcc-gradient-slider")].some((s) => s.icon === "mdi:angle-acute") };
+  }, before);
+  res.calls.some((c) => /^set_cover_position:cover.rollos_pascal:7[0-9]$/.test(c)) ? ok("Rollladen: Tippen ins Fenster (oberes Viertel) → ~75 % offen")
+    : fail(`Fenster: ${res.calls}`);
+  /opening/.test(moving.window) && moving.badge === "opening" ? ok("Rollladen: Fahrt-Animation (Lamellen laufen, Pfeil) nur während der Fahrt")
+    : fail(`Fahrt: ${JSON.stringify(moving)}`);
+  res.calls.includes("set_cover_position:cover.rollos_pascal:0") ? ok("Rollladen: Schnellwahl „Zu“") : fail(`Schnellwahl: ${res.calls}`);
+  const r = res.rows;
+  r.schreibtisch?.slider && r.schreibtisch.buttons === 3 && !r.terrasse_markise?.slider && r.terrasse_markise.buttons === 2 && r.kuche?.buttons === 0
+    ? ok("Rollladen-Gruppe: Funktionen je Rollladen (Position, nur Auf/Ab, nicht verfügbar)") : fail(`Gruppe: ${JSON.stringify(r)}`);
+  const pos = res.groupCalls.find((c) => c.s === "set_cover_position");
+  const close = res.groupCalls.find((c) => c.s === "close_cover");
+  pos?.ids.length === 4 && pos.p === 50 && close?.ids.length === 5 && !close.ids.includes("cover.kuche")
+    ? ok("Rollladen-Gruppe: Regler nur für Positions-Rollläden, „Alle schließen“ ohne nicht verfügbare") : fail(`Gruppenaktionen: ${JSON.stringify(res.groupCalls)}`);
+  res.tilt ? ok("Raffstore: Lamellen-Regler") : fail("Lamellen-Regler fehlt");
 }
 
 // Moduswechsel: jede Karte, jeder Modus (außer Auto/Heizen-Kühlen, dort zählt die Tätigkeit)

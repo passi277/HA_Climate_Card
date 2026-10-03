@@ -183,3 +183,43 @@ export interface LightGroupCardConfig {
   collapsed?: boolean;
   animations?: "full" | "reduced" | "off";
 }
+
+export interface CoverShowConfig {
+  /** Rollläden der Gruppe */
+  covers?: boolean;
+  /** Schnellwahl-Positionen */
+  positions?: boolean;
+  /** Lamellen-Neigung */
+  tilt?: boolean;
+}
+
+export interface CoverCardConfig {
+  type: string;
+  entity: string;
+  name?: string;
+  icon?: string;
+  layout?: CardLayout;
+  show?: CoverShowConfig;
+  /** Schnellwahl in % Öffnung (Standard 0, 25, 50, 75, 100) */
+  positions?: number[];
+  /** Rollläden des Raums (sonst aus der Cover-Gruppe übernommen) */
+  entities?: (string | { entity: string; name?: string; icon?: string })[];
+  auto_entities?: boolean;
+  /** Fenster-/Türkontakte: Hinweis, wenn beim Schließen etwas offen ist */
+  contact_sensors?: string[];
+  expandable?: boolean;
+  start_expanded?: boolean;
+  animations?: "full" | "reduced" | "off";
+}
+
+export interface CoverGroupCardConfig {
+  type: string;
+  entities: (string | { entity: string; name?: string; icon?: string })[];
+  title?: string;
+  icon?: string;
+  positions?: number[];
+  show_positions?: boolean;
+  show_covers?: boolean;
+  collapsed?: boolean;
+  animations?: "full" | "reduced" | "off";
+}

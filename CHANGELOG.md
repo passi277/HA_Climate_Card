@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.4.0 – Rollläden
+- Neu: **Modern Cover Card** (`custom:ha-cover-card`) – Fenster-Grafik zum Tippen/Ziehen, Auf/Stopp/Ab, Schnellwahl, Lamellen, Rollläden einer Cover-Gruppe, Fenster-/Türkontakte, Kompakt-Layout, visueller Editor
+- Neu: **Modern Cover Group** (`custom:ha-cover-group-card`) – Rollläden frei zusammenstellen; oben alle gemeinsam, darunter jeder einzeln mit genau seinen Funktionen
+- Fahrt-Animation (laufende Lamellen, Richtungspfeil) nur während der Bewegung
+
 ## 1.3.2
 - Editor zeigt nur zum Gerät passende Optionen: Heizungen ohne Lüfter, Lamellen und Leistungsschwelle („Wärmewellen-Animation“ statt „Luftstrom“), Lüfter/Lamellen/Voreinstellungen/Ziel-Luftfeuchte nur bei unterstützten Funktionen; Hinweis „Erkannt: Heizung / Klimaanlage“
 - Light-Editor: Farbe, Weißton, Effekte, Lampenliste und Segmente nur, wenn die Lampe bzw. Gruppe sie unterstützt

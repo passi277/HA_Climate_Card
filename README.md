@@ -8,6 +8,8 @@ weiche Farbübergänge und Animationen. Ein HACS-Download, mehrere Karten:
 | **Modern Climate Card** | `custom:ha-climate-card` | Klimaanlagen und Heizungen/Thermostate |
 | **Modern Light Card** | `custom:ha-light-card` | Lampen und Lichtgruppen (z.B. Hue-Räume) |
 | **Modern Light Group** | `custom:ha-light-group-card` | frei zusammengestellte Lampen: Gruppe oben, Einzellampen darunter |
+| **Modern Cover Card** | `custom:ha-cover-card` | Rollläden, Jalousien, Markisen – einzeln oder als HA-Gruppe |
+| **Modern Cover Group** | `custom:ha-cover-group-card` | frei zusammengestellte Rollläden: alle oben, einzelne darunter |
 | **Climate Overview** | `custom:ha-climate-overview-card` | alle Klimageräte auf einen Blick |
 
 *Modern Lovelace cards for Home Assistant in one shared design – English summary below.*
@@ -244,6 +246,39 @@ entities:
 # show_lights: false     # nur die Gruppenzeile
 ```
 
+## Modern Cover Card (Rollläden)
+
+- **Fenster-Grafik**: Der Rollladen fährt sichtbar herunter, Licht fällt durch den offenen Teil – **ins Fenster tippen oder ziehen** stellt die Position ein
+- **Auf / Stopp / Ab**, **Schnellwahl** (Zu, 25 %, 50 %, 75 %, Auf – frei einstellbar), Farbe wandert von kühlem Blaugrau (zu) zu warmem Tageslicht (offen)
+- Während der Fahrt laufen die Lamellen und ein Pfeil zeigt die Richtung; sonst ruht alles
+- **Cover-Gruppen** (z.B. „Rollos Pascal“): alle Rollläden der Gruppe darunter, jeder mit eigenem Regler
+- **Lamellen** (Raffstore/Jalousie) nur, wenn unterstützt; **Fenster-/Türkontakte** als Hinweis
+- Nur was das Gerät kann: ohne Positionsangabe nur Auf/Ab, ohne Stopp kein Stopp-Button
+- `layout: compact` mit leuchtendem Positionsregler
+
+```yaml
+type: custom:ha-cover-card
+entity: cover.rollos_pascal          # einzelner Rollladen oder Cover-Gruppe
+contact_sensors: [binary_sensor.fenster_wohnzimmer]
+# positions: [0, 30, 60, 100]       # eigene Schnellwahl (% offen)
+# layout: compact
+```
+
+### Modern Cover Group
+
+Beliebige Rollläden in einer Karte: oben „Alle auf / Stopp / Alle zu“, gemeinsamer Positionsregler und Schnellwahl
+(nur für Rollläden mit Position), darunter jeder Rollladen einzeln – mit genau den Funktionen, die er kann.
+
+```yaml
+type: custom:ha-cover-group-card
+title: Erdgeschoss
+entities:
+  - cover.schreibtisch
+  - cover.tv
+  - cover.mario
+# collapsed: true          # Einzelne anfangs zugeklappt
+```
+
 ## Heizungen (z.B. Homematic IP)
 
 Thermostate werden automatisch erkannt. Die Karte zeigt dann statt Lüfter, Lamellen und Luftstrom:
@@ -334,6 +369,9 @@ glow, smooth color transitions, animations), shipped as a single HACS download:
   lights, Hue scenes, white tone/color/effects, Govee segments and scene search, motion and illuminance
 - `custom:ha-light-group-card` – any set of lights: group control on top, each light below showing only
   what it supports (brightness, white tone, color, effects or just on/off)
+- `custom:ha-cover-card` – covers/shutters (single or group): draggable window graphic, up/stop/down, quick
+  positions, tilt, group members, window contacts
+- `custom:ha-cover-group-card` – any set of covers: all together on top, each cover below with only its supported controls
 - `custom:ha-climate-overview-card` – all climate devices at a glance
 
 Install via HACS as a custom repository of type **Dashboard**. All cards have a visual editor and are

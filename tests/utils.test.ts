@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { HassEntity } from "../src/types";
 import {
-  brightnessPct, contactType, editorOptions, isNoEffect, lightEditorOptions, segmentIds, detectDeviceType, kelvinToRgb, lightColor, relatedScenes, supportsColor, supportsColorTemp, dewPoint, nextSwitch, parseSchedule, scheduleTempAt, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
+  brightnessPct, contactType, coverIcon, coverPosition, editorOptions, isNoEffect, lightEditorOptions, segmentIds, detectDeviceType, kelvinToRgb, lightColor, relatedScenes, supportsColor, supportsColorTemp, dewPoint, nextSwitch, parseSchedule, scheduleTempAt, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
   openContactsKey, powerOf, resolveContacts, secondsToDuration, stateIcon, temperatureOf, temperatureTint, trendSlope,
 } from "../src/utils";
 import { formatAttribute, localize } from "../src/localize/localize";
@@ -270,5 +270,19 @@ describe("editor options", () => {
     const govee = lightEditorOptions(states, "light.carport_2");
     expect(govee.show).toEqual(expect.arrayContaining(["color", "temperature", "effects", "segments"]));
     expect(govee.show).not.toContain("lights");
+  });
+});
+
+describe("covers", () => {
+  it("derives the position", () => {
+    expect(coverPosition(entity("cover.a", "open", { current_position: 29 }))).toBe(29);
+    expect(coverPosition(entity("cover.b", "open"))).toBe(100);
+    expect(coverPosition(entity("cover.c", "closed"))).toBe(0);
+    expect(coverPosition(entity("cover.d", "unavailable", { current_position: 40 }))).toBeUndefined();
+  });
+  it("picks icons by device class and movement", () => {
+    expect(coverIcon(entity("cover.a", "closed", { device_class: "shutter", current_position: 0 }))).toBe("mdi:window-shutter");
+    expect(coverIcon(entity("cover.a", "open", { device_class: "blind", current_position: 50 }))).toBe("mdi:blinds-horizontal");
+    expect(coverIcon(entity("cover.a", "opening", {}))).toBe("mdi:arrow-up-box");
   });
 });

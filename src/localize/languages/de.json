@@ -281,5 +281,63 @@
     "group_color": "„Farbe für alle“ anbieten",
     "animations": "Animationen",
     "hint": "Jede Lampe zeigt automatisch nur, was sie kann: Helligkeit, Weißton, Farbe, Effekte – reine Ein/Aus-Lampen nur den Schalter."
+  },
+  "cover": {
+    "open": "Offen",
+    "closed": "Geschlossen",
+    "opening": "Öffnet …",
+    "closing": "Schließt …",
+    "open_short": "offen",
+    "open_action": "Öffnen",
+    "close_action": "Schließen",
+    "stop": "Stopp",
+    "position": "Position",
+    "positions": "Schnellwahl",
+    "close_short": "Zu",
+    "open_short_btn": "Auf",
+    "tilt": "Lamellen",
+    "tilt_open": "Lamellen öffnen",
+    "tilt_close": "Lamellen schließen",
+    "contact_open": "offen"
+  },
+  "cover_group": {
+    "title": "Rollläden",
+    "all": "Alle",
+    "covers": "Einzelne Rollläden",
+    "no_covers": "Keine Rollläden ausgewählt",
+    "open_all": "Alle öffnen",
+    "stop_all": "Alle stoppen",
+    "close_all": "Alle schließen"
+  },
+  "cover_editor": {
+    "entity": "Rollladen (einzeln oder Gruppe)",
+    "name": "Name",
+    "icon": "Symbol",
+    "layout": "Layout",
+    "layout_full": "Voll (Fenster)",
+    "layout_compact": "Kompakt (Regler)",
+    "sections": "Sichtbare Bereiche",
+    "covers": "Rollläden der Gruppe",
+    "positions": "Schnellwahl (% offen, z.B. 0, 25, 50, 75, 100)",
+    "tilt": "Lamellen-Neigung",
+    "room": "Raum: Rollläden & Fenster",
+    "auto_entities": "Rollläden aus der Gruppe übernehmen",
+    "entities": "Rollläden (eigene Auswahl)",
+    "contact_sensors": "Fenster-/Türkontakte",
+    "appearance": "Darstellung",
+    "expandable": "Details ausklappbar",
+    "start_expanded": "Anfangs ausgeklappt",
+    "animations": "Animationen"
+  },
+  "cover_group_editor": {
+    "entities": "Rollläden (Reihenfolge = Anzeige)",
+    "title": "Titel",
+    "icon": "Symbol",
+    "show_covers": "Einzelne Rollläden zeigen",
+    "collapsed": "Einzelne anfangs zugeklappt",
+    "show_positions": "Schnellwahl zeigen",
+    "positions": "Schnellwahl (% offen, z.B. 0, 25, 50, 75, 100)",
+    "animations": "Animationen",
+    "hint": "Jeder Rollladen zeigt automatisch nur, was er kann: Positionsregler, Auf/Stopp/Ab, Lamellen."
   }
 }

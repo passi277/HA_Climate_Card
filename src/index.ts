@@ -4,3 +4,5 @@ import "./ha-climate-card";
 import "./overview-card";
 import "./light-card";
 import "./light-group-card";
+import "./cover-card";
+import "./cover-group-card";

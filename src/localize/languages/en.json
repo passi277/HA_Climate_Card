@@ -281,5 +281,63 @@
     "group_color": "Offer “color for all”",
     "animations": "Animations",
     "hint": "Each light automatically shows only what it supports: brightness, white tone, color, effects – on/off lights just the switch."
+  },
+  "cover": {
+    "open": "Open",
+    "closed": "Closed",
+    "opening": "Opening …",
+    "closing": "Closing …",
+    "open_short": "open",
+    "open_action": "Open",
+    "close_action": "Close",
+    "stop": "Stop",
+    "position": "Position",
+    "positions": "Quick positions",
+    "close_short": "Closed",
+    "open_short_btn": "Open",
+    "tilt": "Tilt",
+    "tilt_open": "Open tilt",
+    "tilt_close": "Close tilt",
+    "contact_open": "open"
+  },
+  "cover_group": {
+    "title": "Covers",
+    "all": "All",
+    "covers": "Individual covers",
+    "no_covers": "No covers selected",
+    "open_all": "Open all",
+    "stop_all": "Stop all",
+    "close_all": "Close all"
+  },
+  "cover_editor": {
+    "entity": "Cover (single or group)",
+    "name": "Name",
+    "icon": "Icon",
+    "layout": "Layout",
+    "layout_full": "Full (window)",
+    "layout_compact": "Compact (slider)",
+    "sections": "Visible sections",
+    "covers": "Covers of the group",
+    "positions": "Quick positions (% open, e.g. 0, 25, 50, 75, 100)",
+    "tilt": "Tilt",
+    "room": "Room: covers & windows",
+    "auto_entities": "Use covers of the group",
+    "entities": "Covers (own selection)",
+    "contact_sensors": "Window/door contacts",
+    "appearance": "Appearance",
+    "expandable": "Details collapsible",
+    "start_expanded": "Initially expanded",
+    "animations": "Animations"
+  },
+  "cover_group_editor": {
+    "entities": "Covers (order = display)",
+    "title": "Title",
+    "icon": "Icon",
+    "show_covers": "Show individual covers",
+    "collapsed": "Individual covers collapsed initially",
+    "show_positions": "Show quick positions",
+    "positions": "Quick positions (% open, e.g. 0, 25, 50, 75, 100)",
+    "animations": "Animations",
+    "hint": "Each cover automatically shows only what it supports: position slider, up/stop/down, tilt."
   }
 }
