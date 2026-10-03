@@ -1,13 +1,15 @@
 {
   "name": "ha-climate-card",
   "version": "1.0.0",
-  "description": "Moderne Home Assistant Lovelace-Karte für Klimaanlagen",
+  "description": "Moderne Home Assistant Lovelace-Karte f\u00fcr Klimaanlagen",
   "type": "module",
   "main": "dist/ha-climate-card.js",
   "scripts": {
     "build": "rollup -c && node scripts/build-demo.mjs",
     "watch": "rollup -c --watch",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test": "vitest run",
+    "test:e2e": "node tests/e2e.mjs"
   },
   "license": "MIT",
   "dependencies": {
@@ -19,8 +21,10 @@
     "@rollup/plugin-node-resolve": "^15.3.0",
     "@rollup/plugin-terser": "^0.4.4",
     "@rollup/plugin-typescript": "^12.1.0",
+    "playwright": "^1.56.1",
     "rollup": "^4.24.0",
     "tslib": "^2.8.0",
-    "typescript": "^5.6.0"
+    "typescript": "^5.6.0",
+    "vitest": "^3.2.7"
   }
 }
