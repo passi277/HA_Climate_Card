@@ -30,6 +30,7 @@ export class HaLightGroupCardEditor extends LitElement {
         { name: "group_color", selector: { boolean: {} } },
       ] },
       { name: "default_presets", selector: { boolean: {} } },
+      { name: "scenes", selector: { entity: { multiple: true, filter: { domain: "scene" } } } },
       { name: "animations", selector: { select: { mode: "dropdown", options: ["full", "reduced", "off"].map((v) => ({ value: v, label: localize(this.hass, `editor.anim_${v}`) })) } } },
     ];
   }
@@ -51,7 +52,7 @@ export class HaLightGroupCardEditor extends LitElement {
     });
     for (const key of Object.keys(config) as (keyof LightGroupCardConfig)[]) {
       const v = config[key];
-      if (key !== "entities" && (v === "" || v == null)) delete config[key];
+      if (key !== "entities" && (v === "" || v == null || (Array.isArray(v) && !v.length))) delete config[key];
     }
     this._config = config;
     this.dispatchEvent(new CustomEvent("config-changed", { detail: { config }, bubbles: true, composed: true }));

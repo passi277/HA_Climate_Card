@@ -186,6 +186,8 @@ export interface LightGroupCardConfig {
   group_color?: boolean;
   /** Presets für alle (wie bei der Light Card) */
   presets?: LightCardConfig["presets"];
+  /** Szenen (z.B. Hue-Szenen des Raums) als Chips */
+  scenes?: string[];
   /** Einzellampen anzeigen */
   show_lights?: boolean;
   /** Einzellampen anfangs zugeklappt (nur Gruppenzeile) */

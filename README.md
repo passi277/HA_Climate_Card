@@ -252,6 +252,7 @@ entities:
 # collapsed: true        # Einzellampen anfangs zugeklappt
 # group_color: false     # „Farbe für alle“ ausblenden
 # show_lights: false     # nur die Gruppenzeile
+# scenes: [scene.gastezimmer_hell, scene.gastezimmer_nachtlicht]   # Szenen als Chips
 ```
 
 ## Modern Cover Card (Rollläden)

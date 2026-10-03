@@ -289,7 +289,8 @@
     "group_color": "Offer “color for all”",
     "animations": "Animations",
     "hint": "Each light automatically shows only what it supports: brightness, white tone, color, effects – on/off lights just the switch.",
-    "default_presets": "Presets bright / warm / cozy for all"
+    "default_presets": "Presets bright / warm / cozy for all",
+    "scenes": "Scenes (e.g. Hue scenes)"
   },
   "cover": {
     "open": "Open",

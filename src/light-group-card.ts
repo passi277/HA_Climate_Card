@@ -202,6 +202,7 @@ export class HaLightGroupCard extends LitElement {
       </hcc-gradient-slider>` : nothing}
       ${renderPresetChips(this.hass!, resolvePresets(this._config!.presets, lamps.some((l) => l.temp)), lamps.find((l) => l.temp && l.st.state === "on")?.st,
         (p) => { this._haptic("selection"); this._call("turn_on", lamps.filter((l) => !UNAVAILABLE.includes(l.st.state) && (p.kelvin == null || l.temp) && (!p.rgb || l.color)).map((l) => l.entity), presetData(p)); })}
+      ${this._renderScenes()}
       ${colorable ? html`<div class="group-colors">
         <button class="mini-toggle ${this._groupColorOpen ? "open" : ""}" aria-expanded=${this._groupColorOpen}
           @click=${() => { this._groupColorOpen = !this._groupColorOpen; }}>
@@ -215,6 +216,24 @@ export class HaLightGroupCard extends LitElement {
             @click=${() => { this._haptic("selection"); this._call("turn_on", colorIds, { hs_color: [h, 100] }); }}></button>`) : nothing}
         </div>` : nothing}
       </div>` : nothing}`;
+  }
+
+  /** Szenen-Chips („Gästezimmer Hell“ → „Hell“) */
+  private _renderScenes() {
+    const scenes = (this._config!.scenes ?? []).map((id) => this.hass!.states[id]).filter((s): s is HassEntity => !!s);
+    if (!scenes.length) return nothing;
+    const label = (s: HassEntity) => {
+      const n = String(s.attributes.name ?? s.attributes.friendly_name ?? s.entity_id);
+      const prefix = String(s.attributes.group_name ?? this._config!.title ?? "");
+      return prefix && n.toLowerCase().startsWith(prefix.toLowerCase() + " ") ? n.slice(prefix.length + 1) : n;
+    };
+    return html`<div class="scenes">
+      ${scenes.map((s) => html`<button class="scene" data-scene=${s.entity_id} @click=${(e: Event) => {
+        this._haptic("selection");
+        this.hass!.callService("scene", "turn_on", { entity_id: s.entity_id });
+        const el = e.currentTarget as HTMLElement; el.classList.add("fired"); setTimeout(() => el.classList.remove("fired"), 700);
+      }}><ha-icon icon="mdi:palette-outline"></ha-icon>${label(s)}</button>`)}
+    </div>`;
   }
 
   // ---------- Karte ----------
@@ -291,5 +310,14 @@ export class HaLightGroupCard extends LitElement {
       box-shadow: 0 0 0 2px rgba(255,255,255,0.15), 0 2px 6px rgba(0,0,0,0.25); transition: transform 0.2s var(--ease-spring); }
     .swatch:hover { transform: scale(1.12); }
     .lamps { display: flex; flex-direction: column; gap: 8px; }
+    .scenes { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+    .scenes::-webkit-scrollbar { display: none; }
+    .scene { flex: none; display: inline-flex; align-items: center; gap: 5px; border: none; border-radius: 999px; padding: 7px 13px 7px 10px;
+      font: inherit; font-size: 13px; cursor: pointer; background: rgba(127,127,127,0.12); color: var(--primary-text-color);
+      transition: background 0.25s, transform 0.2s; }
+    .scene ha-icon { --mdc-icon-size: 15px; color: var(--accent); }
+    .scene:hover { background: color-mix(in srgb, var(--accent) 20%, transparent); }
+    .scene.fired { background: var(--accent); color: #000; transform: scale(0.96); }
+    .scene.fired ha-icon { color: #000; }
   `];
 }

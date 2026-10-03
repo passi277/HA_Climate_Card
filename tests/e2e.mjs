@@ -746,6 +746,20 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
     ? ok("Hinweis-Karte: „Fenster/Türen offen – Büro · Balkontür“, Saugroboter; ohne Hinweis ausgeblendet") : fail(`Hinweis-Karte: ${JSON.stringify(res)}`);
 }
 
+// Licht-Gruppe: Szenen-Chips
+{
+  const res = await p.evaluate(async () => {
+    const root = document.querySelector("ha-light-group-card").shadowRoot;
+    const labels = [...root.querySelectorAll(".scene")].map((x) => x.textContent.trim());
+    const before = window.serviceCalls.length;
+    root.querySelector('.scene[data-scene="scene.gaste_wc_entspannen"]').click();
+    await new Promise((r) => setTimeout(r, 50));
+    return { labels, calls: window.serviceCalls.slice(before).map((c) => `${c.domain}.${c.service} ${c.data.entity_id}`) };
+  });
+  res.labels.join() === "Hell,Entspannen,Nachtlicht" && res.calls.join() === "scene.turn_on scene.gaste_wc_entspannen"
+    ? ok("Licht-Gruppe: Szenen-Chips (ohne Raumnamen), Tippen ruft scene.turn_on") : fail(`Licht-Gruppe Szenen: ${JSON.stringify(res)}`);
+}
+
 // Moduswechsel: jede Karte, jeder Modus (außer Auto/Heizen-Kühlen, dort zählt die Tätigkeit)
 const colorFails = await p.evaluate(async () => {
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
