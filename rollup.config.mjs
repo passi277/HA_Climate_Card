@@ -2,6 +2,7 @@ import typescript from "@rollup/plugin-typescript";
 import resolve from "@rollup/plugin-node-resolve";
 import json from "@rollup/plugin-json";
 import terser from "@rollup/plugin-terser";
+import minifyLiterals from "./scripts/minify-literals.mjs";
 
 const dev = process.env.ROLLUP_WATCH;
 
@@ -10,8 +11,10 @@ export default {
   output: { file: "dist/ha-climate-card.js", format: "es", sourcemap: false },
   plugins: [
     resolve(),
-    json(),
+    json({ compact: true }),
     typescript(),
-    !dev && terser({ format: { comments: false } }),
+    // CSS/HTML in Lit-Templates verkleinern (nach TypeScript, das die Quelldateien selbst einliest)
+    !dev && minifyLiterals(),
+    !dev && terser({ format: { comments: false }, compress: { passes: 2 } }),
   ],
 };

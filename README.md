@@ -5,6 +5,8 @@ Eine moderne Lovelace-Karte für Klimaanlagen in Home Assistant – mit Drehregl
 
 *A modern Lovelace card for air conditioners in Home Assistant – English summary below.*
 
+<p align="center"><img src="docs/preview.gif" alt="Animierte Vorschau" width="360"></p>
+
 | Hell | Dunkel |
 | --- | --- |
 | ![Vorschau hell](docs/preview-light.png) | ![Vorschau dunkel](docs/preview-dark.png) |
@@ -24,6 +26,12 @@ Eine moderne Lovelace-Karte für Klimaanlagen in Home Assistant – mit Drehregl
 - **Ist-Wert im Regler:** Ein Bogen mit Farbverlauf zeigt den Abstand zwischen Ist- und Zieltemperatur (warm → kühl beim Kühlen, kalt → warm beim Heizen), animiert solange die Anlage arbeitet
 - **Externe Ist-Temperatur:** Raumsensor *oder* Thermostat (z.B. Homematic-Wandthermostat) eintragen – ohne Eintrag wird automatisch die Temperatur der Klimaanlage genutzt
 - **Sleeptimer:** Klassisches Helfer-Muster (Schalter zum Scharfschalten + Uhrzeit) direkt in der Karte, inkl. Restzeit – passender Blueprint liegt bei
+- **Tätigkeit auch ohne `hvac_action`:** Geräte wie Gree melden nicht, ob sie gerade kühlen – die Karte leitet es aus Ist-/Solltemperatur (optional Leistung) ab, inkl. Animationen und Laufzeit
+- **Ziel-Prognose:** „Ziel in ca. 25 min“, geschätzt aus dem Temperaturverlauf; **Laufzeit heute** als Kachel
+- **Status-Chips** im Kopf: Voreinstellung, aktive Schalter, Sleeptimer, Schnell-Timer
+- **Deutsche Bezeichnungen** für Lüfter-, Lamellen- und Preset-Werte (z.B. Gree „Oben fest“, „Mittel-niedrig“)
+- **Rückmeldung & Komfort:** Sync-Anzeige, Fehlermeldung bei fehlgeschlagenen Befehlen, Haptik in der HA-App, +/− gedrückt halten
+- **Für Wandtablets:** `animations: reduced` oder `off`; Verlauf lädt erst beim Aufklappen
 - **Smarte Hinweise:** „Lüften statt Kühlen/Heizen“, wenn es draußen deutlich kühler/wärmer ist, sowie Schimmelwarnung bei hoher Luftfeuchte (mit Taupunkt und Ein-Tipp-„Entfeuchten“)
 - **Wetter heute:** Höchst-/Tiefsttemperatur, Regenwahrscheinlichkeit und Wettersymbol aus einer `weather`-Entität
 - **Schnell-Timer:** „Ausschalten in 30 / 60 / 90 / 120 min“ mit Countdown (Timer-Helfer + Blueprint)
@@ -118,6 +126,8 @@ graph_hours: 24
 | `show.timer` | bool | `true` | Sleeptimer- und Schnell-Timer-Zeile |
 | `show.hints` | bool | `true` | Hinweise (Lüften, Schimmel) und Taupunkt-Kachel |
 | `show.airflow` | bool | `true` | Luftstrom-Animation, solange das Gerät läuft |
+| `animations` | `full` \| `reduced` \| `off` | `full` | `reduced`: keine Daueranimationen (für ältere Wandtablets), `off`: zusätzlich keine Übergänge |
+| `power_threshold` | number | `25` | Unter dieser Leistung (W, aus `power_sensor`) gilt das Gerät als im Leerlauf – für Geräte ohne `hvac_action` |
 | `countdown_timer` | entity | – | Timer-Helfer (`timer.*`) für „Ausschalten in …“ |
 | `countdown_durations` | list | `[30, 60, 90, 120]` | Schnell-Timer-Dauern in Minuten |
 | `weather_entity` | entity | – | Wetter-Entität für die Vorhersage heute; dient auch als Außentemperatur, wenn kein `outdoor_sensor` gesetzt ist |
