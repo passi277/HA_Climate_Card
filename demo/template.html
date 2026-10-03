@@ -133,6 +133,19 @@
       "timer.klima_pascal": { state: "idle", attributes: { friendly_name: "Timer Klima Pascal", duration: "0:30:00" } },
       "weather.zuhause": { state: "sunny", attributes: { friendly_name: "Zuhause", temperature: 19.5, temperature_unit: "°C" } },
       "sensor.buero_feuchte": { state: "74", attributes: { unit_of_measurement: "%", device_class: "humidity" } },
+      "climate.heizung_mein_zimmer": { state: "auto", attributes: {
+        friendly_name: "Heizung mein Zimmer", supported_features: 401, hvac_modes: ["auto", "heat", "off"],
+        preset_modes: ["boost", "none"], preset_mode: "none", hvac_action: "heating", min_temp: 5, max_temp: 30.5,
+        target_temp_step: 0.5, current_temperature: 19.6, temperature: 21, current_humidity: 52,
+        current_schedule_profile: "P1", available_profiles: ["P1", "P2", "P3"],
+        schedule_data: Object.fromEntries(["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"].map((d, i) => [d, i < 5
+          ? { base_temperature: 17, periods: [{ starttime: "06:00", endtime: "09:00", temperature: 21 }, { starttime: "17:00", endtime: "22:00", temperature: 21 }] }
+          : { base_temperature: 21, periods: [{ starttime: "00:00", endtime: "06:00", temperature: 17 }, { starttime: "22:00", endtime: "24:00", temperature: 17 }] }])),
+      }},
+      "climate.wandthermostat_mein_zimmer": { state: "auto", attributes: { friendly_name: "Wandthermostat mein Zimmer", current_temperature: 19.6, current_humidity: 52 } },
+      "sensor.etrv_fenster_ventil_offnungsgrad": { state: "42", attributes: { friendly_name: "Heizkörper Fenster Ventil-Öffnungsgrad", unit_of_measurement: "%" } },
+      "sensor.etrv_tuer_ventil_offnungsgrad": { state: "18", attributes: { friendly_name: "Heizkörper Tür Ventil-Öffnungsgrad", unit_of_measurement: "%" } },
+      "sensor.etrv_fenster_betriebsspannungspegel": { state: "12", attributes: { friendly_name: "Heizkörper Fenster Betriebsspannungspegel", unit_of_measurement: "%" } },
       "sensor.wz_temp": { state: "25.1", attributes: { unit_of_measurement: "°C", device_class: "temperature" } },
       "sensor.aussen": { state: "31.6", attributes: { unit_of_measurement: "°C", device_class: "temperature" } },
       "sensor.klima_power": { state: "845", attributes: { unit_of_measurement: "W", device_class: "power" } },
@@ -161,10 +174,13 @@
       }
     };
     const cards = [];
-    const entities = Object.fromEntries(Object.keys(states).map((id) => [id, { entity_id: id, device_id: id.includes("1ed763d9") ? "dev_gree" : null }]));
+    const entities = Object.fromEntries(Object.keys(states).map((id) => [id, { entity_id: id,
+      device_id: id.includes("1ed763d9") ? "dev_gree" : null,
+      area_id: /heizung_mein_zimmer|etrv_|wandthermostat_mein/.test(id) ? "mein_zimmer" : null }]));
     const devices = { dev_gree: { id: "dev_gree", name: "Klima Schlafzimmer" } };
     const makeHass = () => ({
       states: { ...states }, entities, devices, language: lang, locale: { language: lang },
+      services: { homematicip_local: { enable_away_mode_by_duration: {}, disable_away_mode: {} } },
       config: { unit_system: { temperature: "°C" } },
       async callService(domain, service, data) {
         window.serviceCalls.push({ domain, service, data });
@@ -239,7 +255,9 @@
       ["Voll – Ist-Temp vom Wandthermostat", { entity: "climate.wohnzimmer", layout: "full", show: { graph: true },
         temperature_sensor: "climate.hmip_wth_2_wohnzimmer", contact_sensors: ["binary_sensor.wz_fenster", "binary_sensor.wz_balkontuer", "binary_sensor.wz_dachfenster"], start_expanded: true, outdoor_sensor: "sensor.aussen", power_sensor: "sensor.klima_power", energy_sensor: "sensor.klima_energy" }],
       ["Voll – Bereich + Schimmelwarnung", { entity: "climate.buero", layout: "full", humidity_sensor: "sensor.buero_feuchte", outdoor_sensor: "sensor.aussen", start_expanded: true }],
-      ["Übersicht – mehrere Geräte", { _overview: true, title: "Klimaanlagen", entities: ["climate.1ed763d9", "climate.wohnzimmer", "climate.buero", "climate.schlafzimmer"] }],
+      ["Heizung – Homematic (Wochenprogramm, Ventile, Boost)", { entity: "climate.heizung_mein_zimmer", layout: "full",
+        temperature_sensor: "climate.wandthermostat_mein_zimmer", start_expanded: true, show: { graph: false } }],
+      ["Übersicht – mehrere Geräte", { _overview: true, title: "Klimaanlagen", entities: ["climate.1ed763d9", "climate.wohnzimmer", "climate.heizung_mein_zimmer", "climate.buero", "climate.schlafzimmer"] }],
       ["Voll – Aus", { entity: "climate.schlafzimmer", layout: "full" }],
       ["Kompakt – Kühlen", { entity: "climate.wohnzimmer", layout: "compact", outdoor_sensor: "sensor.aussen", power_sensor: "sensor.klima_power" }],
       ["Kompakt – Bereich", { entity: "climate.buero", layout: "compact", window_sensor: "binary_sensor.buero_fenster" }],

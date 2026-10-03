@@ -24,9 +24,11 @@ import "./components/shortcut-row";
 import "./components/sleep-timer";
 import "./components/countdown-timer";
 import "./components/airflow";
+import "./components/heat-waves";
+import "./components/schedule-timeline";
 import {
   dewPoint, effectiveAction, etaMinutes, inferAction, isActive, modeColor, powerOf, stateIcon, temperatureOf,
-  openContactsKey, resolveContacts, temperatureTint, trendSlope, WEATHER_ICONS, type ResolvedContact, type Sample,
+  BATTERY_PATTERN, detectDeviceType, hasSchedule, nextSwitch, openContactsKey, percentOf, resolveContacts, VALVE_PATTERN, temperatureTint, trendSlope, WEATHER_ICONS, type ResolvedContact, type Sample,
 } from "./utils";
 import "./editor";
 import "./overview-card";
@@ -133,7 +135,7 @@ export class HaClimateCard extends LitElement {
       this._config.entity, this._config.temperature_sensor, this._config.humidity_sensor,
       this._config.outdoor_sensor, this._config.power_sensor, this._config.energy_sensor,
       ...this._contactIds(), this._config.timer_switch, this._config.timer_time, this._config.countdown_timer,
-      this._config.weather_entity, ...this._shortcutIds(),
+      this._config.weather_entity, ...this._shortcutIds(), ...this._valveIds(), ...this._batteryIds(),
     ].filter(Boolean) as string[];
     return ids.some((id) => old.states[id] !== this.hass!.states[id]) || old.locale !== this.hass!.locale;
   }
@@ -241,7 +243,93 @@ export class HaClimateCard extends LitElement {
       current: this._currentTemp(st),
       power: c?.power_sensor ? powerOf(this.hass?.states[c.power_sensor]) : undefined,
       powerThreshold: c?.power_threshold,
+      valve: this._isHeating(st) ? this._valveAverage() : undefined,
     }).action;
+  }
+
+  // ---------- Heizungs-Profil ----------
+
+  /** Heizung (Thermostat) oder Klimaanlage – automatisch erkannt oder per `device_type`. */
+  private _isHeating(st: HassEntity): boolean {
+    const t = this._config?.device_type ?? "auto";
+    return t === "heating" || (t === "auto" && detectDeviceType(st) === "heating");
+  }
+
+  private _heatingSensorCache?: { key: unknown; entity?: string; valves: string[]; batteries: string[] };
+
+  /** Ventil-/Batteriesensoren desselben Geräts oder Raums (z.B. Homematic eTRV „Ventil-Öffnungsgrad“). */
+  private _autoHeatingSensors(): { valves: string[]; batteries: string[] } {
+    const hass = this.hass;
+    const entityId = this._config?.entity;
+    if (!hass?.entities || !entityId || this._config?.auto_heating_sensors === false) return { valves: [], batteries: [] };
+    const cache = this._heatingSensorCache;
+    if (cache && cache.key === hass.entities && cache.entity === entityId) return cache;
+    const reg = hass.entities[entityId];
+    const areaOf = (e?: { area_id?: string | null; device_id?: string | null }) =>
+      e?.area_id ?? (e?.device_id ? hass.devices?.[e.device_id]?.area_id : undefined) ?? undefined;
+    const area = areaOf(reg);
+    const related = Object.values(hass.entities).filter((e) => e.entity_id.startsWith("sensor.") && !e.hidden
+      && ((reg?.device_id && e.device_id === reg.device_id) || (area && areaOf(e) === area)));
+    const name = (id: string) => `${id} ${hass.states[id]?.attributes.friendly_name ?? ""}`;
+    const valves = related.filter((e) => VALVE_PATTERN.test(name(e.entity_id))).map((e) => e.entity_id).sort();
+    const batteries = related.filter((e) => BATTERY_PATTERN.test(name(e.entity_id))
+      || hass.states[e.entity_id]?.attributes.device_class === "battery").map((e) => e.entity_id).sort();
+    this._heatingSensorCache = { key: hass.entities, entity: entityId, valves, batteries };
+    return { valves, batteries };
+  }
+
+  private _valveIds(): string[] {
+    return this._config?.valve_sensors ?? this._autoHeatingSensors().valves;
+  }
+
+  private _batteryIds(): string[] {
+    return this._config?.battery_sensors ?? this._autoHeatingSensors().batteries;
+  }
+
+  /** Mittlere Ventilöffnung in % (undefined ohne Ventilsensoren). */
+  private _valveAverage(): number | undefined {
+    const values = this._valveIds().map((id) => percentOf(this.hass?.states[id])).filter((v): v is number => v != null);
+    return values.length ? values.reduce((a, b) => a + b, 0) / values.length : undefined;
+  }
+
+  private _lowBatteries(): string[] {
+    return this._batteryIds().filter((id) => {
+      const v = percentOf(this.hass?.states[id]);
+      return v != null && v < 20;
+    });
+  }
+
+  private _modeLabel(st: HassEntity, mode: string): string {
+    if (this._isHeating(st)) {
+      const key = `heating_mode.${mode}`;
+      const label = this._t(key);
+      if (label !== key) return label;
+    }
+    return formatMode(this.hass!, st, mode);
+  }
+
+  private _hasBoost(st: HassEntity): boolean {
+    return this._isHeating(st) && ((st.attributes.preset_modes ?? []) as string[]).includes("boost");
+  }
+
+  private _toggleBoost(st: HassEntity): void {
+    this._haptic("light");
+    this._call("set_preset_mode", { preset_mode: st.attributes.preset_mode === "boost" ? "none" : "boost" });
+  }
+
+  private _canAway(st: HassEntity): boolean {
+    return this._isHeating(st) && !!this.hass?.services?.homematicip_local?.enable_away_mode_by_duration;
+  }
+
+  private _away(hours?: number): void {
+    const st = this._stateObj;
+    if (!st || !this.hass) return;
+    this._haptic("light");
+    const svc = hours
+      ? this.hass.callService("homematicip_local", "enable_away_mode_by_duration",
+        { entity_id: st.entity_id, hours, away_temperature: this._config?.away_temperature ?? 17 })
+      : this.hass.callService("homematicip_local", "disable_away_mode", { entity_id: st.entity_id });
+    svc.catch((err) => this._showError(err?.message ?? String(err)));
   }
 
   // ---------- Wetter ----------
@@ -389,6 +477,21 @@ export class HaClimateCard extends LitElement {
     const hass = this.hass!;
     const pills: { icon: string; text: string; warn?: boolean }[] = [];
     const preset = st.attributes.preset_mode as string | undefined;
+    if (this._isHeating(st) && st.state !== "off") {
+      if (st.state === "auto" && hasSchedule(st.attributes)) {
+        const next = nextSwitch(st.attributes, new Date());
+        if (next) {
+          const hh = `${String(next.at.getHours()).padStart(2, "0")}:${String(next.at.getMinutes()).padStart(2, "0")}`;
+          const day = next.at.toDateString() === new Date().toDateString()
+            ? "" : `${next.at.toLocaleDateString(this.hass?.locale?.language ?? "de", { weekday: "short" })} `;
+          pills.push({ icon: "mdi:calendar-arrow-right", text: `${day}${hh} → ${next.temp}°` });
+        }
+      }
+      const valve = this._valveAverage();
+      if (valve != null) pills.push({ icon: "mdi:valve", text: `${Math.round(valve)} %` });
+    }
+    const low = this._lowBatteries();
+    if (low.length) pills.push({ icon: "mdi:battery-alert-variant-outline", text: this._t("card.battery_low"), warn: true });
     if (preset && !["none", "off"].includes(preset)) {
       pills.push({ icon: "mdi:star-four-points-outline", text: formatAttribute(hass, st, "preset_mode", preset) });
     }
@@ -756,7 +859,7 @@ export class HaClimateCard extends LitElement {
       const title = openKey === "contacts_open" ? `${open.length} ${this._t("card.contacts_open")}` : this._t(`card.${openKey}`);
       banners.push(html`<div class="banner" @click=${() => this._moreInfo(open[0].entity)}>
         <ha-icon .icon=${this._contactIcon(open[0])}></ha-icon>
-        <div><strong>${title}</strong><span>${open.map((o) => o.name).join(", ")} – ${this._t("card.window_open_hint")}</span></div>
+        <div><strong>${title}</strong><span>${open.map((o) => o.name).join(", ")} – ${this._t(this._isHeating(st) ? "card.window_open_hint_heating" : "card.window_open_hint")}</span></div>
       </div>`);
     }
     if (this._show.hints) {
@@ -848,6 +951,9 @@ export class HaClimateCard extends LitElement {
           ? html`${this._renderStepper("low", t.low, step, "var(--state-climate-heat-color,#ff6d00)")}
                  ${this._renderStepper("high", t.high, step, "var(--state-climate-cool-color,#2196f3)")}`
           : html`${this._holdButton("-", "mdi:minus", () => this._stepTarget("value", -1), "round")}
+                 ${this._hasBoost(st) ? html`<button class="round boost ${a.preset_mode === "boost" ? "on" : ""}"
+                   title="Boost" aria-label="Boost" aria-pressed=${a.preset_mode === "boost"}
+                   @click=${() => this._toggleBoost(st)}><ha-icon icon="mdi:rocket-launch"></ha-icon></button>` : nothing}
                  ${this._holdButton("+", "mdi:plus", () => this._stepTarget("value", 1), "round")}`}
       </div>` : nothing}`;
   }
@@ -862,13 +968,15 @@ export class HaClimateCard extends LitElement {
     const modes = ((a.hvac_modes ?? []) as string[])
       .slice()
       .sort((x, y) => HVAC_MODE_ORDER.indexOf(x) - HVAC_MODE_ORDER.indexOf(y))
-      .map((m) => ({ value: m, label: formatMode(hass, st, m) }));
+      .map((m) => ({ value: m, label: this._modeLabel(st, m) }));
     if (show.modes && modes.length > 1) {
       parts.push(html`<hcc-mode-bar .modes=${modes} .selected=${st.state} @mode-selected=${this._setMode}></hcc-mode-bar>`, "modes");
     }
 
+    const heating = this._isHeating(st);
     const select = (key: string, attr: string, list: string, feature: number, labelKey: string, icon: string, service: string, enabled: boolean) => {
-      const options = a[list] as string[] | undefined;
+      // Bei Heizungen ist "boost" ein eigener Button, "none" bleibt die Grundeinstellung
+      const options = (a[list] as string[] | undefined)?.filter((o) => !(heating && attr === "preset_mode" && ["boost", "none"].includes(o)));
       if (!enabled || !supports(a, feature) || !options?.length) return;
       parts.push(html`<hcc-attribute-select .label=${this._t(labelKey)} .icon=${icon} .selected=${a[attr]}
         .options=${options.map((o) => ({ value: o, label: formatAttribute(hass, st, attr, o) }))}
@@ -881,6 +989,37 @@ export class HaClimateCard extends LitElement {
     select("swing", "swing_horizontal_mode", "swing_horizontal_modes", ClimateFeature.SWING_HORIZONTAL_MODE,
       "card.swing_horizontal", "mdi:arrow-left-right", "set_swing_horizontal_mode", show.swing);
     select("presets", "preset_mode", "preset_modes", ClimateFeature.PRESET_MODE, "card.preset", "mdi:star-outline", "set_preset_mode", show.presets);
+
+    if (heating && hasSchedule(a)) {
+      parts.push(html`<hcc-schedule-timeline .attrs=${a} .lang=${hass.locale?.language ?? hass.language}
+        .unit=${this._unit} .label=${this._t("card.schedule")} .profile=${a.current_schedule_profile}
+        .active=${st.state === "auto"}></hcc-schedule-timeline>`, "schedule");
+    }
+
+    if (heating && show.sensors) {
+      const valves = this._valveIds().map((id) => ({ id, v: percentOf(hass.states[id]) })).filter((x) => x.v != null);
+      if (valves.length) {
+        parts.push(html`<div class="valves">
+          ${valves.map(({ id, v }) => html`<button class="valve" @click=${() => this._moreInfo(id)}
+            title=${hass.states[id]?.attributes.friendly_name ?? id}>
+            <span class="valve-head"><ha-icon icon="mdi:valve"></ha-icon><span class="valve-name">${this._shortName(id, st).replace(/\s*(ventil[-\s]?(ö|oe)ffnungsgrad|valve( position| level)?|ventil(stellung)?)\s*/gi, " ").trim() || this._shortName(id, st)}</span>
+              <strong>${Math.round(v!)} %</strong></span>
+            <span class="valve-bar"><span style="width:${Math.max(0, Math.min(100, v!))}%"></span></span>
+          </button>`)}
+        </div>`, "valves");
+      }
+    }
+
+    if (this._canAway(st)) {
+      parts.push(html`<div class="away">
+        <span class="row-label"><ha-icon icon="mdi:bag-suitcase-outline"></ha-icon>${this._t("card.away")}</span>
+        <div class="away-chips">
+          ${[24, 72, 168].map((h) => html`<button class="away-chip" @click=${() => this._away(h)}>
+            ${h < 168 ? `${h / 24} ${this._t(h === 24 ? "card.day" : "card.days")}` : `1 ${this._t("card.week")}`}</button>`)}
+          <button class="away-chip end" @click=${() => this._away()}>${this._t("card.away_end")}</button>
+        </div>
+      </div>`, "away");
+    }
 
     if (show.timer && (this._config!.timer_switch || this._config!.timer_time)) {
       parts.push(html`<hcc-sleep-timer .hass=${hass} .switchEntity=${this._config!.timer_switch}
@@ -1092,6 +1231,10 @@ export class HaClimateCard extends LitElement {
   /** Luftstrom-Animation: nur wenn das Gerät läuft; Tempo nach Lüfterstufe, Pendeln nach Lamellen. */
   private _renderAirflow(st: HassEntity, color: string) {
     if (!this._show.airflow || !this._isActive(st) || (this._config!.animations ?? "full") !== "full") return nothing;
+    if (this._isHeating(st)) {
+      const valve = this._valveAverage();
+      return html`<hcc-heat-waves .intensity=${valve != null ? valve / 100 : 0.6}></hcc-heat-waves>`;
+    }
     const a = st.attributes;
     const fans = (a.fan_modes ?? []) as string[];
     const idx = fans.indexOf(a.fan_mode);

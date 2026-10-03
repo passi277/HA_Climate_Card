@@ -44,6 +44,8 @@ Eine moderne Lovelace-Karte für Klimaanlagen in Home Assistant – mit Drehregl
 - **Deutsch & Englisch** (folgt der HA-Spracheinstellung; Modi werden über die HA-eigenen Übersetzungen der Integration angezeigt)
 - Passt sich dem HA-Theme an (hell/dunkel), Tastaturbedienung am Regler
 
+- **Heizungen & Thermostate:** automatisch erkanntes Heizungs-Profil (z.B. Homematic IP) mit Wochenprogramm-Leiste, „Nächster Wechsel“, Boost-Button, Ventilöffnung je Heizkörper, Batterie-Warnung, Abwesend-Modus und Wärmewellen-Animation
+
 ## Installation
 
 ### HACS (empfohlen)
@@ -130,6 +132,11 @@ graph_hours: 24
 | `show.timer` | bool | `true` | Sleeptimer- und Schnell-Timer-Zeile |
 | `show.hints` | bool | `true` | Hinweise (Lüften, Schimmel) und Taupunkt-Kachel |
 | `show.airflow` | bool | `true` | Luftstrom-Animation, solange das Gerät läuft |
+| `device_type` | `auto` \| `ac` \| `heating` | `auto` | Darstellung als Klimaanlage oder Heizung; `auto` erkennt Thermostate (keine Lüfter/Lamellen, nur Heizen/Auto/Aus) |
+| `valve_sensors` | list | automatisch | Ventilöffnung (%) der Heizkörper; ohne Angabe aus Gerät/Bereich übernommen |
+| `battery_sensors` | list | automatisch | Batteriestand (%) der Thermostate; Warnung unter 20 % |
+| `auto_heating_sensors` | bool | `true` | Ventil-/Batteriesensoren automatisch aus Gerät bzw. Bereich übernehmen |
+| `away_temperature` | number | `17` | Temperatur für „Abwesend“ (Homematic `enable_away_mode_by_duration`) |
 | `animations` | `full` \| `reduced` \| `off` | `full` | `reduced`: keine Daueranimationen (für ältere Wandtablets), `off`: zusätzlich keine Übergänge |
 | `power_threshold` | number | `25` | Unter dieser Leistung (W, aus `power_sensor`) gilt das Gerät als im Leerlauf – für Geräte ohne `hvac_action` |
 | `countdown_timer` | entity | – | Timer-Helfer (`timer.*`) für „Ausschalten in …“ |
@@ -146,6 +153,28 @@ graph_hours: 24
 | `contact_sensors` | list | – | Beliebig viele Fenster-/Türkontakte (`binary_sensor`): Entity-IDs oder `{entity, name, type: window\|door}`. Offene werden im Kopf, als Hinweis und als Chip angezeigt |
 | `window_sensor` | entity | – | Veraltet (ein einzelner Kontakt) – funktioniert weiter und wird im Editor automatisch in `contact_sensors` übernommen |
 | `graph_hours` | number | `24` | Zeitraum des Verlaufsgraphen in Stunden |
+
+## Heizungen (z.B. Homematic IP)
+
+Thermostate werden automatisch erkannt. Die Karte zeigt dann statt Lüfter, Lamellen und Luftstrom:
+
+- **Wochenprogramm** als Tagesleiste (aus `schedule_data`), Wochentag umschaltbar, aktuelles Profil (P1…) und „Nächster Wechsel 17:00 → 21°“ im Kopf
+- **Boost-Button** neben −/+, **Ventilöffnung** je Heizkörper, **Batterie-Warnung**
+- **Abwesend** für 1 Tag / 3 Tage / 1 Woche (nur mit der Integration *Homematic(IP) Local*)
+- **Wärmewellen** statt Luftstrom, Tempo nach Ventilöffnung; die Tätigkeit wird bei Bedarf aus der Ventilöffnung abgeleitet
+
+Empfohlene Einrichtung pro Raum:
+
+```yaml
+type: custom:ha-climate-card
+entity: climate.heizung_group_mein_zimmer_int0000001   # Heizgruppe
+temperature_sensor: climate.hmip_wth_2_000a98a9a4cb73   # Wandthermostat (Ist-Temp + Luftfeuchte)
+contact_sensors:
+  - binary_sensor.fenster_mein_zimmer
+# valve_sensors / battery_sensors werden aus Gerät bzw. Bereich übernommen
+```
+
+Das Wochenprogramm selbst bearbeitest du weiterhin z.B. mit der *Homematic(IP) Local Climate Schedule Card*.
 
 ## Übersichtskarte
 

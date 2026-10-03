@@ -150,6 +150,30 @@ export const cardStyles = css`
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--warning-color, #ff9800) 35%, transparent); }
   .pill.warn ha-icon { color: var(--warning-color, #ff9800); }
 
+  /* Heizung: Boost, Ventile, Abwesend */
+  .round.boost { color: var(--secondary-text-color); }
+  .round.boost.on { background: var(--state-climate-heat-color, #ff6d00); color: #fff;
+    box-shadow: 0 4px 16px color-mix(in srgb, var(--state-climate-heat-color, #ff6d00) 50%, transparent); }
+  .round.boost.on ha-icon { animation: boost 1.2s ease-in-out infinite; animation-play-state: var(--hcc-anim-state, running); }
+  @keyframes boost { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2px) rotate(-6deg); } }
+  .valves { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
+  .valve { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border: none; cursor: pointer; text-align: left;
+    border-radius: var(--hcc-inner-radius, 12px); background: rgba(127,127,127,0.12); color: var(--primary-text-color); font: inherit; min-width: 0; }
+  .valve-head { display: flex; align-items: center; gap: 6px; font-size: 12px; min-width: 0; }
+  .valve-head ha-icon { --mdc-icon-size: 16px; color: var(--accent); flex: none; }
+  .valve-name { flex: 1; min-width: 0; color: var(--secondary-text-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .valve-head strong { font-size: 13px; }
+  .valve-bar { height: 5px; border-radius: 3px; background: rgba(127,127,127,0.2); overflow: hidden; }
+  .valve-bar span { display: block; height: 100%; border-radius: 3px;
+    background: linear-gradient(90deg, var(--state-climate-cool-color, #2196f3), var(--state-climate-heat-color, #ff6d00));
+    transition: width 0.6s var(--ease-out); }
+  .away { display: flex; flex-direction: column; gap: 8px; }
+  .away-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .away-chip { border: none; border-radius: 999px; padding: 7px 12px; font: inherit; font-size: 13px; cursor: pointer;
+    background: rgba(127,127,127,0.12); color: var(--primary-text-color); transition: background 0.2s; }
+  .away-chip:hover { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+  .away-chip.end { color: var(--secondary-text-color); }
+
   /* Fenster-/Türkontakte */
   .contacts { display: flex; flex-wrap: wrap; gap: 6px; }
   .contact { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; border: none; cursor: pointer;

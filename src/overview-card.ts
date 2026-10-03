@@ -3,7 +3,7 @@ import { customElement, property, state } from "lit/decorators.js";
 import type { HassEntity, HomeAssistant, OverviewCardConfig, OverviewEntityConfig } from "./types";
 import { ClimateFeature, supports } from "./const";
 import { formatAttribute, formatMode, localize } from "./localize/localize";
-import { effectiveAction, isActive, modeColor, stateIcon, temperatureOf, temperatureTint, UNAVAILABLE } from "./utils";
+import { detectDeviceType, effectiveAction, isActive, modeColor, stateIcon, temperatureOf, temperatureTint, UNAVAILABLE } from "./utils";
 
 (window as any).customCards = (window as any).customCards || [];
 (window as any).customCards.push({
@@ -199,6 +199,12 @@ export class HaClimateOverviewCard extends LitElement {
               ${this._holdButton("+", "mdi:plus", () => this._stepTarget(st, 1))}
             </div>` : nothing
         : nothing}
+      ${!off && !unavailable && detectDeviceType(st) === "heating" && (a.preset_modes ?? []).includes("boost")
+        ? html`<button class="boost ${a.preset_mode === "boost" ? "on" : ""}" title="Boost" aria-label="Boost"
+            aria-pressed=${a.preset_mode === "boost"}
+            @click=${() => { this._haptic(); this._callService("set_preset_mode", { entity_id: st.entity_id, preset_mode: a.preset_mode === "boost" ? "none" : "boost" }); }}>
+            <ha-icon icon="mdi:rocket-launch"></ha-icon></button>`
+        : nothing}
       <button class="power ${off ? "" : "on"}" ?disabled=${unavailable} @click=${() => this._togglePower(st)}
         aria-label=${this._t(off ? "card.turn_on" : "card.turn_off")} title=${this._t(off ? "card.turn_on" : "card.turn_off")}>
         <ha-icon icon="mdi:power"></ha-icon>
@@ -278,6 +284,11 @@ export class HaClimateOverviewCard extends LitElement {
       background: rgba(127,127,127,0.14); color: var(--secondary-text-color); display: flex; align-items: center; justify-content: center; }
     .power { transition: background 0.3s, box-shadow 0.4s, transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1); }
     .power:active { transform: scale(0.9); }
+    .boost { flex: none; width: 34px; height: 34px; border-radius: 50%; border: none; cursor: pointer; padding: 0;
+      background: rgba(127,127,127,0.14); color: var(--secondary-text-color); display: flex; align-items: center; justify-content: center;
+      transition: background 0.3s, color 0.3s; }
+    .boost.on { background: var(--state-climate-heat-color, #ff6d00); color: #fff; }
+    .boost ha-icon { --mdc-icon-size: 18px; }
     .power.on { background: var(--accent); color: var(--text-primary-color, #fff);
       box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 45%, transparent); }
     .stepper button { touch-action: manipulation; user-select: none; -webkit-user-select: none; transition: background 0.2s, transform 0.2s; }

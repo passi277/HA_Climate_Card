@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { HassEntity } from "../src/types";
 import {
-  contactType, dewPoint, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
+  contactType, detectDeviceType, dewPoint, nextSwitch, parseSchedule, scheduleTempAt, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
   openContactsKey, powerOf, resolveContacts, secondsToDuration, stateIcon, temperatureOf, temperatureTint, trendSlope,
 } from "../src/utils";
 import { formatAttribute, localize } from "../src/localize/localize";
@@ -147,5 +147,44 @@ describe("windows and doors", () => {
     expect(openContactsKey(open.slice(0, 1))).toBe("door_open");
     expect(openContactsKey(open.slice(1, 2))).toBe("window_open");
     expect(openContactsKey(open)).toBe("contacts_open");
+  });
+});
+
+describe("heating profile (Homematic)", () => {
+  const thermostat = entity("climate.hm", "auto", {
+    supported_features: 401, hvac_modes: ["auto", "heat", "off"], preset_modes: ["boost", "none"],
+    schedule_data: {
+      MONDAY: { base_temperature: 17, periods: [{ starttime: "06:00", endtime: "09:00", temperature: 21 }, { starttime: "17:00", endtime: "22:00", temperature: 21 }] },
+      SATURDAY: { base_temperature: 21, periods: [{ starttime: "00:00", endtime: "06:00", temperature: 17 }, { starttime: "22:00", endtime: "24:00", temperature: 17 }] },
+    },
+  });
+  it("detects heating vs. air conditioner", () => {
+    expect(detectDeviceType(thermostat)).toBe("heating");
+    expect(detectDeviceType(entity("climate.gree", "cool", { supported_features: 953, hvac_modes: ["auto", "cool", "heat", "off"] }))).toBe("ac");
+    expect(detectDeviceType(entity("climate.x", "cool", { hvac_modes: ["cool", "off"] }))).toBe("ac");
+  });
+  it("parses a day into gap-free segments incl. 24:00", () => {
+    expect(parseSchedule(thermostat.attributes, 1)).toEqual([
+      { start: 0, end: 360, temp: 17 }, { start: 360, end: 540, temp: 21 }, { start: 540, end: 1020, temp: 17 },
+      { start: 1020, end: 1320, temp: 21 }, { start: 1320, end: 1440, temp: 17 },
+    ]);
+    expect(parseSchedule(thermostat.attributes, 6)).toEqual([
+      { start: 0, end: 360, temp: 17 }, { start: 360, end: 1320, temp: 21 }, { start: 1320, end: 1440, temp: 17 },
+    ]);
+    expect(parseSchedule(thermostat.attributes, 2)).toBeUndefined();
+  });
+  it("finds the current temperature and the next switch", () => {
+    const monday0730 = new Date(2026, 9, 5, 7, 30); // Montag
+    expect(scheduleTempAt(thermostat.attributes, monday0730)).toBe(21);
+    const next = nextSwitch(thermostat.attributes, monday0730)!;
+    expect([next.at.getHours(), next.at.getMinutes(), next.temp]).toEqual([9, 0, 17]);
+    const monday2300 = new Date(2026, 9, 5, 23, 0);
+    // Dienstag hat kein Programm, nächster Wechsel am Samstag 06:00 → 21°
+    const later = nextSwitch(thermostat.attributes, monday2300)!;
+    expect([later.at.getDay(), later.at.getHours(), later.temp]).toEqual([6, 6, 21]);
+  });
+  it("uses the valve position to tell heating from idle", () => {
+    expect(inferAction("heat", { current_temperature: 25, temperature: 21 }, { valve: 40 })).toBe("heating");
+    expect(inferAction("auto", { current_temperature: 18, temperature: 21 }, { valve: 0 })).toBe("idle");
   });
 });

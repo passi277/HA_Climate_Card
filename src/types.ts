@@ -9,12 +9,14 @@ export interface HassEntity {
 export interface EntityRegistryEntry {
   entity_id: string;
   device_id?: string | null;
+  area_id?: string | null;
   hidden?: boolean;
   entity_category?: string | null;
 }
 
 export interface DeviceRegistryEntry {
   id: string;
+  area_id?: string | null;
   name?: string | null;
   name_by_user?: string | null;
 }
@@ -29,6 +31,7 @@ export interface HomeAssistant {
   themes?: { darkMode?: boolean };
   callService(domain: string, service: string, data?: Record<string, unknown>): Promise<unknown>;
   callWS<T>(msg: Record<string, unknown>): Promise<T>;
+  services?: Record<string, Record<string, unknown>>;
   connection?: {
     subscribeMessage<T>(callback: (msg: T) => void, msg: Record<string, unknown>): Promise<() => void>;
   };
@@ -99,6 +102,16 @@ export interface ClimateCardConfig {
   humidity_warning?: number;
   power_threshold?: number;
   animations?: "full" | "reduced" | "off";
+  /** Darstellung: automatisch erkannt, Klimaanlage oder Heizung */
+  device_type?: "auto" | "ac" | "heating";
+  /** Ventilöffnung (%) der Heizkörper im Raum */
+  valve_sensors?: string[];
+  /** Batteriestand (%) der Thermostate */
+  battery_sensors?: string[];
+  /** Ventil-/Batteriesensoren automatisch aus Gerät/Raum übernehmen (Heizung) */
+  auto_heating_sensors?: boolean;
+  /** Absenktemperatur für "Abwesend" (Homematic) */
+  away_temperature?: number;
 }
 
 export interface OverviewEntityConfig {

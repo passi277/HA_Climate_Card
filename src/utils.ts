@@ -38,6 +38,8 @@ export const isActive = (st: HassEntity, action: string | undefined = st.attribu
 };
 
 export interface InferOptions {
+  /** Mittlere Ventilöffnung in % (Heizkörper) – über 2 % gilt als heizend */
+  valve?: number;
   /** Ist-Temperatur (z.B. vom externen Sensor), sonst `current_temperature` */
   current?: number;
   /** Aktuelle Leistung in W – unter `powerThreshold` gilt das Gerät als im Leerlauf */
@@ -63,6 +65,7 @@ export const inferAction = (mode: string, attrs: Record<string, any>, opts: Infe
   const threshold = opts.powerThreshold ?? 25;
   if (opts.power != null && opts.power < threshold) return "idle";
   if (mode === "dry") return "drying";
+  if (opts.valve != null && (mode === "heat" || mode === "auto")) return opts.valve > 2 ? "heating" : "idle";
   const cur = opts.current ?? num2(attrs.current_temperature);
   const h = opts.hysteresis ?? 0.3;
   const target = num2(attrs.temperature);
@@ -247,3 +250,99 @@ export const openContactsKey = (open: ResolvedContact[]): "window_open" | "door_
   if (open.length > 1) return "contacts_open";
   return open[0].type === "door" ? "door_open" : "window_open";
 };
+
+// ---------- Heizungen ----------
+
+export type DeviceType = "ac" | "heating";
+
+/** Heizung: keine Lüfter/Lamellen und nur Heizen/Auto/Aus (z.B. Homematic-Thermostate). */
+export const detectDeviceType = (st: HassEntity): DeviceType => {
+  const f = Number(st.attributes.supported_features ?? 0);
+  const airFeatures = 8 | 32 | 512; // FAN_MODE | SWING_MODE | SWING_HORIZONTAL_MODE
+  const modes = (st.attributes.hvac_modes ?? []) as string[];
+  const onlyHeat = modes.includes("heat") && modes.every((m) => ["heat", "auto", "off"].includes(m));
+  return (f & airFeatures) === 0 && onlyHeat ? "heating" : "ac";
+};
+
+export interface ScheduleSegment {
+  /** Minuten seit Mitternacht */
+  start: number;
+  end: number;
+  temp: number;
+}
+
+const WEEKDAY_KEYS = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
+
+const toMinutes = (hhmm: string): number => {
+  const [h, m] = String(hhmm).split(":").map(Number);
+  return Math.min(1440, (h || 0) * 60 + (m || 0));
+};
+
+/**
+ * Tagesverlauf aus dem Homematic-Wochenprogramm (`schedule_data`): Zeitfenster plus
+ * Grundtemperatur für die Lücken, lückenlos von 0 bis 24 Uhr.
+ */
+export const parseSchedule = (attrs: Record<string, any>, weekday: number): ScheduleSegment[] | undefined => {
+  const day = attrs.schedule_data?.[WEEKDAY_KEYS[weekday]];
+  if (!day) return undefined;
+  const base = Number(day.base_temperature);
+  const periods = ((day.periods ?? []) as { starttime: string; endtime: string; temperature: number }[])
+    .map((p) => ({ start: toMinutes(p.starttime), end: toMinutes(p.endtime), temp: Number(p.temperature) }))
+    .filter((p) => p.end > p.start && Number.isFinite(p.temp))
+    .sort((a, b) => a.start - b.start);
+  const out: ScheduleSegment[] = [];
+  let pos = 0;
+  for (const p of periods) {
+    if (p.start > pos && Number.isFinite(base)) out.push({ start: pos, end: p.start, temp: base });
+    out.push({ start: Math.max(p.start, pos), end: p.end, temp: p.temp });
+    pos = Math.max(pos, p.end);
+  }
+  if (pos < 1440 && Number.isFinite(base)) out.push({ start: pos, end: 1440, temp: base });
+  // benachbarte Abschnitte mit gleicher Temperatur zusammenfassen
+  return out.reduce<ScheduleSegment[]>((acc, s) => {
+    const last = acc[acc.length - 1];
+    if (last && last.end === s.start && last.temp === s.temp) last.end = s.end;
+    else acc.push({ ...s });
+    return acc;
+  }, []);
+};
+
+export const hasSchedule = (attrs: Record<string, any>): boolean =>
+  !!attrs.schedule_data && WEEKDAY_KEYS.some((k) => attrs.schedule_data[k]);
+
+/** Laut Wochenprogramm aktuell gültige Temperatur. */
+export const scheduleTempAt = (attrs: Record<string, any>, at: Date): number | undefined => {
+  const mins = at.getHours() * 60 + at.getMinutes();
+  return parseSchedule(attrs, at.getDay())?.find((s) => mins >= s.start && mins < s.end)?.temp;
+};
+
+/** Nächster Temperaturwechsel laut Wochenprogramm (bis zu 7 Tage voraus). */
+export const nextSwitch = (attrs: Record<string, any>, now: Date): { at: Date; temp: number } | undefined => {
+  const current = scheduleTempAt(attrs, now);
+  const nowMins = now.getHours() * 60 + now.getMinutes();
+  for (let d = 0; d <= 7; d++) {
+    const date = new Date(now);
+    date.setDate(now.getDate() + d);
+    const segs = parseSchedule(attrs, date.getDay());
+    if (!segs) continue;
+    for (const s of segs) {
+      if (d === 0 && s.start <= nowMins) continue;
+      if (s.temp !== current) {
+        const at = new Date(date);
+        at.setHours(Math.floor(s.start / 60), s.start % 60, 0, 0);
+        return { at, temp: s.temp };
+      }
+    }
+  }
+  return undefined;
+};
+
+/** Prozentwert eines Sensors (Ventil, Batterie). */
+export const percentOf = (entity?: HassEntity): number | undefined => {
+  if (!entity || UNAVAILABLE.includes(entity.state)) return undefined;
+  const v = Number(entity.state);
+  return Number.isFinite(v) ? v : undefined;
+};
+
+export const VALVE_PATTERN = /ventil|valve/i;
+export const BATTERY_PATTERN = /batter|spannungspegel|voltage_level/i;

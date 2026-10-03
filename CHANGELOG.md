@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.0
+- Heizungs-Profil (automatisch erkannt, `device_type`): Wochenprogramm-Zeitleiste mit Tagesauswahl und „Nächster Wechsel“, Boost-Button, Ventilöffnung je Heizkörper (`valve_sensors`, automatisch aus Gerät/Bereich), Batterie-Warnung (`battery_sensors`), Abwesend-Modus für Homematic(IP) Local, Wärmewellen-Animation, verständliche Modusnamen
+- Tätigkeit kann aus der Ventilöffnung abgeleitet werden
+- Übersichtskarte: Boost-Button für Heizungen
+
 ## 1.0.2
 - Sleeptimer: eigene Zeitauswahl (Stunde/Minute mit +/−, gedrückt halten, Schnellwahl „in 30 min / 1 h / 2 h“) – das native Zeitfeld ließ sich in der HA-App nicht bedienen
 - Entfeuchten: Verlauf zeigt die Luftfeuchte (Raumsensor, Thermostat oder Gerät) statt der Temperatur; keine Temperatur-Prognose in diesem Modus

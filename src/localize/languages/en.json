@@ -51,7 +51,15 @@
     "closed": "closed",
     "hour": "Hour",
     "minute": "Minute",
-    "done": "Done"
+    "done": "Done",
+    "schedule": "Weekly schedule",
+    "battery_low": "Battery low",
+    "away": "Away",
+    "day": "day",
+    "days": "days",
+    "week": "week",
+    "away_end": "End",
+    "window_open_hint_heating": "Consider lowering the heating."
   },
   "hvac_mode": {
     "off": "Off",
@@ -121,7 +129,16 @@
     "anim_reduced": "Reduced (for wall tablets)",
     "anim_off": "Off",
     "power_threshold": "Idle below power (W)",
-    "contact_sensors": "Window & door contacts"
+    "contact_sensors": "Window & door contacts",
+    "device_type": "Device type",
+    "device_auto": "Detect automatically",
+    "device_ac": "Air conditioner",
+    "device_heating": "Heating / thermostat",
+    "heating_section": "Heating",
+    "valve_sensors": "Valve position (radiators)",
+    "battery_sensors": "Battery (thermostats)",
+    "auto_heating_sensors": "Add valves & batteries from device/area automatically",
+    "away_temperature": "Away temperature"
   },
   "overview": {
     "title": "Air conditioners",
@@ -189,5 +206,10 @@
     "manual": "Manual",
     "frost_protection": "Frost protection",
     "holiday": "Holiday"
+  },
+  "heating_mode": {
+    "auto": "Auto (schedule)",
+    "heat": "Manual",
+    "off": "Off"
   }
 }

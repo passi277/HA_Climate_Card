@@ -2,6 +2,7 @@ import { LitElement, css, html, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import type { ClimateCardConfig, HomeAssistant } from "./types";
 import { CARD_VERSION, DEFAULT_SHOW } from "./const";
+import { detectDeviceType } from "./utils";
 import { localize } from "./localize/localize";
 
 const sensor = (name: string, filter: Record<string, unknown>) => ({
@@ -20,6 +21,33 @@ export class HaClimateCardEditor extends LitElement {
 
   private _t(key: string): string {
     return localize(this.hass, `editor.${key}`);
+  }
+
+  /** Heizungs-Felder nur zeigen, wenn das Gerät eine Heizung ist (oder so eingestellt). */
+  private get _isHeating(): boolean {
+    const c = this._config;
+    if (!c) return false;
+    if (c.device_type === "heating") return true;
+    if (c.device_type === "ac") return false;
+    const st = c.entity ? this.hass?.states[c.entity] : undefined;
+    return !!st && detectDeviceType(st) === "heating";
+  }
+
+  private _heatingSchema() {
+    if (!this._isHeating) return [];
+    return [{
+      type: "expandable",
+      name: "",
+      flatten: true,
+      title: this._t("heating_section"),
+      icon: "mdi:radiator",
+      schema: [
+        { name: "auto_heating_sensors", selector: { boolean: {} } },
+        { name: "valve_sensors", selector: { entity: { multiple: true, filter: { domain: "sensor" } } } },
+        { name: "battery_sensors", selector: { entity: { multiple: true, filter: { domain: "sensor" } } } },
+        { name: "away_temperature", selector: { number: { min: 4.5, max: 30.5, step: 0.5, mode: "box", unit_of_measurement: "°C" } } },
+      ],
+    }];
   }
 
   private _schema() {
@@ -45,6 +73,16 @@ export class HaClimateCardEditor extends LitElement {
           },
         },
       },
+      {
+        name: "device_type",
+        selector: {
+          select: {
+            mode: "dropdown",
+            options: ["auto", "ac", "heating"].map((v) => ({ value: v, label: this._t(`device_${v}`) })),
+          },
+        },
+      },
+      ...this._heatingSchema(),
       {
         type: "expandable",
         name: "show",
@@ -191,6 +229,9 @@ export class HaClimateCardEditor extends LitElement {
       expandable: true,
       dropdown_threshold: 6,
       animations: "full",
+      device_type: "auto",
+      auto_heating_sensors: true,
+      away_temperature: 17,
       power_threshold: 25,
       ventilation_delta: 3,
       humidity_warning: 70,

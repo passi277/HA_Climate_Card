@@ -51,7 +51,15 @@
     "closed": "geschlossen",
     "hour": "Stunde",
     "minute": "Minute",
-    "done": "Fertig"
+    "done": "Fertig",
+    "schedule": "Wochenprogramm",
+    "battery_low": "Batterie schwach",
+    "away": "Abwesend",
+    "day": "Tag",
+    "days": "Tage",
+    "week": "Woche",
+    "away_end": "Beenden",
+    "window_open_hint_heating": "Heizung ggf. herunterregeln."
   },
   "hvac_mode": {
     "off": "Aus",
@@ -121,7 +129,16 @@
     "anim_reduced": "Reduziert (für Wandtablets)",
     "anim_off": "Aus",
     "power_threshold": "Leerlauf unter Leistung (W)",
-    "contact_sensors": "Fenster- & Türkontakte"
+    "contact_sensors": "Fenster- & Türkontakte",
+    "device_type": "Gerätetyp",
+    "device_auto": "Automatisch erkennen",
+    "device_ac": "Klimaanlage",
+    "device_heating": "Heizung / Thermostat",
+    "heating_section": "Heizung",
+    "valve_sensors": "Ventilöffnung (Heizkörper)",
+    "battery_sensors": "Batterie (Thermostate)",
+    "auto_heating_sensors": "Ventile & Batterien aus Gerät/Raum automatisch übernehmen",
+    "away_temperature": "Temperatur bei Abwesenheit"
   },
   "overview": {
     "title": "Klimaanlagen",
@@ -189,5 +206,10 @@
     "manual": "Manuell",
     "frost_protection": "Frostschutz",
     "holiday": "Urlaub"
+  },
+  "heating_mode": {
+    "auto": "Automatik (Wochenprogramm)",
+    "heat": "Manuell",
+    "off": "Aus"
   }
 }

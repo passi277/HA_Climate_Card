@@ -118,6 +118,32 @@ rendered >= 9 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Karte
     : fail(`Entfeuchten-Verlauf: ${JSON.stringify(res)}`);
 }
 
+// Heizung (Homematic): Profil erkannt, Wochenprogramm, Ventile, Boost
+{
+  const res = await p.evaluate(async () => {
+    const card = [...document.querySelectorAll("ha-climate-card")].find((c) => c._config.entity === "climate.heizung_mein_zimmer");
+    const root = card.shadowRoot;
+    const before = window.serviceCalls.length;
+    root.querySelector(".round.boost")?.click();
+    await new Promise((r) => setTimeout(r, 300));
+    return {
+      timeline: !!root.querySelector("hcc-schedule-timeline")?.shadowRoot.querySelector(".seg"),
+      valves: root.querySelectorAll(".valve").length,
+      fan: !!root.querySelector("hcc-attribute-select"),
+      airflow: !!root.querySelector("hcc-airflow"),
+      waves: !!root.querySelector("hcc-heat-waves"),
+      boost: window.serviceCalls.slice(before).map((c) => `${c.service}:${c.data.preset_mode}`),
+      pills: [...root.querySelectorAll(".pill")].map((x) => x.textContent.trim()),
+    };
+  });
+  res.timeline && res.valves === 2 && !res.fan && !res.airflow && res.waves
+    ? ok("Heizung: Wochenprogramm, 2 Ventile, Wärmewellen, keine Lüfter/Lamellen")
+    : fail(`Heizung: ${JSON.stringify(res)}`);
+  res.boost.includes("set_preset_mode:boost") ? ok("Boost-Button schaltet Boost") : fail(`Boost: ${res.boost}`);
+  res.pills.some((t) => t.includes("Batterie")) && res.pills.some((t) => t.includes("30 %"))
+    ? ok("Pills: Batterie schwach, Ventil-Durchschnitt") : fail(`Pills: ${res.pills}`);
+}
+
 // Moduswechsel: jede Karte, jeder Modus (außer Auto/Heizen-Kühlen, dort zählt die Tätigkeit)
 const colorFails = await p.evaluate(async () => {
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
