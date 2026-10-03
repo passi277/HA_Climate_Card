@@ -1,4 +1,4 @@
-import type { HassEntity } from "./types";
+import type { ContactConfig, ContactType, HassEntity } from "./types";
 import { ACTION_ICONS, ACTION_TO_MODE, MODE_COLORS, MODE_ICONS } from "./const";
 
 export const UNAVAILABLE = ["unavailable", "unknown"];
@@ -187,4 +187,59 @@ export const temperatureTint = (current: number | undefined, target: number | un
   const pct = Math.round(Math.min(1, Math.abs(delta) / 3) * 75);
   const color = delta > 0 ? "var(--state-climate-heat-color, #ff6d00)" : "var(--state-climate-cool-color, #2196f3)";
   return `color-mix(in srgb, ${color} ${pct}%, var(--primary-text-color))`;
+};
+
+export interface ResolvedContact {
+  entity: string;
+  name: string;
+  type: ContactType;
+  open: boolean;
+}
+
+/**
+ * Tür oder Fenster: explizit konfiguriert, sonst aus der device_class (door/garage_door → Tür),
+ * sonst am Namen erkannt ("Tür", "Door", "Tor") – Gruppen haben oft keine device_class.
+ */
+export const contactType = (entity?: HassEntity, override?: ContactType): ContactType => {
+  if (override) return override;
+  const dc = entity?.attributes.device_class;
+  if (dc === "door" || dc === "garage_door") return "door";
+  if (dc === "window") return "window";
+  const name = `${entity?.attributes.friendly_name ?? ""} ${entity?.entity_id ?? ""}`;
+  return /t(ü|ue)r|door|\btor\b|garage/i.test(name) ? "door" : "window";
+};
+
+/**
+ * Alle Fenster-/Türkontakte aus `contact_sensors` und dem älteren `window_sensor`
+ * (doppelte entfernt, fehlende Entitäten ausgelassen).
+ */
+export const resolveContacts = (
+  states: Record<string, HassEntity>,
+  config: { window_sensor?: string; contact_sensors?: (string | ContactConfig)[] },
+): ResolvedContact[] => {
+  const list: ContactConfig[] = [
+    ...(config.contact_sensors ?? []).map((c) => (typeof c === "string" ? { entity: c } : c)),
+    ...(config.window_sensor ? [{ entity: config.window_sensor }] : []),
+  ];
+  const seen = new Set<string>();
+  const out: ResolvedContact[] = [];
+  for (const c of list) {
+    const st = c?.entity ? states[c.entity] : undefined;
+    if (!st || seen.has(c.entity)) continue;
+    seen.add(c.entity);
+    out.push({
+      entity: c.entity,
+      name: c.name ?? st.attributes.friendly_name ?? c.entity,
+      type: contactType(st, c.type),
+      open: st.state === "on",
+    });
+  }
+  return out;
+};
+
+/** Übersetzungsschlüssel für den Hinweis bei offenen Kontakten. */
+export const openContactsKey = (open: ResolvedContact[]): "window_open" | "door_open" | "contacts_open" | undefined => {
+  if (!open.length) return undefined;
+  if (open.length > 1) return "contacts_open";
+  return open[0].type === "door" ? "door_open" : "window_open";
 };

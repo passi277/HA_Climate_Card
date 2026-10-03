@@ -26,7 +26,7 @@ import "./components/countdown-timer";
 import "./components/airflow";
 import {
   dewPoint, effectiveAction, etaMinutes, inferAction, isActive, modeColor, powerOf, stateIcon, temperatureOf,
-  temperatureTint, trendSlope, WEATHER_ICONS, type Sample,
+  openContactsKey, resolveContacts, temperatureTint, trendSlope, WEATHER_ICONS, type ResolvedContact, type Sample,
 } from "./utils";
 import "./editor";
 import "./overview-card";
@@ -132,7 +132,7 @@ export class HaClimateCard extends LitElement {
     const ids = [
       this._config.entity, this._config.temperature_sensor, this._config.humidity_sensor,
       this._config.outdoor_sensor, this._config.power_sensor, this._config.energy_sensor,
-      this._config.window_sensor, this._config.timer_switch, this._config.timer_time, this._config.countdown_timer,
+      ...this._contactIds(), this._config.timer_switch, this._config.timer_time, this._config.countdown_timer,
       this._config.weather_entity, ...this._shortcutIds(),
     ].filter(Boolean) as string[];
     return ids.some((id) => old.states[id] !== this.hass!.states[id]) || old.locale !== this.hass!.locale;
@@ -385,7 +385,7 @@ export class HaClimateCard extends LitElement {
   private _renderPills(st: HassEntity) {
     const c = this._config!;
     const hass = this.hass!;
-    const pills: { icon: string; text: string }[] = [];
+    const pills: { icon: string; text: string; warn?: boolean }[] = [];
     const preset = st.attributes.preset_mode as string | undefined;
     if (preset && !["none", "off"].includes(preset)) {
       pills.push({ icon: "mdi:star-four-points-outline", text: formatAttribute(hass, st, "preset_mode", preset) });
@@ -400,6 +400,10 @@ export class HaClimateCard extends LitElement {
       const end = new Date(timer.attributes.finishes_at);
       pills.push({ icon: "mdi:timer-outline", text: `${this._t("card.until")} ${String(end.getHours()).padStart(2, "0")}:${String(end.getMinutes()).padStart(2, "0")}` });
     }
+    const open = this._openContacts();
+    if (open.length) {
+      pills.push({ icon: this._contactIcon(open[0]), text: `${open.length} ${this._t("card.open")}`, warn: true });
+    }
     if (this._show.shortcuts) {
       for (const item of this._shortcutItems(st)) {
         const sh = hass.states[item.entity];
@@ -409,7 +413,7 @@ export class HaClimateCard extends LitElement {
       }
     }
     if (!pills.length) return nothing;
-    return html`<div class="pills">${pills.slice(0, 5).map((p) => html`<span class="pill"><ha-icon .icon=${p.icon}></ha-icon>${p.text}</span>`)}</div>`;
+    return html`<div class="pills">${pills.slice(0, 5).map((p) => html`<span class="pill ${p.warn ? "warn" : ""}"><ha-icon .icon=${p.icon}></ha-icon>${p.text}</span>`)}</div>`;
   }
 
   private _outdoorTemp(): number | undefined {
@@ -476,9 +480,41 @@ export class HaClimateCard extends LitElement {
     return unit ? `${s.state} ${unit}` : s.state;
   }
 
+  /** Alle konfigurierten Fenster-/Türkontakte (inkl. des älteren `window_sensor`). */
+  private _contacts(): ResolvedContact[] {
+    return this._config && this.hass ? resolveContacts(this.hass.states, this._config) : [];
+  }
+
+  private _contactIds(): string[] {
+    const c = this._config;
+    if (!c) return [];
+    return [...(c.contact_sensors ?? []).map((x) => (typeof x === "string" ? x : x.entity)), ...(c.window_sensor ? [c.window_sensor] : [])];
+  }
+
+  private _openContacts(): ResolvedContact[] {
+    return this._contacts().filter((c) => c.open);
+  }
+
+  /** Irgendein Fenster oder eine Tür ist offen. */
   private _windowOpen(): boolean {
-    const id = this._config?.window_sensor;
-    return !!id && this.hass?.states[id]?.state === "on";
+    return this._openContacts().length > 0;
+  }
+
+  private _contactIcon(c: ResolvedContact): string {
+    if (c.type === "door") return c.open ? "mdi:door-open" : "mdi:door-closed";
+    return c.open ? "mdi:window-open-variant" : "mdi:window-closed-variant";
+  }
+
+  /** Kompakte Chip-Reihe aller Kontakte: offen hervorgehoben mit Namen, geschlossen dezent. */
+  private _renderContacts() {
+    const contacts = this._contacts();
+    if (!contacts.length) return nothing;
+    return html`<div class="contacts" role="list" aria-label=${this._t("card.contacts")}>
+      ${contacts.map((c) => html`<button class="contact ${c.open ? "open" : ""}" role="listitem"
+        title=${`${c.name}: ${this._t(c.open ? "card.open" : "card.closed")}`} @click=${() => this._moreInfo(c.entity)}>
+        <ha-icon .icon=${this._contactIcon(c)}></ha-icon><span>${c.name}</span>
+      </button>`)}
+    </div>`;
   }
 
   private _autoShortcutCache?: { key: unknown; device?: string; ids: string[] };
@@ -712,10 +748,13 @@ export class HaClimateCard extends LitElement {
         <ha-icon icon="mdi:alert-circle-outline"></ha-icon><div><strong>${this._error}</strong></div>
       </div>`);
     }
-    if (this._windowOpen()) {
-      banners.push(html`<div class="banner" @click=${() => this._moreInfo(c.window_sensor)}>
-        <ha-icon icon="mdi:window-open-variant"></ha-icon>
-        <div><strong>${this._t("card.window_open")}</strong><span>${this._t("card.window_open_hint")}</span></div>
+    const open = this._openContacts();
+    const openKey = openContactsKey(open);
+    if (openKey) {
+      const title = openKey === "contacts_open" ? `${open.length} ${this._t("card.contacts_open")}` : this._t(`card.${openKey}`);
+      banners.push(html`<div class="banner" @click=${() => this._moreInfo(open[0].entity)}>
+        <ha-icon .icon=${this._contactIcon(open[0])}></ha-icon>
+        <div><strong>${title}</strong><span>${open.map((o) => o.name).join(", ")} – ${this._t("card.window_open_hint")}</span></div>
       </div>`);
     }
     if (this._show.hints) {
@@ -873,6 +912,7 @@ export class HaClimateCard extends LitElement {
     if (show.sensors) {
       const items = this._sensorItems(st);
       if (items.length) parts.push(html`<hcc-sensor-row .items=${items}></hcc-sensor-row>`, "sensors");
+      if (this._contacts().length) parts.push(this._renderContacts() as TemplateResult, "contacts");
     }
 
     const graphVisible = this._expanded || (this._config!.layout !== "compact" && this._config!.expandable === false);
@@ -963,16 +1003,6 @@ export class HaClimateCard extends LitElement {
     }
     add(c.power_sensor, "mdi:flash", "card.power");
     add(c.energy_sensor, "mdi:lightning-bolt", "card.energy");
-    if (c.window_sensor && this.hass!.states[c.window_sensor]) {
-      const open = this._windowOpen();
-      items.push({
-        entity: c.window_sensor,
-        icon: open ? "mdi:window-open-variant" : "mdi:window-closed-variant",
-        label: this.hass!.states[c.window_sensor].attributes.friendly_name ?? "Window",
-        value: this._sensorState(c.window_sensor) ?? "",
-        warning: open,
-      });
-    }
     return items;
   }
 

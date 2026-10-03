@@ -14,7 +14,7 @@
     "mode": "Mode",
     "history": "History",
     "window_open": "Window open",
-    "window_open_hint": "A window is open – consider turning off the air conditioner.",
+    "window_open_hint": "Consider turning off the air conditioner.",
     "unavailable": "Unavailable",
     "entity_not_found": "Entity not found",
     "more": "More",
@@ -43,7 +43,12 @@
     "syncing": "Sending …",
     "eta": "Target in approx.",
     "runtime_today": "Runtime today",
-    "until": "until"
+    "until": "until",
+    "door_open": "Door open",
+    "contacts_open": "windows/doors open",
+    "contacts": "Windows & doors",
+    "open": "open",
+    "closed": "closed"
   },
   "hvac_mode": {
     "off": "Off",
@@ -112,7 +117,8 @@
     "anim_full": "Full",
     "anim_reduced": "Reduced (for wall tablets)",
     "anim_off": "Off",
-    "power_threshold": "Idle below power (W)"
+    "power_threshold": "Idle below power (W)",
+    "contact_sensors": "Window & door contacts"
   },
   "overview": {
     "title": "Air conditioners",

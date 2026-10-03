@@ -6,6 +6,11 @@ const SWEEP = 270;
 const CX = 100;
 const CY = 100;
 const R = 82;
+/** Bedienbarer Bereich um den Ring (viewBox-Einheiten): Ring ±7 plus Skala, für Finger verbreitert. */
+const RING_INNER = R - 16;
+const RING_OUTER = R + 22;
+/** Wenige Grad über die Bogenenden hinaus, damit Min/Max gut erreichbar bleiben. */
+const GAP_TOLERANCE = 10;
 
 type Handle = "value" | "low" | "high";
 
@@ -60,11 +65,29 @@ export class ClimateDial extends LitElement {
     return START + SWEEP * ratio;
   }
 
+  /** Punkt relativ zum Mittelpunkt in viewBox-Einheiten (0–200). */
+  private _toLocal(clientX: number, clientY: number): { x: number; y: number } {
+    const rect = this.shadowRoot!.querySelector("svg")!.getBoundingClientRect();
+    return {
+      x: ((clientX - rect.left) / rect.width) * 200 - CX,
+      y: ((clientY - rect.top) / rect.height) * 200 - CY,
+    };
+  }
+
+  /**
+   * Liegt der Punkt auf dem Ring (inkl. Skala, fingerfreundlich verbreitert)? Die Mitte mit der
+   * Zahl und die untere Lücke des Bogens zählen nicht – dort soll ein Tippen nichts verstellen.
+   */
+  private _onRing(clientX: number, clientY: number): boolean {
+    const { x, y } = this._toLocal(clientX, clientY);
+    const dist = Math.hypot(x, y);
+    if (dist < RING_INNER || dist > RING_OUTER) return false;
+    const rel = ((Math.atan2(y, x) * 180) / Math.PI - START + 720) % 360;
+    return rel <= SWEEP + GAP_TOLERANCE || rel >= 360 - GAP_TOLERANCE;
+  }
+
   private _fromPointer(ev: PointerEvent): number {
-    const svgEl = this.shadowRoot!.querySelector("svg")!;
-    const rect = svgEl.getBoundingClientRect();
-    const x = ((ev.clientX - rect.left) / rect.width) * 200 - CX;
-    const y = ((ev.clientY - rect.top) / rect.height) * 200 - CY;
+    const { x, y } = this._toLocal(ev.clientX, ev.clientY);
     let rel = ((Math.atan2(y, x) * 180) / Math.PI - START + 720) % 360;
     if (rel > SWEEP) rel = rel > SWEEP + (360 - SWEEP) / 2 ? 0 : SWEEP;
     return this._clamp(this.min + (rel / SWEEP) * (this.max - this.min));
@@ -91,13 +114,26 @@ export class ClimateDial extends LitElement {
   }
 
   private _onPointerDown(ev: PointerEvent): void {
-    if (this.disabled) return;
+    if (this.disabled || !this._onRing(ev.clientX, ev.clientY)) return;
     ev.preventDefault();
     const v = this._fromPointer(ev);
     this._dragging = this._pickHandle(v);
     (ev.currentTarget as Element).setPointerCapture(ev.pointerId);
     this._apply(this._dragging, v);
     this._emit("value-changing");
+  }
+
+  /**
+   * Seite darf über dem Regler scrollen (touch-action: pan-y). Nur eine Berührung, die auf dem
+   * Ring beginnt, unterdrückt das Scrollen – dafür braucht es einen nicht-passiven Listener.
+   */
+  private _onTouchStart = (ev: TouchEvent): void => {
+    const t = ev.touches[0];
+    if (!this.disabled && t && this._onRing(t.clientX, t.clientY)) ev.preventDefault();
+  };
+
+  protected firstUpdated(): void {
+    this.shadowRoot!.querySelector("svg")!.addEventListener("touchstart", this._onTouchStart, { passive: false });
   }
 
   private _onPointerMove(ev: PointerEvent): void {
@@ -274,7 +310,7 @@ export class ClimateDial extends LitElement {
   static styles = css`
     :host { display: block; width: 100%; max-width: 320px; margin: 0 auto; }
     .dial { position: relative; width: 100%; aspect-ratio: 1; }
-    svg { width: 100%; height: 100%; touch-action: none; user-select: none; overflow: visible; }
+    svg { width: 100%; height: 100%; touch-action: pan-y pinch-zoom; user-select: none; -webkit-user-select: none; overflow: visible; }
     .track { fill: none; stroke: var(--hcc-track, rgba(127,127,127,0.22)); stroke-width: 14; stroke-linecap: round; transition: stroke 0.4s; }
     .active { fill: none; stroke-width: 14; stroke-linecap: round; transition: stroke 0.4s; }
     .zone { fill: none; stroke-width: 14; stroke-linecap: round; opacity: 0.45; }

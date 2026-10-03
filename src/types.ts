@@ -59,6 +59,14 @@ export interface ShortcutConfig {
   icon?: string;
 }
 
+export type ContactType = "window" | "door";
+
+export interface ContactConfig {
+  entity: string;
+  name?: string;
+  type?: ContactType;
+}
+
 export interface ClimateCardConfig {
   type: string;
   entity: string;
@@ -71,7 +79,10 @@ export interface ClimateCardConfig {
   outdoor_sensor?: string;
   power_sensor?: string;
   energy_sensor?: string;
+  /** Veraltet: ein einzelner Kontakt. Wird intern zu `contact_sensors` hinzugefügt. */
   window_sensor?: string;
+  /** Beliebig viele Fenster- und Türkontakte. */
+  contact_sensors?: (string | ContactConfig)[];
   use_sensor_for_current?: boolean;
   graph_hours?: number;
   shortcuts?: (string | ShortcutConfig)[];

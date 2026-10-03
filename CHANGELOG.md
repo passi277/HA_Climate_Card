@@ -1,5 +1,9 @@
 # Changelog
 
+## Unveröffentlicht
+- Regler reagiert nur noch auf Berührungen am Ring – Tippen in die Mitte oder neben den Bogen verstellt nichts mehr; Wischen über die Mitte scrollt die Seite
+- Beliebig viele Fenster- und Türkontakte (`contact_sensors`), Türen werden erkannt (device_class oder Name), Hinweis „Tür offen“ / „2 Fenster/Türen offen“, Chip-Reihe aller Kontakte
+
 ## 1.0.0
 
 Erste Veröffentlichung.

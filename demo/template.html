@@ -138,6 +138,9 @@
       "sensor.klima_power": { state: "845", attributes: { unit_of_measurement: "W", device_class: "power" } },
       "sensor.klima_energy": { state: "3.42", attributes: { unit_of_measurement: "kWh", device_class: "energy" } },
       "binary_sensor.buero_fenster": { state: "on", attributes: { friendly_name: "Bürofenster", device_class: "window" } },
+      "binary_sensor.wz_fenster": { state: "off", attributes: { friendly_name: "Fenster Wohnzimmer", device_class: "window" } },
+      "binary_sensor.wz_balkontuer": { state: "on", attributes: { friendly_name: "Balkontür" } },
+      "binary_sensor.wz_dachfenster": { state: "off", attributes: { friendly_name: "Dachfenster" } },
     };
     for (const [id, s] of Object.entries(states)) Object.assign(s, { entity_id: id, last_changed: now, last_updated: now });
 
@@ -234,7 +237,7 @@
         countdown_timer: "timer.klima_pascal", weather_entity: "weather.zuhause" }],
       ["Gree – ausgeklappt (Dropdown bei Lamellen)", { entity: "climate.1ed763d9", layout: "full", start_expanded: true, outdoor_sensor: "sensor.aussen", show: { graph: true } }],
       ["Voll – Ist-Temp vom Wandthermostat", { entity: "climate.wohnzimmer", layout: "full", show: { graph: true },
-        temperature_sensor: "climate.hmip_wth_2_wohnzimmer", outdoor_sensor: "sensor.aussen", power_sensor: "sensor.klima_power", energy_sensor: "sensor.klima_energy" }],
+        temperature_sensor: "climate.hmip_wth_2_wohnzimmer", contact_sensors: ["binary_sensor.wz_fenster", "binary_sensor.wz_balkontuer", "binary_sensor.wz_dachfenster"], start_expanded: true, outdoor_sensor: "sensor.aussen", power_sensor: "sensor.klima_power", energy_sensor: "sensor.klima_energy" }],
       ["Voll – Bereich + Schimmelwarnung", { entity: "climate.buero", layout: "full", humidity_sensor: "sensor.buero_feuchte", outdoor_sensor: "sensor.aussen", start_expanded: true }],
       ["Übersicht – mehrere Geräte", { _overview: true, title: "Klimaanlagen", entities: ["climate.1ed763d9", "climate.wohnzimmer", "climate.buero", "climate.schlafzimmer"] }],
       ["Voll – Aus", { entity: "climate.schlafzimmer", layout: "full" }],

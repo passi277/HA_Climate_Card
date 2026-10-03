@@ -14,7 +14,7 @@
     "mode": "Modus",
     "history": "Verlauf",
     "window_open": "Fenster offen",
-    "window_open_hint": "Ein Fenster ist geöffnet – Klimaanlage ggf. ausschalten.",
+    "window_open_hint": "Klimaanlage ggf. ausschalten.",
     "unavailable": "Nicht verfügbar",
     "entity_not_found": "Entität nicht gefunden",
     "more": "Mehr",
@@ -43,7 +43,12 @@
     "syncing": "Wird übertragen …",
     "eta": "Ziel in ca.",
     "runtime_today": "Laufzeit heute",
-    "until": "bis"
+    "until": "bis",
+    "door_open": "Tür offen",
+    "contacts_open": "Fenster/Türen offen",
+    "contacts": "Fenster & Türen",
+    "open": "offen",
+    "closed": "geschlossen"
   },
   "hvac_mode": {
     "off": "Aus",
@@ -112,7 +117,8 @@
     "anim_full": "Voll",
     "anim_reduced": "Reduziert (für Wandtablets)",
     "anim_off": "Aus",
-    "power_threshold": "Leerlauf unter Leistung (W)"
+    "power_threshold": "Leerlauf unter Leistung (W)",
+    "contact_sensors": "Fenster- & Türkontakte"
   },
   "overview": {
     "title": "Klimaanlagen",

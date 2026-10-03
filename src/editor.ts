@@ -72,7 +72,16 @@ export class HaClimateCardEditor extends LitElement {
           sensor("power_sensor", { domain: "sensor", device_class: "power" }),
           { name: "power_threshold", selector: { number: { min: 0, max: 500, step: 1, mode: "box", unit_of_measurement: "W" } } },
           sensor("energy_sensor", { domain: "sensor", device_class: "energy" }),
-          sensor("window_sensor", { domain: "binary_sensor" }),
+          {
+            name: "contact_sensors",
+            selector: {
+              entity: {
+                multiple: true,
+                // bewusst alle binary_sensoren: Gruppen/Template-Kontakte haben oft keine device_class
+                filter: { domain: "binary_sensor" },
+              },
+            },
+          },
         ],
       },
       {
@@ -155,6 +164,15 @@ export class HaClimateCardEditor extends LitElement {
         return previous.find((p) => typeof p !== "string" && p.entity === id) ?? id;
       });
     }
+    // Fenster/Türen: Namen/Typen aus YAML erhalten; der alte `window_sensor` geht in der Liste auf.
+    if (Array.isArray(config.contact_sensors)) {
+      const previous = this._config?.contact_sensors ?? [];
+      config.contact_sensors = config.contact_sensors.map((c) => {
+        const id = typeof c === "string" ? c : c.entity;
+        return previous.find((p) => typeof p !== "string" && p.entity === id) ?? id;
+      });
+      delete config.window_sensor;
+    }
     for (const key of Object.keys(config) as (keyof ClimateCardConfig)[]) {
       const v = config[key];
       if (v === "" || v == null || (Array.isArray(v) && !v.length)) delete config[key];
@@ -178,6 +196,11 @@ export class HaClimateCardEditor extends LitElement {
       humidity_warning: 70,
       ...this._config,
       shortcuts: this._config.shortcuts?.map((s) => (typeof s === "string" ? s : s.entity)),
+      contact_sensors: [
+        ...(this._config.contact_sensors ?? []).map((c) => (typeof c === "string" ? c : c.entity)),
+        ...(this._config.window_sensor && !(this._config.contact_sensors ?? []).some((c) => (typeof c === "string" ? c : c.entity) === this._config!.window_sensor)
+          ? [this._config.window_sensor] : []),
+      ],
       countdown_durations: this._config.countdown_durations?.join(", "),
       show: { ...DEFAULT_SHOW, ...(this._config.show ?? {}) },
     };

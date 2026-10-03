@@ -98,7 +98,11 @@ humidity_sensor: sensor.wohnzimmer_luftfeuchte
 outdoor_sensor: sensor.aussentemperatur
 power_sensor: sensor.klima_leistung
 energy_sensor: sensor.klima_energie
-window_sensor: binary_sensor.wohnzimmer_fenster
+contact_sensors:          # beliebig viele Fenster und Türen
+  - binary_sensor.wohnzimmer_fenster
+  - entity: binary_sensor.balkon
+    name: Balkontür
+    type: door              # optional, sonst aus device_class bzw. Name erkannt
 graph_hours: 24
 ```
 
@@ -139,7 +143,8 @@ graph_hours: 24
 | `outdoor_sensor` | entity | – | Außentemperatur (`sensor.*` oder `weather.*`) |
 | `power_sensor` | entity | – | Aktuelle Leistung (W) |
 | `energy_sensor` | entity | – | Energieverbrauch (kWh) |
-| `window_sensor` | entity | – | Fenster-/Türkontakt (`binary_sensor`), zeigt Warnung wenn offen |
+| `contact_sensors` | list | – | Beliebig viele Fenster-/Türkontakte (`binary_sensor`): Entity-IDs oder `{entity, name, type: window\|door}`. Offene werden im Kopf, als Hinweis und als Chip angezeigt |
+| `window_sensor` | entity | – | Veraltet (ein einzelner Kontakt) – funktioniert weiter und wird im Editor automatisch in `contact_sensors` übernommen |
 | `graph_hours` | number | `24` | Zeitraum des Verlaufsgraphen in Stunden |
 
 ## Übersichtskarte

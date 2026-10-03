@@ -146,6 +146,21 @@ export const cardStyles = css`
     background: color-mix(in srgb, var(--accent) 12%, rgba(127,127,127,0.08));
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 22%, transparent); animation: slide-in 0.4s var(--ease-out) both; }
   .pill ha-icon { --mdc-icon-size: 14px; color: var(--accent); }
+  .pill.warn { background: color-mix(in srgb, var(--warning-color, #ff9800) 18%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--warning-color, #ff9800) 35%, transparent); }
+  .pill.warn ha-icon { color: var(--warning-color, #ff9800); }
+
+  /* Fenster-/Türkontakte */
+  .contacts { display: flex; flex-wrap: wrap; gap: 6px; }
+  .contact { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; border: none; cursor: pointer;
+    padding: 5px 11px 5px 8px; border-radius: 999px; font: inherit; font-size: 12px;
+    background: rgba(127,127,127,0.1); color: var(--secondary-text-color); transition: background 0.25s, color 0.25s; }
+  .contact span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .contact ha-icon { --mdc-icon-size: 18px; flex: none; }
+  .contact.open { font-weight: 600;
+    background: color-mix(in srgb, var(--warning-color, #ff9800) 18%, transparent); color: var(--warning-color, #ff9800); }
+  .contact:hover { background: rgba(127,127,127,0.18); }
+  .contact:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .dial-steppers { display: flex; justify-content: center; gap: 16px; margin-top: -24px; position: relative; flex-wrap: wrap; }
   .dial-steppers.dual { gap: 8px; margin-top: -8px; }
   hcc-climate-dial { margin-bottom: -16px; }

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { HassEntity } from "../src/types";
 import {
-  dewPoint, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor, powerOf,
-  secondsToDuration, stateIcon, temperatureOf, temperatureTint, trendSlope,
+  contactType, dewPoint, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
+  openContactsKey, powerOf, resolveContacts, secondsToDuration, stateIcon, temperatureOf, temperatureTint, trendSlope,
 } from "../src/utils";
 import { formatAttribute, localize } from "../src/localize/localize";
 import type { HomeAssistant } from "../src/types";
@@ -112,5 +112,36 @@ describe("localization", () => {
     expect(formatAttribute(hass("de"), st, "fan_mode", "medium low")).toBe("Mittel-niedrig");
     expect(formatAttribute(hass("de"), st, "swing_mode", "fixed_upper")).toBe("Oben fest");
     expect(formatAttribute(hass("en"), st, "swing_mode", "unknown_value")).toBe("Unknown value");
+  });
+});
+
+describe("windows and doors", () => {
+  const states = {
+    "binary_sensor.wz_fenster": entity("binary_sensor.wz_fenster", "off", { friendly_name: "Fenster Wohnzimmer", device_class: "window" }),
+    "binary_sensor.balkon": entity("binary_sensor.balkon", "on", { friendly_name: "Balkontür" }),
+    "binary_sensor.gruppe": entity("binary_sensor.gruppe", "on", { friendly_name: "Fenster Durchgang" }),
+  };
+  it("detects doors by device class or name", () => {
+    expect(contactType(states["binary_sensor.wz_fenster"])).toBe("window");
+    expect(contactType(states["binary_sensor.balkon"])).toBe("door");
+    expect(contactType(entity("binary_sensor.x", "off", { device_class: "garage_door" }))).toBe("door");
+    expect(contactType(entity("binary_sensor.monitor", "off", { friendly_name: "Monitor" }))).toBe("window");
+    expect(contactType(states["binary_sensor.wz_fenster"], "door")).toBe("door");
+  });
+  it("merges contact_sensors with the legacy window_sensor, without duplicates", () => {
+    const list = resolveContacts(states, {
+      window_sensor: "binary_sensor.wz_fenster",
+      contact_sensors: ["binary_sensor.wz_fenster", { entity: "binary_sensor.balkon", name: "Balkon" }, "binary_sensor.missing"],
+    });
+    expect(list.map((c) => c.entity)).toEqual(["binary_sensor.wz_fenster", "binary_sensor.balkon"]);
+    expect(list[1]).toMatchObject({ name: "Balkon", type: "door", open: true });
+  });
+  it("chooses the banner text", () => {
+    const all = resolveContacts(states, { contact_sensors: Object.keys(states) });
+    const open = all.filter((c) => c.open);
+    expect(openContactsKey([])).toBeUndefined();
+    expect(openContactsKey(open.slice(0, 1))).toBe("door_open");
+    expect(openContactsKey(open.slice(1, 2))).toBe("window_open");
+    expect(openContactsKey(open)).toBe("contacts_open");
   });
 });

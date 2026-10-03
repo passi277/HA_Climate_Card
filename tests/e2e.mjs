@@ -20,6 +20,53 @@ const rendered = await p.evaluate(() =>
   [...document.querySelectorAll("ha-climate-card, ha-climate-overview-card")].filter((c) => c.shadowRoot?.querySelector("ha-card")).length);
 rendered >= 9 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Karten gerendert`);
 
+// Regler: Tippen in die Mitte verstellt nichts, Tippen auf den Ring schon
+{
+  const dial = await p.evaluateHandle(() =>
+    document.querySelector("#card2").shadowRoot.querySelector("hcc-climate-dial").shadowRoot.querySelector("svg"));
+  await dial.scrollIntoViewIfNeeded();
+  const box = await dial.boundingBox();
+  const cx = box.x + box.width / 2;
+  const cy = box.y + box.height / 2;
+  const tempCalls = () => p.evaluate(() => window.serviceCalls.filter((c) => c.service === "set_temperature").length);
+  const before = await tempCalls();
+  for (const [dx, dy] of [[0, 0], [box.width * 0.18, 0], [0, -box.width * 0.2]]) await p.mouse.click(cx + dx, cy + dy);
+  await p.waitForTimeout(700);
+  (await tempCalls()) === before ? ok("Tippen in die Reglermitte ändert nichts") : fail("Tippen in die Mitte hat den Sollwert geändert");
+  const r = box.width * (82 / 200);
+  const a = (200 * Math.PI) / 180;
+  await p.mouse.click(cx + r * Math.cos(a), cy + r * Math.sin(a));
+  await p.waitForTimeout(700);
+  (await tempCalls()) === before + 1 ? ok("Tippen auf den Ring setzt den Sollwert") : fail("Tippen auf den Ring wirkt nicht");
+  // Touch: Wischen über die Mitte darf scrollen, Ziehen am Ring nicht
+  const prevented = await p.evaluate(({ cx, cy, r }) => {
+    const svg = document.querySelector("#card2").shadowRoot.querySelector("hcc-climate-dial").shadowRoot.querySelector("svg");
+    const fire = (x, y) => {
+      const t = new Touch({ identifier: 1, target: svg, clientX: x, clientY: y });
+      const ev = new TouchEvent("touchstart", { touches: [t], targetTouches: [t], changedTouches: [t], cancelable: true, bubbles: true });
+      svg.dispatchEvent(ev);
+      return ev.defaultPrevented;
+    };
+    return { center: fire(cx, cy), ring: fire(cx - r, cy) };
+  }, { cx, cy, r });
+  !prevented.center && prevented.ring ? ok("Seite scrollt über der Mitte, nicht am Ring") : fail(`Touch-Verhalten: ${JSON.stringify(prevented)}`);
+}
+
+// Fenster & Türen: mehrere Kontakte, Tür erkannt
+{
+  const res = await p.evaluate(() => {
+    const root = document.querySelector("#card2").shadowRoot;
+    return {
+      banner: root.querySelector(".banner strong")?.textContent,
+      chips: root.querySelectorAll(".contact").length,
+      open: root.querySelectorAll(".contact.open").length,
+    };
+  });
+  res.banner === "Tür offen" && res.chips === 3 && res.open === 1
+    ? ok("3 Kontakte, offene Balkontür als „Tür offen“ gemeldet")
+    : fail(`Kontakte: ${JSON.stringify(res)}`);
+}
+
 // Moduswechsel: jede Karte, jeder Modus (außer Auto/Heizen-Kühlen, dort zählt die Tätigkeit)
 const colorFails = await p.evaluate(async () => {
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
