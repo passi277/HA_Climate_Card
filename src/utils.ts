@@ -789,7 +789,7 @@ export const phoneSensors = (states: Record<string, HassEntity>, entities: Regis
   const out: PhoneSensors = {};
   const isBattery = (id: string) => id.startsWith("sensor.") && states[id]?.attributes.device_class === "battery";
   const isCharging = (id: string) => (id.startsWith("binary_sensor.") && states[id]?.attributes.device_class === "battery_charging")
-    || (id.startsWith("sensor.") && /charger_type|battery_state|charging/.test(id));
+    || (id.startsWith("sensor.") && /charger_type|battery_state|_charging$/.test(id));
   for (const tracker of trackers) {
     const device = entities?.[tracker]?.device_id;
     const ids = device ? Object.values(entities!).filter((e) => e.device_id === device).map((e) => e.entity_id).filter((id) => states[id]) : [];
@@ -798,7 +798,8 @@ export const phoneSensors = (states: Record<string, HassEntity>, entities: Regis
       ids.push(...[`sensor.${base}_battery_level`, `sensor.${base}_charger_type`, `sensor.${base}_battery_state`, `binary_sensor.${base}_is_charging`]
         .filter((id) => states[id]));
     }
-    out.battery ??= ids.find(isBattery);
+    out.battery ??= ids.filter(isBattery).sort((x, y) => Number(/car_/.test(x)) - Number(/car_/.test(y))
+      || Number(/battery_level$/.test(y)) - Number(/battery_level$/.test(x)))[0];
     out.charging ??= ids.filter(isCharging).sort((a, b) => Number(/charger_type/.test(b)) - Number(/charger_type/.test(a)))[0];
     if (out.battery) break;
   }

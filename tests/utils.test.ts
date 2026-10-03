@@ -403,6 +403,8 @@ describe("vacuum map", () => {
 describe("presence", () => {
   const states = Object.fromEntries([
     entity("device_tracker.marcels", "home"),
+    entity("sensor.marcel_s24_car_battery", "80", { device_class: "battery" }),
+    entity("sensor.marcel_s24_car_charging_status", "charging"),
     entity("sensor.marcel_s24_battery_level", "15", { device_class: "battery", unit_of_measurement: "%" }),
     entity("sensor.marcel_s24_charger_type", "ac", { device_class: "enum" }),
     entity("device_tracker.pascal_handy", "home"),
@@ -415,7 +417,7 @@ describe("presence", () => {
   ].map((e) => [e.entity_id, e]));
   const reg = (id: string, device: string | null) => ({ entity_id: id, device_id: device });
   const entities = Object.fromEntries([
-    reg("device_tracker.marcels", "phone_m"), reg("sensor.marcel_s24_battery_level", "phone_m"), reg("sensor.marcel_s24_charger_type", "phone_m"),
+    reg("device_tracker.marcels", "phone_m"), reg("sensor.marcel_s24_car_battery", "phone_m"), reg("sensor.marcel_s24_car_charging_status", "phone_m"), reg("sensor.marcel_s24_battery_level", "phone_m"), reg("sensor.marcel_s24_charger_type", "phone_m"),
     reg("lock.klingel", "opener"), reg("binary_sensor.klingel_klingelaktion", "opener"), reg("binary_sensor.klingel_ring_to_open", "opener"),
     reg("binary_sensor.klingel_batterie", "opener"),
   ].map((e) => [e.entity_id, e]));
