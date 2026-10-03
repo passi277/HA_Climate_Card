@@ -26,7 +26,19 @@
     "sleep_timer": "Sleeptimer",
     "timer_off": "Inaktiv",
     "timer_at": "Aus um",
-    "timer_in": "in"
+    "timer_in": "in",
+    "ventilate_cool": "Lüften statt Kühlen",
+    "ventilate_heat": "Lüften statt Heizen",
+    "ventilate_hint": "Fenster öffnen spart Strom.",
+    "outside": "Draußen",
+    "inside": "drinnen",
+    "humidity_high": "Luftfeuchte hoch",
+    "mold_hint": "Schimmelgefahr – Entfeuchten oder Lüften empfohlen",
+    "dew_point": "Taupunkt",
+    "start_dry": "Entfeuchten",
+    "today": "Heute",
+    "countdown": "Ausschalten in",
+    "cancel": "Abbrechen"
   },
   "hvac_mode": {
     "off": "Aus",
@@ -82,6 +94,24 @@
     "show_timer": "Sleeptimer",
     "timer_section": "Sleeptimer",
     "timer_switch": "Schalter zum Scharfschalten (input_boolean)",
-    "timer_time": "Ausschaltzeit (input_datetime)"
+    "timer_time": "Ausschaltzeit (input_datetime)",
+    "show_airflow": "Luftstrom-Animation",
+    "show_hints": "Hinweise (Lüften, Taupunkt, Schimmel)",
+    "weather_entity": "Wetter (Vorhersage heute)",
+    "countdown_timer": "Schnell-Timer (timer-Helfer)",
+    "countdown_durations": "Timer-Dauern in Minuten (z.B. 30, 60, 90)",
+    "ventilation_delta": "Lüften-Hinweis ab Temperaturdifferenz (°)",
+    "humidity_warning": "Schimmel-Warnung ab Luftfeuchte (%, 0 = aus)",
+    "hints_section": "Hinweise & Wetter"
+  },
+  "overview": {
+    "title": "Klimaanlagen",
+    "of": "von",
+    "running": "aktiv",
+    "all_off": "Alle aus",
+    "editor_title": "Titel",
+    "editor_entities": "Klimageräte",
+    "editor_show_all_off": "„Alle aus“-Button",
+    "editor_show_controls": "Temperatur-Regler"
   }
 }

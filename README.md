@@ -24,6 +24,11 @@ Eine moderne Lovelace-Karte für Klimaanlagen in Home Assistant – mit Drehregl
 - **Ist-Wert im Regler:** Ein Bogen mit Farbverlauf zeigt den Abstand zwischen Ist- und Zieltemperatur (warm → kühl beim Kühlen, kalt → warm beim Heizen), animiert solange die Anlage arbeitet
 - **Externe Ist-Temperatur:** Raumsensor *oder* Thermostat (z.B. Homematic-Wandthermostat) eintragen – ohne Eintrag wird automatisch die Temperatur der Klimaanlage genutzt
 - **Sleeptimer:** Klassisches Helfer-Muster (Schalter zum Scharfschalten + Uhrzeit) direkt in der Karte, inkl. Restzeit – passender Blueprint liegt bei
+- **Smarte Hinweise:** „Lüften statt Kühlen/Heizen“, wenn es draußen deutlich kühler/wärmer ist, sowie Schimmelwarnung bei hoher Luftfeuchte (mit Taupunkt und Ein-Tipp-„Entfeuchten“)
+- **Wetter heute:** Höchst-/Tiefsttemperatur, Regenwahrscheinlichkeit und Wettersymbol aus einer `weather`-Entität
+- **Schnell-Timer:** „Ausschalten in 30 / 60 / 90 / 120 min“ mit Countdown (Timer-Helfer + Blueprint)
+- **Luftstrom-Animation:** dezente Animation, Tempo nach Lüfterstufe, Pendeln nach Lamellenstellung
+- **Übersichtskarte:** alle Klimaanlagen auf einen Blick mit Regler, Ein/Aus und „Alle aus“ (`custom:ha-climate-overview-card`)
 - **Zusatzsensoren:** Raumtemperatur, Raumluftfeuchte, Außentemperatur, Leistung, Energie, Fenster-/Türkontakt
 - **Fenster-Warnung**, wenn der Kontakt offen ist
 - **Verlaufsgraph** (Ist- und Zieltemperatur, Heiz-/Kühlphasen als Farbbänder)
@@ -76,6 +81,11 @@ temperature_sensor: climate.wandthermostat_wohnzimmer   # Sensor oder Thermostat
 use_sensor_for_current: true
 timer_switch: input_boolean.sleeptimer_wohnzimmer
 timer_time: input_datetime.sleeptimer_wohnzimmer
+countdown_timer: timer.klima_wohnzimmer
+countdown_durations: [30, 60, 90, 120]
+weather_entity: weather.zuhause
+ventilation_delta: 3     # Lüften-Hinweis ab 3° Unterschied innen/außen
+humidity_warning: 70     # Schimmelwarnung ab 70 % Luftfeuchte (0 = aus)
 humidity_sensor: sensor.wohnzimmer_luftfeuchte
 outdoor_sensor: sensor.aussentemperatur
 power_sensor: sensor.klima_leistung
@@ -105,15 +115,45 @@ graph_hours: 24
 | `shortcuts` | list | – | Eigene Buttons: Entity-IDs oder `{entity, name, icon}`; Schalter werden umgeschaltet, Skripte/Szenen gestartet, Buttons gedrückt. Rechtsklick/langes Drücken öffnet die Details |
 | `temperature_sensor` | entity | – | Externe Ist-Temperatur: `sensor.*` oder Thermostat `climate.*` (dessen `current_temperature`/`current_humidity`). Leer = Werte der Klimaanlage |
 | `use_sensor_for_current` | bool | `true` | Externen Wert als Ist-Temperatur nutzen (Regler, Kopf, Graph). `false` = nur als Sensor-Kachel |
-| `show.timer` | bool | `true` | Sleeptimer-Zeile |
+| `show.timer` | bool | `true` | Sleeptimer- und Schnell-Timer-Zeile |
+| `show.hints` | bool | `true` | Hinweise (Lüften, Schimmel) und Taupunkt-Kachel |
+| `show.airflow` | bool | `true` | Luftstrom-Animation, solange das Gerät läuft |
+| `countdown_timer` | entity | – | Timer-Helfer (`timer.*`) für „Ausschalten in …“ |
+| `countdown_durations` | list | `[30, 60, 90, 120]` | Schnell-Timer-Dauern in Minuten |
+| `weather_entity` | entity | – | Wetter-Entität für die Vorhersage heute; dient auch als Außentemperatur, wenn kein `outdoor_sensor` gesetzt ist |
+| `ventilation_delta` | number | `3` | Temperaturdifferenz innen/außen, ab der „Lüften statt Kühlen/Heizen“ erscheint |
+| `humidity_warning` | number | `70` | Luftfeuchte (%), ab der die Schimmelwarnung erscheint (`0` = aus) |
 | `timer_switch` | entity | – | Schalter zum Scharfschalten des Sleeptimers (`input_boolean`/`switch`) |
 | `timer_time` | entity | – | Ausschaltzeit (`input_datetime`, nur Uhrzeit oder Datum + Uhrzeit) |
 | `humidity_sensor` | entity | – | Externer Luftfeuchte-Sensor |
-| `outdoor_sensor` | entity | – | Außentemperatur |
+| `outdoor_sensor` | entity | – | Außentemperatur (`sensor.*` oder `weather.*`) |
 | `power_sensor` | entity | – | Aktuelle Leistung (W) |
 | `energy_sensor` | entity | – | Energieverbrauch (kWh) |
 | `window_sensor` | entity | – | Fenster-/Türkontakt (`binary_sensor`), zeigt Warnung wenn offen |
 | `graph_hours` | number | `24` | Zeitraum des Verlaufsgraphen in Stunden |
+
+## Übersichtskarte
+
+Alle Klimaanlagen in einer Karte – Ist-Temperatur, Status, Sollwert mit +/−, Ein/Aus pro Gerät und „Alle aus“:
+
+```yaml
+type: custom:ha-climate-overview-card
+title: Klimaanlagen
+entities:
+  - climate.wohnzimmer
+  - climate.schlafzimmer
+  - entity: climate.marcel
+    name: Marcel
+show_all_off: true     # „Alle aus“-Button
+show_controls: true    # Sollwert-Regler je Gerät
+```
+
+## Schnell-Timer einrichten
+
+1. Helfer **Timer** (`timer.*`) anlegen
+2. Blueprint importieren und Automation erstellen:
+   [![Blueprint importieren](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Fpassi277%2FHA_Climate_Card%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Fha_climate_card%2Fclimate_countdown_timer.yaml)
+3. In der Karte `countdown_timer` eintragen – die Buttons starten den Timer, beim Ablauf schaltet die Automation aus
 
 ## Sleeptimer einrichten
 

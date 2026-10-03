@@ -26,7 +26,19 @@
     "sleep_timer": "Sleep timer",
     "timer_off": "Inactive",
     "timer_at": "Off at",
-    "timer_in": "in"
+    "timer_in": "in",
+    "ventilate_cool": "Ventilate instead of cooling",
+    "ventilate_heat": "Ventilate instead of heating",
+    "ventilate_hint": "Opening a window saves energy.",
+    "outside": "Outside",
+    "inside": "inside",
+    "humidity_high": "High humidity",
+    "mold_hint": "Risk of mould – dehumidify or ventilate",
+    "dew_point": "Dew point",
+    "start_dry": "Dehumidify",
+    "today": "Today",
+    "countdown": "Turn off in",
+    "cancel": "Cancel"
   },
   "hvac_mode": {
     "off": "Off",
@@ -82,6 +94,24 @@
     "show_timer": "Sleep timer",
     "timer_section": "Sleep timer",
     "timer_switch": "Arming switch (input_boolean)",
-    "timer_time": "Off time (input_datetime)"
+    "timer_time": "Off time (input_datetime)",
+    "show_airflow": "Airflow animation",
+    "show_hints": "Hints (ventilation, dew point, mould)",
+    "weather_entity": "Weather (today's forecast)",
+    "countdown_timer": "Quick timer (timer helper)",
+    "countdown_durations": "Timer durations in minutes (e.g. 30, 60, 90)",
+    "ventilation_delta": "Ventilation hint from temperature difference (°)",
+    "humidity_warning": "Mould warning from humidity (%, 0 = off)",
+    "hints_section": "Hints & weather"
+  },
+  "overview": {
+    "title": "Air conditioners",
+    "of": "of",
+    "running": "running",
+    "all_off": "All off",
+    "editor_title": "Title",
+    "editor_entities": "Climate entities",
+    "editor_show_all_off": "\"All off\" button",
+    "editor_show_controls": "Temperature controls"
   }
 }

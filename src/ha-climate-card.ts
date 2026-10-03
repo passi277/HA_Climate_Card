@@ -3,7 +3,6 @@ import { customElement, property, state } from "lit/decorators.js";
 import type { ClimateCardConfig, HassEntity, HomeAssistant, ShowConfig } from "./types";
 import {
   ACTION_ICONS,
-  ACTION_TO_MODE,
   AUTO_SHORTCUT_DOMAINS,
   CARD_VERSION,
   ClimateFeature,
@@ -25,10 +24,15 @@ import "./components/sensor-row";
 import "./components/history-graph";
 import "./components/shortcut-row";
 import "./components/sleep-timer";
+import "./components/countdown-timer";
+import "./components/airflow";
+import { dewPoint, isActive, modeColor, temperatureOf, WEATHER_ICONS } from "./utils";
 import "./editor";
+import "./overview-card";
 
 interface PendingTarget { value?: number; low?: number; high?: number; }
 interface Section { key: string; tpl: TemplateResult; }
+interface ForecastDay { temperature?: number; templow?: number; condition?: string; precipitation_probability?: number; }
 
 const UNAVAILABLE = ["unavailable", "unknown"];
 
@@ -54,6 +58,10 @@ export class HaClimateCard extends LitElement {
   @state() private _pending?: PendingTarget;
   @state() private _pendingHumidity?: number;
   @state() private _expanded = false;
+  @state() private _forecast?: ForecastDay;
+
+  private _weatherUnsub?: Promise<() => void>;
+  private _weatherKey?: string;
 
   private _tempTimer?: number;
   private _humTimer?: number;
@@ -103,13 +111,15 @@ export class HaClimateCard extends LitElement {
     const ids = [
       this._config.entity, this._config.temperature_sensor, this._config.humidity_sensor,
       this._config.outdoor_sensor, this._config.power_sensor, this._config.energy_sensor,
-      this._config.window_sensor, this._config.timer_switch, this._config.timer_time, ...this._shortcutIds(),
+      this._config.window_sensor, this._config.timer_switch, this._config.timer_time, this._config.countdown_timer,
+      this._config.weather_entity, ...this._shortcutIds(),
     ].filter(Boolean) as string[];
     return ids.some((id) => old.states[id] !== this.hass!.states[id]) || old.locale !== this.hass!.locale;
   }
 
   protected updated(changed: PropertyValues): void {
     super.updated(changed);
+    if (changed.has("hass") || changed.has("_config")) this._subscribeWeather();
     // Ausstehende Sollwerte verwerfen, sobald HA einen neuen Zustand meldet.
     const st = this._stateObj;
     if (st && this._sentAt && st.last_updated !== this._sentAt) {
@@ -119,8 +129,14 @@ export class HaClimateCard extends LitElement {
     }
   }
 
+  connectedCallback(): void {
+    super.connectedCallback();
+    if (this.hass) this._subscribeWeather();
+  }
+
   disconnectedCallback(): void {
     super.disconnectedCallback();
+    this._unsubscribeWeather();
     clearTimeout(this._tempTimer);
     clearTimeout(this._humTimer);
     clearTimeout(this._clearTimer);
@@ -155,14 +171,56 @@ export class HaClimateCard extends LitElement {
   }
 
   private _modeColor(st: HassEntity): string {
-    if (st.state === "off" || UNAVAILABLE.includes(st.state)) return MODE_COLORS.off;
-    const fromAction = ACTION_TO_MODE[st.attributes.hvac_action];
-    return MODE_COLORS[fromAction ?? st.state] ?? "var(--primary-color)";
+    return modeColor(st);
   }
 
   private _isActive(st: HassEntity): boolean {
-    const action = st.attributes.hvac_action;
-    return !!action && !["idle", "off"].includes(action) && st.state !== "off";
+    return !!st.attributes.hvac_action && isActive(st);
+  }
+
+  // ---------- Wetter ----------
+
+  private _unsubscribeWeather(): void {
+    this._weatherUnsub?.then((unsub) => unsub()).catch(() => undefined);
+    this._weatherUnsub = undefined;
+    this._weatherKey = undefined;
+  }
+
+  /** Tagesvorhersage abonnieren (weather/subscribe_forecast), Fallback auf altes `forecast`-Attribut. */
+  private _subscribeWeather(): void {
+    const id = this._config?.weather_entity;
+    if (!id || !this.hass || !this.isConnected) {
+      if (this._weatherKey) this._unsubscribeWeather();
+      return;
+    }
+    if (this._weatherKey === id) return;
+    this._unsubscribeWeather();
+    this._weatherKey = id;
+    const legacy = this.hass.states[id]?.attributes.forecast as ForecastDay[] | undefined;
+    if (legacy?.length) this._forecast = legacy[0];
+    if (!this.hass.connection) return;
+    this._weatherUnsub = this.hass.connection.subscribeMessage<{ forecast?: ForecastDay[] }>(
+      (msg) => { if (msg.forecast?.length) this._forecast = msg.forecast[0]; },
+      { type: "weather/subscribe_forecast", forecast_type: "daily", entity_id: id },
+    );
+    this._weatherUnsub.catch(() => {
+      // Integration ohne Tagesvorhersage → stündlich versuchen
+      this._weatherUnsub = this.hass?.connection?.subscribeMessage<{ forecast?: ForecastDay[] }>(
+        (msg) => {
+          if (!msg.forecast?.length) return;
+          const today = msg.forecast.slice(0, 24).map((f) => f.temperature).filter((v): v is number => v != null);
+          this._forecast = { condition: msg.forecast[0].condition, temperature: Math.max(...today), templow: Math.min(...today) };
+        },
+        { type: "weather/subscribe_forecast", forecast_type: "hourly", entity_id: id },
+      );
+      this._weatherUnsub?.catch(() => undefined);
+    });
+  }
+
+  private _outdoorTemp(): number | undefined {
+    const c = this._config!;
+    const out = c.outdoor_sensor ? temperatureOf(this.hass!.states[c.outdoor_sensor]) : undefined;
+    return out ?? (c.weather_entity ? temperatureOf(this.hass!.states[c.weather_entity]) : undefined);
   }
 
   /** Externer Raumsensor/Thermostat wird als Ist-Temperatur genutzt (Standard, sobald einer eingetragen ist). */
@@ -214,6 +272,10 @@ export class HaClimateCard extends LitElement {
     const s = this.hass.states[entityId];
     if (!s) return undefined;
     if (UNAVAILABLE.includes(s.state)) return "–";
+    if (entityId.startsWith("weather.") || entityId.startsWith("climate.")) {
+      const t = temperatureOf(s);
+      return t != null ? `${t} ${s.attributes.temperature_unit ?? this._unit}` : "–";
+    }
     if (this.hass.formatEntityState) return this.hass.formatEntityState(s);
     const unit = s.attributes.unit_of_measurement;
     return unit ? `${s.state} ${unit}` : s.state;
@@ -400,12 +462,53 @@ export class HaClimateCard extends LitElement {
       </div>`;
   }
 
-  private _renderWindowWarning(): TemplateResult | typeof nothing {
-    if (!this._windowOpen()) return nothing;
-    return html`<div class="banner" @click=${() => this._moreInfo(this._config!.window_sensor)}>
-      <ha-icon icon="mdi:window-open-variant"></ha-icon>
-      <div><strong>${this._t("card.window_open")}</strong><span>${this._t("card.window_open_hint")}</span></div>
-    </div>`;
+  /** Hinweise: Fenster offen, Lüften statt Kühlen/Heizen, hohe Luftfeuchte (Schimmelgefahr). */
+  private _renderHints(st: HassEntity): TemplateResult | typeof nothing {
+    const c = this._config!;
+    const banners: TemplateResult[] = [];
+    if (this._windowOpen()) {
+      banners.push(html`<div class="banner" @click=${() => this._moreInfo(c.window_sensor)}>
+        <ha-icon icon="mdi:window-open-variant"></ha-icon>
+        <div><strong>${this._t("card.window_open")}</strong><span>${this._t("card.window_open_hint")}</span></div>
+      </div>`);
+    }
+    if (this._show.hints) {
+      const inside = this._currentTemp(st);
+      const outside = this._outdoorTemp();
+      const delta = c.ventilation_delta ?? 3;
+      const cooling = st.state === "cool" || st.attributes.hvac_action === "cooling";
+      const heating = st.state === "heat" || st.attributes.hvac_action === "heating";
+      if (!this._windowOpen() && inside != null && outside != null) {
+        const fmt = (v: number) => `${v.toFixed(1)}°`;
+        if (cooling && inside - outside >= delta) {
+          banners.push(html`<div class="banner info">
+            <ha-icon icon="mdi:weather-windy"></ha-icon>
+            <div><strong>${this._t("card.ventilate_cool")}</strong>
+              <span>${this._t("card.outside")} ${fmt(outside)} · ${this._t("card.inside")} ${fmt(inside)} – ${this._t("card.ventilate_hint")}</span></div>
+          </div>`);
+        } else if (heating && outside - inside >= delta) {
+          banners.push(html`<div class="banner info">
+            <ha-icon icon="mdi:weather-windy"></ha-icon>
+            <div><strong>${this._t("card.ventilate_heat")}</strong>
+              <span>${this._t("card.outside")} ${fmt(outside)} · ${this._t("card.inside")} ${fmt(inside)} – ${this._t("card.ventilate_hint")}</span></div>
+          </div>`);
+        }
+      }
+      const hum = this._currentHumidity(st);
+      const limit = c.humidity_warning ?? 70;
+      if (hum != null && limit > 0 && hum >= limit) {
+        const dp = inside != null ? dewPoint(inside, hum, this._unit) : undefined;
+        const canDry = (st.attributes.hvac_modes ?? []).includes("dry") && st.state !== "dry";
+        banners.push(html`<div class="banner humid">
+          <ha-icon icon="mdi:water-alert"></ha-icon>
+          <div><strong>${this._t("card.humidity_high")} (${Math.round(hum)} %)</strong>
+            <span>${this._t("card.mold_hint")}${dp != null ? ` · ${this._t("card.dew_point")} ${dp.toFixed(1)}°` : ""}</span></div>
+          ${canDry ? html`<button class="banner-action" @click=${() => this._call("set_hvac_mode", { hvac_mode: "dry" })}>
+            ${this._t("card.start_dry")}</button>` : nothing}
+        </div>`);
+      }
+    }
+    return banners.length ? html`<div class="hints">${banners}</div>` : nothing;
   }
 
   private _renderStepper(which: keyof PendingTarget, value: number | undefined, step: number, color?: string) {
@@ -495,6 +598,12 @@ export class HaClimateCard extends LitElement {
         .atText=${this._t("card.timer_at")} .inText=${this._t("card.timer_in")}></hcc-sleep-timer>`, "timer");
     }
 
+    if (show.timer && this._config!.countdown_timer && hass.states[this._config!.countdown_timer]) {
+      parts.push(html`<hcc-countdown-timer .hass=${hass} .entity=${this._config!.countdown_timer}
+        .durations=${this._config!.countdown_durations ?? [30, 60, 90, 120]}
+        .label=${this._t("card.countdown")} .cancelText=${this._t("card.cancel")}></hcc-countdown-timer>`, "countdown");
+    }
+
     if (show.shortcuts) {
       const items = this._shortcutItems(st);
       if (items.length) parts.push(html`<hcc-shortcut-row .hass=${hass} .items=${items}></hcc-shortcut-row>`, "shortcuts");
@@ -572,6 +681,26 @@ export class HaClimateCard extends LitElement {
       items.push({ entity: c.humidity_sensor, icon: "mdi:water-percent", label: this._t("card.humidity"), value: `${Math.round(hum)} %` });
     }
     add(c.outdoor_sensor, "mdi:thermometer", "card.outdoor");
+    if (c.weather_entity && this.hass!.states[c.weather_entity]) {
+      const w = this.hass!.states[c.weather_entity];
+      const f = this._forecast;
+      const cond = f?.condition ?? w.state;
+      const value = f?.temperature != null
+        ? `${Math.round(f.temperature)}°${f.templow != null ? ` / ${Math.round(f.templow)}°` : ""}`
+        : this._sensorState(c.weather_entity) ?? "–";
+      const rain = f?.precipitation_probability ? ` · ☂ ${f.precipitation_probability} %` : "";
+      items.push({ entity: c.weather_entity, icon: WEATHER_ICONS[cond] ?? "mdi:weather-partly-cloudy",
+        label: `${this._t("card.today")}${rain}`, value });
+    }
+    if (this._show.hints) {
+      const t = this._currentTemp(st);
+      const h = this._currentHumidity(st);
+      const dp = t != null && h != null ? dewPoint(t, h, this._unit) : undefined;
+      if (dp != null) {
+        items.push({ icon: "mdi:water-thermometer-outline", label: this._t("card.dew_point"),
+          value: `${dp.toFixed(1)} ${this._unit}`, warning: h! >= (c.humidity_warning ?? 70) });
+      }
+    }
     add(c.power_sensor, "mdi:flash", "card.power");
     add(c.energy_sensor, "mdi:lightning-bolt", "card.energy");
     if (c.window_sensor && this.hass!.states[c.window_sensor]) {
@@ -612,9 +741,23 @@ export class HaClimateCard extends LitElement {
             : this._renderStepper("value", t.value, step, color)
           : nothing}
       </div>
-      ${this._renderWindowWarning()}
+      ${this._renderHints(st)}
       ${this._renderExpandButton()}
       ${this._expanded ? this._renderSections(this._sections(st, color), color) : nothing}`;
+  }
+
+  /** Luftstrom-Animation: nur wenn das Gerät läuft; Tempo nach Lüfterstufe, Pendeln nach Lamellen. */
+  private _renderAirflow(st: HassEntity, color: string) {
+    if (!this._show.airflow || !isActive(st)) return nothing;
+    const a = st.attributes;
+    const fans = (a.fan_modes ?? []) as string[];
+    const idx = fans.indexOf(a.fan_mode);
+    const auto = /auto/i.test(a.fan_mode ?? "");
+    const speed = idx < 0 || auto ? 0.5 : fans.filter((f) => !/auto/i.test(f)).indexOf(a.fan_mode) / Math.max(1, fans.filter((f) => !/auto/i.test(f)).length - 1);
+    const swinging = (v?: string) => !!v && (/swing|^on$|both|vertical|auto/i.test(v)) && !/fixed/i.test(v);
+    const sv = swinging(a.swing_mode) && !/^horizontal$/i.test(a.swing_mode);
+    const sh = swinging(a.swing_horizontal_mode) || /both|horizontal/i.test(a.swing_mode ?? "");
+    return html`<hcc-airflow .speed=${Math.max(0, Math.min(1, speed))} .swingVertical=${sv} .swingHorizontal=${sh} .color=${color}></hcc-airflow>`;
   }
 
   protected render() {
@@ -634,11 +777,12 @@ export class HaClimateCard extends LitElement {
     const compact = this._config.layout === "compact";
     return html`<ha-card class=${compact ? "compact" : "full"} style="--accent:${color}">
       <div class="glow"></div>
+      ${this._renderAirflow(st, color)}
       ${compact
         ? this._renderCompact(st, name, color)
         : html`
           ${this._renderHeader(st, name, color)}
-          ${this._renderWindowWarning()}
+          ${this._renderHints(st)}
           ${this._renderDial(st, color)}
           ${this._renderFullControls(st, color)}`}
     </ha-card>`;

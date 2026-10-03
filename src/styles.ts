@@ -5,10 +5,10 @@ export const cardStyles = css`
   ha-card {
     position: relative; overflow: hidden; padding: 16px; box-sizing: border-box; height: 100%;
     display: flex; flex-direction: column; gap: 14px;
-    transition: background 0.4s;
+    transition: background 0.4s; isolation: isolate;
   }
   .glow {
-    position: absolute; inset: -40% -20% auto -20%; height: 70%; pointer-events: none;
+    position: absolute; inset: -40% -20% auto -20%; height: 70%; pointer-events: none; z-index: -1;
     background: radial-gradient(closest-side, color-mix(in srgb, var(--accent) 18%, transparent), transparent);
     transition: background 0.6s;
   }
@@ -46,6 +46,16 @@ export const cardStyles = css`
   .banner ha-icon { color: var(--warning-color, #ff9800); flex: none; }
   .banner div { display: flex; flex-direction: column; font-size: 13px; }
   .banner span { color: var(--secondary-text-color); font-size: 12px; }
+  .banner div { flex: 1; min-width: 0; }
+  .banner.info { cursor: default; background: color-mix(in srgb, var(--info-color, #039be5) 15%, transparent); }
+  .banner.info ha-icon { color: var(--info-color, #039be5); }
+  .banner.humid { cursor: default; background: color-mix(in srgb, var(--state-climate-dry-color, #00bcd4) 16%, transparent); }
+  .banner.humid ha-icon { color: var(--state-climate-dry-color, #00bcd4); }
+  .banner-action {
+    flex: none; border: none; border-radius: 999px; padding: 6px 12px; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
+    background: var(--state-climate-dry-color, #00bcd4); color: #fff;
+  }
+  .hints { position: relative; display: flex; flex-direction: column; gap: 8px; }
 
   /* Dial */
   .dial-center { display: flex; flex-direction: column; align-items: center; gap: 2px; }

@@ -96,6 +96,9 @@
       "input_boolean.timer_klima_pascal": { state: "on", attributes: { friendly_name: "Sleeptimer Klima Pascal" } },
       "input_datetime.timer_klima_pascal": { state: "23:30:00", attributes: { friendly_name: "Timer Klima Pascal", has_date: false, has_time: true, hour: 23, minute: 30, second: 0 } },
       "climate.hmip_wth_2_wohnzimmer": { state: "heat", attributes: { friendly_name: "Wandthermostat Wohnzimmer", current_temperature: 26.8, current_humidity: 48 } },
+      "timer.klima_pascal": { state: "idle", attributes: { friendly_name: "Timer Klima Pascal", duration: "0:30:00" } },
+      "weather.zuhause": { state: "sunny", attributes: { friendly_name: "Zuhause", temperature: 19.5, temperature_unit: "°C" } },
+      "sensor.buero_feuchte": { state: "74", attributes: { unit_of_measurement: "%", device_class: "humidity" } },
       "sensor.wz_temp": { state: "25.1", attributes: { unit_of_measurement: "°C", device_class: "temperature" } },
       "sensor.aussen": { state: "31.6", attributes: { unit_of_measurement: "°C", device_class: "temperature" } },
       "sensor.klima_power": { state: "845", attributes: { unit_of_measurement: "W", device_class: "power" } },
@@ -114,6 +117,14 @@
         window.serviceCalls.push({ domain, service, data });
         log(`${domain}.${service} ${JSON.stringify(data)}`);
         const s = states[data.entity_id];
+        if (domain === "timer") {
+          const secs = data.duration ? data.duration.split(":").reduce((a, v) => a * 60 + Number(v), 0) : 0;
+          states[data.entity_id] = service === "start"
+            ? { ...s, state: "active", attributes: { ...s.attributes, duration: data.duration, finishes_at: new Date(Date.now() + secs * 1000).toISOString() } }
+            : { ...s, state: "idle", attributes: { ...s.attributes, finishes_at: undefined } };
+          setTimeout(() => { const h = makeHass(); cards.forEach((c) => (c.hass = h)); }, 150);
+          return;
+        }
         if (domain === "homeassistant" || domain === "input_datetime") {
           let st = s.state, attrs = s.attributes;
           if (service === "toggle") st = st === "on" ? "off" : "on";
@@ -135,6 +146,12 @@
         states[data.entity_id] = { ...s, state: st, attributes: attrs, last_updated: new Date().toISOString() };
         setTimeout(() => { const h = makeHass(); cards.forEach((c) => (c.hass = h)); }, 150);
       },
+      connection: {
+        async subscribeMessage(cb, msg) {
+          setTimeout(() => cb({ forecast: [{ condition: "sunny", temperature: 31, templow: 17, precipitation_probability: 10 }] }), 50);
+          return () => {};
+        },
+      },
       async callWS(msg) {
         const out = {};
         const end = Date.now() / 1000, start = end - 24 * 3600;
@@ -153,11 +170,13 @@
     });
 
     const configs = [
-      ["Gree – Sleeptimer + Schalter, eingeklappt", { entity: "climate.1ed763d9", layout: "full", timer_switch: "input_boolean.timer_klima_pascal", timer_time: "input_datetime.timer_klima_pascal" }],
+      ["Gree – Sleeptimer, Schnell-Timer, Lüften-Hinweis", { entity: "climate.1ed763d9", layout: "full", timer_switch: "input_boolean.timer_klima_pascal", timer_time: "input_datetime.timer_klima_pascal",
+        countdown_timer: "timer.klima_pascal", weather_entity: "weather.zuhause" }],
       ["Gree – ausgeklappt (Dropdown bei Lamellen)", { entity: "climate.1ed763d9", layout: "full", start_expanded: true, outdoor_sensor: "sensor.aussen", show: { graph: true } }],
       ["Voll – Ist-Temp vom Wandthermostat", { entity: "climate.wohnzimmer", layout: "full", show: { graph: true },
         temperature_sensor: "climate.hmip_wth_2_wohnzimmer", outdoor_sensor: "sensor.aussen", power_sensor: "sensor.klima_power", energy_sensor: "sensor.klima_energy" }],
-      ["Voll – Bereich heat_cool + Fenster offen", { entity: "climate.buero", layout: "full", window_sensor: "binary_sensor.buero_fenster", outdoor_sensor: "sensor.aussen" }],
+      ["Voll – Bereich + Schimmelwarnung", { entity: "climate.buero", layout: "full", humidity_sensor: "sensor.buero_feuchte", outdoor_sensor: "sensor.aussen", start_expanded: true }],
+      ["Übersicht – mehrere Geräte", { _overview: true, title: "Klimaanlagen", entities: ["climate.1ed763d9", "climate.wohnzimmer", "climate.buero", "climate.schlafzimmer"] }],
       ["Voll – Aus", { entity: "climate.schlafzimmer", layout: "full" }],
       ["Kompakt – Kühlen", { entity: "climate.wohnzimmer", layout: "compact", outdoor_sensor: "sensor.aussen", power_sensor: "sensor.klima_power" }],
       ["Kompakt – Bereich", { entity: "climate.buero", layout: "compact", window_sensor: "binary_sensor.buero_fenster" }],
@@ -169,9 +188,10 @@
     configs.forEach(([title, cfg], i) => {
       const wrap = document.createElement("div");
       wrap.innerHTML = `<h2>${title}</h2>`;
-      const card = document.createElement("ha-climate-card");
+      const { _overview, ...rest } = cfg;
+      const card = document.createElement(_overview ? "ha-climate-overview-card" : "ha-climate-card");
       card.id = "card" + i;
-      card.setConfig({ type: "custom:ha-climate-card", ...cfg });
+      card.setConfig({ type: _overview ? "custom:ha-climate-overview-card" : "custom:ha-climate-card", ...rest });
       card.hass = hass;
       wrap.appendChild(card);
       grid.appendChild(wrap);

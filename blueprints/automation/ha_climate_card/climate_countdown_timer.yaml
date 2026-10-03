@@ -1,0 +1,36 @@
+blueprint:
+  name: Klima-Schnell-Timer (HA Climate Card)
+  description: >-
+    Schaltet eine Klimaanlage aus, sobald ein Timer-Helfer abgelaufen ist.
+    Passt zur Option `countdown_timer` der HA Climate Card
+    (Buttons „Ausschalten in 30 / 60 / 90 min“).
+  domain: automation
+  source_url: https://github.com/passi277/HA_Climate_Card/blob/main/blueprints/automation/ha_climate_card/climate_countdown_timer.yaml
+  input:
+    climate_entity:
+      name: Klimaanlage
+      selector:
+        entity:
+          filter:
+            - domain: climate
+          multiple: true
+    timer_entity:
+      name: Timer-Helfer
+      description: Helfer „Timer“ (timer.*), der in der Karte als `countdown_timer` eingetragen ist
+      selector:
+        entity:
+          filter:
+            - domain: timer
+
+mode: single
+
+triggers:
+  - trigger: event
+    event_type: timer.finished
+    event_data:
+      entity_id: !input timer_entity
+
+actions:
+  - action: climate.turn_off
+    target:
+      entity_id: !input climate_entity

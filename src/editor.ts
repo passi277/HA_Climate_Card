@@ -78,11 +78,25 @@ export class HaClimateCardEditor extends LitElement {
         type: "expandable",
         name: "",
         flatten: true,
+        title: this._t("hints_section"),
+        icon: "mdi:weather-partly-cloudy",
+        schema: [
+          { name: "weather_entity", selector: { entity: { filter: { domain: "weather" } } } },
+          { name: "ventilation_delta", selector: { number: { min: 1, max: 15, step: 0.5, mode: "box", unit_of_measurement: "°" } } },
+          { name: "humidity_warning", selector: { number: { min: 0, max: 100, step: 1, mode: "box", unit_of_measurement: "%" } } },
+        ],
+      },
+      {
+        type: "expandable",
+        name: "",
+        flatten: true,
         title: this._t("timer_section"),
         icon: "mdi:sleep",
         schema: [
           { name: "timer_switch", selector: { entity: { filter: { domain: ["input_boolean", "switch"] } } } },
           { name: "timer_time", selector: { entity: { filter: { domain: "input_datetime" } } } },
+          { name: "countdown_timer", selector: { entity: { filter: { domain: "timer" } } } },
+          { name: "countdown_durations", selector: { text: {} } },
         ],
       },
       {
@@ -121,7 +135,13 @@ export class HaClimateCardEditor extends LitElement {
   };
 
   private _valueChanged(ev: CustomEvent): void {
-    const config = { ...ev.detail.value } as ClimateCardConfig;
+    const value = { ...ev.detail.value };
+    // Timer-Dauern werden im Editor als Text "30, 60, 90" bearbeitet
+    if (typeof value.countdown_durations === "string") {
+      const list = value.countdown_durations.split(/[,; ]+/).map(Number).filter((n: number) => n > 0);
+      value.countdown_durations = list.length ? list : undefined;
+    }
+    const config = value as ClimateCardConfig;
     // Im YAML gesetzte Namen/Icons der Schalter beim Bearbeiten über die Entitätsliste erhalten.
     if (Array.isArray(config.shortcuts)) {
       const previous = this._config?.shortcuts ?? [];
@@ -147,8 +167,11 @@ export class HaClimateCardEditor extends LitElement {
       use_sensor_for_current: true,
       expandable: true,
       dropdown_threshold: 6,
+      ventilation_delta: 3,
+      humidity_warning: 70,
       ...this._config,
       shortcuts: this._config.shortcuts?.map((s) => (typeof s === "string" ? s : s.entity)),
+      countdown_durations: this._config.countdown_durations?.join(", "),
       show: { ...DEFAULT_SHOW, ...(this._config.show ?? {}) },
     };
     return html`<ha-form .hass=${this.hass} .data=${data} .schema=${this._schema()}

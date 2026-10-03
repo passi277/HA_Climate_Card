@@ -29,6 +29,9 @@ export interface HomeAssistant {
   themes?: { darkMode?: boolean };
   callService(domain: string, service: string, data?: Record<string, unknown>): Promise<unknown>;
   callWS<T>(msg: Record<string, unknown>): Promise<T>;
+  connection?: {
+    subscribeMessage<T>(callback: (msg: T) => void, msg: Record<string, unknown>): Promise<() => void>;
+  };
   localize?(key: string, ...args: unknown[]): string;
   formatEntityState?(entity: HassEntity, state?: string): string;
   formatEntityAttributeValue?(entity: HassEntity, attribute: string, value?: unknown): string;
@@ -46,6 +49,8 @@ export interface ShowConfig {
   graph?: boolean;
   shortcuts?: boolean;
   timer?: boolean;
+  airflow?: boolean;
+  hints?: boolean;
 }
 
 export interface ShortcutConfig {
@@ -76,4 +81,22 @@ export interface ClimateCardConfig {
   dropdown_threshold?: number;
   timer_switch?: string;
   timer_time?: string;
+  countdown_timer?: string;
+  countdown_durations?: number[];
+  weather_entity?: string;
+  ventilation_delta?: number;
+  humidity_warning?: number;
+}
+
+export interface OverviewEntityConfig {
+  entity: string;
+  name?: string;
+}
+
+export interface OverviewCardConfig {
+  type: string;
+  title?: string;
+  entities: (string | OverviewEntityConfig)[];
+  show_all_off?: boolean;
+  show_controls?: boolean;
 }
