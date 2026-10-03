@@ -560,7 +560,8 @@
     "settings": "Suction & modes",
     "maintenance": "Maintenance",
     "selects": "Selects (otherwise from the device)",
-    "hint": "Rooms and room borders come from the map image (e.g. Roborock Custom Map). Room cleaning via vacuum.send_command \"app_segment_clean\"."
+    "hint": "Rooms and room borders come from the map image (e.g. Roborock Custom Map). Room cleaning via vacuum.send_command \"app_segment_clean\".",
+    "maintenance_sensors": "More maintenance sensors (e.g. dock)"
   },
   "presence": {
     "home": "Home",

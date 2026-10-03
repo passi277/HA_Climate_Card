@@ -555,6 +555,11 @@ export const weatherOverlay = (condition?: string): { clouds: number; rain: bool
 
 /** Uhrzeit/Datum eines input_datetime: Minuten seit Mitternacht und Datum (lokal). */
 export const datetimeParts = (st?: HassEntity): { minutes?: number; date?: Date; hasTime: boolean; hasDate: boolean } => {
+  // time.* (z.B. Roborock „Bitte nicht stören Beginn“): Zustand „22:00:00“
+  if (st?.entity_id.startsWith("time.")) {
+    const m = /^(\d{1,2}):(\d{2})/.exec(st.state);
+    return { minutes: m ? Number(m[1]) * 60 + Number(m[2]) : undefined, hasTime: true, hasDate: false };
+  }
   const a = st?.attributes ?? {};
   const hasDate = !!a.has_date;
   const hasTime = a.has_time !== false;

@@ -294,6 +294,8 @@
       "sensor.marcel_s24_charger_type": { state: "none", attributes: { friendly_name: "Marcel S24 Charger type", device_class: "enum" } },
       "calendar.abfall": { state: "off", attributes: { friendly_name: "Abfallkalender", message: "Restmüll", all_day: true,
         start_time: (() => { const d = new Date(Date.now() + 86400000); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} 00:00:00`; })() } },
+      "time.robo_ruhezeit_beginn": { state: "22:00:00", attributes: { friendly_name: "Bitte nicht stören Beginn" } },
+      "switch.robo_nicht_stoeren": { state: "on", attributes: { friendly_name: "Bitte nicht stören" } },
       "lock.klingel": { state: "locked", attributes: { friendly_name: "Klingel", supported_features: 1 } },
       "binary_sensor.klingel_klingelaktion": { state: "off", attributes: { friendly_name: "Klingel Klingelaktion" } },
       "binary_sensor.klingel_batterie": { state: "on", attributes: { friendly_name: "Klingel Batteriestand", device_class: "battery" } },
@@ -447,6 +449,11 @@
           setTimeout(() => { const h = makeHass(); cards.forEach((c) => (c.hass = h)); }, 150);
           return;
         }
+        if (domain === "time") {
+          states[data.entity_id] = { ...s, state: data.time };
+          setTimeout(() => { const h = makeHass(); cards.forEach((c) => (c.hass = h)); }, 150);
+          return;
+        }
         if (domain === "lock") {
           if (service !== "open") states[data.entity_id] = { ...s, state: service === "lock" ? "locked" : "unlocked", last_changed: new Date().toISOString() };
           setTimeout(() => { const h = makeHass(); cards.forEach((c) => (c.hass = h)); }, 150);
@@ -556,6 +563,7 @@
       ["Status – Batterien aus Bereich + Türkontakt", { _status: true, areas: ["mein_zimmer"], contacts: [{ entity: "binary_sensor.tuerkontakt_pascal", name: "Tür" }] }],
       ["Licht – Gruppe mit Presets Hell / Warm / Gemütlich", { _light: true, entity: "light.licht_mein_zimmer", name: "Licht Zimmer", presets: "default", layout: "compact" }],
       ["Schalter als Button – Monitore (nur Symbol + Text)", { _switchTime: true, switch_entity: "input_boolean.wecker", name: "Monitore", icon: "mdi:monitor-multiple", color: "#42a5f5", switch_style: "button" }],
+      ["Schalter + time-Entität – Saugroboter „Bitte nicht stören“ ab", { _switchTime: true, switch_entity: "switch.robo_nicht_stoeren", time_entity: "time.robo_ruhezeit_beginn", name: "Ruhezeit ab", icon: "mdi:sleep", color: "#5c6bc0" }],
       ["Saugroboter – Roborock (Karte mit Räumen, Raumreinigung, Modi, Wartung)", { _vacuum: true, entity: "vacuum.roborock_s8_maxv_ultra" }],
       ["Personen & Haustür – Handy-Akku, Nuki Opener (Halten zum Öffnen, Ring to Open)", { _presence: true, persons: ["person.pascal", "person.marcel"], lock: "lock.klingel", door_name: "Klingel" }],
       ["Übersicht – mehrere Geräte", { _overview: true, title: "Klimaanlagen", entities: ["climate.1ed763d9", "climate.wohnzimmer", "climate.heizung_mein_zimmer", "climate.buero", "climate.schlafzimmer"] }],

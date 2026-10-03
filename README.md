@@ -436,6 +436,8 @@ und **Gemütlich** (25 %/2200 K) – das aktive leuchtet. Eigene: `presets: [{ n
 type: custom:ha-vacuum-card
 entity: vacuum.roborock_s8_maxv_ultra
 # map: image.roborock_s8_maxv_ultra_wohnung_custom   # sonst automatisch
+# maintenance_sensors:                              # Station (eigenes Gerät) in die Wartung
+#   - sensor.roborock_s8_maxv_ultra_dock_schmutzfanger_verbleibend
 # rooms:                                              # eigene Auswahl/Namen
 #   - { id: 22, name: Pascal }
 ```

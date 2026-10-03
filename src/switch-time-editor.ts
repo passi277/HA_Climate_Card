@@ -20,7 +20,7 @@ export class HaSwitchTimeCardEditor extends LitElement {
   private _schema() {
     return [
       { name: "switch_entity", selector: { entity: { filter: { domain: ["input_boolean", "switch", "automation", "light", "fan", "script"] } } } },
-      { name: "time_entity", selector: { entity: { filter: { domain: "input_datetime" } } } },
+      { name: "time_entity", selector: { entity: { filter: [{ domain: "input_datetime" }, { domain: "time" }] } } },
       { type: "grid", name: "", schema: [
         { name: "name", selector: { text: {} } },
         { name: "icon", selector: { icon: {} } },

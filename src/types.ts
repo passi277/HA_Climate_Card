@@ -393,6 +393,8 @@ export interface VacuumCardConfig {
   selects?: string[];
   /** Routinen/Buttons (button.*) – sonst automatisch vom Gerät */
   shortcuts?: string[];
+  /** Weitere Verbrauchsteile, z.B. der Station (Sensoren „… verbleibend“) */
+  maintenance_sensors?: string[];
   animations?: "full" | "reduced" | "off";
 }
 

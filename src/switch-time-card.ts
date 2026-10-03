@@ -123,7 +123,8 @@ export class HaSwitchTimeCard extends LitElement {
     if (p.hasDate && p.hasTime) data.datetime = `${date} ${time}`;
     else if (p.hasDate) data.date = date;
     else data.time = time;
-    this.hass.callService("input_datetime", "set_datetime", data).catch((err) => {
+    const isTime = t.entity_id.startsWith("time.");
+    this.hass.callService(isTime ? "time" : "input_datetime", isTime ? "set_value" : "set_datetime", data).catch((err) => {
       this._pendingMinutes = undefined;
       this._pendingDate = undefined;
       this.dispatchEvent(new CustomEvent("hass-notification", {

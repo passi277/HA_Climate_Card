@@ -560,7 +560,8 @@
     "settings": "Saugstärke & Modi",
     "maintenance": "Wartung",
     "selects": "Auswahlen (sonst automatisch vom Gerät)",
-    "hint": "Räume und Raumgrenzen kommen aus dem Kartenbild (z.B. Roborock Custom Map). Raumreinigung über vacuum.send_command „app_segment_clean“."
+    "hint": "Räume und Raumgrenzen kommen aus dem Kartenbild (z.B. Roborock Custom Map). Raumreinigung über vacuum.send_command „app_segment_clean“.",
+    "maintenance_sensors": "Weitere Wartungs-Sensoren (z.B. Station)"
   },
   "presence": {
     "home": "Zuhause",

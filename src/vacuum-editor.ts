@@ -29,6 +29,7 @@ export class HaVacuumCardEditor extends LitElement {
         { type: "grid", name: "", schema: ["map", "rooms", "controls", "shortcuts", "settings", "maintenance"].map((k) => ({ name: k, selector: { boolean: {} } })) },
       ] },
       { name: "selects", selector: { entity: { multiple: true, filter: { domain: "select" } } } },
+      { name: "maintenance_sensors", selector: { entity: { multiple: true, filter: { domain: "sensor" } } } },
       { name: "shortcuts", selector: { entity: { multiple: true, filter: { domain: ["button", "script"] } } } },
     ];
   }

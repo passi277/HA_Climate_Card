@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.11.2
+- Schalter + Uhrzeit: auch **`time.*`-Entitäten** (z.B. Roborock „Bitte nicht stören Beginn“) – lesen und per `time.set_value` setzen
+- Saugroboter: `maintenance_sensors` – weitere Verbrauchsteile, z.B. die der Station (Dock-Bürste, Schmutzfänger), erscheinen in der Wartung
+
 ## 1.11.1
 - Licht-Gruppe: **Szenen** (`scenes: [scene.…]`) als Chips unter dem Gruppenregler – Raumname wird weggelassen („Gästezimmer Hell“ → „Hell“), auch im visuellen Editor
 

@@ -139,8 +139,9 @@ export class HaVacuumCard extends LitElement {
   /** Verbrauchsteile („verbleibend …“ in Stunden) */
   private _maintenance(): { entity: string; name: string; value: number; unit: string }[] {
     const prefix = String(this._st?.attributes.friendly_name ?? "");
-    return this._device().filter((id) => id.startsWith("sensor.")).map((id) => this.hass!.states[id])
-      .filter((x) => x && /verbleibend|remaining|time_left/i.test(`${x.entity_id} ${x.attributes.friendly_name ?? ""}`) && Number.isFinite(Number(x.state)))
+    const extra = this._config!.maintenance_sensors ?? [];
+    return [...new Set([...this._device().filter((id) => id.startsWith("sensor.")), ...extra])].map((id) => this.hass!.states[id])
+      .filter((x) => x && (extra.includes(x.entity_id) || /verbleibend|remaining|time_left/i.test(`${x.entity_id} ${x.attributes.friendly_name ?? ""}`)) && Number.isFinite(Number(x.state)))
       .map((x) => {
         let name = String(x.attributes.friendly_name ?? x.entity_id);
         if (prefix && name.startsWith(prefix + " ")) name = name.slice(prefix.length + 1);
@@ -155,7 +156,7 @@ export class HaVacuumCard extends LitElement {
     const old = changed.get("hass") as HomeAssistant | undefined;
     if (!old || !this._config) return true;
     const map = this._mapEntity()?.entity_id;
-    const ids = [this._config.entity, map, ...this._device(), ...(this._config.selects ?? []), ...(this._config.shortcuts ?? [])].filter(Boolean) as string[];
+    const ids = [this._config.entity, map, ...this._device(), ...(this._config.selects ?? []), ...(this._config.shortcuts ?? []), ...(this._config.maintenance_sensors ?? [])].filter(Boolean) as string[];
     return ids.some((id) => old.states[id] !== this.hass!.states[id]) || old.locale !== this.hass!.locale;
   }
 

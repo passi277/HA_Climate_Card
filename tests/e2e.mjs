@@ -760,6 +760,26 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
     ? ok("Licht-Gruppe: Szenen-Chips (ohne Raumnamen), Tippen ruft scene.turn_on") : fail(`Licht-Gruppe Szenen: ${JSON.stringify(res)}`);
 }
 
+// Schalter + Uhrzeit mit time.*-Entität (time.set_value)
+{
+  const res = await p.evaluate(async () => {
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const card = [...document.querySelectorAll("ha-switch-time-card")].find((c) => c._config.time_entity === "time.robo_ruhezeit_beginn");
+    const root = card.shadowRoot;
+    const shown = root.querySelector(".clock .time").textContent.trim();
+    root.querySelector(".clock").click();
+    await wait(100);
+    const picker = root.querySelector("hcc-time-picker");
+    const btn = picker.shadowRoot.querySelectorAll("button")[1];
+    const before = window.serviceCalls.length;
+    btn.click();
+    await wait(1100);
+    return { shown, calls: window.serviceCalls.slice(before).map((c) => `${c.domain}.${c.service} ${c.data.time ?? ""}`) };
+  });
+  res.shown === "22:00" && res.calls.length === 1 && /^time\.set_value \d\d:\d\d:00$/.test(res.calls[0])
+    ? ok("Schalter + Uhrzeit: time.*-Entität lesen und per time.set_value setzen") : fail(`time-Entität: ${JSON.stringify(res)}`);
+}
+
 // Moduswechsel: jede Karte, jeder Modus (außer Auto/Heizen-Kühlen, dort zählt die Tätigkeit)
 const colorFails = await p.evaluate(async () => {
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));

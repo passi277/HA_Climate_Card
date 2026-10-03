@@ -482,3 +482,10 @@ describe("alerts", () => {
     expect(alertActive(undefined, {})).toBe(false);
   });
 });
+
+describe("time entities", () => {
+  it("reads time.* state as minutes", () => {
+    expect(datetimeParts(entity("time.dnd_start", "22:30:00"))).toEqual({ minutes: 1350, hasTime: true, hasDate: false });
+    expect(datetimeParts(entity("time.dnd_start", "unknown")).minutes).toBeUndefined();
+  });
+});
