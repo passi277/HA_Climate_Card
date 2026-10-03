@@ -11,3 +11,4 @@ import "./media-card";
 import "./room-card";
 import "./status-card";
 import "./vacuum-card";
+import "./presence-card";

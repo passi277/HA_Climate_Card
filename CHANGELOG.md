@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.9.0 – Personen & Haustür
+- Neu: **Modern Presence Card** (`custom:ha-presence-card`) – Personen als Foto-Kacheln (Zuhause/Unterwegs/Zone, seit wann), Handy-Akku und Laden automatisch über den Device-Tracker, Haustür/Nuki Opener mit „Halten zum Öffnen“ (Fortschrittsring), Ring to Open, Klingel-Anzeige und Batterie-Warnung, visueller Editor
+
 ## 1.8.0 – Saugroboter
 - Neu: **Modern Vacuum Card** (`custom:ha-vacuum-card`) – Live-Karte (zugeschnitten), Räume auf der Karte oder als Chips wählen, Raumreinigung mit Durchgängen (`app_segment_clean`), Status/Batterie/Fortschritt/Fehler, Start/Pause/Stopp/Station/Suchen, Routinen-Buttons, Saugstärke und Modi vom Gerät, Wartung, visueller Editor
 

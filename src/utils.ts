@@ -774,3 +774,76 @@ const ROOM_ICONS: [RegExp, string][] = [
 ];
 
 export const roomIcon = (name: string): string => ROOM_ICONS.find(([re]) => re.test(name))?.[1] ?? "mdi:floor-plan";
+
+// ---------- Personen & Haustür ----------
+
+export interface PhoneSensors {
+  battery?: string;
+  charging?: string;
+}
+
+type RegistryEntities = Record<string, { entity_id: string; device_id?: string | null }>;
+
+/** Handy-Akku + Ladestatus zu den Device-Trackern einer Person (über das Gerät, sonst über den Namen). */
+export const phoneSensors = (states: Record<string, HassEntity>, entities: RegistryEntities | undefined, trackers: string[]): PhoneSensors => {
+  const out: PhoneSensors = {};
+  const isBattery = (id: string) => id.startsWith("sensor.") && states[id]?.attributes.device_class === "battery";
+  const isCharging = (id: string) => (id.startsWith("binary_sensor.") && states[id]?.attributes.device_class === "battery_charging")
+    || (id.startsWith("sensor.") && /charger_type|battery_state|charging/.test(id));
+  for (const tracker of trackers) {
+    const device = entities?.[tracker]?.device_id;
+    const ids = device ? Object.values(entities!).filter((e) => e.device_id === device).map((e) => e.entity_id).filter((id) => states[id]) : [];
+    const base = tracker.split(".")[1];
+    if (!ids.length && base) {
+      ids.push(...[`sensor.${base}_battery_level`, `sensor.${base}_charger_type`, `sensor.${base}_battery_state`, `binary_sensor.${base}_is_charging`]
+        .filter((id) => states[id]));
+    }
+    out.battery ??= ids.find(isBattery);
+    out.charging ??= ids.filter(isCharging).sort((a, b) => Number(/charger_type/.test(b)) - Number(/charger_type/.test(a)))[0];
+    if (out.battery) break;
+  }
+  return out;
+};
+
+/** Lädt das Handy? (binary_sensor an, Ladeart ≠ none, Akkustatus „charging“/„full“) */
+export const isCharging = (st?: HassEntity): boolean => {
+  if (!st || UNAVAILABLE.includes(st.state)) return false;
+  if (st.entity_id.startsWith("binary_sensor.")) return st.state === "on";
+  return /^(ac|usb|wireless|dock|charging|full)$/i.test(st.state);
+};
+
+const BATTERY_ICONS = ["mdi:battery-outline", "mdi:battery-10", "mdi:battery-20", "mdi:battery-30", "mdi:battery-40", "mdi:battery-50",
+  "mdi:battery-60", "mdi:battery-70", "mdi:battery-80", "mdi:battery-90", "mdi:battery"];
+const CHARGING_ICONS = ["mdi:battery-charging-outline", "mdi:battery-charging-10", "mdi:battery-charging-20", "mdi:battery-charging-30",
+  "mdi:battery-charging-40", "mdi:battery-charging-50", "mdi:battery-charging-60", "mdi:battery-charging-70", "mdi:battery-charging-80",
+  "mdi:battery-charging-90", "mdi:battery-charging-100"];
+
+/** Batterie-Symbol passend zum Stand (10er-Schritte). */
+export const batteryIcon = (level: number, charging = false): string =>
+  (charging ? CHARGING_ICONS : BATTERY_ICONS)[Math.max(0, Math.min(10, Math.round(level / 10)))]!;
+
+/** Initialen für Personen ohne Bild. */
+export const initials = (name: string): string =>
+  name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join("") || "?";
+
+export interface DoorDevices {
+  doorbell?: string;
+  battery?: string;
+}
+
+/** Klingel-Sensor und Batterie-Warnung vom selben Gerät wie das Schloss (z.B. Nuki Opener). */
+export const doorDevices = (states: Record<string, HassEntity>, entities: RegistryEntities | undefined, lock: string): DoorDevices => {
+  const device = entities?.[lock]?.device_id;
+  if (!device) return {};
+  const ids = Object.values(entities!).filter((e) => e.device_id === device && states[e.entity_id]).map((e) => e.entity_id);
+  return {
+    doorbell: ids.find((id) => id.startsWith("binary_sensor.") && /ring_?action|klingelaktion|doorbell|ding/.test(id))
+      ?? ids.find((id) => id.startsWith("event.") && states[id]?.attributes.device_class === "doorbell"),
+    battery: ids.find((id) => id.startsWith("binary_sensor.") && states[id]?.attributes.device_class === "battery" && !/_low$/.test(id))
+      ?? ids.find((id) => id.startsWith("binary_sensor.") && /batter.*low|low.*batter/.test(id)),
+  };
+};
+
+/** Nuki Opener (Ring to Open) oder normales Schloss? */
+export const doorKind = (model?: string | null): "opener" | "lock" =>
+  /opener/i.test(model ?? "") ? "opener" : "lock";

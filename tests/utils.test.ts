@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { HassEntity } from "../src/types";
 import {
-  brightnessPct, contactType, calibrationTransform, roomsFromMap, roomIcon, areaBatteries, batteryInfo, presetActive, presetData, DEFAULT_LIGHT_PRESETS, activityIcon, activityLabel, guessControlDevice, guessVolumeDevice, coverIcon, datetimeParts, nextOccurrence, coverPosition, skyPhase, sunPlacement, weatherOverlay, editorOptions, isNoEffect, lightEditorOptions, segmentIds, detectDeviceType, kelvinToRgb, lightColor, relatedScenes, supportsColor, supportsColorTemp, dewPoint, nextSwitch, parseSchedule, scheduleTempAt, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
+  batteryIcon, doorDevices, doorKind, initials, isCharging, phoneSensors, brightnessPct, contactType, calibrationTransform, roomsFromMap, roomIcon, areaBatteries, batteryInfo, presetActive, presetData, DEFAULT_LIGHT_PRESETS, activityIcon, activityLabel, guessControlDevice, guessVolumeDevice, coverIcon, datetimeParts, nextOccurrence, coverPosition, skyPhase, sunPlacement, weatherOverlay, editorOptions, isNoEffect, lightEditorOptions, segmentIds, detectDeviceType, kelvinToRgb, lightColor, relatedScenes, supportsColor, supportsColorTemp, dewPoint, nextSwitch, parseSchedule, scheduleTempAt, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
   openContactsKey, powerOf, resolveContacts, secondsToDuration, stateIcon, temperatureOf, temperatureTint, trendSlope,
 } from "../src/utils";
 import { formatAttribute, localize } from "../src/localize/localize";
@@ -397,5 +397,47 @@ describe("vacuum map", () => {
     expect(rooms.map((r) => r.id).sort()).toEqual([18, 22]);
     expect(rooms.find((r) => r.id === 22)?.box).toEqual([28950, 23600, 32800, 27400]);
     expect(roomIcon("Küche")).toBe("mdi:silverware-fork-knife");
+  });
+});
+
+describe("presence", () => {
+  const states = Object.fromEntries([
+    entity("device_tracker.marcels", "home"),
+    entity("sensor.marcel_s24_battery_level", "15", { device_class: "battery", unit_of_measurement: "%" }),
+    entity("sensor.marcel_s24_charger_type", "ac", { device_class: "enum" }),
+    entity("device_tracker.pascal_handy", "home"),
+    entity("sensor.pascal_handy_battery_level", "40", { device_class: "battery" }),
+    entity("binary_sensor.pascal_handy_is_charging", "off", { device_class: "battery_charging" }),
+    entity("lock.klingel", "locked", { supported_features: 1 }),
+    entity("binary_sensor.klingel_klingelaktion", "off"),
+    entity("binary_sensor.klingel_ring_to_open", "off", { device_class: "lock" }),
+    entity("binary_sensor.klingel_batterie", "off", { device_class: "battery" }),
+  ].map((e) => [e.entity_id, e]));
+  const reg = (id: string, device: string | null) => ({ entity_id: id, device_id: device });
+  const entities = Object.fromEntries([
+    reg("device_tracker.marcels", "phone_m"), reg("sensor.marcel_s24_battery_level", "phone_m"), reg("sensor.marcel_s24_charger_type", "phone_m"),
+    reg("lock.klingel", "opener"), reg("binary_sensor.klingel_klingelaktion", "opener"), reg("binary_sensor.klingel_ring_to_open", "opener"),
+    reg("binary_sensor.klingel_batterie", "opener"),
+  ].map((e) => [e.entity_id, e]));
+  it("finds phone battery + charging via the tracker device or its name", () => {
+    expect(phoneSensors(states, entities, ["device_tracker.marcels"])).toEqual({ battery: "sensor.marcel_s24_battery_level", charging: "sensor.marcel_s24_charger_type" });
+    expect(phoneSensors(states, entities, ["device_tracker.pascal_handy"])).toEqual({ battery: "sensor.pascal_handy_battery_level", charging: "binary_sensor.pascal_handy_is_charging" });
+    expect(phoneSensors(states, undefined, [])).toEqual({});
+  });
+  it("detects charging and picks battery icons", () => {
+    expect(isCharging(states["sensor.marcel_s24_charger_type"])).toBe(true);
+    expect(isCharging(entity("sensor.x_charger_type", "none"))).toBe(false);
+    expect(isCharging(entity("sensor.x_battery_state", "Charging"))).toBe(true);
+    expect(isCharging(states["binary_sensor.pascal_handy_is_charging"])).toBe(false);
+    expect(batteryIcon(43)).toBe("mdi:battery-40");
+    expect(batteryIcon(100, true)).toBe("mdi:battery-charging-100");
+    expect(batteryIcon(2)).toBe("mdi:battery-outline");
+    expect(initials("Pascal Schmitt")).toBe("PS");
+  });
+  it("finds doorbell + battery of the lock device and the door kind", () => {
+    expect(doorDevices(states, entities, "lock.klingel")).toEqual({ doorbell: "binary_sensor.klingel_klingelaktion", battery: "binary_sensor.klingel_batterie" });
+    expect(doorDevices(states, entities, "lock.unknown")).toEqual({});
+    expect(doorKind("Nuki Opener")).toBe("opener");
+    expect(doorKind("Smart Lock 3.0 Pro")).toBe("lock");
   });
 });

@@ -17,7 +17,7 @@ await p.waitForFunction(() => window.__ready, null, { timeout: 10000 });
 await p.waitForTimeout(500);
 
 const rendered = await p.evaluate(() =>
-  [...document.querySelectorAll("ha-climate-card, ha-climate-overview-card, ha-light-card, ha-light-group-card, ha-cover-card, ha-cover-group-card, ha-switch-time-card, ha-media-card, ha-room-card, ha-status-card, ha-vacuum-card")].filter((c) => c.shadowRoot?.querySelector("ha-card")).length);
+  [...document.querySelectorAll("ha-climate-card, ha-climate-overview-card, ha-light-card, ha-light-group-card, ha-cover-card, ha-cover-group-card, ha-switch-time-card, ha-media-card, ha-room-card, ha-status-card, ha-vacuum-card, ha-presence-card")].filter((c) => c.shadowRoot?.querySelector("ha-card")).length);
 rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Karten gerendert`);
 
 // Regler: Tippen in die Mitte verstellt nichts, Tippen auf den Ring schon
@@ -610,6 +610,64 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
   res.calls.some((c) => c.s === "vacuum.pause") && /Wartung fällig: Sensorzeit/.test(res.maint)
     && res.selects.join("|") === "Saugstärke|Reinigungsmodus|Wisch-Intensität"
     ? ok("Saugroboter: Steuerung, Saugstärke + Modi vom Gerät (ohne Kartenauswahl), Wartung fällig") : fail(`Saugroboter: ${JSON.stringify(res)}`);
+}
+
+// Personen & Haustür: Handy-Akku, Halten zum Öffnen, Ring to Open, Klingel
+{
+  const card = await p.evaluateHandle(() => document.querySelector("ha-presence-card"));
+  await card.evaluate((c) => c.scrollIntoView({ block: "center" }));
+  await p.waitForTimeout(300);
+  const persons = await card.evaluate((c) => [...c.shadowRoot.querySelectorAll(".person")].map((t) => ({
+    cls: t.className, name: t.querySelector(".name").textContent, where: t.querySelector(".where-text").textContent,
+    battery: t.querySelector(".battery")?.textContent.trim(), batteryCls: t.querySelector(".battery")?.className, avatar: t.querySelector(".avatar")?.textContent })));
+  const [pa, ma] = persons;
+  pa?.where === "Zuhause" && /home/.test(pa.cls) && pa.battery === "68 %" && /charging/.test(pa.batteryCls)
+    && ma?.where === "Unterwegs" && /away/.test(ma.cls) && ma.battery === "15 %" && /low/.test(ma.batteryCls) && ma.avatar === "M"
+    ? ok("Personen: Zuhause/Unterwegs, Handy-Akku automatisch (lädt / schwach), Initialen ohne Foto") : fail(`Personen: ${JSON.stringify(persons)}`);
+
+  const main = await card.evaluateHandle((c) => c.shadowRoot.querySelector(".door-main"));
+  const box = await main.boundingBox();
+  const status = () => card.evaluate((c) => c.shadowRoot.querySelector(".door-status").textContent.trim());
+  const opens = () => p.evaluate(() => window.serviceCalls.filter((c) => c.domain === "lock" && c.service === "open").length);
+  const idle = await status();
+  await p.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await p.mouse.down();
+  await p.waitForTimeout(250);
+  await p.mouse.up();
+  await p.waitForTimeout(100);
+  const short = await status();
+  const afterShort = await opens();
+  await p.mouse.down();
+  await p.waitForTimeout(400);
+  const holding = await status();
+  await p.waitForTimeout(700);
+  await p.mouse.up();
+  await p.waitForTimeout(100);
+  const done = await status();
+  idle === "Halten zum Öffnen" && /Länger halten/.test(short) && afterShort === 0 && /Weiter halten/.test(holding) && done === "Geöffnet" && (await opens()) === 1
+    ? ok("Haustür: kurzes Tippen öffnet nicht, Halten (0,9 s) ruft lock.open auf") : fail(`Haustür öffnen: ${JSON.stringify({ idle, short, afterShort, holding, done })}`);
+
+  const rto = await card.evaluate(async (c) => {
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    await wait(4100); // „Geöffnet“ ausblenden lassen
+    const before = window.serviceCalls.length;
+    c.shadowRoot.querySelector(".door-chip").click();
+    await wait(400);
+    const call = window.serviceCalls.slice(before).map((x) => `${x.domain}.${x.service}`).join();
+    const chip = c.shadowRoot.querySelector(".door-chip");
+    const battery = !!c.shadowRoot.querySelector(".door-battery");
+    // Klingeln simulieren
+    const h = c.hass;
+    c.hass = { ...h, states: { ...h.states, "binary_sensor.klingel_klingelaktion": { ...h.states["binary_sensor.klingel_klingelaktion"], state: "on" } } };
+    await wait(100);
+    const ringing = c.shadowRoot.querySelector(".door-status").textContent.trim();
+    c.hass = h;
+    await wait(100);
+    return { call, on: chip.classList.contains("on"), pill: chip.querySelector(".pill").textContent, battery, ringing,
+      rang: c.shadowRoot.querySelector(".door-status").textContent.trim() };
+  });
+  rto.call === "lock.unlock" && rto.on && rto.pill === "An" && rto.battery && rto.ringing === "Es klingelt!" && /^Geklingelt/.test(rto.rang)
+    ? ok("Haustür: Ring to Open (lock.unlock), Batterie-Warnung, Klingeln + „Geklingelt“") : fail(`Haustür RTO/Klingel: ${JSON.stringify(rto)}`);
 }
 
 // Moduswechsel: jede Karte, jeder Modus (außer Auto/Heizen-Kühlen, dort zählt die Tätigkeit)

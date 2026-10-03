@@ -15,6 +15,7 @@ weiche Farbübergänge und Animationen. Ein HACS-Download, mehrere Karten:
 | **Modern Room Header** | `custom:ha-room-card` | Raum-Kopf mit Status-Chips und Hinweis „Fenster offen – Klima läuft“ |
 | **Modern Status Card** | `custom:ha-status-card` | Batterien (automatisch je Bereich) und Tür-/Fensterkontakte |
 | **Modern Vacuum Card** | `custom:ha-vacuum-card` | Saugroboter mit Karte, Raumauswahl und Raumreinigung |
+| **Modern Presence Card** | `custom:ha-presence-card` | Personen mit Foto und Handy-Akku plus Haustür (Nuki Opener: Halten zum Öffnen, Ring to Open) |
 | **Climate Overview** | `custom:ha-climate-overview-card` | alle Klimageräte auf einen Blick |
 
 *Modern Lovelace cards for Home Assistant in one shared design – English summary below.*
@@ -410,6 +411,27 @@ entity: vacuum.roborock_s8_maxv_ultra
 #   - { id: 22, name: Pascal }
 ```
 
+## Modern Presence Card (Personen & Haustür)
+
+- **Personen** als Foto-Kacheln: Zuhause (grüner Punkt) / Unterwegs (Foto entsättigt) / Zone, „seit 2 Std“
+- **Handy-Akku** automatisch über den Device-Tracker der Person (Companion App) – rot unter 20 %, ⚡ beim Laden
+- **Haustür / Nuki Opener**: zum Öffnen **halten** (0,9 s, Fortschrittsring – kein versehentliches Öffnen), „Geöffnet“ als Rückmeldung;
+  `open_confirm: tap` öffnet per Tippen
+- **Ring to Open** an/aus (Opener: `lock.unlock` / `lock.lock`), beim Türschloss „Abschließen“
+- **Klingel**: „Es klingelt!“ mit Animation, danach „Geklingelt · 3 Min“; Batterie-Warnung des Geräts – beides automatisch vom Schloss-Gerät
+
+```yaml
+type: custom:ha-presence-card
+persons:
+  - person.pascal
+  - person.marcel
+lock: lock.klingel
+door_name: Klingel
+# open_action: script.klingel_offnen   # statt lock.open ein Skript/Button
+# open_confirm: tap                    # Standard: hold
+# show_battery: false
+```
+
 ## Heizungen (z.B. Homematic IP)
 
 Thermostate werden automatisch erkannt. Die Karte zeigt dann statt Lüfter, Lamellen und Luftstrom:
@@ -508,6 +530,7 @@ glow, smooth color transitions, animations), shipped as a single HACS download:
 - `custom:ha-room-card` – room header with status chips and a "window open – A/C running" warning
 - `custom:ha-status-card` – batteries (per area, Battery Notes aware) and door/window contacts
 - `custom:ha-vacuum-card` – robot vacuum with live map, tap rooms on the map for room cleaning, controls, modes, maintenance
+- `custom:ha-presence-card` – people as photo tiles (home/away, phone battery and charging found automatically) plus front door: hold to open (Nuki Opener), Ring to Open, doorbell
 - `custom:ha-climate-overview-card` – all climate devices at a glance
 
 Install via HACS as a custom repository of type **Dashboard**. All cards have a visual editor and are

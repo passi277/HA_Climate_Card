@@ -19,6 +19,7 @@ export interface DeviceRegistryEntry {
   area_id?: string | null;
   name?: string | null;
   name_by_user?: string | null;
+  model?: string | null;
 }
 
 export interface HomeAssistant {
@@ -377,5 +378,37 @@ export interface VacuumCardConfig {
   selects?: string[];
   /** Routinen/Buttons (button.*) – sonst automatisch vom Gerät */
   shortcuts?: string[];
+  animations?: "full" | "reduced" | "off";
+}
+
+export interface PresencePersonConfig {
+  entity: string;
+  name?: string;
+  /** Akku-Sensor (sonst automatisch vom Handy der Person) */
+  battery?: string;
+  /** Ladestatus (sonst automatisch) */
+  charging?: string;
+}
+
+export interface PresenceCardConfig {
+  type: string;
+  /** Personen (person.*) */
+  persons?: (string | PresencePersonConfig)[];
+  /** Schloss / Nuki Opener (lock.*) */
+  lock?: string;
+  door_name?: string;
+  door_icon?: string;
+  /** Statt lock.open: Skript oder Button ausführen */
+  open_action?: string;
+  /** Klingel-Sensor (sonst automatisch vom Gerät) */
+  doorbell?: string;
+  /** auto (Gerätemodell), opener (Ring to Open) oder lock */
+  door_type?: "auto" | "opener" | "lock";
+  /** Öffnen per Halten (Standard) oder Tippen */
+  open_confirm?: "hold" | "tap";
+  /** Handy-Akku zeigen (Standard an) */
+  show_battery?: boolean;
+  /** Kacheln pro Zeile (Standard: alle in einer Zeile, max. 4) */
+  columns?: number;
   animations?: "full" | "reduced" | "off";
 }
