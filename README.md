@@ -97,9 +97,10 @@ npm run lint       # TypeScript-Prüfung
 npm run build      # Produktions-Build
 ```
 
-`demo/index.html` enthält eine Demo-Seite mit simuliertem Home Assistant
-(`python3 -m http.server` im Repo-Root starten und `/demo/index.html` öffnen,
-`?dark=1` für das dunkle Theme, `?lang=en` für Englisch).
+`demo/index.html` ist eine eigenständige Demo mit simuliertem Home Assistant – einfach
+per Doppelklick im Browser öffnen (kein Server nötig). Sie wird bei `npm run build` aus
+`demo/template.html` neu erzeugt. URL-Parameter: `?dark=1` für das dunkle Theme,
+`?lang=en` für Englisch.
 
 Ein Release wird über GitHub Releases erstellt; der Workflow hängt
 `ha-climate-card.js` automatisch an.

@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HA Climate Card – Demo</title>
+  <style>
+    :root {
+      --primary-color: #03a9f4; --primary-text-color: #212121; --secondary-text-color: #727272;
+      --card-background-color: #fff; --divider-color: rgba(0,0,0,0.12); --text-primary-color: #fff;
+      --warning-color: #ff9800; --error-color: #db4437;
+      font-family: Roboto, system-ui, sans-serif;
+    }
+    body { background: #f0f2f5; color: var(--primary-text-color); margin: 0; padding: 24px; }
+    body.dark {
+      --primary-text-color: #e1e1e1; --secondary-text-color: #9b9b9b; --card-background-color: #1c1c1c;
+      --divider-color: rgba(255,255,255,0.12); background: #111;
+    }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; align-items: start; }
+    h2 { font-size: 14px; color: var(--secondary-text-color); margin: 0 0 6px; font-weight: 500; }
+    #log { font: 12px monospace; white-space: pre-wrap; margin-top: 16px; color: var(--secondary-text-color); }
+  </style>
+</head>
+<body>
+  <div class="grid" id="grid"></div>
+  <div id="log"></div>
+  <!-- Generiert von scripts/build-demo.mjs: Karte und Icons sind eingebettet, damit die Datei per Doppelklick funktioniert. -->
+  <script type="module">
+/*__CARD__*/
+  </script>
+  <script type="module">
+    const mdi = /*__ICONS__*/{};
+
+    // ---- Minimal-Stubs für HA-Elemente ----
+    const toKey = (name) => "mdi" + name.replace(/^mdi:/, "").split("-").map((p) => p[0].toUpperCase() + p.slice(1)).join("");
+    customElements.define("ha-icon", class extends HTMLElement {
+      static get observedAttributes() { return ["icon"]; }
+      set icon(v) { this._icon = v; this._r(); } get icon() { return this._icon; }
+      attributeChangedCallback() { this._icon = this.getAttribute("icon"); this._r(); }
+      connectedCallback() { this.style.display = "inline-flex"; this._r(); }
+      _r() {
+        const d = mdi[toKey(this._icon || "")] || "";
+        (this.shadowRoot || this.attachShadow({ mode: "open" })).innerHTML = `<svg viewBox="0 0 24 24" style="width:var(--mdc-icon-size,24px);height:var(--mdc-icon-size,24px);fill:currentColor"><path d="${d}"/></svg>`;
+      }
+    });
+    customElements.define("ha-card", class extends HTMLElement {
+      connectedCallback() {
+        Object.assign(this.style, { background: "var(--card-background-color)", borderRadius: "16px",
+          boxShadow: "0 2px 6px rgba(0,0,0,0.08)", border: "1px solid var(--divider-color)" });
+      }
+    });
+
+    const params = new URLSearchParams(location.search);
+    if (params.get("dark")) document.body.classList.add("dark");
+    const lang = params.get("lang") || "de";
+    const log = (m) => (document.getElementById("log").textContent += m + "\n");
+    window.serviceCalls = [];
+
+    const now = new Date().toISOString();
+    const states = {
+      "climate.wohnzimmer": { state: "cool", attributes: {
+        friendly_name: "Wohnzimmer", supported_features: 1 | 8 | 16 | 32 | 128 | 256 | 512,
+        hvac_modes: ["off", "auto", "cool", "heat", "dry", "fan_only"], hvac_action: "cooling",
+        current_temperature: 25.4, temperature: 22, min_temp: 16, max_temp: 31, target_temp_step: 0.5,
+        current_humidity: 54,
+        fan_modes: ["auto", "low", "medium", "high", "turbo"], fan_mode: "auto",
+        swing_modes: ["off", "vertical", "both"], swing_mode: "vertical",
+        swing_horizontal_modes: ["off", "on"], swing_horizontal_mode: "off",
+        preset_modes: ["none", "eco", "boost", "sleep"], preset_mode: "eco",
+      }},
+      "climate.buero": { state: "heat_cool", attributes: {
+        friendly_name: "Büro", supported_features: 2 | 4 | 8,
+        hvac_modes: ["off", "heat_cool", "heat", "cool"], hvac_action: "idle",
+        current_temperature: 21.1, target_temp_low: 20, target_temp_high: 24, min_temp: 16, max_temp: 30,
+        humidity: 45, min_humidity: 30, max_humidity: 70, current_humidity: 41,
+        fan_modes: ["auto", "low", "high"], fan_mode: "low",
+      }},
+      "climate.schlafzimmer": { state: "off", attributes: {
+        friendly_name: "Schlafzimmer", supported_features: 1 | 8,
+        hvac_modes: ["off", "cool", "heat"], hvac_action: "off",
+        current_temperature: 23.0, temperature: 20, min_temp: 16, max_temp: 30, fan_modes: ["auto", "low"], fan_mode: "auto",
+      }},
+      "sensor.wz_temp": { state: "25.1", attributes: { unit_of_measurement: "°C", device_class: "temperature" } },
+      "sensor.aussen": { state: "31.6", attributes: { unit_of_measurement: "°C", device_class: "temperature" } },
+      "sensor.klima_power": { state: "845", attributes: { unit_of_measurement: "W", device_class: "power" } },
+      "sensor.klima_energy": { state: "3.42", attributes: { unit_of_measurement: "kWh", device_class: "energy" } },
+      "binary_sensor.buero_fenster": { state: "on", attributes: { friendly_name: "Bürofenster", device_class: "window" } },
+    };
+    for (const [id, s] of Object.entries(states)) Object.assign(s, { entity_id: id, last_changed: now, last_updated: now });
+
+    const cards = [];
+    const makeHass = () => ({
+      states: { ...states }, language: lang, locale: { language: lang },
+      config: { unit_system: { temperature: "°C" } },
+      async callService(domain, service, data) {
+        window.serviceCalls.push({ domain, service, data });
+        log(`${domain}.${service} ${JSON.stringify(data)}`);
+        const s = states[data.entity_id];
+        const attrs = { ...s.attributes };
+        let st = s.state;
+        if (service === "set_hvac_mode") st = data.hvac_mode;
+        if (service === "turn_off") st = "off";
+        if (service === "turn_on") st = attrs.hvac_modes.find((m) => m !== "off");
+        for (const k of ["temperature", "target_temp_low", "target_temp_high", "humidity", "fan_mode", "swing_mode", "swing_horizontal_mode", "preset_mode"]) {
+          if (k in data) attrs[k] = data[k];
+        }
+        states[data.entity_id] = { ...s, state: st, attributes: attrs, last_updated: new Date().toISOString() };
+        setTimeout(() => { const h = makeHass(); cards.forEach((c) => (c.hass = h)); }, 150);
+      },
+      async callWS(msg) {
+        const out = {};
+        const end = Date.now() / 1000, start = end - 24 * 3600;
+        for (const id of msg.entity_ids) {
+          const arr = [];
+          for (let t = start, i = 0; t < end; t += 1800, i++) {
+            const cur = 23 + 2.5 * Math.sin(i / 7) + Math.random() * 0.3;
+            arr.push(id.startsWith("climate")
+              ? { s: i > 40 ? "off" : "cool", lu: t, a: { current_temperature: +cur.toFixed(1), temperature: i < 20 ? 23 : 22, hvac_action: cur > 23.5 && i <= 40 ? "cooling" : "idle" } }
+              : { s: (cur - 0.2).toFixed(1), lu: t });
+          }
+          out[id] = arr;
+        }
+        return out;
+      },
+    });
+
+    const configs = [
+      ["Voll – Kühlen, alle Features", { entity: "climate.wohnzimmer", layout: "full", show: { graph: true },
+        temperature_sensor: "sensor.wz_temp", outdoor_sensor: "sensor.aussen", power_sensor: "sensor.klima_power", energy_sensor: "sensor.klima_energy" }],
+      ["Voll – Bereich heat_cool + Fenster offen", { entity: "climate.buero", layout: "full", window_sensor: "binary_sensor.buero_fenster", outdoor_sensor: "sensor.aussen" }],
+      ["Voll – Aus", { entity: "climate.schlafzimmer", layout: "full" }],
+      ["Kompakt – Kühlen", { entity: "climate.wohnzimmer", layout: "compact", outdoor_sensor: "sensor.aussen", power_sensor: "sensor.klima_power" }],
+      ["Kompakt – Bereich", { entity: "climate.buero", layout: "compact", window_sensor: "binary_sensor.buero_fenster" }],
+      ["Kompakt – Aus", { entity: "climate.schlafzimmer", layout: "compact" }],
+    ];
+
+    const hass = makeHass();
+    const grid = document.getElementById("grid");
+    configs.forEach(([title, cfg], i) => {
+      const wrap = document.createElement("div");
+      wrap.innerHTML = `<h2>${title}</h2>`;
+      const card = document.createElement("ha-climate-card");
+      card.id = "card" + i;
+      card.setConfig({ type: "custom:ha-climate-card", ...cfg });
+      card.hass = hass;
+      wrap.appendChild(card);
+      grid.appendChild(wrap);
+      cards.push(card);
+    });
+    window.__ready = true;
+  </script>
+</body>
+</html>
