@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.3.1
+- Lichtregler: Glow, Lauflicht und Skala spielen nur noch kurz nach einer Änderung (heller → Lauflicht nach rechts, dunkler → nach links, neue Farbe → Aufleuchten) statt dauerhaft
+
 ## 1.3.0 – Licht-Gruppe
 - Neu: **Modern Light Group** (`custom:ha-light-group-card`) – Lampen frei zusammenstellen; oben Gruppe (alle ein/aus, Helligkeit für alle dimmbaren, „Farbe für alle“), darunter jede Lampe mit genau ihren Funktionen (Helligkeit, Weißton, Farbe, Effekte, nur Ein/Aus), visueller Editor
 - Kompakte Lichtkarte: Helligkeitsregler als leuchtender Füllbalken mit Glow, Lauflicht, pulsierender Skala und Knopf-Halo – wie der Drehring

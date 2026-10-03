@@ -1,4 +1,4 @@
-import { LitElement, css, html, nothing } from "lit";
+import { LitElement, css, html, nothing, type PropertyValues } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 
 const TICKS = 24;
@@ -6,8 +6,9 @@ const TICKS = 24;
 /**
  * Waagerechter Regler mit Farbverlauf (Helligkeit, Farbtemperatur, Farbton). Feuert
  * `value-changing` beim Ziehen und `value-changed` beim Loslassen bzw. per Tastatur.
- * Mit `fill` wird er zum leuchtenden Füllbalken (Helligkeit) – Glow, Lauflicht und
- * pulsierende Skala wie beim Drehregler, solange `active`.
+ * Mit `fill` wird er zum leuchtenden Füllbalken (Helligkeit). Glow, Lauflicht und Skala
+ * spielen nur kurz nach einer Änderung (heller → Lauflicht nach rechts, dunkler → nach links,
+ * neue Farbe → Aufleuchten) und ruhen sonst.
  */
 @customElement("hcc-gradient-slider")
 export class GradientSlider extends LitElement {
@@ -31,6 +32,41 @@ export class GradientSlider extends LitElement {
   @property({ type: Boolean }) disabled = false;
 
   @state() private _drag = false;
+  /** Kurze Animation nach einer Änderung */
+  @state() private _flash?: "up" | "down" | "color";
+  private _flashTimer?: number;
+  private _flashAt = 0;
+  private _dragStart?: number;
+
+  private _trigger(kind: "up" | "down" | "color"): void {
+    const now = Date.now();
+    // Bestätigung der eigenen Änderung durch HA (gleiche Richtung) nicht erneut abspielen
+    if (this._flash === kind && now - this._flashAt < 1500) return;
+    this._flashAt = now;
+    clearTimeout(this._flashTimer);
+    this._flash = undefined;
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      this._flash = kind;
+      this._flashTimer = window.setTimeout(() => (this._flash = undefined), 1900);
+    }));
+  }
+
+  protected willUpdate(changed: PropertyValues): void {
+    if (!this.fill || !this.hasUpdated || this._drag) return;
+    const oldValue = changed.get("value") as number | undefined;
+    if (changed.has("value") && oldValue != null && oldValue !== this.value && this.active) {
+      this._trigger(this.value > oldValue ? "up" : "down");
+    } else if (changed.has("active") && changed.get("active") === false && this.active) {
+      this._trigger("up");
+    } else if (changed.has("color") && changed.get("color") && this.active) {
+      this._trigger("color");
+    }
+  }
+
+  disconnectedCallback(): void {
+    super.disconnectedCallback();
+    clearTimeout(this._flashTimer);
+  }
 
   private _fromEvent(ev: PointerEvent): number {
     const r = this.shadowRoot!.querySelector(".track")!.getBoundingClientRect();
@@ -47,6 +83,7 @@ export class GradientSlider extends LitElement {
   private _down(ev: PointerEvent): void {
     if (ev.button !== 0 || this.disabled) return;
     this._drag = true;
+    this._dragStart = this.value;
     (ev.currentTarget as Element).setPointerCapture(ev.pointerId);
     this.value = this._fromEvent(ev);
     this._emit("value-changing");
@@ -61,6 +98,7 @@ export class GradientSlider extends LitElement {
   private _up(): void {
     if (!this._drag) return;
     this._drag = false;
+    if (this.fill && this._dragStart != null && this._dragStart !== this.value) this._trigger(this.value > this._dragStart ? "up" : "down");
     this._emit("value-changed");
   }
 
@@ -68,7 +106,9 @@ export class GradientSlider extends LitElement {
     const d: Record<string, number> = { ArrowRight: 1, ArrowUp: 1, ArrowLeft: -1, ArrowDown: -1, PageUp: 10, PageDown: -10 };
     if (!(ev.key in d) || this.disabled) return;
     ev.preventDefault();
+    const before = this.value;
     this.value = Math.min(this.max, Math.max(this.min, this.value + d[ev.key] * this.step));
+    if (this.fill && before !== this.value) this._trigger(this.value > before ? "up" : "down");
     this._emit("value-changed");
   }
 
@@ -79,7 +119,7 @@ export class GradientSlider extends LitElement {
         <span class="label">${this.icon ? html`<ha-icon .icon=${this.icon}></ha-icon>` : nothing}${this.label}</span>
         <span class="display">${this.display}</span>
       </div>` : nothing}
-      <div class="track ${this._drag ? "drag" : ""} ${this.fill ? "filled" : ""} ${this.active ? "is-active" : ""}"
+      <div class="track ${this._drag ? "drag" : ""} ${this.fill ? "filled" : ""} ${this.active ? "is-active" : ""} ${this._flash ? `flash ${this._flash}` : ""}"
         style=${this.fill ? `--c:${this.color};--p:${pct}%;--f:${pct / 100}` : `background:${this.gradient}`} role="slider"
         tabindex=${this.disabled ? -1 : 0} aria-disabled=${this.disabled}
         aria-label=${this.label} aria-valuemin=${this.min} aria-valuemax=${this.max} aria-valuenow=${this.value}
@@ -88,10 +128,11 @@ export class GradientSlider extends LitElement {
         ${this.fill ? html`<span class="glow-bar"></span><span class="bar"><span class="shine"></span></span>` : nothing}
         <span class="knob" style="${this.fill ? "" : `left:${pct}%;`}--k:${this.knob}"></span>
       </div>
-      ${this.fill && !this.small ? html`<div class="ticks ${this.active ? "is-active" : ""}" style="--c:${this.color}">
+      ${this.fill && !this.small ? html`<div class="ticks ${this.active ? "is-active" : ""} ${this._flash ? "flash" : ""}" style="--c:${this.color}">
         ${Array.from({ length: TICKS + 1 }, (_, i) => {
           const lit = this.active && (i / TICKS) * 100 <= pct + 0.01;
-          return html`<span class="tick ${lit ? "lit" : ""}" style=${lit ? `animation-delay:${(i * 0.06).toFixed(2)}s` : ""}></span>`;
+          const order = this._flash === "down" ? TICKS - i : i;
+          return html`<span class="tick ${lit ? "lit" : ""}" style=${lit ? `animation-delay:${(order * 0.03).toFixed(2)}s` : ""}></span>`;
         })}
       </div>` : nothing}`;
   }
@@ -125,24 +166,28 @@ export class GradientSlider extends LitElement {
     .bar { overflow: hidden; z-index: 1;
       background: linear-gradient(90deg, color-mix(in srgb, var(--c) 30%, transparent), var(--c)); }
     .glow-bar { z-index: 0; background: var(--c); filter: blur(12px); opacity: 0; }
-    .track.is-active .glow-bar { opacity: 0.45; animation: glow 3s ease-in-out infinite; }
+    .track.is-active .glow-bar { opacity: 0.3; }
+    .track.is-active.flash .glow-bar { animation: glow-burst 1.6s ease-out; }
     .track:not(.is-active) .bar { background: linear-gradient(90deg, rgba(127,127,127,0.18), rgba(127,127,127,0.32)); }
     .shine { position: absolute; inset: 0; opacity: 0;
       background: linear-gradient(100deg, transparent 20%, rgba(255,255,255,0.45) 50%, transparent 80%);
       background-size: 60% 100%; background-repeat: no-repeat; }
-    .track.is-active .shine { opacity: 1; animation: shine 3.2s ease-in-out infinite; }
+    .track.is-active.flash .shine { opacity: 1; animation: shine-up 1.1s ease-in-out both; }
+    .track.is-active.flash.down .shine { animation-name: shine-down; }
+    .track.is-active.flash.color .shine { animation-duration: 1.4s; }
     .track.filled .knob { z-index: 2; background: #fff; box-shadow: 0 0 0 3px var(--c), 0 2px 8px rgba(0,0,0,0.35); }
-    .track.filled.is-active .knob { animation: halo 2.6s ease-out infinite; }
+    .track.filled.is-active.flash .knob { animation: halo 1.2s ease-out; }
     :host([small]) .track.filled .knob { box-shadow: 0 0 0 2px var(--c), 0 2px 6px rgba(0,0,0,0.3); }
     .ticks { display: flex; justify-content: space-between; padding: 6px 12px 0; pointer-events: none; }
     .tick { width: 2px; height: 6px; border-radius: 1px; background: var(--secondary-text-color); opacity: 0.22;
       transition: opacity 0.3s, background 0.4s; }
     .tick.lit { background: var(--c); opacity: 0.9; box-shadow: 0 0 4px var(--c); }
-    .ticks.is-active .tick.lit { animation: pulse 1.8s ease-in-out infinite; }
+    .ticks.is-active.flash .tick.lit { animation: pulse 0.7s ease-in-out both; }
     .glow-bar, .shine, .knob, .tick.lit { animation-play-state: var(--hcc-anim-state, running) !important; }
-    @keyframes glow { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.6; } }
-    @keyframes shine { 0% { background-position: -80% 0; } 60%, 100% { background-position: 180% 0; } }
-    @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+    @keyframes glow-burst { 0% { opacity: 0.3; } 30% { opacity: 0.75; } 100% { opacity: 0.3; } }
+    @keyframes shine-up { from { background-position: -80% 0; } to { background-position: 180% 0; } }
+    @keyframes shine-down { from { background-position: 180% 0; } to { background-position: -80% 0; } }
+    @keyframes pulse { 0%, 100% { opacity: 0.9; transform: none; } 45% { opacity: 1; transform: scaleY(1.6); } }
     @keyframes halo { 0% { box-shadow: 0 0 0 3px var(--c), 0 0 0 3px color-mix(in srgb, var(--c) 50%, transparent), 0 2px 8px rgba(0,0,0,0.35); }
       100% { box-shadow: 0 0 0 3px var(--c), 0 0 0 12px transparent, 0 2px 8px rgba(0,0,0,0.35); } }
     @media (prefers-reduced-motion: reduce) {

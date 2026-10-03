@@ -237,9 +237,15 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
     root.querySelector(".header .power").click();
     await wait(300);
     const calls = window.serviceCalls.slice(before).map((c) => ({ s: c.service, ids: [].concat(c.data.entity_id), b: c.data.brightness_pct }));
-    const compact = [...document.querySelectorAll("ha-light-card")].find((c) => c._config.layout === "compact")
-      .shadowRoot.querySelector("hcc-gradient-slider").shadowRoot;
-    return { caps, calls, animated: !!compact.querySelector(".track.filled.is-active .shine") && compact.querySelectorAll(".tick.lit").length > 5 };
+    const slider2 = [...document.querySelectorAll("ha-light-card")].find((c) => c._config.layout === "compact")
+      .shadowRoot.querySelector("hcc-gradient-slider");
+    const compact = slider2.shadowRoot;
+    const resting = !compact.querySelector(".track.flash") && compact.querySelectorAll(".tick.lit").length > 5;
+    slider2.value = slider2.value - 20;
+    await wait(150);
+    const flashDown = !!compact.querySelector(".track.flash.down");
+    await wait(2100);
+    return { caps, calls, animated: resting && flashDown && !compact.querySelector(".track.flash") };
   });
   const c = res.caps;
   c.wohnzimmer_stehlampe?.details.join() === "mdi:thermometer,mdi:palette,mdi:auto-fix"
@@ -253,7 +259,7 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
   dim && dim.ids.length === 3 && !dim.ids.includes("light.wohnzimmer_lichterkette") && !dim.ids.includes("light.wohnzimmer_vitrine")
     ? ok("Licht-Gruppe: Gruppenregler dimmt nur dimmbare, verfügbare Lampen") : fail(`Gruppenregler: ${JSON.stringify(res.calls)}`);
   res.calls.some((x) => x.s === "turn_off" && x.ids.length >= 3) ? ok("Licht-Gruppe: Alle ausschalten") : fail(`Alle aus: ${JSON.stringify(res.calls)}`);
-  res.animated ? ok("Kompakter Lichtregler leuchtet mit Lauflicht und Skala") : fail("Kompakter Regler ohne Animation");
+  res.animated ? ok("Kompakter Lichtregler: ruht, Lauflicht nur kurz nach Änderung (dunkler → nach links)") : fail("Regler-Animation nicht nur bei Änderung");
 }
 
 // Moduswechsel: jede Karte, jeder Modus (außer Auto/Heizen-Kühlen, dort zählt die Tätigkeit)
