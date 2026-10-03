@@ -54,7 +54,8 @@ export class CountdownTimer extends LitElement {
   private _fmtChip(min: number): string {
     if (min < 60) return `${min} min`;
     const h = min / 60;
-    return `${Number.isInteger(h) ? h : h.toFixed(1).replace(".", ",")} h`;
+    const lang = this.hass?.locale?.language ?? this.hass?.language ?? "de";
+    return `${h.toLocaleString(lang, { maximumFractionDigits: 1 })} h`;
   }
 
   private _fmtRemaining(sec: number): string {

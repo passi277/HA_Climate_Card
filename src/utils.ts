@@ -1,12 +1,35 @@
 import type { HassEntity } from "./types";
-import { ACTION_TO_MODE, MODE_COLORS } from "./const";
+import { ACTION_ICONS, ACTION_TO_MODE, MODE_COLORS, MODE_ICONS } from "./const";
 
 export const UNAVAILABLE = ["unavailable", "unknown"];
 
+/** Modi, in denen das Gerät selbst zwischen Heizen und Kühlen entscheidet. */
+const AUTO_MODES = ["auto", "heat_cool"];
+
+/**
+ * Die gemeldete Aktion passt zum eingestellten Modus. Nach einem Moduswechsel melden viele Geräte
+ * noch kurz die alte Aktion (z.B. "cooling" im Modus "heat") – dann zählt der Modus.
+ */
+const actionMatchesMode = (st: HassEntity): boolean => {
+  const mapped = ACTION_TO_MODE[st.attributes.hvac_action];
+  return !mapped || mapped === st.state || AUTO_MODES.includes(st.state);
+};
+
+/** Farbe nach eingestelltem Modus; nur bei Auto/Heizen-Kühlen nach der tatsächlichen Aktion. */
 export const modeColor = (st: HassEntity): string => {
   if (st.state === "off" || UNAVAILABLE.includes(st.state)) return MODE_COLORS.off;
-  const fromAction = ACTION_TO_MODE[st.attributes.hvac_action];
-  return MODE_COLORS[fromAction ?? st.state] ?? "var(--primary-color)";
+  if (AUTO_MODES.includes(st.state)) {
+    const fromAction = ACTION_TO_MODE[st.attributes.hvac_action];
+    return MODE_COLORS[fromAction ?? st.state] ?? "var(--primary-color)";
+  }
+  return MODE_COLORS[st.state] ?? "var(--primary-color)";
+};
+
+/** Symbol der aktuellen Aktion, sofern sie zum Modus passt, sonst das Modus-Symbol. */
+export const stateIcon = (st: HassEntity): string => {
+  const action = st.attributes.hvac_action as string | undefined;
+  if (action && ACTION_ICONS[action] && actionMatchesMode(st)) return ACTION_ICONS[action];
+  return MODE_ICONS[st.state] ?? "mdi:air-conditioner";
 };
 
 export const isActive = (st: HassEntity): boolean => {

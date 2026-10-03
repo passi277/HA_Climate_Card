@@ -1,9 +1,9 @@
 import { LitElement, css, html, nothing, type PropertyValues } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import type { HassEntity, HomeAssistant, OverviewCardConfig, OverviewEntityConfig } from "./types";
-import { ACTION_ICONS, ClimateFeature, MODE_ICONS, supports } from "./const";
+import { ClimateFeature, supports } from "./const";
 import { formatAttribute, formatMode, localize } from "./localize/localize";
-import { isActive, modeColor, temperatureOf, UNAVAILABLE } from "./utils";
+import { isActive, modeColor, stateIcon, temperatureOf, UNAVAILABLE } from "./utils";
 
 (window as any).customCards = (window as any).customCards || [];
 (window as any).customCards.push({
@@ -139,7 +139,7 @@ export class HaClimateOverviewCard extends LitElement {
     return html`<div class="row ${off ? "off" : ""}" style="--accent:${color}">
       <button class="info" @click=${() => this._moreInfo(st.entity_id)}>
         <span class="badge ${active ? "active" : ""}">
-          <ha-icon .icon=${ACTION_ICONS[action ?? ""] ?? MODE_ICONS[st.state] ?? "mdi:air-conditioner"}></ha-icon>
+          <ha-icon .icon=${stateIcon(st)}></ha-icon>
         </span>
         <span class="names">
           <span class="name">${name}</span>

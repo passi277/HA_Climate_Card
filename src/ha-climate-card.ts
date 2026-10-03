@@ -2,14 +2,12 @@ import { LitElement, html, nothing, type PropertyValues, type TemplateResult } f
 import { customElement, property, state } from "lit/decorators.js";
 import type { ClimateCardConfig, HassEntity, HomeAssistant, ShowConfig } from "./types";
 import {
-  ACTION_ICONS,
   AUTO_SHORTCUT_DOMAINS,
   CARD_VERSION,
   ClimateFeature,
   DEFAULT_SHOW,
   HVAC_MODE_ORDER,
   MODE_COLORS,
-  MODE_ICONS,
   PRIMARY_SECTIONS,
   supports,
 } from "./const";
@@ -26,7 +24,7 @@ import "./components/shortcut-row";
 import "./components/sleep-timer";
 import "./components/countdown-timer";
 import "./components/airflow";
-import { dewPoint, isActive, modeColor, temperatureOf, WEATHER_ICONS } from "./utils";
+import { dewPoint, isActive, modeColor, stateIcon, temperatureOf, WEATHER_ICONS } from "./utils";
 import "./editor";
 import "./overview-card";
 
@@ -445,7 +443,7 @@ export class HaClimateCard extends LitElement {
       <div class="header">
         <button class="title" @click=${() => this._moreInfo()}>
           <span class="icon-badge ${this._isActive(st) ? "active" : ""}" style="--accent:${color}">
-            <ha-icon .icon=${this._config!.icon ?? ACTION_ICONS[action ?? ""] ?? MODE_ICONS[st.state] ?? "mdi:air-conditioner"}></ha-icon>
+            <ha-icon .icon=${this._config!.icon ?? stateIcon(st)}></ha-icon>
           </span>
           <span class="names">
             <span class="name">${name}</span>

@@ -17,11 +17,28 @@
       --divider-color: rgba(255,255,255,0.12); background: #111;
     }
     .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; align-items: start; }
+    .toolbar { position: sticky; top: 0; z-index: 10; display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+      margin: -24px -24px 20px; padding: 12px 24px; background: color-mix(in srgb, var(--card-background-color) 85%, transparent);
+      backdrop-filter: blur(10px); border-bottom: 1px solid var(--divider-color); }
+    .brand { font-weight: 600; margin-right: auto; }
+    .seg { display: inline-flex; padding: 3px; border-radius: 999px; background: rgba(127,127,127,0.15); }
+    .seg button { border: none; background: transparent; color: var(--primary-text-color); font: inherit; font-size: 13px;
+      padding: 6px 14px; border-radius: 999px; cursor: pointer; }
+    .seg button[aria-pressed="true"] { background: var(--card-background-color); box-shadow: 0 1px 3px rgba(0,0,0,0.2); font-weight: 600; }
     h2 { font-size: 14px; color: var(--secondary-text-color); margin: 0 0 6px; font-weight: 500; }
     #log { font: 12px monospace; white-space: pre-wrap; margin-top: 16px; color: var(--secondary-text-color); }
   </style>
 </head>
 <body>
+  <div class="toolbar" role="toolbar" aria-label="Demo-Einstellungen">
+    <span class="brand">HA Climate Card · Demo</span>
+    <div class="seg" role="group" aria-label="Design">
+      <button data-theme="light">☀️ Hell</button><button data-theme="dark">🌙 Dunkel</button>
+    </div>
+    <div class="seg" role="group" aria-label="Sprache">
+      <button data-lang="de">DE</button><button data-lang="en">EN</button>
+    </div>
+  </div>
   <div class="grid" id="grid"></div>
   <div id="log"></div>
   <!-- Generiert von scripts/build-demo.mjs: Karte und Icons sind eingebettet, damit die Datei per Doppelklick funktioniert. -->
@@ -51,8 +68,25 @@
     });
 
     const params = new URLSearchParams(location.search);
-    if (params.get("dark")) document.body.classList.add("dark");
-    const lang = params.get("lang") || "de";
+    let lang = params.get("lang") || "de";
+    const setTheme = (dark) => {
+      document.body.classList.toggle("dark", dark);
+      document.querySelectorAll("[data-theme]").forEach((b) => b.setAttribute("aria-pressed", String((b.dataset.theme === "dark") === dark)));
+    };
+    const updateUrl = () => {
+      const q = new URLSearchParams();
+      if (document.body.classList.contains("dark")) q.set("dark", "1");
+      if (lang !== "de") q.set("lang", lang);
+      try { history.replaceState(null, "", q.toString() ? `?${q}` : location.pathname); } catch (e) { /* file:// */ }
+    };
+    const markLang = () => document.querySelectorAll("[data-lang]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.lang === lang)));
+    setTheme(!!params.get("dark") || (!params.has("dark") && matchMedia("(prefers-color-scheme: dark)").matches));
+    markLang();
+    document.querySelectorAll("[data-theme]").forEach((b) => b.addEventListener("click", () => { setTheme(b.dataset.theme === "dark"); updateUrl(); }));
+    document.querySelectorAll("[data-lang]").forEach((b) => b.addEventListener("click", () => {
+      lang = b.dataset.lang; markLang(); updateUrl();
+      const h = makeHass(); cards.forEach((c) => (c.hass = h));
+    }));
     const log = (m) => (document.getElementById("log").textContent += m + "\n");
     window.serviceCalls = [];
 
@@ -107,6 +141,22 @@
     };
     for (const [id, s] of Object.entries(states)) Object.assign(s, { entity_id: id, last_changed: now, last_updated: now });
 
+    // Simuliert, was das Gerät nach einer Änderung als Aktion meldet
+    const deriveAction = (mode, a) => {
+      if (!("hvac_action" in a)) return undefined;
+      const cur = a.current_temperature;
+      const tgt = a.temperature;
+      switch (mode) {
+        case "off": return "off";
+        case "heat": return cur < tgt ? "heating" : "idle";
+        case "cool": return cur > tgt ? "cooling" : "idle";
+        case "dry": return "drying";
+        case "fan_only": return "fan";
+        case "heat_cool": return cur < a.target_temp_low ? "heating" : cur > a.target_temp_high ? "cooling" : "idle";
+        case "auto": return tgt == null ? "idle" : cur < tgt - 0.5 ? "heating" : cur > tgt + 0.5 ? "cooling" : "idle";
+        default: return a.hvac_action;
+      }
+    };
     const cards = [];
     const entities = Object.fromEntries(Object.keys(states).map((id) => [id, { entity_id: id, device_id: id.includes("1ed763d9") ? "dev_gree" : null }]));
     const devices = { dev_gree: { id: "dev_gree", name: "Klima Schlafzimmer" } };
@@ -143,6 +193,7 @@
         for (const k of ["temperature", "target_temp_low", "target_temp_high", "humidity", "fan_mode", "swing_mode", "swing_horizontal_mode", "preset_mode"]) {
           if (k in data) attrs[k] = data[k];
         }
+        if ("hvac_action" in attrs) attrs.hvac_action = deriveAction(st, attrs);
         states[data.entity_id] = { ...s, state: st, attributes: attrs, last_updated: new Date().toISOString() };
         setTimeout(() => { const h = makeHass(); cards.forEach((c) => (c.hass = h)); }, 150);
       },
