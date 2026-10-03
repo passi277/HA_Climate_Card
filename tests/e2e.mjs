@@ -17,7 +17,7 @@ await p.waitForFunction(() => window.__ready, null, { timeout: 10000 });
 await p.waitForTimeout(500);
 
 const rendered = await p.evaluate(() =>
-  [...document.querySelectorAll("ha-climate-card, ha-climate-overview-card, ha-light-card, ha-light-group-card, ha-cover-card, ha-cover-group-card, ha-switch-time-card, ha-media-card, ha-room-card, ha-status-card")].filter((c) => c.shadowRoot?.querySelector("ha-card")).length);
+  [...document.querySelectorAll("ha-climate-card, ha-climate-overview-card, ha-light-card, ha-light-group-card, ha-cover-card, ha-cover-group-card, ha-switch-time-card, ha-media-card, ha-room-card, ha-status-card, ha-vacuum-card")].filter((c) => c.shadowRoot?.querySelector("ha-card")).length);
 rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Karten gerendert`);
 
 // Regler: Tippen in die Mitte verstellt nichts, Tippen auf den Ring schon
@@ -375,7 +375,7 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
   const res = await p.evaluate(async () => {
     const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     const press = (b) => { b.dispatchEvent(new PointerEvent("pointerdown", { button: 0, bubbles: true })); b.dispatchEvent(new PointerEvent("pointerup", { bubbles: true })); };
-    const [alarm, water] = [...document.querySelectorAll("ha-switch-time-card, ha-media-card, ha-room-card, ha-status-card")].map((c) => c.shadowRoot);
+    const [alarm, water] = [...document.querySelectorAll("ha-switch-time-card, ha-media-card, ha-room-card, ha-status-card, ha-vacuum-card")].map((c) => c.shadowRoot);
     const before = window.serviceCalls.length;
     const status = alarm.querySelector(".status").textContent.trim();
     alarm.querySelector(".switch").click();
@@ -576,6 +576,40 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
   });
   res.label === "Rollo-Timer" && /Fährt um/.test(res.status ?? "") && /timer/.test(res.icon ?? "")
     ? ok("Rollladen: Rollo-Timer mit „Fährt um …“") : fail(`Rollo-Timer: ${JSON.stringify(res)}`);
+}
+
+// Saugroboter: Raumwahl auf der Karte, Raumreinigung, Steuerung, Wartung
+{
+  const res = await p.evaluate(async () => {
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const card = document.querySelector("ha-vacuum-card");
+    card.scrollIntoView();
+    await wait(400);
+    const root = card.shadowRoot;
+    const polys = root.querySelectorAll(".map-svg .room").length;
+    root.querySelector('.room[data-room="22"]').dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await wait(50);
+    [...root.querySelectorAll(".room-chip")].find((x) => x.textContent.includes("Küche")).click();
+    await wait(50);
+    const chipsOn = [...root.querySelectorAll(".room-chip.on")].map((x) => x.textContent.trim());
+    root.querySelectorAll(".repeat button")[1].click();
+    await wait(50);
+    const before = window.serviceCalls.length;
+    root.querySelector(".clean").click();
+    root.querySelector(".ctl").click();
+    await wait(300);
+    const calls = window.serviceCalls.slice(before).map((c) => ({ s: `${c.domain}.${c.service}`, d: c.data }));
+    return { polys, chipsOn, calls, maint: root.querySelector(".maint-toggle").textContent.trim(),
+      selects: [...root.querySelectorAll(".settings hcc-attribute-select")].map((x) => x.label) };
+  });
+  const seg = res.calls.find((c) => c.s === "vacuum.send_command");
+  res.polys === 9 && res.chipsOn.join("|") === "Küche|Pascal" && seg?.d.command === "app_segment_clean"
+    && JSON.stringify(seg.d.params) === JSON.stringify([{ segments: [22, 18], repeat: 2 }])
+    ? ok("Saugroboter: 9 Räume auf der Karte, Auswahl per Karte + Chip, Raumreinigung (app_segment_clean, 2×)")
+    : fail(`Saugroboter Räume: ${JSON.stringify(res)}`);
+  res.calls.some((c) => c.s === "vacuum.pause") && /Wartung fällig: Sensorzeit/.test(res.maint)
+    && res.selects.join("|") === "Saugstärke|Reinigungsmodus|Wisch-Intensität"
+    ? ok("Saugroboter: Steuerung, Saugstärke + Modi vom Gerät (ohne Kartenauswahl), Wartung fällig") : fail(`Saugroboter: ${JSON.stringify(res)}`);
 }
 
 // Moduswechsel: jede Karte, jeder Modus (außer Auto/Heizen-Kühlen, dort zählt die Tätigkeit)

@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.8.0 – Saugroboter
+- Neu: **Modern Vacuum Card** (`custom:ha-vacuum-card`) – Live-Karte (zugeschnitten), Räume auf der Karte oder als Chips wählen, Raumreinigung mit Durchgängen (`app_segment_clean`), Status/Batterie/Fortschritt/Fehler, Start/Pause/Stopp/Station/Suchen, Routinen-Buttons, Saugstärke und Modi vom Gerät, Wartung, visueller Editor
+
 ## 1.7.5
 - Rollladen-Karte und Rollladen-Gruppe: **Rollo-Timer** (`timer_switch` + `timer_time`) – „Fährt um 06:30 · in 12:59 h“, Uhrzeit per Stunden-/Minuten-Auswahl, im Editor unter „Rollo-Timer“
 - Sleeptimer-Zeile: Symbol einstellbar (intern)

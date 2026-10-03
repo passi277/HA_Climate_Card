@@ -14,6 +14,7 @@ weiche Farbübergänge und Animationen. Ein HACS-Download, mehrere Karten:
 | **Modern Media Card** | `custom:ha-media-card` | Harmony Hub (Aktivitäten, Fernbedienung) und Media-Player |
 | **Modern Room Header** | `custom:ha-room-card` | Raum-Kopf mit Status-Chips und Hinweis „Fenster offen – Klima läuft“ |
 | **Modern Status Card** | `custom:ha-status-card` | Batterien (automatisch je Bereich) und Tür-/Fensterkontakte |
+| **Modern Vacuum Card** | `custom:ha-vacuum-card` | Saugroboter mit Karte, Raumauswahl und Raumreinigung |
 | **Climate Overview** | `custom:ha-climate-overview-card` | alle Klimageräte auf einen Blick |
 
 *Modern Lovelace cards for Home Assistant in one shared design – English summary below.*
@@ -391,6 +392,24 @@ contacts:
 und **Gemütlich** (25 %/2200 K) – das aktive leuchtet. Eigene: `presets: [{ name: Lesen, icon: mdi:book, brightness: 80, kelvin: 3500 }]`
 (auch `rgb: [255, 0, 120]`).
 
+## Modern Vacuum Card (Saugroboter)
+
+- **Live-Karte** aus dem Kartenbild (z.B. Roborock Custom Map, `image.*`) – mit Roboter-Position, automatisch auf die
+  Wohnung zugeschnitten
+- **Räume direkt auf der Karte antippen** (Raumgrenzen über die Kalibrierpunkte) oder als Chips wählen →
+  „2 Räume reinigen“, 1×/2×/3× – per `vacuum.send_command` `app_segment_clean`
+- Status (Reinigt · Küche), Batterie, Fortschritt, Fehler; Start/Pause, Stopp, Station, Suchen (nur was der Roboter kann)
+- Routinen-Buttons des Geräts (z.B. „Alles“, „Kanten Flur“), Saugstärke und Auswahlen wie Reinigungsmodus/Wisch-Intensität
+- Wartung: Filter, Bürsten, Sensoren – fällige werden hervorgehoben
+
+```yaml
+type: custom:ha-vacuum-card
+entity: vacuum.roborock_s8_maxv_ultra
+# map: image.roborock_s8_maxv_ultra_wohnung_custom   # sonst automatisch
+# rooms:                                              # eigene Auswahl/Namen
+#   - { id: 22, name: Pascal }
+```
+
 ## Heizungen (z.B. Homematic IP)
 
 Thermostate werden automatisch erkannt. Die Karte zeigt dann statt Lüfter, Lamellen und Luftstrom:
@@ -488,6 +507,7 @@ glow, smooth color transitions, animations), shipped as a single HACS download:
 - `custom:ha-media-card` – Harmony Hub activities and remote (commands routed to the right device) plus media player (now playing, volume, source)
 - `custom:ha-room-card` – room header with status chips and a "window open – A/C running" warning
 - `custom:ha-status-card` – batteries (per area, Battery Notes aware) and door/window contacts
+- `custom:ha-vacuum-card` – robot vacuum with live map, tap rooms on the map for room cleaning, controls, modes, maintenance
 - `custom:ha-climate-overview-card` – all climate devices at a glance
 
 Install via HACS as a custom repository of type **Dashboard**. All cards have a visual editor and are

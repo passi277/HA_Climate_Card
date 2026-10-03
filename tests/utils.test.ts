@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { HassEntity } from "../src/types";
 import {
-  brightnessPct, contactType, areaBatteries, batteryInfo, presetActive, presetData, DEFAULT_LIGHT_PRESETS, activityIcon, activityLabel, guessControlDevice, guessVolumeDevice, coverIcon, datetimeParts, nextOccurrence, coverPosition, skyPhase, sunPlacement, weatherOverlay, editorOptions, isNoEffect, lightEditorOptions, segmentIds, detectDeviceType, kelvinToRgb, lightColor, relatedScenes, supportsColor, supportsColorTemp, dewPoint, nextSwitch, parseSchedule, scheduleTempAt, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
+  brightnessPct, contactType, calibrationTransform, roomsFromMap, roomIcon, areaBatteries, batteryInfo, presetActive, presetData, DEFAULT_LIGHT_PRESETS, activityIcon, activityLabel, guessControlDevice, guessVolumeDevice, coverIcon, datetimeParts, nextOccurrence, coverPosition, skyPhase, sunPlacement, weatherOverlay, editorOptions, isNoEffect, lightEditorOptions, segmentIds, detectDeviceType, kelvinToRgb, lightColor, relatedScenes, supportsColor, supportsColorTemp, dewPoint, nextSwitch, parseSchedule, scheduleTempAt, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
   openContactsKey, powerOf, resolveContacts, secondsToDuration, stateIcon, temperatureOf, temperatureTint, trendSlope,
 } from "../src/utils";
 import { formatAttribute, localize } from "../src/localize/localize";
@@ -378,5 +378,24 @@ describe("batteries, presets, door names", () => {
   it("treats a door-named contact with device_class window as door", () => {
     expect(contactType(entity("binary_sensor.t", "off", { device_class: "window", friendly_name: "Türkontakt mein Zimmer" }))).toBe("door");
     expect(contactType(entity("binary_sensor.f", "off", { device_class: "window", friendly_name: "Fenster Terrassentür" }))).toBe("window");
+  });
+});
+
+describe("vacuum map", () => {
+  const cal = [{ vacuum: { x: 25500, y: 25500 }, map: { x: 776, y: 908 } }, { vacuum: { x: 35500, y: 25500 }, map: { x: 1576, y: 908 } },
+    { vacuum: { x: 25500, y: 35500 }, map: { x: 776, y: 108 } }];
+  it("maps robot coordinates to map pixels (Roborock calibration)", () => {
+    const tf = calibrationTransform(cal)!;
+    expect(tf(25500, 25500)).toEqual([776, 908]);
+    const [x, y] = tf(30500, 30500);
+    expect(x).toBeCloseTo(1176);
+    expect(y).toBeCloseTo(508);
+    expect(calibrationTransform(undefined)).toBeUndefined();
+  });
+  it("reads rooms from the map image", () => {
+    const rooms = roomsFromMap(entity("image.m", "x", { rooms: { 22: { number: 22, name: "Pascal", x0: 28950, y0: 23600, x1: 32800, y1: 27400 }, 18: { number: 18, name: "Küche" } } }));
+    expect(rooms.map((r) => r.id).sort()).toEqual([18, 22]);
+    expect(rooms.find((r) => r.id === 22)?.box).toEqual([28950, 23600, 32800, 27400]);
+    expect(roomIcon("Küche")).toBe("mdi:silverware-fork-knife");
   });
 });

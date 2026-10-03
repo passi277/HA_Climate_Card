@@ -510,5 +510,43 @@
     "navigation_path": "Tap opens page",
     "expanded": "Battery list initially open",
     "hint": "Areas: one battery sensor per device (Battery Notes preferred, incl. battery type like \"2× AA\")."
+  },
+  "vacuum": {
+    "rooms": "Rooms",
+    "repeat": "Passes",
+    "clean_room": "Clean room",
+    "clean_rooms": "Clean rooms",
+    "started": "Started",
+    "clear": "Clear selection",
+    "start": "Start",
+    "pause": "Pause",
+    "stop": "Stop",
+    "dock": "Dock",
+    "locate": "Locate",
+    "fan_speed": "Suction",
+    "maintenance_ok": "Maintenance: all fine",
+    "maintenance_due": "Maintenance due",
+    "due": "due",
+    "state_cleaning": "Cleaning",
+    "state_docked": "Docked",
+    "state_idle": "Idle",
+    "state_paused": "Paused",
+    "state_returning": "Returning",
+    "state_error": "Error",
+    "state_unknown": "Unknown"
+  },
+  "vacuum_editor": {
+    "entity": "Vacuum",
+    "name": "Name",
+    "icon": "Icon",
+    "map": "Map image (otherwise automatic)",
+    "sections": "Visible sections",
+    "rooms": "Room selection",
+    "controls": "Controls",
+    "shortcuts": "Routines (buttons)",
+    "settings": "Suction & modes",
+    "maintenance": "Maintenance",
+    "selects": "Selects (otherwise from the device)",
+    "hint": "Rooms and room borders come from the map image (e.g. Roborock Custom Map). Room cleaning via vacuum.send_command \"app_segment_clean\"."
   }
 }

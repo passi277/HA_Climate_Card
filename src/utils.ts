@@ -729,3 +729,48 @@ export const presetData = (p: LightPreset): Record<string, unknown> => ({
   ...(p.kelvin != null ? { color_temp_kelvin: p.kelvin } : {}),
   ...(p.rgb ? { rgb_color: p.rgb } : {}),
 });
+
+// ---------- Saugroboter ----------
+
+export interface CalibrationPoint { vacuum: { x: number; y: number }; map: { x: number; y: number }; }
+
+/**
+ * Affine Abbildung Roboter-Koordinaten → Kartenpixel aus 3 Kalibrierpunkten
+ * (Format der Roborock-/Xiaomi-Kartenintegrationen).
+ */
+export const calibrationTransform = (points?: CalibrationPoint[]): ((x: number, y: number) => [number, number]) | undefined => {
+  if (!Array.isArray(points) || points.length < 3) return undefined;
+  const [p1, p2, p3] = points;
+  const det = (p1.vacuum.x - p3.vacuum.x) * (p2.vacuum.y - p3.vacuum.y) - (p2.vacuum.x - p3.vacuum.x) * (p1.vacuum.y - p3.vacuum.y);
+  if (!det) return undefined;
+  const solve = (k: "x" | "y") => {
+    const a = ((p1.map[k] - p3.map[k]) * (p2.vacuum.y - p3.vacuum.y) - (p2.map[k] - p3.map[k]) * (p1.vacuum.y - p3.vacuum.y)) / det;
+    const b = ((p2.map[k] - p3.map[k]) * (p1.vacuum.x - p3.vacuum.x) - (p1.map[k] - p3.map[k]) * (p2.vacuum.x - p3.vacuum.x)) / det;
+    const c = p3.map[k] - a * p3.vacuum.x - b * p3.vacuum.y;
+    return [a, b, c];
+  };
+  const [ax, bx, cx] = solve("x");
+  const [ay, by, cy] = solve("y");
+  return (x, y) => [ax * x + bx * y + cx, ay * x + by * y + cy];
+};
+
+export interface VacuumRoom { id: number; name: string; icon?: string; box?: [number, number, number, number]; }
+
+/** Räume aus den Attributen des Kartenbilds (`rooms: { "16": { number, name, x0, y0, x1, y1 } }`). */
+export const roomsFromMap = (st?: HassEntity): VacuumRoom[] => {
+  const rooms = st?.attributes.rooms;
+  if (!rooms || typeof rooms !== "object") return [];
+  return Object.entries(rooms as Record<string, any>)
+    .map(([key, r]) => ({ id: Number(r?.number ?? key), name: String(r?.name ?? key),
+      box: [r?.x0, r?.y0, r?.x1, r?.y1].every((v) => Number.isFinite(Number(v))) ? [Number(r.x0), Number(r.y0), Number(r.x1), Number(r.y1)] as [number, number, number, number] : undefined }))
+    .filter((r) => Number.isFinite(r.id));
+};
+
+const ROOM_ICONS: [RegExp, string][] = [
+  [/k(ü|ue)che|kitchen/i, "mdi:silverware-fork-knife"], [/bad|bath|wc|toilet/i, "mdi:shower"], [/schlaf|bed/i, "mdi:bed"],
+  [/wohn|living/i, "mdi:sofa"], [/flur|diele|hall|corridor/i, "mdi:door"], [/kind|child/i, "mdi:teddy-bear"],
+  [/g(ä|ae)ste|guest/i, "mdi:bed-outline"], [/b(ü|ue)ro|office|arbeit/i, "mdi:desk"], [/ess|dining/i, "mdi:table-chair"],
+  [/teppich|carpet|rug/i, "mdi:rug"],
+];
+
+export const roomIcon = (name: string): string => ROOM_ICONS.find(([re]) => re.test(name))?.[1] ?? "mdi:floor-plan";

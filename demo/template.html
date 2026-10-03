@@ -229,6 +229,40 @@
         unit_of_measurement: "%", device_name: "Türkontakt mein Zimmer", battery_type_and_quantity: "AAA", battery_low: false } },
       "sensor.zimmer_schalter_battery_plus": { state: "91", attributes: { friendly_name: "Lichtschalter Batterie+", device_class: "battery",
         unit_of_measurement: "%", device_name: "Lichtschalter", battery_type_and_quantity: "CR2032", battery_low: false } },
+      "vacuum.roborock_s8_maxv_ultra": { state: "cleaning", attributes: { friendly_name: "Roborock S8 MaxV Ultra", supported_features: 30524,
+        fan_speed: "balanced", fan_speed_list: ["quiet", "balanced", "turbo", "max", "max_plus", "off", "smart_mode", "custom"] } },
+      "sensor.roborock_batterie": { state: "82", attributes: { friendly_name: "Roborock S8 MaxV Ultra Batterie", device_class: "battery", unit_of_measurement: "%" } },
+      "sensor.roborock_aktueller_raum": { state: "Küche", attributes: { friendly_name: "Roborock S8 MaxV Ultra Aktueller Raum", device_class: "enum" } },
+      "sensor.roborock_reinigungsfortschritt": { state: "46", attributes: { friendly_name: "Roborock S8 MaxV Ultra Reinigungsfortschritt", unit_of_measurement: "%" } },
+      "sensor.roborock_staubsauger_fehler": { state: "none", attributes: { friendly_name: "Roborock S8 MaxV Ultra Staubsauger-Fehler" } },
+      "sensor.roborock_verbleibende_filterzeit": { state: "45.4", attributes: { friendly_name: "Roborock S8 MaxV Ultra Verbleibende Filterzeit", unit_of_measurement: "h" } },
+      "sensor.roborock_verbleibende_sensorzeit": { state: "-15.2", attributes: { friendly_name: "Roborock S8 MaxV Ultra Verbleibende Sensorzeit", unit_of_measurement: "h" } },
+      "sensor.roborock_verbleibende_zeit_der_seitenburste": { state: "23.7", attributes: { friendly_name: "Roborock S8 MaxV Ultra Verbleibende Zeit der Seitenbürste", unit_of_measurement: "h" } },
+      "select.roborock_reinigungsmodus": { state: "vac_and_mop", attributes: { friendly_name: "Roborock S8 MaxV Ultra Reinigungsmodus", options: ["vacuum", "mop", "vac_and_mop", "vac_then_mop"] } },
+      "select.roborock_wischmopp_intensitat": { state: "standard", attributes: { friendly_name: "Roborock S8 MaxV Ultra Wisch-Intensität", options: ["off", "mild", "standard", "intense"] } },
+      "select.roborock_ausgewahlte_karte": { state: "Wohnung", attributes: { friendly_name: "Roborock S8 MaxV Ultra Ausgewählte Karte", options: ["Wohnung"] } },
+      "button.roborock_alles": { state: "unknown", attributes: { friendly_name: "Roborock S8 MaxV Ultra Alles" } },
+      "button.roborock_kanten_flur": { state: "unknown", attributes: { friendly_name: "Roborock S8 MaxV Ultra Kanten flur" } },
+      "image.roborock_wohnung_custom": (() => {
+        // Grundriss wie die Roborock-Räume (Koordinaten des Roboters → Pixel über die Kalibrierung)
+        const rooms = { 16: ["Wohnzimmer teppich", 23300, 31200, 27000, 35000], 17: ["Marcel", 32950, 23600, 35250, 29100], 18: ["Küche", 25050, 24350, 27900, 27950],
+          19: ["Gäste WC", 32950, 29200, 34150, 30400], 20: ["Gästezimmer", 20000, 27950, 24600, 31650], 21: ["Wohnzimmer", 24450, 27900, 28500, 32650],
+          22: ["Pascal", 28950, 23600, 32800, 27400], 23: ["Flur", 28450, 27450, 33250, 31600], 24: ["Badezimmer", 28450, 27450, 31500, 29350] };
+        const px = (x) => 776 + (x - 25500) * 0.08, py = (y) => 908 - (y - 25500) * 0.08;
+        const colors = ["#7aa7d9", "#e8b26a", "#8fcf9a", "#d98fb4", "#b39ddb", "#80cbc4", "#ffcc80", "#90a4ae", "#a5d6a7"];
+        let body = "";
+        Object.values(rooms).forEach(([n, x0, y0, x1, y1], i) => {
+          body += `<rect x="${px(x0)}" y="${py(y1)}" width="${(x1 - x0) * 0.08}" height="${(y1 - y0) * 0.08}" fill="${colors[i]}" fill-opacity=".55" stroke="#455a64" stroke-width="6"/>`;
+        });
+        body += `<path d="M ${px(25400)} ${py(26600)} q 60 -80 120 0 t 120 0 t 120 -40" fill="none" stroke="#fff" stroke-width="5" stroke-dasharray="10 8" opacity=".8"/>`;
+        body += `<rect x="${px(31900) - 22}" y="${py(23900) - 12}" width="44" height="24" rx="6" fill="#263238"/>`;
+        body += `<circle cx="${px(26300)}" cy="${py(26400)}" r="22" fill="#fff" stroke="#26a69a" stroke-width="8"/><circle cx="${px(26300)}" cy="${py(26400) - 9}" r="5" fill="#26a69a"/>`;
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1150" viewBox="0 0 1800 1150"><rect width="1800" height="1150" fill="#eef1f4"/>${body}</svg>`;
+        return { state: new Date().toISOString(), attributes: { friendly_name: "Roborock S8 MaxV Ultra Wohnung_custom",
+          entity_picture: "data:image/svg+xml," + encodeURIComponent(svg),
+          calibration_points: [{ vacuum: { x: 25500, y: 25500 }, map: { x: 776, y: 908 } }, { vacuum: { x: 35500, y: 25500 }, map: { x: 1576, y: 908 } }, { vacuum: { x: 25500, y: 35500 }, map: { x: 776, y: 108 } }],
+          rooms: Object.fromEntries(Object.entries(rooms).map(([id, [name, x0, y0, x1, y1]]) => [id, { number: Number(id), name, x0, y0, x1, y1 }])) } };
+      })(),
       "sun.sun": { state: "above_horizon", attributes: { friendly_name: "Sun", elevation: 20, azimuth: 237, rising: false } },
       "weather.garten": { state: "partlycloudy", attributes: { friendly_name: "Garten", temperature: 14 } },
       "cover.rollos_pascal": { state: "open", attributes: { friendly_name: "Rollos Pascal", current_position: 46, supported_features: 15,
@@ -269,7 +303,7 @@
     };
     const cards = [];
     const entities = Object.fromEntries(Object.keys(states).map((id) => [id, { entity_id: id,
-      device_id: id.includes("1ed763d9") ? "dev_gree" : /^(light|switch|button)\.carport_/.test(id) && !id.includes("segment") ? "dev_govee" : null,
+      device_id: /roborock/.test(id) && !id.startsWith("image.") ? "dev_robo" : id.includes("1ed763d9") ? "dev_gree" : /^(light|switch|button)\.carport_/.test(id) && !id.includes("segment") ? "dev_govee" : null,
       ...(/_mein_zimmer_batter|zimmer_schalter_batter|turkontakt_mein_zimmer_batter/.test(id) ? { device_id: id.replace(/^\w+\.|_battery_plus.*|_batterie$/g, "") } : {}),
       area_id: /heizung_mein_zimmer|etrv_|wandthermostat_mein|_mein_zimmer_batter|zimmer_schalter_batter|turkontakt_mein_zimmer_batter/.test(id) ? "mein_zimmer" : null }]));
     const devices = { dev_gree: { id: "dev_gree", name: "Klima Schlafzimmer" }, dev_govee: { id: "dev_govee", name: "Carport" } };
@@ -339,6 +373,16 @@
             }
           }
           setTimeout(refresh, 150);
+          return;
+        }
+        if (domain === "vacuum" || domain === "select") {
+          const v = states[data.entity_id];
+          const map = { start: "cleaning", pause: "paused", stop: "idle", return_to_base: "returning" };
+          if (domain === "vacuum" && map[service]) states[data.entity_id] = { ...v, state: map[service] };
+          if (service === "send_command") states[data.entity_id] = { ...v, state: "cleaning" };
+          if (service === "set_fan_speed") states[data.entity_id] = { ...v, attributes: { ...v.attributes, fan_speed: data.fan_speed } };
+          if (service === "select_option") states[data.entity_id] = { ...v, state: data.option };
+          setTimeout(() => { const h = makeHass(); cards.forEach((c) => (c.hass = h)); }, 150);
           return;
         }
         if (domain === "remote") {
@@ -470,6 +514,7 @@
       ["Status – Batterien aus Bereich + Türkontakt", { _status: true, areas: ["mein_zimmer"], contacts: [{ entity: "binary_sensor.tuerkontakt_pascal", name: "Tür" }] }],
       ["Licht – Gruppe mit Presets Hell / Warm / Gemütlich", { _light: true, entity: "light.licht_mein_zimmer", name: "Licht Zimmer", presets: "default", layout: "compact" }],
       ["Schalter als Button – Monitore (nur Symbol + Text)", { _switchTime: true, switch_entity: "input_boolean.wecker", name: "Monitore", icon: "mdi:monitor-multiple", color: "#42a5f5", switch_style: "button" }],
+      ["Saugroboter – Roborock (Karte mit Räumen, Raumreinigung, Modi, Wartung)", { _vacuum: true, entity: "vacuum.roborock_s8_maxv_ultra" }],
       ["Übersicht – mehrere Geräte", { _overview: true, title: "Klimaanlagen", entities: ["climate.1ed763d9", "climate.wohnzimmer", "climate.heizung_mein_zimmer", "climate.buero", "climate.schlafzimmer"] }],
       ["Voll – Aus", { entity: "climate.schlafzimmer", layout: "full" }],
       ["Kompakt – Kühlen", { entity: "climate.wohnzimmer", layout: "compact", outdoor_sensor: "sensor.aussen", power_sensor: "sensor.klima_power" }],
@@ -482,9 +527,9 @@
     configs.forEach(([title, cfg], i) => {
       const wrap = document.createElement("div");
       wrap.innerHTML = `<h2>${title}</h2>`;
-      const { _overview, _light, _group, _cover, _coverGroup, _switchTime, _media, _room, _status, ...rest } = cfg;
+      const { _overview, _light, _group, _cover, _coverGroup, _switchTime, _media, _room, _status, _vacuum, ...rest } = cfg;
       const tag = _overview ? "ha-climate-overview-card" : _group ? "ha-light-group-card" : _light ? "ha-light-card"
-        : _cover ? "ha-cover-card" : _coverGroup ? "ha-cover-group-card" : _switchTime ? "ha-switch-time-card" : _media ? "ha-media-card" : _room ? "ha-room-card" : _status ? "ha-status-card" : "ha-climate-card";
+        : _cover ? "ha-cover-card" : _coverGroup ? "ha-cover-group-card" : _switchTime ? "ha-switch-time-card" : _media ? "ha-media-card" : _room ? "ha-room-card" : _status ? "ha-status-card" : _vacuum ? "ha-vacuum-card" : "ha-climate-card";
       const card = document.createElement(tag);
       card.id = "card" + i;
       card.setConfig({ type: `custom:${tag}`, ...rest });

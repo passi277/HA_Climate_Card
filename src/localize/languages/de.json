@@ -510,5 +510,43 @@
     "navigation_path": "Tippen öffnet Seite",
     "expanded": "Batterieliste anfangs offen",
     "hint": "Bereiche: je Gerät ein Batterie-Sensor (Battery Notes wird bevorzugt, inkl. Batterietyp wie „2× AA“)."
+  },
+  "vacuum": {
+    "rooms": "Räume",
+    "repeat": "Durchgänge",
+    "clean_room": "Raum reinigen",
+    "clean_rooms": "Räume reinigen",
+    "started": "Gestartet",
+    "clear": "Auswahl leeren",
+    "start": "Start",
+    "pause": "Pause",
+    "stop": "Stopp",
+    "dock": "Station",
+    "locate": "Suchen",
+    "fan_speed": "Saugstärke",
+    "maintenance_ok": "Wartung: alles in Ordnung",
+    "maintenance_due": "Wartung fällig",
+    "due": "fällig",
+    "state_cleaning": "Reinigt",
+    "state_docked": "In der Station",
+    "state_idle": "Bereit",
+    "state_paused": "Pausiert",
+    "state_returning": "Fährt zur Station",
+    "state_error": "Fehler",
+    "state_unknown": "Unbekannt"
+  },
+  "vacuum_editor": {
+    "entity": "Saugroboter",
+    "name": "Name",
+    "icon": "Symbol",
+    "map": "Kartenbild (sonst automatisch)",
+    "sections": "Sichtbare Bereiche",
+    "rooms": "Raumauswahl",
+    "controls": "Steuerung",
+    "shortcuts": "Routinen (Buttons)",
+    "settings": "Saugstärke & Modi",
+    "maintenance": "Wartung",
+    "selects": "Auswahlen (sonst automatisch vom Gerät)",
+    "hint": "Räume und Raumgrenzen kommen aus dem Kartenbild (z.B. Roborock Custom Map). Raumreinigung über vacuum.send_command „app_segment_clean“."
   }
 }

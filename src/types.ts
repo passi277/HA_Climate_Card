@@ -362,3 +362,20 @@ export interface StatusCardConfig {
   expanded?: boolean;
   animations?: "full" | "reduced" | "off";
 }
+
+export interface VacuumCardConfig {
+  type: string;
+  entity: string;
+  name?: string;
+  icon?: string;
+  /** Kartenbild (image.*); Standard: automatisch (mit Kalibrierung/Räumen bevorzugt) */
+  map?: string;
+  /** Räume selbst festlegen (sonst aus der Karte) */
+  rooms?: { id: number; name?: string; icon?: string }[];
+  show?: { map?: boolean; rooms?: boolean; controls?: boolean; settings?: boolean; shortcuts?: boolean; maintenance?: boolean };
+  /** Auswahlen (select.*) wie Reinigungsmodus – sonst automatisch vom Gerät */
+  selects?: string[];
+  /** Routinen/Buttons (button.*) – sonst automatisch vom Gerät */
+  shortcuts?: string[];
+  animations?: "full" | "reduced" | "off";
+}

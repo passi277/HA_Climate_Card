@@ -1,4 +1,4 @@
-export const CARD_VERSION = "1.7.5";
+export const CARD_VERSION = "1.8.0";
 
 export const ClimateFeature = {
   TARGET_TEMPERATURE: 1,
