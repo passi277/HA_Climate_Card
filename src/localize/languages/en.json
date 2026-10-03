@@ -256,5 +256,26 @@
     "device": "Device: segments & switches",
     "auto_segments": "Detect segments automatically",
     "auto_shortcuts": "Use switches of the device (e.g. gradient)"
+  },
+  "light_group": {
+    "title": "Lights",
+    "all": "All",
+    "on": "on",
+    "all_off": "All off",
+    "no_lights": "No lights selected",
+    "lights": "Individual lights",
+    "color_all": "Color for all",
+    "all_off_action": "Turn all off",
+    "all_on_action": "Turn all on"
+  },
+  "light_group_editor": {
+    "entities": "Lights (order = display)",
+    "title": "Title",
+    "icon": "Icon",
+    "show_lights": "Show individual lights",
+    "collapsed": "Individual lights collapsed initially",
+    "group_color": "Offer “color for all”",
+    "animations": "Animations",
+    "hint": "Each light automatically shows only what it supports: brightness, white tone, color, effects – on/off lights just the switch."
   }
 }

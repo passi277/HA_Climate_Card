@@ -17,7 +17,7 @@ await p.waitForFunction(() => window.__ready, null, { timeout: 10000 });
 await p.waitForTimeout(500);
 
 const rendered = await p.evaluate(() =>
-  [...document.querySelectorAll("ha-climate-card, ha-climate-overview-card, ha-light-card")].filter((c) => c.shadowRoot?.querySelector("ha-card")).length);
+  [...document.querySelectorAll("ha-climate-card, ha-climate-overview-card, ha-light-card, ha-light-group-card")].filter((c) => c.shadowRoot?.querySelector("ha-card")).length);
 rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Karten gerendert`);
 
 // Regler: Tippen in die Mitte verstellt nichts, Tippen auf den Ring schon
@@ -209,6 +209,51 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
     ? ok("Szenen-Suche filtert („fire“ → 9 Treffer)") : fail(`Suche: ${JSON.stringify(res.options)}`);
   res.calls[0]?.effect === "Fire-A" && res.calls[1] && !("effect" in res.calls[1]) && Array.isArray(res.calls[1].rgb_color)
     ? ok("Szene per Klick gewählt, „Kein Effekt“ setzt die Farbe erneut") : fail(`Effekt: ${JSON.stringify(res.calls)}`);
+}
+
+// Licht-Gruppe: jede Lampe zeigt nur, was sie kann; Gruppenregler steuert nur dimmbare Lampen
+{
+  const res = await p.evaluate(async () => {
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const root = document.querySelector("ha-light-group-card").shadowRoot;
+    const lamp = (id) => root.querySelector(`.lamp[data-entity="${id}"]`);
+    const caps = {};
+    for (const el of root.querySelectorAll(".lamp")) {
+      el.querySelector(".lamp-more")?.click();
+      await wait(60);
+      const fresh = lamp(el.dataset.entity);
+      caps[fresh.dataset.entity.split(".")[1]] = {
+        slider: !!fresh.querySelector(":scope > hcc-gradient-slider"),
+        more: !!fresh.querySelector(".lamp-more"),
+        details: [...fresh.querySelectorAll(".lamp-details > *")].map((d) => d.icon),
+        disabled: fresh.querySelector(".lamp-power").disabled,
+      };
+    }
+    const before = window.serviceCalls.length;
+    const slider = root.querySelector(".group-slider");
+    slider.value = 40;
+    slider.dispatchEvent(new CustomEvent("value-changed", { detail: { value: 40 } }));
+    await wait(400);
+    root.querySelector(".header .power").click();
+    await wait(300);
+    const calls = window.serviceCalls.slice(before).map((c) => ({ s: c.service, ids: [].concat(c.data.entity_id), b: c.data.brightness_pct }));
+    const compact = [...document.querySelectorAll("ha-light-card")].find((c) => c._config.layout === "compact")
+      .shadowRoot.querySelector("hcc-gradient-slider").shadowRoot;
+    return { caps, calls, animated: !!compact.querySelector(".track.filled.is-active .shine") && compact.querySelectorAll(".tick.lit").length > 5 };
+  });
+  const c = res.caps;
+  c.wohnzimmer_stehlampe?.details.join() === "mdi:thermometer,mdi:palette,mdi:auto-fix"
+    && c.wohnzimmer_decke?.details.join() === "mdi:thermometer"
+    && c.wohnzimmer_regal?.slider && !c.wohnzimmer_regal.more
+    && !c.wohnzimmer_lichterkette?.slider && !c.wohnzimmer_lichterkette.more
+    && c.wohnzimmer_vitrine?.disabled && !c.wohnzimmer_vitrine.slider
+    ? ok("Licht-Gruppe: Funktionen je Lampe erkannt (Farbe/Weißton/Effekt, nur Weißton, dimmbar, Ein/Aus, nicht verfügbar)")
+    : fail(`Licht-Gruppe Funktionen: ${JSON.stringify(c)}`);
+  const dim = res.calls.find((x) => x.b === 40);
+  dim && dim.ids.length === 3 && !dim.ids.includes("light.wohnzimmer_lichterkette") && !dim.ids.includes("light.wohnzimmer_vitrine")
+    ? ok("Licht-Gruppe: Gruppenregler dimmt nur dimmbare, verfügbare Lampen") : fail(`Gruppenregler: ${JSON.stringify(res.calls)}`);
+  res.calls.some((x) => x.s === "turn_off" && x.ids.length >= 3) ? ok("Licht-Gruppe: Alle ausschalten") : fail(`Alle aus: ${JSON.stringify(res.calls)}`);
+  res.animated ? ok("Kompakter Lichtregler leuchtet mit Lauflicht und Skala") : fail("Kompakter Regler ohne Animation");
 }
 
 // Moduswechsel: jede Karte, jeder Modus (außer Auto/Heizen-Kühlen, dort zählt die Tätigkeit)

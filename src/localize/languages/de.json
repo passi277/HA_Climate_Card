@@ -256,5 +256,26 @@
     "device": "Gerät: Segmente & Schalter",
     "auto_segments": "Segmente automatisch erkennen",
     "auto_shortcuts": "Schalter des Geräts übernehmen (z.B. Gradient)"
+  },
+  "light_group": {
+    "title": "Lichter",
+    "all": "Alle",
+    "on": "an",
+    "all_off": "Alle aus",
+    "no_lights": "Keine Lampen ausgewählt",
+    "lights": "Einzelne Lampen",
+    "color_all": "Farbe für alle",
+    "all_off_action": "Alle ausschalten",
+    "all_on_action": "Alle einschalten"
+  },
+  "light_group_editor": {
+    "entities": "Lampen (Reihenfolge = Anzeige)",
+    "title": "Titel",
+    "icon": "Symbol",
+    "show_lights": "Einzelne Lampen zeigen",
+    "collapsed": "Einzelne Lampen anfangs zugeklappt",
+    "group_color": "„Farbe für alle“ anbieten",
+    "animations": "Animationen",
+    "hint": "Jede Lampe zeigt automatisch nur, was sie kann: Helligkeit, Weißton, Farbe, Effekte – reine Ein/Aus-Lampen nur den Schalter."
   }
 }

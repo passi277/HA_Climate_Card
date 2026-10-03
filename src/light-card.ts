@@ -489,8 +489,7 @@ export class HaLightCard extends LitElement {
       ${compact
         ? supportsBrightness(st) ? html`<hcc-gradient-slider .min=${1} .max=${100} .value=${on ? pct : 0}
             .label=${this._t("light.brightness")} .icon=${"mdi:brightness-6"} .display=${on ? `${pct} %` : this._t("light.off")}
-            .gradient=${`linear-gradient(90deg, color-mix(in srgb, ${lightColor(st) ?? "rgb(255,196,107)"} 15%, #222), ${lightColor(st) ?? "rgb(255,196,107)"})`}
-            .knob=${lightColor(st) ?? "#fff"}
+            .fill=${true} .active=${on} .color=${lightColor(st) ?? "rgb(255,196,107)"}
             @value-changing=${(e: CustomEvent) => (this._pending = e.detail.value)}
             @value-changed=${(e: CustomEvent) => this._setBrightness(e.detail.value, 150)}></hcc-gradient-slider>` : nothing
         : this._renderDial(st)}

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.0 – Licht-Gruppe
+- Neu: **Modern Light Group** (`custom:ha-light-group-card`) – Lampen frei zusammenstellen; oben Gruppe (alle ein/aus, Helligkeit für alle dimmbaren, „Farbe für alle“), darunter jede Lampe mit genau ihren Funktionen (Helligkeit, Weißton, Farbe, Effekte, nur Ein/Aus), visueller Editor
+- Kompakte Lichtkarte: Helligkeitsregler als leuchtender Füllbalken mit Glow, Lauflicht, pulsierender Skala und Knopf-Halo – wie der Drehring
+
 ## 1.2.1 – Govee
 - Light Card: **LED-Segmente** (govee2mqtt `light.<name>_segment_NNN`, automatisch erkannt) als farbige Leiste, Tippen öffnet Details
 - Light Card: **Geräteschalter** (z.B. Govee „Gradient“) automatisch aus dem Gerät, ohne technische Power-/Request-Entitäten

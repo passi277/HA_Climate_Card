@@ -7,6 +7,7 @@ weiche Farbübergänge und Animationen. Ein HACS-Download, mehrere Karten:
 | --- | --- | --- |
 | **Modern Climate Card** | `custom:ha-climate-card` | Klimaanlagen und Heizungen/Thermostate |
 | **Modern Light Card** | `custom:ha-light-card` | Lampen und Lichtgruppen (z.B. Hue-Räume) |
+| **Modern Light Group** | `custom:ha-light-group-card` | frei zusammengestellte Lampen: Gruppe oben, Einzellampen darunter |
 | **Climate Overview** | `custom:ha-climate-overview-card` | alle Klimageräte auf einen Blick |
 
 *Modern Lovelace cards for Home Assistant in one shared design – English summary below.*
@@ -217,6 +218,32 @@ entity: light.carport_2
 # shortcuts: [switch.carport_gradient_toggle]
 ```
 
+## Modern Light Group
+
+Beliebige Lampen zu einer Karte zusammenstellen – auch ohne Lichtgruppe in Home Assistant und gemischt
+(Hue, Govee, Zigbee, Ein/Aus-Steckdosen …).
+
+- **Oben die Gruppe**: Status („3 von 5 an · 79 %“), alle ein/aus, leuchtender Helligkeitsregler für alle
+  dimmbaren Lampen, „Farbe für alle“ (Weißtöne nur an Lampen mit Weißton, Farben nur an Farblampen)
+- **Darunter jede Lampe** im Kompakt-Stil – automatisch nur mit dem, was sie kann:
+  Helligkeitsregler nur bei dimmbaren Lampen, über ⚙ Weißton / Farbe / Effekte nur wenn unterstützt,
+  reine Ein/Aus-Lampen nur mit Schalter, nicht verfügbare Lampen ausgegraut
+- Tippen auf den Namen öffnet die Details der Lampe; Einzellampen lassen sich zuklappen
+
+```yaml
+type: custom:ha-light-group-card
+title: Wohnzimmer
+entities:
+  - light.stehlampe
+  - light.deckenlicht
+  - entity: light.lichterkette
+    name: Lichterkette
+    icon: mdi:string-lights
+# collapsed: true        # Einzellampen anfangs zugeklappt
+# group_color: false     # „Farbe für alle“ ausblenden
+# show_lights: false     # nur die Gruppenzeile
+```
+
 ## Heizungen (z.B. Homematic IP)
 
 Thermostate werden automatisch erkannt. Die Karte zeigt dann statt Lüfter, Lamellen und Luftstrom:
@@ -304,7 +331,9 @@ glow, smooth color transitions, animations), shipped as a single HACS download:
   feature, inferred activity for devices like Gree, weekly schedule/boost/valves for thermostats like
   Homematic IP, sensors, windows/doors, hints, timers, history graph
 - `custom:ha-light-card` – lights and light groups: brightness ring glowing in the light's color, room
-  lights, Hue scenes, white tone/color/effects, motion and illuminance
+  lights, Hue scenes, white tone/color/effects, Govee segments and scene search, motion and illuminance
+- `custom:ha-light-group-card` – any set of lights: group control on top, each light below showing only
+  what it supports (brightness, white tone, color, effects or just on/off)
 - `custom:ha-climate-overview-card` – all climate devices at a glance
 
 Install via HACS as a custom repository of type **Dashboard**. All cards have a visual editor and are

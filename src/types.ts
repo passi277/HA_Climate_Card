@@ -162,3 +162,24 @@ export interface LightCardConfig {
   start_expanded?: boolean;
   animations?: "full" | "reduced" | "off";
 }
+
+export interface LightGroupEntityConfig {
+  entity: string;
+  name?: string;
+  icon?: string;
+}
+
+export interface LightGroupCardConfig {
+  type: string;
+  /** Lampen der Karte (beliebig, auch unterschiedliche Typen) */
+  entities: (string | LightGroupEntityConfig)[];
+  title?: string;
+  icon?: string;
+  /** Weißton/Farbe für alle in der Gruppenzeile anbieten */
+  group_color?: boolean;
+  /** Einzellampen anzeigen */
+  show_lights?: boolean;
+  /** Einzellampen anfangs zugeklappt (nur Gruppenzeile) */
+  collapsed?: boolean;
+  animations?: "full" | "reduced" | "off";
+}

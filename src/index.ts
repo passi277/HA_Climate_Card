@@ -3,3 +3,4 @@ import "./shared";
 import "./ha-climate-card";
 import "./overview-card";
 import "./light-card";
+import "./light-group-card";

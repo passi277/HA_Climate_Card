@@ -173,6 +173,14 @@
       "switch.carport_gradient_toggle": { state: "on", attributes: { friendly_name: "Carport Gradient", icon: "mdi:gradient-horizontal" } },
       "switch.carport_power_switch": { state: "on", attributes: { friendly_name: "Carport Power Switch" } },
       "button.carport_request_platform_api_state": { state: "unknown", attributes: { friendly_name: "Carport Request Platform API State" } },
+      "light.wohnzimmer_stehlampe": { state: "on", attributes: { friendly_name: "Stehlampe", supported_color_modes: ["color_temp", "xy"], color_mode: "xy",
+        brightness: 170, hs_color: [200, 90], rgb_color: [40, 170, 255], min_color_temp_kelvin: 2200, max_color_temp_kelvin: 6500,
+        effect: "off", effect_list: ["off", "candle", "fire", "prism", "sparkle"] } },
+      "light.wohnzimmer_decke": { state: "on", attributes: { friendly_name: "Deckenlicht", supported_color_modes: ["color_temp"], color_mode: "color_temp",
+        brightness: 230, color_temp_kelvin: 3000, min_color_temp_kelvin: 2200, max_color_temp_kelvin: 6500 } },
+      "light.wohnzimmer_regal": { state: "off", attributes: { friendly_name: "Regal", supported_color_modes: ["brightness"], color_mode: "brightness" } },
+      "light.wohnzimmer_lichterkette": { state: "on", attributes: { friendly_name: "Lichterkette", supported_color_modes: ["onoff"], color_mode: "onoff", icon: "mdi:string-lights" } },
+      "light.wohnzimmer_vitrine": { state: "unavailable", attributes: { friendly_name: "Vitrine", supported_color_modes: ["brightness"] } },
       "sensor.wz_temp": { state: "25.1", attributes: { unit_of_measurement: "°C", device_class: "temperature" } },
       "sensor.aussen": { state: "31.6", attributes: { unit_of_measurement: "°C", device_class: "temperature" } },
       "sensor.klima_power": { state: "845", attributes: { unit_of_measurement: "W", device_class: "power" } },
@@ -214,22 +222,23 @@
         log(`${domain}.${service} ${JSON.stringify(data)}`);
         const s = states[data.entity_id];
         if (domain === "light" || domain === "scene") {
-          if (domain === "light") {
+          if (domain === "light") for (const id of [].concat(data.entity_id)) {
+            const s = states[id];
             let st = s.state;
             const a = { ...s.attributes };
             if (service === "toggle") st = st === "on" ? "off" : "on";
             if (service === "turn_off") st = "off";
             if (service === "turn_on") {
               st = "on";
-              if (data.brightness_pct != null) a.brightness = Math.round((data.brightness_pct / 100) * 255);
+              if (data.brightness_pct != null && a.supported_color_modes?.some((m) => m !== "onoff")) a.brightness = Math.round((data.brightness_pct / 100) * 255);
               if (data.hs_color) { a.hs_color = data.hs_color; const c = `hsl(${data.hs_color[0]},100%,50%)`; const el = document.createElement("div"); el.style.color = c; document.body.appendChild(el); a.rgb_color = getComputedStyle(el).color.match(/\d+/g).slice(0, 3).map(Number); el.remove(); a.color_mode = "xy"; a.color_temp_kelvin = null; }
               if (data.color_temp_kelvin) { a.color_temp_kelvin = data.color_temp_kelvin; a.color_mode = "color_temp"; delete a.rgb_color; }
               if (data.rgb_color) { a.rgb_color = data.rgb_color; a.color_mode = "rgb"; }
               if ((data.hs_color || data.rgb_color || data.color_temp_kelvin) && !data.effect && a.effect_list?.includes("")) a.effect = null;
               if (data.effect) a.effect = data.effect;
-              if (a.brightness == null) a.brightness = 200;
+              if (a.brightness == null && a.supported_color_modes?.some((m) => m !== "onoff")) a.brightness = 200;
             }
-            states[data.entity_id] = { ...s, state: st, attributes: a, last_updated: new Date().toISOString() };
+            states[id] = { ...s, state: st, attributes: a, last_updated: new Date().toISOString() };
           }
           setTimeout(() => { const h = makeHass(); cards.forEach((c) => (c.hass = h)); }, 150);
           return;
@@ -309,6 +318,8 @@
         illuminance_sensor: "sensor.gaste_wc_lux", start_expanded: true }],
       ["Licht – Hue Play (Weißton, Effekte, kompakt)", { _light: true, entity: "light.hue_play_gradient", layout: "compact" }],
       ["Licht – Govee-Streifen (Segmente, Szenen-Suche, Gradient)", { _light: true, entity: "light.carport_2", start_expanded: true }],
+      ["Licht-Gruppe – frei zusammengestellt (Farbe, Weißton, dimmbar, Ein/Aus)", { _group: true, title: "Wohnzimmer",
+        entities: ["light.wohnzimmer_stehlampe", "light.wohnzimmer_decke", "light.wohnzimmer_regal", "light.wohnzimmer_lichterkette", "light.wohnzimmer_vitrine"] }],
       ["Übersicht – mehrere Geräte", { _overview: true, title: "Klimaanlagen", entities: ["climate.1ed763d9", "climate.wohnzimmer", "climate.heizung_mein_zimmer", "climate.buero", "climate.schlafzimmer"] }],
       ["Voll – Aus", { entity: "climate.schlafzimmer", layout: "full" }],
       ["Kompakt – Kühlen", { entity: "climate.wohnzimmer", layout: "compact", outdoor_sensor: "sensor.aussen", power_sensor: "sensor.klima_power" }],
@@ -321,8 +332,8 @@
     configs.forEach(([title, cfg], i) => {
       const wrap = document.createElement("div");
       wrap.innerHTML = `<h2>${title}</h2>`;
-      const { _overview, _light, ...rest } = cfg;
-      const tag = _overview ? "ha-climate-overview-card" : _light ? "ha-light-card" : "ha-climate-card";
+      const { _overview, _light, _group, ...rest } = cfg;
+      const tag = _overview ? "ha-climate-overview-card" : _group ? "ha-light-group-card" : _light ? "ha-light-card" : "ha-climate-card";
       const card = document.createElement(tag);
       card.id = "card" + i;
       card.setConfig({ type: `custom:${tag}`, ...rest });
