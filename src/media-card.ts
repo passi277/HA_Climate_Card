@@ -75,7 +75,11 @@ export class HaMediaCard extends LitElement {
     const startChanged = this._config?.start_expanded !== config.start_expanded || this._config?.layout !== config.layout;
     this._config = { layout: "full", ...config };
     // Fernbedienung: im vollen Layout anfangs offen, kompakt zugeklappt
-    if (first || startChanged) this._expanded = config.start_expanded ?? config.layout !== "compact";
+    if (first || startChanged) {
+      let stored: string | null = null;
+      try { stored = localStorage.getItem(`hcc-media-remote:${config.entity}`); } catch { /* privater Modus */ }
+      this._expanded = stored != null && first ? stored === "1" : config.start_expanded ?? config.layout !== "compact";
+    }
   }
 
   public getCardSize(): number {
@@ -324,11 +328,6 @@ export class HaMediaCard extends LitElement {
           <span class="rocker-label">${this._t("media.volume")}</span>
           ${this._btn("vol_up", "mdi:volume-plus", "key", true)}
         </div>
-        ${r ? html`<div class="rocker small">
-          ${this._btn("ch_down", "mdi:chevron-down", "key", true)}
-          <span class="rocker-label">CH</span>
-          ${this._btn("ch_up", "mdi:chevron-up", "key", true)}
-        </div>` : nothing}
       </div>`;
     }
     return nothing;
@@ -338,6 +337,11 @@ export class HaMediaCard extends LitElement {
     if (!this._remote) return nothing;
     const device = this._controlDevice();
     return html`<div class="remote">
+      <div class="rocker small">
+        ${this._btn("ch_down", "mdi:chevron-down", "key", true)}
+        <span class="rocker-label">CH</span>
+        ${this._btn("ch_up", "mdi:chevron-up", "key", true)}
+      </div>
       <div class="dpad">
         ${this._btn("up", "mdi:chevron-up", "dir up", true)}
         ${this._btn("left", "mdi:chevron-left", "dir left", true)}
@@ -370,8 +374,19 @@ export class HaMediaCard extends LitElement {
     </hcc-attribute-select>`;
   }
 
+  /** Offen/zu pro Gerät merken (nur in diesem Browser). */
+  private get _storeKey(): string {
+    return `hcc-media-remote:${this._config?.entity}`;
+  }
+
+  private _toggleRemote(): void {
+    this._expanded = !this._expanded;
+    try { localStorage.setItem(this._storeKey, this._expanded ? "1" : "0"); } catch { /* privater Modus */ }
+  }
+
   private _renderExpand() {
-    return html`<button class="expand" @click=${() => { this._expanded = !this._expanded; }} aria-expanded=${this._expanded}>
+    return html`<button class="remote-toggle ${this._expanded ? "open" : ""}" @click=${this._toggleRemote} aria-expanded=${this._expanded}>
+      <ha-icon icon="mdi:remote"></ha-icon>
       <span>${this._t(this._expanded ? "media.remote_hide" : "media.remote_show")}</span>
       <ha-icon class="chevron" icon="mdi:chevron-down"></ha-icon>
     </button>`;
@@ -418,11 +433,11 @@ export class HaMediaCard extends LitElement {
       </div>
       ${m && show.now_playing ? this._renderNowPlaying(m) : nothing}
       ${activities.length ? this._renderActivities(activities, current) : nothing}
-      ${show.volume && on ? this._renderVolume() : nothing}
       ${this._renderSource(m)}
+      ${show.volume && on ? this._renderVolume() : nothing}
       ${remote === nothing ? nothing : expandable
-        ? html`<div class="collapsible ${this._expanded ? "open" : ""}" ?inert=${!this._expanded}><div class="collapsible-inner">${remote}</div></div>
-               ${this._renderExpand()}`
+        ? html`${this._renderExpand()}
+               <div class="collapsible ${this._expanded ? "open" : ""}" ?inert=${!this._expanded}><div class="collapsible-inner">${remote}</div></div>`
         : remote}
     </ha-card>`;
   }
@@ -487,6 +502,15 @@ export class HaMediaCard extends LitElement {
     .rocker-label { min-width: 52px; text-align: center; font-size: 11px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--secondary-text-color); }
     .rocker.small .rocker-label { min-width: 28px; }
 
+    .remote-toggle { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 9px 12px;
+      border: none; border-radius: 999px; cursor: pointer; font: inherit; font-size: 13px; font-weight: 500;
+      background: rgba(127,127,127,0.1); color: var(--secondary-text-color); transition: background 0.3s, color 0.3s; }
+    .remote-toggle:hover { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--primary-text-color); }
+    .remote-toggle.open { color: var(--primary-text-color); }
+    .remote-toggle ha-icon { --mdc-icon-size: 18px; }
+    .remote-toggle .chevron { transition: transform 0.35s var(--ease-out); }
+    .remote-toggle.open .chevron { transform: rotate(180deg); }
+    .remote-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     .remote { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 4px 0 2px; }
     .dpad { position: relative; width: 184px; height: 184px; border-radius: 50%;
       background: radial-gradient(circle, rgba(127,127,127,0.06) 0 34%, rgba(127,127,127,0.14) 35%);

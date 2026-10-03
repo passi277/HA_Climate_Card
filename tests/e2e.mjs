@@ -417,19 +417,30 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
     await wait(50);
     const starting = !!hub.querySelector(".activity.starting");
     const press = (b) => { b.dispatchEvent(new PointerEvent("pointerdown", { button: 0, bubbles: true })); b.dispatchEvent(new PointerEvent("pointerup", { bubbles: true })); };
+    const order = [...hub.querySelector("ha-card").children].map((el) => el.className.split(" ")[0]);
+    const toggleAfterVolume = order.indexOf("remote-toggle") === order.indexOf("volume") + 1 && order.indexOf("collapsible") === order.indexOf("remote-toggle") + 1;
+    const chInRemote = !!hub.querySelector(".collapsible .remote .rocker");
     press(hub.querySelector(".dir.up"));
     hub.querySelector(".ok").click();
     hub.querySelector(".np-title").closest(".now").querySelector(".key.play").click();
     const slider = bar.querySelector("hcc-gradient-slider");
     slider.value = 55; slider.dispatchEvent(new CustomEvent("value-changed", { detail: { value: 55 } }));
     await wait(1200);
-    return { labels, active, nowPlaying, starting, calls: window.serviceCalls.slice(before).map((c) => `${c.domain}.${c.service}:${c.data.activity ?? c.data.command ?? c.data.volume_level ?? ""}:${c.data.device ?? ""}`),
+    hub.querySelector(".remote-toggle").click();
+    await wait(50);
+    const closed = !hub.querySelector(".collapsible").classList.contains("open");
+    let stored = null; try { stored = localStorage.getItem("hcc-media-remote:remote.harmony_hub_wohnzimmer"); } catch {}
+    hub.querySelector(".remote-toggle").click();
+    return { toggleAfterVolume, chInRemote, closed, stored, labels, active, nowPlaying, starting, calls: window.serviceCalls.slice(before).map((c) => `${c.domain}.${c.service}:${c.data.activity ?? c.data.command ?? c.data.volume_level ?? ""}:${c.data.device ?? ""}`),
       after: hub.querySelector(".activity.on")?.textContent.trim() };
   });
   res.labels.join("|") === "Ps4|Atmos|PC|Smart TV" && res.active === "Smart TV" && res.nowPlaying === "Interstellar"
     ? ok("Medien: 4 Harmony-Aktivitäten (kurze Namen), aktive leuchtet, „Läuft gerade“") : fail(`Medien: ${JSON.stringify(res)}`);
   res.calls.includes("remote.turn_on:Ps4:") && res.starting && res.after === "Ps4"
     ? ok("Medien: Aktivität starten (Anzeige „startet“, danach aktiv)") : fail(`Aktivität: ${JSON.stringify(res)}`);
+  res.toggleAfterVolume && res.chInRemote && res.closed && (res.stored === "0" || res.stored === null)
+    ? ok("Medien: Fernbedienung direkt unter der Lautstärke ein-/ausklappbar (inkl. Kanal), Zustand wird gemerkt")
+    : fail(`Fernbedienung klappen: ${JSON.stringify({ t: res.toggleAfterVolume, ch: res.chInRemote, c: res.closed, s: res.stored })}`);
   const sends = res.calls.filter((x) => x.startsWith("remote.send_command"));
   sends.some((x) => x.startsWith("remote.send_command:DirectionUp:")) && sends.some((x) => x.startsWith("remote.send_command:Select:"))
     ? ok("Medien: Steuerkreuz sendet Harmony-Befehle an das Gerät der Aktivität") : fail(`Befehle: ${sends}`);

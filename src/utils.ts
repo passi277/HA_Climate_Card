@@ -589,6 +589,8 @@ const ACTIVITY_ICONS: [RegExp, string][] = [
   [/netflix/i, "mdi:netflix"],
   [/apple\s?tv/i, "mdi:apple"],
   [/chrome|google/i, "mdi:google-chrome"],
+  [/klima|air\s?con|\bac\b|clima/i, "mdi:air-conditioner"],
+  [/licht|light|lampe/i, "mdi:lightbulb"],
   [/pc|computer|rechner/i, "mdi:monitor"],
   [/musik|music|radio|sonos|spotify|atmos|audio|soundbar/i, "mdi:speaker"],
   [/film|movie|kino|blu.?ray|dvd/i, "mdi:movie-open"],

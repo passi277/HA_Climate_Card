@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.6.1
+- Medienkarte: Umschalter „Fernbedienung“ sitzt direkt unter der Lautstärke und klappt alles darunter ein/aus (Kanal, Steuerkreuz, Tasten); der Zustand wird pro Gerät im Browser gemerkt
+- Quelle steht über der Lautstärke; Symbol für Aktivitäten wie „Klimaanlage“ und „Licht“
+
 ## 1.6.0 – Medien
 - Neu: **Modern Media Card** (`custom:ha-media-card`) – Harmony-Hub-Aktivitäten als Kacheln, Fernbedienung (Steuerkreuz, Zurück/Home/Menü, Spulen/Play/Pause, Lautstärke/Kanal) mit automatischer Geräte-Zuordnung, Media-Player mit „Läuft gerade“, Lautstärkeregler und Quelle, Kompakt-Layout, visueller Editor
 
