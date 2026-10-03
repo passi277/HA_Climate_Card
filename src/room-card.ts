@@ -276,17 +276,26 @@ export class HaRoomCard extends LitElement {
     const marks = chips.filter((x) => (x.key === "light" && lightOn) || (x.key === "contacts" && x.alert) || (x.key === "humidity" && x.alert)
       || (x.key === "climate" && x.color !== GREY) || (x.key === "media" && x.color !== GREY) || x.key.startsWith("trash-"));
     const label = [c.title ?? this._t("room.title"), sub, ...marks.map((x) => x.text)].filter(Boolean).join(", ");
+    // Feste Ecke je Art (wiedererkennbar), sonst nächste freie Ecke
+    const CORNERS = ["tl", "tr", "bl", "br"] as const;
+    const home = (x: Chip): (typeof CORNERS)[number] => x.key === "light" ? "tl" : x.key === "contacts" ? "tr"
+      : x.key === "climate" || x.key === "humidity" ? "bl" : "br";
+    const placed = new Map<(typeof CORNERS)[number], Chip>();
+    const order = [...marks].sort((a, b) => Number(!!b.alert) - Number(!!a.alert));
+    for (const x of order) {
+      const want = home(x);
+      const spot = !placed.has(want) ? want : CORNERS.find((k) => !placed.has(k));
+      if (spot) placed.set(spot, x);
+    }
     return html`<ha-card class="room tile anim-${c.animations ?? "full"} ${lightOn ? "lit" : ""} ${c.navigation_path || c.light ? "clickable" : ""}"
       style="--hcc-accent-c:${accent}" role="button" tabindex="0" aria-label=${label} lang=${getLanguage(this.hass)}
       @click=${this._tileTap} @keydown=${(e: KeyboardEvent) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); this._tileTap(); } }}
       @pointerdown=${(e: PointerEvent) => this._holdStart(e)} @pointerup=${this._holdEnd} @pointerleave=${this._holdEnd} @pointercancel=${this._holdEnd}
       @contextmenu=${(e: Event) => { if (c.light) e.preventDefault(); }}>
       <div class="glow"><span class="blob b1"></span><span class="blob b2"></span></div>
-      <div class="tile-top">
-        <span class="icon-badge"><ha-icon .icon=${c.icon ?? "mdi:home"}></ha-icon></span>
-        <span class="marks">${marks.map((x) => html`<span class="mark ${x.alert ? "alert" : ""}" style="--cc:${x.color}" title=${x.text} data-key=${x.key}>
-          <ha-icon .icon=${x.icon}></ha-icon></span>`)}</span>
-      </div>
+      ${[...placed].map(([corner, x]) => html`<span class="mark ${corner} ${x.alert ? "alert" : ""}" style="--cc:${x.color}" title=${x.text}
+        data-key=${x.key} data-corner=${corner}><ha-icon .icon=${x.icon}></ha-icon></span>`)}
+      <span class="icon-badge"><ha-icon .icon=${c.icon ?? "mdi:home"}></ha-icon></span>
       <div class="tile-text">
         <span class="tile-name">${c.title ?? this._t("room.title")}</span>
         <span class="tile-sub">${sub || "\u00a0"}</span>
@@ -350,7 +359,7 @@ export class HaRoomCard extends LitElement {
     .banner-action { background: var(--warning-color, #fb8c00); white-space: nowrap; }
 
     /* Raumkachel */
-    ha-card.tile { gap: 10px; padding: 12px 10px 10px 12px; min-height: 108px; container-type: inline-size; justify-content: space-between; user-select: none; -webkit-user-select: none;
+    ha-card.tile { gap: 6px; padding: 24px 8px; min-height: 128px; container-type: inline-size; align-items: center; justify-content: center; text-align: center; user-select: none; -webkit-user-select: none;
       -webkit-touch-callout: none; transition: --hcc-accent-c 0.7s ease, transform 0.25s var(--ease-spring), box-shadow 0.3s; }
     ha-card.tile.clickable { cursor: pointer; }
     ha-card.tile.clickable:hover { box-shadow: 0 4px 18px color-mix(in srgb, var(--accent) 22%, transparent); }
@@ -359,18 +368,19 @@ export class HaRoomCard extends LitElement {
     ha-card.tile .blob { opacity: 0.18; }
     ha-card.tile.lit .blob { opacity: 0.55; animation-play-state: running; }
     ha-card.tile .b1 { width: 140%; left: -40%; top: -70%; }
-    .tile-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; }
-    ha-card.tile .icon-badge { width: 40px; height: 40px; }
-    ha-card.tile .icon-badge ha-icon { --mdc-icon-size: 22px; }
+    ha-card.tile .icon-badge { width: 46px; height: 46px; flex: none; }
+    ha-card.tile .icon-badge ha-icon { --mdc-icon-size: 25px; }
     ha-card.tile.lit .icon-badge { background: color-mix(in srgb, var(--accent) 30%, transparent); box-shadow: 0 0 16px color-mix(in srgb, var(--accent) 45%, transparent); }
-    .marks { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 3px; max-width: 60%; }
-    .mark { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; color: var(--cc);
+    .mark { position: absolute; z-index: 1; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; color: var(--cc);
       background: color-mix(in srgb, var(--cc) 18%, transparent); animation: slide-in 0.4s var(--ease-out) both; }
-    .mark ha-icon { --mdc-icon-size: 14px; }
+    .mark ha-icon { --mdc-icon-size: 13px; }
+    /* Info-Symbole in den vier Ecken – oben/unten hält die Kachel 24 px frei */
+    .mark.tl { top: 6px; left: 6px; } .mark.tr { top: 6px; right: 6px; }
+    .mark.bl { bottom: 6px; left: 6px; } .mark.br { bottom: 6px; right: 6px; }
     .mark.alert { box-shadow: inset 0 0 0 1.5px var(--cc); animation: slide-in 0.4s var(--ease-out) both, mark-pulse 2s ease-in-out infinite; }
     @keyframes mark-pulse { 50% { background: color-mix(in srgb, var(--cc) 34%, transparent); } }
     ha-card.anim-reduced .mark.alert, ha-card.anim-off .mark.alert { animation: none; }
-    .tile-text { display: flex; flex-direction: column; min-width: 0; }
+    .tile-text { display: flex; flex-direction: column; align-items: center; min-width: 0; max-width: 100%; }
     .tile-name { font-size: clamp(13px, 12.5cqi, 15px); font-weight: 700; line-height: 1.2; overflow: hidden; hyphens: auto; -webkit-hyphens: auto;
       overflow-wrap: break-word; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
     .tile-sub { font-size: clamp(11.5px, 10.5cqi, 12.5px); color: var(--secondary-text-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

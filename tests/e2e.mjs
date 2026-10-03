@@ -682,6 +682,11 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
     const out = { trash, pascal: marks("Pascal"), pascalLit: tile("Pascal").querySelector("ha-card").classList.contains("lit"),
       wohn: marks("Wohnzimmer"), zuhause: marks("Zuhause"), sub: tile("Pascal").querySelector(".tile-sub").textContent.trim(),
       robo: tile("Saugroboter").querySelector(".tile-sub").textContent.trim() };
+    const center = (t) => { const r = tile(t); const card = r.querySelector("ha-card").getBoundingClientRect(); const ic = r.querySelector(".icon-badge").getBoundingClientRect();
+      return Math.abs((ic.left + ic.width / 2) - (card.left + card.width / 2)); };
+    out.offCenter = Math.max(...["Pascal", "Wohnzimmer", "Bad", "Zuhause"].map(center));
+    out.corners = Object.fromEntries([...tile("Wohnzimmer").querySelectorAll(".mark")].map((m) => [m.dataset.key, m.dataset.corner]));
+    out.trashCorners = [...tile("Zuhause").querySelectorAll(".mark")].map((m) => m.dataset.corner);
     tile("Pascal").querySelector("ha-card").click();
     await wait(50);
     out.hash = location.hash;
@@ -692,6 +697,10 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
   res.pascalLit && res.pascal.includes("light") && res.wohn.includes("contacts") && res.wohn.includes("media")
     && res.zuhause.join() === "trash,trash" && /°C/.test(res.sub) && res.robo.length > 0 && res.hash === "#pascal"
     ? ok("Raumkacheln: Licht leuchtet, Symbole für Fenster/TV/Müll, Temperatur, Tippen navigiert") : fail(`Raumkacheln: ${JSON.stringify(res)}`);
+  res.offCenter <= 2 && res.corners.contacts === "tr" && res.corners.climate === "bl" && res.corners.media === "br"
+    && new Set(res.trashCorners).size === 2
+    ? ok("Raumkacheln: Symbol mittig, Info-Symbole in festen Ecken (Fenster oben rechts, Klima unten links, TV unten rechts)")
+    : fail(`Raumkacheln Ecken: ${JSON.stringify({ offCenter: res.offCenter, corners: res.corners, trash: res.trashCorners })}`);
 
   const gwc = await p.evaluateHandle(() => [...document.querySelectorAll("ha-room-card")].find((c) => c._config?.title === "Gäste WC" && c._config.layout === "tile").shadowRoot.querySelector("ha-card"));
   await gwc.evaluate((e) => e.scrollIntoView({ block: "center" }));

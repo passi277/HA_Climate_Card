@@ -377,8 +377,9 @@ trash: calendar.abfallkalender_mannheim   # Müllabfuhr: „Restmüll · morgen�
 ### Raumkacheln (`layout: tile`)
 
 Kompakte Kachel für Übersichtsseiten – drei nebeneinander (`grid_options: columns: 4`). Tippen öffnet die Raumseite,
-**lange drücken schaltet das Licht**. Das Symbol leuchtet in der Lichtfarbe, kleine Symbole zeigen, was gerade los ist:
-Licht an, Fenster offen, Klima/Heizung oder TV an, Feuchte zu hoch, Müllabfuhr heute/morgen. Darunter Temperatur/Feuchte
+**lange drücken schaltet das Licht**. Raumsymbol und Name stehen mittig, das Symbol leuchtet in der Lichtfarbe.
+Kleine Symbole in den Ecken zeigen, was gerade los ist – oben links Licht an, oben rechts Fenster/Tür offen,
+unten links Klima/Heizung (bzw. Feuchte zu hoch), unten rechts TV (bzw. Müllabfuhr heute/morgen). Darunter Temperatur/Feuchte
 oder der Wert des ersten Chips (z.B. Saugroboter-Status).
 
 ```yaml
