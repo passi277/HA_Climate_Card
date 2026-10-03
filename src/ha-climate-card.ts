@@ -24,6 +24,7 @@ import "./components/attribute-select";
 import "./components/sensor-row";
 import "./components/history-graph";
 import "./components/shortcut-row";
+import "./components/sleep-timer";
 import "./editor";
 
 interface PendingTarget { value?: number; low?: number; high?: number; }
@@ -102,7 +103,7 @@ export class HaClimateCard extends LitElement {
     const ids = [
       this._config.entity, this._config.temperature_sensor, this._config.humidity_sensor,
       this._config.outdoor_sensor, this._config.power_sensor, this._config.energy_sensor,
-      this._config.window_sensor, ...this._shortcutIds(),
+      this._config.window_sensor, this._config.timer_switch, this._config.timer_time, ...this._shortcutIds(),
     ].filter(Boolean) as string[];
     return ids.some((id) => old.states[id] !== this.hass!.states[id]) || old.locale !== this.hass!.locale;
   }
@@ -164,14 +165,39 @@ export class HaClimateCard extends LitElement {
     return !!action && !["idle", "off"].includes(action) && st.state !== "off";
   }
 
+  /** Externer Raumsensor/Thermostat wird als Ist-Temperatur genutzt (Standard, sobald einer eingetragen ist). */
+  private get _externalTemp(): HassEntity | undefined {
+    const c = this._config;
+    if (!c?.temperature_sensor || c.use_sensor_for_current === false) return undefined;
+    return this.hass?.states[c.temperature_sensor];
+  }
+
+  /** Temperatur einer Sensor- oder Klima-Entität (bei Thermostaten aus `current_temperature`). */
+  private _tempOf(entity?: HassEntity): number | undefined {
+    if (!entity) return undefined;
+    const raw = entity.entity_id.startsWith("climate.") ? entity.attributes.current_temperature : entity.state;
+    const v = raw == null || raw === "" ? NaN : Number(raw);
+    return Number.isFinite(v) ? v : undefined;
+  }
+
+  /** Ist-Temperatur: externer Sensor/Thermostat, sonst automatisch die der Klimaanlage. */
   private _currentTemp(st: HassEntity): number | undefined {
-    const sensor = this._config?.temperature_sensor;
-    if (sensor && this._config?.use_sensor_for_current) {
-      const v = Number(this.hass?.states[sensor]?.state);
+    return this._tempOf(this._externalTemp) ?? this._tempOf(st);
+  }
+
+  /** Ist-Luftfeuchte: eigener Sensor, sonst externes Thermostat, sonst Klimaanlage. */
+  private _currentHumidity(st: HassEntity): number | undefined {
+    const c = this._config;
+    const candidates = [
+      c?.humidity_sensor ? this.hass?.states[c.humidity_sensor]?.state : undefined,
+      this._externalTemp?.attributes.current_humidity,
+      st.attributes.current_humidity,
+    ];
+    for (const raw of candidates) {
+      const v = raw == null || raw === "" ? NaN : Number(raw);
       if (Number.isFinite(v)) return v;
     }
-    const v = st.attributes.current_temperature;
-    return v == null ? undefined : Number(v);
+    return undefined;
   }
 
   private _targets(st: HassEntity): PendingTarget {
@@ -398,15 +424,14 @@ export class HaClimateCard extends LitElement {
     const cur = this._currentTemp(st);
     const off = st.state === "off";
     const hasTarget = dual || (t.value != null && supports(a, ClimateFeature.TARGET_TEMPERATURE));
-    const humidity = this._config?.humidity_sensor
-      ? this.hass!.states[this._config.humidity_sensor]?.state
-      : a.current_humidity;
+    const humidity = this._currentHumidity(st);
 
     return html`
       <hcc-climate-dial
         .min=${Number(a.min_temp ?? 7)} .max=${Number(a.max_temp ?? 35)} .step=${step}
         .value=${t.value} .low=${t.low} .high=${t.high} .current=${cur}
         .dual=${dual} .disabled=${off || !hasTarget} .color=${color} .active=${this._isActive(st)}
+        .fade=${["dry", "fan_only"].includes(st.state)}
         @value-changing=${this._onDialChanging} @value-changed=${this._onDialChanged}>
         <div class="dial-center">
           <span class="dial-label">${off ? formatMode(this.hass!, st, "off") : this._t("card.target")}</span>
@@ -421,7 +446,7 @@ export class HaClimateCard extends LitElement {
               : html`<span class="dial-big">${this._fmt(t.value, step)}<sup>${this._unit}</sup></span>`}
           <span class="dial-sub">
             ${!off && hasTarget ? html`<ha-icon icon="mdi:home-thermometer-outline"></ha-icon>${this._fmt(cur, step)}${this._unit}` : nothing}
-            ${humidity != null && humidity !== "" ? html`<ha-icon icon="mdi:water-percent"></ha-icon>${Math.round(Number(humidity))}%` : nothing}
+            ${humidity != null ? html`<ha-icon icon="mdi:water-percent"></ha-icon>${Math.round(Number(humidity))}%` : nothing}
           </span>
         </div>
       </hcc-climate-dial>
@@ -464,6 +489,12 @@ export class HaClimateCard extends LitElement {
       "card.swing_horizontal", "mdi:arrow-left-right", "set_swing_horizontal_mode", show.swing);
     select("presets", "preset_mode", "preset_modes", ClimateFeature.PRESET_MODE, "card.preset", "mdi:star-outline", "set_preset_mode", show.presets);
 
+    if (show.timer && (this._config!.timer_switch || this._config!.timer_time)) {
+      parts.push(html`<hcc-sleep-timer .hass=${hass} .switchEntity=${this._config!.timer_switch}
+        .timeEntity=${this._config!.timer_time} .label=${this._t("card.sleep_timer")} .offText=${this._t("card.timer_off")}
+        .atText=${this._t("card.timer_at")} .inText=${this._t("card.timer_in")}></hcc-sleep-timer>`, "timer");
+    }
+
     if (show.shortcuts) {
       const items = this._shortcutItems(st);
       if (items.length) parts.push(html`<hcc-shortcut-row .hass=${hass} .items=${items}></hcc-shortcut-row>`, "shortcuts");
@@ -490,7 +521,7 @@ export class HaClimateCard extends LitElement {
       parts.push(html`<div class="graph-wrap">
         <span class="row-label"><ha-icon icon="mdi:chart-line"></ha-icon>${this._t("card.history")}</span>
         <hcc-history-graph .hass=${hass} .entity=${st.entity_id}
-          .sensor=${this._config!.use_sensor_for_current ? this._config!.temperature_sensor : undefined}
+          .sensor=${this._externalTemp?.entity_id}
           .hours=${this._config!.graph_hours ?? 24} .unit=${this._unit} .emptyText=${this._t("card.no_history")}
           style="--hcc-accent:${color}"></hcc-history-graph>
       </div>`, "graph");
@@ -530,11 +561,16 @@ export class HaClimateCard extends LitElement {
       const value = this._sensorState(entity);
       if (value != null) items.push({ entity, icon, label: this._t(labelKey), value, warning });
     };
-    if (!c.use_sensor_for_current) add(c.temperature_sensor, "mdi:home-thermometer-outline", "card.current");
-    if (c.humidity_sensor == null && st.attributes.current_humidity != null && this._config?.layout === "compact") {
-      items.push({ icon: "mdi:water-percent", label: this._t("card.humidity"), value: `${st.attributes.current_humidity}%` });
+    if (c.temperature_sensor && c.use_sensor_for_current === false) {
+      const ext = this.hass!.states[c.temperature_sensor];
+      const v = this._tempOf(ext);
+      if (ext) items.push({ entity: ext.entity_id, icon: "mdi:home-thermometer-outline", label: this._t("card.current"),
+        value: v != null ? `${v} ${this._unit}` : "–" });
     }
-    if (this._config?.layout === "compact") add(c.humidity_sensor, "mdi:water-percent", "card.humidity");
+    const hum = this._currentHumidity(st);
+    if (this._config?.layout === "compact" && hum != null) {
+      items.push({ entity: c.humidity_sensor, icon: "mdi:water-percent", label: this._t("card.humidity"), value: `${Math.round(hum)} %` });
+    }
     add(c.outdoor_sensor, "mdi:thermometer", "card.outdoor");
     add(c.power_sensor, "mdi:flash", "card.power");
     add(c.energy_sensor, "mdi:lightning-bolt", "card.energy");

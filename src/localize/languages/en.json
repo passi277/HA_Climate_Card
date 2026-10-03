@@ -22,7 +22,11 @@
     "turn_on": "Turn on",
     "turn_off": "Turn off",
     "no_history": "No history data",
-    "shortcuts": "Shortcuts"
+    "shortcuts": "Shortcuts",
+    "sleep_timer": "Sleep timer",
+    "timer_off": "Inactive",
+    "timer_at": "Off at",
+    "timer_in": "in"
   },
   "hvac_mode": {
     "off": "Off",
@@ -59,13 +63,13 @@
     "show_sensors": "Sensors",
     "show_graph": "History graph",
     "sensors": "Additional sensors",
-    "temperature_sensor": "Room temperature sensor",
+    "temperature_sensor": "Current temperature: sensor or thermostat (empty = air conditioner)",
     "humidity_sensor": "Room humidity sensor",
     "outdoor_sensor": "Outdoor temperature sensor",
     "power_sensor": "Power sensor",
     "energy_sensor": "Energy sensor",
     "window_sensor": "Window / door contact",
-    "use_sensor_for_current": "Use room sensor as current temperature",
+    "use_sensor_for_current": "Use as current temperature (off = tile only)",
     "graph_hours": "Graph period (hours)",
     "show_shortcuts": "Shortcut buttons",
     "shortcuts_section": "Shortcut buttons",
@@ -74,6 +78,10 @@
     "appearance": "Appearance",
     "expandable": "Collapsible details (full layout)",
     "start_expanded": "Start expanded",
-    "dropdown_threshold": "Dropdown from this many options (0 = always chips)"
+    "dropdown_threshold": "Dropdown from this many options (0 = always chips)",
+    "show_timer": "Sleep timer",
+    "timer_section": "Sleep timer",
+    "timer_switch": "Arming switch (input_boolean)",
+    "timer_time": "Off time (input_datetime)"
   }
 }

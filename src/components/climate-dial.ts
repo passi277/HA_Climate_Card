@@ -42,6 +42,9 @@ export class ClimateDial extends LitElement {
   @property() lowColor = "var(--state-climate-heat-color, #ff6d00)";
   @property() highColor = "var(--state-climate-cool-color, #2196f3)";
   @property({ type: Boolean }) active = false;
+  /** Abstandsbogen nur verblassend in Modusfarbe (z.B. Entfeuchten/Lüften) statt warm/kalt. */
+  @property({ type: Boolean }) fade = false;
+  @property({ type: Boolean }) showCurrentLabel = true;
 
   @state() private _dragging?: Handle;
 
@@ -135,20 +138,81 @@ export class ClimateDial extends LitElement {
       </g>`;
   }
 
+  /** Bogen aus vielen kurzen Segmenten mit Farbverlauf entlang der Kreisbahn. */
+  private _gradientArc(from: number, to: number, colorFrom: string, colorTo: string, cls = "delta") {
+    const sweep = to - from;
+    if (sweep < 0.5) return nothing;
+    const n = Math.max(2, Math.ceil(sweep / 2));
+    const d = sweep / n;
+    const segments = Array.from({ length: n }, (_, i) => {
+      const a0 = from + i * d;
+      const a1 = Math.min(to, a0 + d + (i < n - 1 ? 0.6 : 0));
+      const pct = (((i + 0.5) / n) * 100).toFixed(1);
+      return svg`<path d=${arcPath(a0, a1)} style="stroke:color-mix(in srgb, ${colorTo} ${pct}%, ${colorFrom})"></path>`;
+    });
+    const s = polar(from);
+    const e = polar(to);
+    return svg`<g class=${cls}>
+      <circle cx=${s.x} cy=${s.y} r="7" style="fill:${colorFrom}"></circle>
+      <circle cx=${e.x} cy=${e.y} r="7" style="fill:${colorTo}"></circle>
+      ${segments}
+    </g>`;
+  }
+
+  /** Farbe am Ist-Wert-Ende: wärmer als Ziel → warm, kälter → kühl; bei Entfeuchten/Lüften verblasst. */
+  private _currentColor(target: number): string {
+    if (this.fade) return `color-mix(in srgb, ${this.color} 25%, transparent)`;
+    return (this.current ?? target) > target ? this.lowColor : this.highColor;
+  }
+
+  /** Bewegte Striche auf dem Abstandsbogen in Richtung Zielwert (nur wenn aktiv geheizt/gekühlt wird). */
+  private _flow(fromValue: number, toValue: number) {
+    if (!this.active) return nothing;
+    const a = this._toAngle(fromValue);
+    const b = this._toAngle(toValue);
+    if (Math.abs(b - a) < 4) return nothing;
+    const dir = b > a ? "up" : "down";
+    return svg`<path class="flow ${dir}" d=${arcPath(Math.min(a, b), Math.max(a, b))}></path>`;
+  }
+
+  private _deltaArc(target: number) {
+    if (this.current == null) return nothing;
+    const cur = Math.min(this.max, Math.max(this.min, this.current));
+    const ca = this._toAngle(cur);
+    const ta = this._toAngle(target);
+    const curColor = this._currentColor(target);
+    const arc = ca < ta
+      ? this._gradientArc(ca, ta, curColor, this.color)
+      : this._gradientArc(ta, ca, this.color, curColor);
+    return svg`${arc}${this._flow(cur, target)}`;
+  }
+
   protected render() {
     const end = START + SWEEP;
-    let activeArc = nothing as unknown;
+    let arcs: unknown = nothing;
     if (!this.disabled) {
       if (this.dual && this.low != null && this.high != null) {
-        activeArc = svg`<path class="active" d=${arcPath(this._toAngle(this.low), this._toAngle(this.high))}
+        const zone = svg`<path class="zone" d=${arcPath(this._toAngle(this.low), this._toAngle(this.high))}
           style="stroke:url(#rangeGrad)"></path>`;
+        let delta: unknown = nothing;
+        if (this.current != null && this.current < this.low) {
+          delta = svg`${this._gradientArc(this._toAngle(Math.max(this.min, this.current)), this._toAngle(this.low), this.highColor, this.lowColor)}${this._flow(this.current, this.low)}`;
+        } else if (this.current != null && this.current > this.high) {
+          delta = svg`${this._gradientArc(this._toAngle(this.high), this._toAngle(Math.min(this.max, this.current)), this.highColor, this.lowColor)}${this._flow(this.current, this.high)}`;
+        }
+        arcs = svg`${zone}${delta}`;
       } else if (this.value != null) {
-        activeArc = svg`<path class="active" d=${arcPath(START, this._toAngle(this.value))}
-          style="stroke:${this.color}"></path>`;
+        arcs = this.current != null
+          ? this._deltaArc(this.value)
+          : svg`<path class="active" d=${arcPath(START, this._toAngle(this.value))} style="stroke:${this.color}"></path>`;
       }
     }
-    const cur = this.current != null && this.current >= this.min && this.current <= this.max
-      ? polar(this._toAngle(this.current), R) : undefined;
+    const curVal = this.current != null ? Math.min(this.max, Math.max(this.min, this.current)) : undefined;
+    const curAngle = curVal != null ? this._toAngle(curVal) : undefined;
+    const cur = curAngle != null ? polar(curAngle, R) : undefined;
+    const curLabel = curAngle != null ? polar(curAngle, R - 20) : undefined;
+    const target = this.dual ? undefined : this.value;
+    const markerColor = this.disabled || target == null ? "var(--secondary-text-color)" : this._currentColor(target);
     const ticks = Array.from({ length: 55 }, (_, i) => START + (SWEEP / 54) * i);
 
     return html`
@@ -167,9 +231,12 @@ export class ClimateDial extends LitElement {
             const i = polar(a, R + 11);
             return svg`<line class="tick" x1=${o.x} y1=${o.y} x2=${i.x} y2=${i.y}></line>`;
           })}
-          <path class="track" d=${arcPath(START, end)}></path>
-          ${activeArc}
-          ${cur ? svg`<circle class="current" cx=${cur.x} cy=${cur.y} r="3.5"></circle>` : nothing}
+          <path class="track" d=${arcPath(START, end)}
+            style=${this.disabled ? "" : `stroke:color-mix(in srgb, ${this.color} 10%, var(--hcc-track, rgba(127,127,127,0.22)))`}></path>
+          ${arcs}
+          ${cur && curLabel && curVal != null ? svg`
+            <circle class="current" cx=${cur.x} cy=${cur.y} r="5.5" style="stroke:${markerColor}"></circle>
+            ${this.showCurrentLabel ? svg`<text class="current-label" x=${curLabel.x} y=${curLabel.y}>${curVal.toFixed(this.step < 1 ? 1 : 0)}°</text>` : nothing}` : nothing}
           ${this.disabled ? nothing : this.dual
             ? [this._handle("low", this.low, this.lowColor), this._handle("high", this.high, this.highColor)]
             : this._handle("value", this.value, this.color)}
@@ -183,11 +250,17 @@ export class ClimateDial extends LitElement {
     :host { display: block; width: 100%; max-width: 320px; margin: 0 auto; }
     .dial { position: relative; width: 100%; aspect-ratio: 1; }
     svg { width: 100%; height: 100%; touch-action: none; user-select: none; overflow: visible; }
-    .track { fill: none; stroke: var(--divider-color, rgba(127,127,127,0.25)); stroke-width: 14; stroke-linecap: round; }
+    .track { fill: none; stroke: var(--hcc-track, rgba(127,127,127,0.22)); stroke-width: 14; stroke-linecap: round; transition: stroke 0.4s; }
     .active { fill: none; stroke-width: 14; stroke-linecap: round; transition: stroke 0.4s; }
+    .zone { fill: none; stroke-width: 14; stroke-linecap: round; opacity: 0.45; }
+    .delta path { fill: none; stroke-width: 14; stroke-linecap: butt; }
+    .flow { fill: none; stroke: #fff; stroke-opacity: 0.55; stroke-width: 3; stroke-linecap: round; stroke-dasharray: 0.1 9; pointer-events: none; }
+    .flow.up { animation: flow-up 1.4s linear infinite; }
+    .flow.down { animation: flow-down 1.4s linear infinite; }
+    .current-label { font-size: 9px; font-weight: 600; fill: var(--secondary-text-color); text-anchor: middle; dominant-baseline: central; pointer-events: none; }
     .tick { stroke: var(--secondary-text-color); stroke-opacity: 0.25; stroke-width: 1.2; stroke-linecap: round; }
     .is-active .tick { stroke: var(--dial-color); stroke-opacity: 0.45; animation: pulse 2.4s ease-in-out infinite; }
-    .current { fill: var(--primary-text-color); stroke: var(--card-background-color, #fff); stroke-width: 1.5; }
+    .current { fill: var(--card-background-color, #fff); stroke-width: 3; filter: drop-shadow(0 1px 1.5px rgba(0,0,0,0.3)); }
     .handle { cursor: grab; outline: none; }
     .handle .halo { opacity: 0; transition: opacity 0.2s; }
     .handle:hover .halo, .handle:focus-visible .halo, .handle.dragging .halo { opacity: 0.25; }
@@ -198,8 +271,10 @@ export class ClimateDial extends LitElement {
       align-items: center; justify-content: center; text-align: center; pointer-events: none;
     }
     .center ::slotted(*) { pointer-events: auto; }
+    @keyframes flow-up { from { stroke-dashoffset: 18; } to { stroke-dashoffset: 0; } }
+    @keyframes flow-down { from { stroke-dashoffset: 0; } to { stroke-dashoffset: 18; } }
     @keyframes pulse { 0%, 100% { stroke-opacity: 0.2; } 50% { stroke-opacity: 0.6; } }
-    @media (prefers-reduced-motion: reduce) { .is-active .tick { animation: none; } }
+    @media (prefers-reduced-motion: reduce) { .is-active .tick, .flow { animation: none; } }
   `;
 }
 

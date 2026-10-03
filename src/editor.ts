@@ -65,13 +65,24 @@ export class HaClimateCardEditor extends LitElement {
         title: this._t("sensors"),
         icon: "mdi:thermometer-lines",
         schema: [
-          sensor("temperature_sensor", { domain: "sensor", device_class: "temperature" }),
+          { name: "temperature_sensor", selector: { entity: { filter: [{ domain: "sensor", device_class: "temperature" }, { domain: "climate" }] } } },
           { name: "use_sensor_for_current", selector: { boolean: {} } },
           sensor("humidity_sensor", { domain: "sensor", device_class: "humidity" }),
           sensor("outdoor_sensor", { domain: ["sensor", "weather"] }),
           sensor("power_sensor", { domain: "sensor", device_class: "power" }),
           sensor("energy_sensor", { domain: "sensor", device_class: "energy" }),
           sensor("window_sensor", { domain: "binary_sensor" }),
+        ],
+      },
+      {
+        type: "expandable",
+        name: "",
+        flatten: true,
+        title: this._t("timer_section"),
+        icon: "mdi:sleep",
+        schema: [
+          { name: "timer_switch", selector: { entity: { filter: { domain: ["input_boolean", "switch"] } } } },
+          { name: "timer_time", selector: { entity: { filter: { domain: "input_datetime" } } } },
         ],
       },
       {
@@ -133,6 +144,7 @@ export class HaClimateCardEditor extends LitElement {
       layout: "full",
       graph_hours: 24,
       auto_shortcuts: true,
+      use_sensor_for_current: true,
       expandable: true,
       dropdown_threshold: 6,
       ...this._config,

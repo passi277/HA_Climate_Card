@@ -67,10 +67,11 @@ export const DEFAULT_SHOW = {
   sensors: true,
   graph: false,
   shortcuts: true,
+  timer: true,
 };
 
 /** Bereiche, die im vollen Layout immer sichtbar sind – der Rest liegt im ausklappbaren Teil. */
-export const PRIMARY_SECTIONS = ["modes", "fan", "shortcuts"];
+export const PRIMARY_SECTIONS = ["modes", "fan", "timer", "shortcuts"];
 
 /** Domains, die als Schalter-Buttons automatisch vom Klimagerät übernommen werden. */
 export const AUTO_SHORTCUT_DOMAINS = ["switch", "button"];

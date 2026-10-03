@@ -45,6 +45,7 @@ export interface ShowConfig {
   sensors?: boolean;
   graph?: boolean;
   shortcuts?: boolean;
+  timer?: boolean;
 }
 
 export interface ShortcutConfig {
@@ -73,4 +74,6 @@ export interface ClimateCardConfig {
   expandable?: boolean;
   start_expanded?: boolean;
   dropdown_threshold?: number;
+  timer_switch?: string;
+  timer_time?: string;
 }

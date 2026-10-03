@@ -22,7 +22,11 @@
     "turn_on": "Einschalten",
     "turn_off": "Ausschalten",
     "no_history": "Keine Verlaufsdaten",
-    "shortcuts": "Schalter"
+    "shortcuts": "Schalter",
+    "sleep_timer": "Sleeptimer",
+    "timer_off": "Inaktiv",
+    "timer_at": "Aus um",
+    "timer_in": "in"
   },
   "hvac_mode": {
     "off": "Aus",
@@ -59,13 +63,13 @@
     "show_sensors": "Sensoren",
     "show_graph": "Verlaufsgraph",
     "sensors": "Zusätzliche Sensoren",
-    "temperature_sensor": "Raumtemperatur-Sensor",
+    "temperature_sensor": "Ist-Temperatur: Sensor oder Thermostat (leer = Klimaanlage)",
     "humidity_sensor": "Raumluftfeuchte-Sensor",
     "outdoor_sensor": "Außentemperatur-Sensor",
     "power_sensor": "Leistungssensor",
     "energy_sensor": "Energiesensor",
     "window_sensor": "Fenster-/Türkontakt",
-    "use_sensor_for_current": "Raumsensor als Ist-Temperatur verwenden",
+    "use_sensor_for_current": "Als Ist-Temperatur verwenden (aus = nur als Kachel)",
     "graph_hours": "Zeitraum Graph (Stunden)",
     "show_shortcuts": "Schalter-Buttons",
     "shortcuts_section": "Schalter-Buttons",
@@ -74,6 +78,10 @@
     "appearance": "Darstellung",
     "expandable": "Details ausklappbar (volles Layout)",
     "start_expanded": "Anfangs ausgeklappt",
-    "dropdown_threshold": "Dropdown ab so vielen Optionen (0 = immer Chips)"
+    "dropdown_threshold": "Dropdown ab so vielen Optionen (0 = immer Chips)",
+    "show_timer": "Sleeptimer",
+    "timer_section": "Sleeptimer",
+    "timer_switch": "Schalter zum Scharfschalten (input_boolean)",
+    "timer_time": "Ausschaltzeit (input_datetime)"
   }
 }

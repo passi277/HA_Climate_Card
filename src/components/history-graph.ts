@@ -98,8 +98,11 @@ export class HistoryGraph extends LitElement {
     });
 
     if (this.sensor) {
+      const isClimate = this.sensor.startsWith("climate.");
+      let sensorAttrs: Record<string, any> = {};
       for (const st of res[this.sensor] ?? []) {
-        const v = Number(st.s);
+        if (st.a) sensorAttrs = st.a;
+        const v = Number(isClimate ? sensorAttrs.current_temperature : st.s);
         if (Number.isFinite(v)) current.push({ t: Math.max(st.lu * 1000, start), v });
       }
     }
