@@ -210,6 +210,25 @@
         entity_picture: "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0b1a3a"/><stop offset="1" stop-color="#c98a3c"/></linearGradient></defs><rect width="64" height="64" fill="url(#g)"/><circle cx="40" cy="26" r="12" fill="#f6d28b" opacity=".9"/><circle cx="40" cy="26" r="16" fill="none" stroke="#f6d28b" stroke-width="1.5" opacity=".6"/></svg>') } },
       "media_player.atmos": { state: "on", attributes: { friendly_name: "ATMOS", supported_features: 154509, volume_level: 0.4, is_volume_muted: false,
         source: "HDMI", source_list: ["HDMI", "TV ARC", "Bluetooth", "Optisch"], sound_mode: "Standard" } },
+      "light.licht_mein_zimmer": { state: "on", attributes: { friendly_name: "Licht mein Zimmer", supported_color_modes: ["color_temp", "xy"], color_mode: "color_temp",
+        brightness: 178, color_temp_kelvin: 2700, min_color_temp_kelvin: 2200, max_color_temp_kelvin: 6500, entity_id: ["light.nachtlicht", "light.deckenlampe_schlafzimmer"] } },
+      "light.nachtlicht": { state: "on", attributes: { friendly_name: "Nachtlicht", supported_color_modes: ["color_temp", "xy"], color_mode: "color_temp", brightness: 178, color_temp_kelvin: 2700 } },
+      "light.deckenlampe_schlafzimmer": { state: "on", attributes: { friendly_name: "Deckenlampe Schlafzimmer", supported_color_modes: ["color_temp"], color_mode: "color_temp", brightness: 178, color_temp_kelvin: 2700 } },
+      "binary_sensor.fenster_pascal_schreibtisch": { state: "on", attributes: { friendly_name: "Fenster Schreibtisch", device_class: "window" } },
+      "binary_sensor.fenster_pascal_tv": { state: "off", attributes: { friendly_name: "Fenster TV", device_class: "window" } },
+      "binary_sensor.tuerkontakt_pascal": { state: "off", attributes: { friendly_name: "Türkontakt mein Zimmer", device_class: "window" } },
+      "remote.harmony_schlafzimmer": { state: "on", attributes: { friendly_name: "Harmony Schlafzimmer", supported_features: 4,
+        activity_list: ["Klimaanlage", "Smart TV wiedergeben", "Tv"], current_activity: "Smart TV wiedergeben", devices_list: ["Sony TV (2)", "Proklima 23807891", "Bose Verstärker", "Sony TV"] } },
+      "sensor.heizkorperthermostat_mein_zimmer_battery_plus": { state: "8.0", attributes: { friendly_name: "Heizkörperthermostat mein Zimmer Batterie+", device_class: "battery",
+        unit_of_measurement: "%", device_name: "Heizkörperthermostat mein Zimmer", battery_type_and_quantity: "2× AA", battery_low: true } },
+      "binary_sensor.heizkorperthermostat_mein_zimmer_battery_plus_low": { state: "on", attributes: { friendly_name: "Heizkörperthermostat mein Zimmer Batterie fast leer", device_class: "battery" } },
+      "sensor.wandthermostat_mein_zimmer_battery_plus": { state: "62.5", attributes: { friendly_name: "Wandthermostat mein Zimmer Batterie+", device_class: "battery",
+        unit_of_measurement: "%", device_name: "Wandthermostat mein Zimmer", battery_type_and_quantity: "2× AAA", battery_low: false } },
+      "sensor.wandthermostat_mein_zimmer_batterie": { state: "60", attributes: { friendly_name: "Wandthermostat mein Zimmer Batterie", device_class: "battery", unit_of_measurement: "%" } },
+      "sensor.turkontakt_mein_zimmer_battery_plus": { state: "34", attributes: { friendly_name: "Türkontakt mein Zimmer Batterie+", device_class: "battery",
+        unit_of_measurement: "%", device_name: "Türkontakt mein Zimmer", battery_type_and_quantity: "AAA", battery_low: false } },
+      "sensor.zimmer_schalter_battery_plus": { state: "91", attributes: { friendly_name: "Lichtschalter Batterie+", device_class: "battery",
+        unit_of_measurement: "%", device_name: "Lichtschalter", battery_type_and_quantity: "CR2032", battery_low: false } },
       "sun.sun": { state: "above_horizon", attributes: { friendly_name: "Sun", elevation: 20, azimuth: 237, rising: false } },
       "weather.garten": { state: "partlycloudy", attributes: { friendly_name: "Garten", temperature: 14 } },
       "cover.rollos_pascal": { state: "open", attributes: { friendly_name: "Rollos Pascal", current_position: 46, supported_features: 15,
@@ -251,7 +270,8 @@
     const cards = [];
     const entities = Object.fromEntries(Object.keys(states).map((id) => [id, { entity_id: id,
       device_id: id.includes("1ed763d9") ? "dev_gree" : /^(light|switch|button)\.carport_/.test(id) && !id.includes("segment") ? "dev_govee" : null,
-      area_id: /heizung_mein_zimmer|etrv_|wandthermostat_mein/.test(id) ? "mein_zimmer" : null }]));
+      ...(/_mein_zimmer_batter|zimmer_schalter_batter|turkontakt_mein_zimmer_batter/.test(id) ? { device_id: id.replace(/^\w+\.|_battery_plus.*|_batterie$/g, "") } : {}),
+      area_id: /heizung_mein_zimmer|etrv_|wandthermostat_mein|_mein_zimmer_batter|zimmer_schalter_batter|turkontakt_mein_zimmer_batter/.test(id) ? "mein_zimmer" : null }]));
     const devices = { dev_gree: { id: "dev_gree", name: "Klima Schlafzimmer" }, dev_govee: { id: "dev_govee", name: "Carport" } };
     const makeHass = () => ({
       states: { ...states }, entities, devices, language: lang, locale: { language: lang },
@@ -442,6 +462,11 @@
         time_entity: "input_datetime.bewaesserung_start", icon: "mdi:sprinkler-variant", color: "#26a69a", minute_step: 1 }],
       ["Medien – Harmony Hub (Aktivitäten, Fernbedienung) + Fire TV", { _media: true, entity: "remote.harmony_hub_wohnzimmer", media_player: "media_player.fire_tv_wohnzimmer" }],
       ["Medien – Soundbar (Media-Player, kompakt)", { _media: true, entity: "media_player.atmos", layout: "compact" }],
+      ["Raum-Kopf – Pascal (Chips, Hinweis Fenster offen + Klima läuft)", { _room: true, title: "Pascal", icon: "mdi:account", light: "light.licht_mein_zimmer",
+        contacts: [{ entity: "binary_sensor.fenster_pascal_schreibtisch", name: "Schreibtisch" }, { entity: "binary_sensor.fenster_pascal_tv", name: "TV" }],
+        temperature: "climate.heizung_mein_zimmer", humidity: "climate.heizung_mein_zimmer", climate: "climate.1ed763d9", media: "remote.harmony_schlafzimmer" }],
+      ["Status – Batterien aus Bereich + Türkontakt", { _status: true, areas: ["mein_zimmer"], contacts: [{ entity: "binary_sensor.tuerkontakt_pascal", name: "Tür" }] }],
+      ["Licht – Gruppe mit Presets Hell / Warm / Gemütlich", { _light: true, entity: "light.licht_mein_zimmer", name: "Licht Zimmer", presets: "default", layout: "compact" }],
       ["Übersicht – mehrere Geräte", { _overview: true, title: "Klimaanlagen", entities: ["climate.1ed763d9", "climate.wohnzimmer", "climate.heizung_mein_zimmer", "climate.buero", "climate.schlafzimmer"] }],
       ["Voll – Aus", { entity: "climate.schlafzimmer", layout: "full" }],
       ["Kompakt – Kühlen", { entity: "climate.wohnzimmer", layout: "compact", outdoor_sensor: "sensor.aussen", power_sensor: "sensor.klima_power" }],
@@ -454,9 +479,9 @@
     configs.forEach(([title, cfg], i) => {
       const wrap = document.createElement("div");
       wrap.innerHTML = `<h2>${title}</h2>`;
-      const { _overview, _light, _group, _cover, _coverGroup, _switchTime, _media, ...rest } = cfg;
+      const { _overview, _light, _group, _cover, _coverGroup, _switchTime, _media, _room, _status, ...rest } = cfg;
       const tag = _overview ? "ha-climate-overview-card" : _group ? "ha-light-group-card" : _light ? "ha-light-card"
-        : _cover ? "ha-cover-card" : _coverGroup ? "ha-cover-group-card" : _switchTime ? "ha-switch-time-card" : _media ? "ha-media-card" : "ha-climate-card";
+        : _cover ? "ha-cover-card" : _coverGroup ? "ha-cover-group-card" : _switchTime ? "ha-switch-time-card" : _media ? "ha-media-card" : _room ? "ha-room-card" : _status ? "ha-status-card" : "ha-climate-card";
       const card = document.createElement(tag);
       card.id = "card" + i;
       card.setConfig({ type: `custom:${tag}`, ...rest });

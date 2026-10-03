@@ -29,6 +29,7 @@ export class HaLightGroupCardEditor extends LitElement {
         { name: "collapsed", selector: { boolean: {} } },
         { name: "group_color", selector: { boolean: {} } },
       ] },
+      { name: "default_presets", selector: { boolean: {} } },
       { name: "animations", selector: { select: { mode: "dropdown", options: ["full", "reduced", "off"].map((v) => ({ value: v, label: localize(this.hass, `editor.anim_${v}`) })) } } },
     ];
   }
@@ -36,7 +37,12 @@ export class HaLightGroupCardEditor extends LitElement {
   private _computeLabel = (s: { name: string }): string => this._t(s.name);
 
   private _valueChanged(ev: CustomEvent): void {
-    const config = { ...ev.detail.value } as LightGroupCardConfig;
+    const raw = { ...ev.detail.value } as LightGroupCardConfig & { default_presets?: boolean };
+    // Schalter „Standard-Presets“ ↔ presets: default (eigene Preset-Listen aus YAML bleiben erhalten)
+    if (raw.default_presets) raw.presets = "default";
+    else if (raw.presets === "default") delete raw.presets;
+    delete raw.default_presets;
+    const config = raw as LightGroupCardConfig;
     // Eigene Namen/Symbole einzelner Lampen beim Umsortieren/Ergänzen erhalten
     const previous = this._config?.entities ?? [];
     config.entities = (config.entities ?? []).map((e) => {
@@ -54,6 +60,7 @@ export class HaLightGroupCardEditor extends LitElement {
   protected render() {
     if (!this.hass || !this._config) return nothing;
     const data = {
+      default_presets: this._config.presets === "default",
       show_lights: true, collapsed: false, group_color: true, animations: "full",
       ...this._config,
       entities: (this._config.entities ?? []).map((e) => (typeof e === "string" ? e : e.entity)),

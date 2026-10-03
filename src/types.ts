@@ -25,6 +25,7 @@ export interface HomeAssistant {
   states: Record<string, HassEntity>;
   entities?: Record<string, EntityRegistryEntry>;
   devices?: Record<string, DeviceRegistryEntry>;
+  areas?: Record<string, { area_id: string; name: string }>;
   language: string;
   locale?: { language: string };
   config: { unit_system: { temperature: string } };
@@ -152,6 +153,8 @@ export interface LightCardConfig {
   auto_scenes?: boolean;
   motion_sensor?: string;
   illuminance_sensor?: string;
+  /** Licht-Presets (Helligkeit + Weißton/Farbe) oder "default" für Hell/Warm/Gemütlich */
+  presets?: "default" | { name: string; icon?: string; brightness?: number; kelvin?: number; rgb?: [number, number, number] }[];
   /** Segmente eines LED-Streifens (z.B. govee2mqtt `light.xyz_segment_001`) */
   segments?: string[];
   auto_segments?: boolean;
@@ -177,6 +180,8 @@ export interface LightGroupCardConfig {
   icon?: string;
   /** Weißton/Farbe für alle in der Gruppenzeile anbieten */
   group_color?: boolean;
+  /** Presets für alle (wie bei der Light Card) */
+  presets?: LightCardConfig["presets"];
   /** Einzellampen anzeigen */
   show_lights?: boolean;
   /** Einzellampen anfangs zugeklappt (nur Gruppenzeile) */
@@ -294,5 +299,53 @@ export interface MediaCardConfig {
   commands?: Record<string, string>;
   expandable?: boolean;
   start_expanded?: boolean;
+  animations?: "full" | "reduced" | "off";
+}
+
+export interface RoomChipConfig {
+  entity: string;
+  name?: string;
+  icon?: string;
+}
+
+export interface RoomCardConfig {
+  type: string;
+  title?: string;
+  icon?: string;
+  /** Licht(gruppe) des Raums */
+  light?: string;
+  /** Fenster-/Türkontakte */
+  contacts?: (string | ContactConfig)[];
+  /** Temperatur: Sensor oder climate-Entität (current_temperature) */
+  temperature?: string;
+  /** Luftfeuchte: Sensor oder climate-Entität (current_humidity) */
+  humidity?: string;
+  humidity_warning?: number;
+  /** Klimaanlage/Heizung */
+  climate?: string;
+  /** Harmony-Hub (remote) oder Media-Player */
+  media?: string;
+  /** Weitere Chips */
+  chips?: (string | RoomChipConfig)[];
+  /** Hinweis „Fenster offen – Klima läuft“ (Standard an) */
+  window_warning?: boolean;
+  animations?: "full" | "reduced" | "off";
+}
+
+export interface StatusCardConfig {
+  type: string;
+  title?: string;
+  /** Batterie-Sensoren (Prozent oder binary_sensor) */
+  batteries?: string[];
+  /** Batterien automatisch aus diesen Bereichen (area_id) */
+  areas?: string[];
+  /** Schwach unter … % (Standard 20) */
+  threshold?: number;
+  /** Tür-/Fensterkontakte */
+  contacts?: (string | ContactConfig)[];
+  /** Tippen auf den Kopf navigiert hierhin */
+  navigation_path?: string;
+  /** Batterieliste anfangs offen */
+  expanded?: boolean;
   animations?: "full" | "reduced" | "off";
 }

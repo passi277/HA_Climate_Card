@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { HassEntity } from "../src/types";
 import {
-  brightnessPct, contactType, activityIcon, activityLabel, guessControlDevice, guessVolumeDevice, coverIcon, datetimeParts, nextOccurrence, coverPosition, skyPhase, sunPlacement, weatherOverlay, editorOptions, isNoEffect, lightEditorOptions, segmentIds, detectDeviceType, kelvinToRgb, lightColor, relatedScenes, supportsColor, supportsColorTemp, dewPoint, nextSwitch, parseSchedule, scheduleTempAt, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
+  brightnessPct, contactType, areaBatteries, batteryInfo, presetActive, presetData, DEFAULT_LIGHT_PRESETS, activityIcon, activityLabel, guessControlDevice, guessVolumeDevice, coverIcon, datetimeParts, nextOccurrence, coverPosition, skyPhase, sunPlacement, weatherOverlay, editorOptions, isNoEffect, lightEditorOptions, segmentIds, detectDeviceType, kelvinToRgb, lightColor, relatedScenes, supportsColor, supportsColorTemp, dewPoint, nextSwitch, parseSchedule, scheduleTempAt, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
   openContactsKey, powerOf, resolveContacts, secondsToDuration, stateIcon, temperatureOf, temperatureTint, trendSlope,
 } from "../src/utils";
 import { formatAttribute, localize } from "../src/localize/localize";
@@ -342,5 +342,41 @@ describe("media / Harmony", () => {
     expect(guessControlDevice(devices, "Smart TV wiedergeben")).toBe("Sony TV Wohnzimmer");
     expect(guessControlDevice(devices, "Fire TV")).toBe("Amazon Fire TV");
     expect(guessControlDevice(devices, "Ps4")).toBe("Amazon Fire TV");
+  });
+});
+
+describe("batteries, presets, door names", () => {
+  const states: Record<string, HassEntity> = {
+    "sensor.heiz_battery_plus": entity("sensor.heiz_battery_plus", "8.0", { device_class: "battery", device_name: "Heizkörperthermostat mein Zimmer", battery_type_and_quantity: "2× AA" }),
+    "binary_sensor.heiz_battery_plus_low": entity("binary_sensor.heiz_battery_plus_low", "on", { device_class: "battery" }),
+    "sensor.heiz_batterie": entity("sensor.heiz_batterie", "10", { device_class: "battery" }),
+    "sensor.wand_battery_plus": entity("sensor.wand_battery_plus", "62.5", { device_class: "battery", device_name: "Wandthermostat mein Zimmer" }),
+    "sensor.kueche_battery_plus": entity("sensor.kueche_battery_plus", "5", { device_class: "battery" }),
+  };
+  const entities = {
+    "sensor.heiz_battery_plus": { entity_id: "sensor.heiz_battery_plus", device_id: "d1" },
+    "binary_sensor.heiz_battery_plus_low": { entity_id: "binary_sensor.heiz_battery_plus_low", device_id: "d1" },
+    "sensor.heiz_batterie": { entity_id: "sensor.heiz_batterie", device_id: "d1" },
+    "sensor.wand_battery_plus": { entity_id: "sensor.wand_battery_plus", device_id: "d2", area_id: "mein_zimmer" },
+    "sensor.kueche_battery_plus": { entity_id: "sensor.kueche_battery_plus", device_id: "d3" },
+  };
+  const devices = { d1: { area_id: "mein_zimmer" }, d2: { area_id: "kueche" }, d3: { area_id: "kueche" } };
+  it("picks one battery per device in the area, Battery Notes first", () => {
+    expect(areaBatteries(states, entities, devices, ["mein_zimmer"]).sort()).toEqual(["sensor.heiz_battery_plus", "sensor.wand_battery_plus"]);
+  });
+  it("detects low batteries and cleans names", () => {
+    const b = batteryInfo(states, states["sensor.heiz_battery_plus"], 20, ["mein Zimmer"]);
+    expect(b).toMatchObject({ name: "Heizkörperthermostat", level: 8, low: true, type: "2× AA" });
+    expect(batteryInfo(states, states["sensor.wand_battery_plus"]).low).toBe(false);
+  });
+  it("recognizes active presets and builds service data", () => {
+    const warm = DEFAULT_LIGHT_PRESETS[1];
+    expect(presetActive(entity("light.a", "on", { brightness: 178, color_mode: "color_temp", color_temp_kelvin: 2700 }), warm)).toBe(true);
+    expect(presetActive(entity("light.a", "on", { brightness: 255, color_mode: "color_temp", color_temp_kelvin: 2700 }), warm)).toBe(false);
+    expect(presetData(warm)).toEqual({ brightness_pct: 70, color_temp_kelvin: 2700 });
+  });
+  it("treats a door-named contact with device_class window as door", () => {
+    expect(contactType(entity("binary_sensor.t", "off", { device_class: "window", friendly_name: "Türkontakt mein Zimmer" }))).toBe("door");
+    expect(contactType(entity("binary_sensor.f", "off", { device_class: "window", friendly_name: "Fenster Terrassentür" }))).toBe("window");
   });
 });

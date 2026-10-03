@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.7.0 – Raum, Status, Presets
+- Neu: **Modern Room Header** (`custom:ha-room-card`) – Titel mit Status-Chips (Licht, Fenster/Türen, Temperatur, Feuchte, Klima/Heizung, TV/Harmony, eigene) und Hinweis „Fenster offen – Klima läuft“ mit bestätigtem „Klima aus“
+- Neu: **Modern Status Card** (`custom:ha-status-card`) – Batterien automatisch je Bereich (Battery Notes inkl. Batterietyp), Ampel-Liste, Tür-/Fensterkontakte, optional Navigation
+- Light Card und Licht-Gruppe: **Presets** (`presets: default` = Hell/Warm/Gemütlich oder eigene), aktives Preset wird erkannt
+- Türkontakte mit `device_class: window` werden am Namen als Tür erkannt
+
 ## 1.6.1
 - Medienkarte: Umschalter „Fernbedienung“ sitzt direkt unter der Lautstärke und klappt alles darunter ein/aus (Kanal, Steuerkreuz, Tasten); der Zustand wird pro Gerät im Browser gemerkt
 - Quelle steht über der Lautstärke; Symbol für Aktivitäten wie „Klimaanlage“ und „Licht“

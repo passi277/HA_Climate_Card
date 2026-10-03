@@ -228,7 +228,11 @@
     "scenes": "Scenes",
     "motion": "Motion",
     "motion_ago": "Motion",
-    "segments": "Segments"
+    "segments": "Segments",
+    "presets": "Presets",
+    "preset_bright": "Bright",
+    "preset_warm": "Warm",
+    "preset_cozy": "Cozy"
   },
   "light_editor": {
     "entity": "Light (lamp or group)",
@@ -259,7 +263,8 @@
     "shortcuts": "Device switches",
     "device": "Device: segments & switches",
     "auto_segments": "Detect segments automatically",
-    "auto_shortcuts": "Use switches of the device (e.g. gradient)"
+    "auto_shortcuts": "Use switches of the device (e.g. gradient)",
+    "default_presets": "Presets bright / warm / cozy"
   },
   "light_group": {
     "title": "Lights",
@@ -280,7 +285,8 @@
     "collapsed": "Individual lights collapsed initially",
     "group_color": "Offer “color for all”",
     "animations": "Animations",
-    "hint": "Each light automatically shows only what it supports: brightness, white tone, color, effects – on/off lights just the switch."
+    "hint": "Each light automatically shows only what it supports: brightness, white tone, color, effects – on/off lights just the switch.",
+    "default_presets": "Presets bright / warm / cozy for all"
   },
   "cover": {
     "open": "Open",
@@ -434,5 +440,58 @@
     "start_expanded": "Remote initially open",
     "animations": "Animations",
     "hint": "Volume goes to the soundbar/AV receiver automatically, the d-pad to the device of the running activity – changeable in the Harmony section."
+  },
+  "room": {
+    "title": "Room",
+    "light_on": "Light on",
+    "light_off": "Light off",
+    "open": "open",
+    "windows": "Windows",
+    "all_closed": "Windows closed",
+    "climate": "A/C",
+    "heating": "Heating",
+    "off": "off",
+    "tv_off": "TV off",
+    "warn_climate": "Window open – A/C running",
+    "warn_heating": "Window open – heating running",
+    "warn_hint": "close the window or switch off",
+    "climate_off": "A/C off",
+    "heating_off": "Heating off",
+    "confirm": "Sure?"
+  },
+  "room_editor": {
+    "title": "Title",
+    "icon": "Icon",
+    "light": "Light",
+    "contacts": "Window/door contacts",
+    "temperature": "Temperature (sensor or climate)",
+    "humidity": "Humidity (sensor or climate)",
+    "climate": "A/C / heating",
+    "media": "TV / Harmony / media player",
+    "chips": "More chips",
+    "window_warning": "Warning \"window open – A/C running\"",
+    "humidity_warning": "Humidity warning from"
+  },
+  "status": {
+    "batteries": "Batteries",
+    "all_ok": "All fine",
+    "low": "Low",
+    "ok": "OK",
+    "no_batteries": "No batteries found",
+    "open": "Open",
+    "closed": "Closed",
+    "unknown": "Unknown",
+    "show_list": "Show all",
+    "hide_list": "Hide list"
+  },
+  "status_editor": {
+    "title": "Title",
+    "areas": "Batteries automatically from areas",
+    "batteries": "More battery sensors",
+    "threshold": "Low below",
+    "contacts": "Door/window contacts",
+    "navigation_path": "Tap opens page",
+    "expanded": "Battery list initially open",
+    "hint": "Areas: one battery sensor per device (Battery Notes preferred, incl. battery type like \"2× AA\")."
   }
 }

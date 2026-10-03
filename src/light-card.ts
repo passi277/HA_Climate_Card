@@ -11,6 +11,8 @@ import {
   supportsColorTemp, UNAVAILABLE,
 } from "./utils";
 import "./components/climate-dial";
+import { presetStyles, renderPresetChips, resolvePresets } from "./components/preset-chips";
+import { presetData } from "./utils";
 import "./components/gradient-slider";
 import "./components/attribute-select";
 import "./components/shortcut-row";
@@ -472,6 +474,8 @@ export class HaLightCard extends LitElement {
     const primary = [
       members.length ? this._renderMembers(members) : nothing,
       segments.length ? html`<hcc-segment-strip .hass=${this.hass} .items=${segments} .label=${this._t("light.segments")}></hcc-segment-strip>` : nothing,
+      renderPresetChips(this.hass, resolvePresets(this._config.presets, supportsColorTemp(st)), st,
+        (p) => { this._haptic("selection"); this._turnOn(presetData(p)); }),
       scenes.length ? this._renderScenes(scenes, st) : nothing,
       shortcuts.length ? html`<hcc-shortcut-row .hass=${this.hass} .items=${shortcuts}></hcc-shortcut-row>` : nothing,
     ];
@@ -501,7 +505,7 @@ export class HaLightCard extends LitElement {
     </ha-card>`;
   }
 
-  static styles = [cardStyles, css`
+  static styles = [cardStyles, presetStyles, css`
     ha-card.light-card .blob { opacity: var(--glow-strength, 0.5); }
     ha-card.light-card.off .blob { animation-play-state: paused; }
     .icon-badge.lit { box-shadow: 0 0 18px color-mix(in srgb, var(--accent) 60%, transparent); }

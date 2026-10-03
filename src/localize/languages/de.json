@@ -228,7 +228,11 @@
     "scenes": "Szenen",
     "motion": "Bewegung",
     "motion_ago": "Bewegung vor",
-    "segments": "Segmente"
+    "segments": "Segmente",
+    "presets": "Presets",
+    "preset_bright": "Hell",
+    "preset_warm": "Warm",
+    "preset_cozy": "Gemütlich"
   },
   "light_editor": {
     "entity": "Licht (Lampe oder Gruppe)",
@@ -259,7 +263,8 @@
     "shortcuts": "Geräteschalter",
     "device": "Gerät: Segmente & Schalter",
     "auto_segments": "Segmente automatisch erkennen",
-    "auto_shortcuts": "Schalter des Geräts übernehmen (z.B. Gradient)"
+    "auto_shortcuts": "Schalter des Geräts übernehmen (z.B. Gradient)",
+    "default_presets": "Presets Hell / Warm / Gemütlich"
   },
   "light_group": {
     "title": "Lichter",
@@ -280,7 +285,8 @@
     "collapsed": "Einzelne Lampen anfangs zugeklappt",
     "group_color": "„Farbe für alle“ anbieten",
     "animations": "Animationen",
-    "hint": "Jede Lampe zeigt automatisch nur, was sie kann: Helligkeit, Weißton, Farbe, Effekte – reine Ein/Aus-Lampen nur den Schalter."
+    "hint": "Jede Lampe zeigt automatisch nur, was sie kann: Helligkeit, Weißton, Farbe, Effekte – reine Ein/Aus-Lampen nur den Schalter.",
+    "default_presets": "Presets Hell / Warm / Gemütlich für alle"
   },
   "cover": {
     "open": "Offen",
@@ -434,5 +440,58 @@
     "start_expanded": "Fernbedienung anfangs offen",
     "animations": "Animationen",
     "hint": "Lautstärke geht automatisch an Soundbar/AV-Receiver, Steuerkreuz an das Gerät der laufenden Aktivität – im Abschnitt Harmony änderbar."
+  },
+  "room": {
+    "title": "Raum",
+    "light_on": "Licht an",
+    "light_off": "Licht aus",
+    "open": "offen",
+    "windows": "Fenster",
+    "all_closed": "Fenster zu",
+    "climate": "Klima",
+    "heating": "Heizung",
+    "off": "aus",
+    "tv_off": "TV aus",
+    "warn_climate": "Fenster offen – Klima läuft",
+    "warn_heating": "Fenster offen – Heizung läuft",
+    "warn_hint": "Fenster schließen oder ausschalten",
+    "climate_off": "Klima aus",
+    "heating_off": "Heizung aus",
+    "confirm": "Wirklich?"
+  },
+  "room_editor": {
+    "title": "Titel",
+    "icon": "Symbol",
+    "light": "Licht",
+    "contacts": "Fenster-/Türkontakte",
+    "temperature": "Temperatur (Sensor oder Klima)",
+    "humidity": "Luftfeuchte (Sensor oder Klima)",
+    "climate": "Klimaanlage / Heizung",
+    "media": "TV / Harmony / Media-Player",
+    "chips": "Weitere Chips",
+    "window_warning": "Hinweis „Fenster offen – Klima läuft“",
+    "humidity_warning": "Feuchte-Warnung ab"
+  },
+  "status": {
+    "batteries": "Batterien",
+    "all_ok": "Alle in Ordnung",
+    "low": "Schwach",
+    "ok": "OK",
+    "no_batteries": "Keine Batterien gefunden",
+    "open": "Offen",
+    "closed": "Zu",
+    "unknown": "Unbekannt",
+    "show_list": "Alle anzeigen",
+    "hide_list": "Liste ausblenden"
+  },
+  "status_editor": {
+    "title": "Titel",
+    "areas": "Batterien automatisch aus Bereichen",
+    "batteries": "Weitere Batterie-Sensoren",
+    "threshold": "Schwach unter",
+    "contacts": "Tür-/Fensterkontakte",
+    "navigation_path": "Tippen öffnet Seite",
+    "expanded": "Batterieliste anfangs offen",
+    "hint": "Bereiche: je Gerät ein Batterie-Sensor (Battery Notes wird bevorzugt, inkl. Batterietyp wie „2× AA“)."
   }
 }

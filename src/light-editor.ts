@@ -34,6 +34,7 @@ export class HaLightCardEditor extends LitElement {
       { type: "expandable", name: "show", title: this._t("sections"), icon: "mdi:eye-outline", schema: [
         { type: "grid", name: "", schema: opts.show.map((k) => ({ name: k, selector: { boolean: {} } })) },
       ] },
+      { name: "default_presets", selector: { boolean: {} } },
       { type: "expandable", name: "", flatten: true, title: this._t("room"), icon: "mdi:lightbulb-group", schema: [
         { name: "auto_entities", selector: { boolean: {} } },
         { name: "entities", selector: { entity: { multiple: true, filter: { domain: "light" } } } },
@@ -62,7 +63,12 @@ export class HaLightCardEditor extends LitElement {
   private _computeLabel = (s: { name: string }): string => this._t(s.name);
 
   private _valueChanged(ev: CustomEvent): void {
-    const config = { ...ev.detail.value } as LightCardConfig;
+    const raw = { ...ev.detail.value } as LightCardConfig & { default_presets?: boolean };
+    // Schalter „Standard-Presets“ ↔ presets: default (eigene Preset-Listen aus YAML bleiben erhalten)
+    if (raw.default_presets) raw.presets = "default";
+    else if (raw.presets === "default") delete raw.presets;
+    delete raw.default_presets;
+    const config = raw as LightCardConfig;
     if (Array.isArray(config.entities)) {
       const previous = this._config?.entities ?? [];
       config.entities = config.entities.map((e) => {
@@ -88,6 +94,7 @@ export class HaLightCardEditor extends LitElement {
   protected render() {
     if (!this.hass || !this._config) return nothing;
     const data = {
+      default_presets: this._config.presets === "default",
       layout: "full", auto_entities: true, auto_scenes: true, auto_segments: true, auto_shortcuts: true, expandable: true, animations: "full",
       ...this._config,
       entities: this._config.entities?.map((e) => (typeof e === "string" ? e : e.entity)),

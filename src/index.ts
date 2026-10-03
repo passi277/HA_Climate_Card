@@ -8,3 +8,5 @@ import "./cover-card";
 import "./cover-group-card";
 import "./switch-time-card";
 import "./media-card";
+import "./room-card";
+import "./status-card";

@@ -8,6 +8,8 @@ import {
   brightnessPct, isNoEffect, kelvinToRgb, lightColor, supportsBrightness, supportsColor, supportsColorTemp, UNAVAILABLE,
 } from "./utils";
 import "./components/gradient-slider";
+import { presetStyles, renderPresetChips, resolvePresets } from "./components/preset-chips";
+import { presetData } from "./utils";
 import "./components/attribute-select";
 import "./light-group-editor";
 
@@ -212,6 +214,8 @@ export class HaLightGroupCard extends LitElement {
         @value-changing=${(e: CustomEvent) => { this._pending = { ...this._pending, [`${dimIds.join(",")}|b`]: { value: e.detail.value } }; }}
         @value-changed=${(e: CustomEvent) => this._set(dimIds, "b", e.detail.value, { brightness_pct: e.detail.value })}>
       </hcc-gradient-slider>` : nothing}
+      ${renderPresetChips(this.hass!, resolvePresets(this._config!.presets, lamps.some((l) => l.temp)), lamps.find((l) => l.temp && l.st.state === "on")?.st,
+        (p) => { this._haptic("selection"); this._call("turn_on", lamps.filter((l) => !UNAVAILABLE.includes(l.st.state) && (p.kelvin == null || l.temp) && (!p.rgb || l.color)).map((l) => l.entity), presetData(p)); })}
       ${colorable ? html`<div class="group-colors">
         <button class="mini-toggle ${this._groupColorOpen ? "open" : ""}" aria-expanded=${this._groupColorOpen}
           @click=${() => { this._groupColorOpen = !this._groupColorOpen; }}>
@@ -370,7 +374,7 @@ export class HaLightGroupCard extends LitElement {
     </ha-card>`;
   }
 
-  static styles = [cardStyles, css`
+  static styles = [cardStyles, presetStyles, css`
     ha-card.light-group-card { gap: 12px; }
     ha-card.light-group-card .collapsible { margin-top: -12px; }
     ha-card.light-group-card .collapsible.open { margin-top: 0; }

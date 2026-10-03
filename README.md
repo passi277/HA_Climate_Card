@@ -12,6 +12,8 @@ weiche Farbübergänge und Animationen. Ein HACS-Download, mehrere Karten:
 | **Modern Cover Group** | `custom:ha-cover-group-card` | frei zusammengestellte Rollläden: alle oben, einzelne darunter |
 | **Modern Switch & Time** | `custom:ha-switch-time-card` | Schalter + Uhrzeit (input_datetime): Wecker, Zeitschaltung, Sleeptimer |
 | **Modern Media Card** | `custom:ha-media-card` | Harmony Hub (Aktivitäten, Fernbedienung) und Media-Player |
+| **Modern Room Header** | `custom:ha-room-card` | Raum-Kopf mit Status-Chips und Hinweis „Fenster offen – Klima läuft“ |
+| **Modern Status Card** | `custom:ha-status-card` | Batterien (automatisch je Bereich) und Tür-/Fensterkontakte |
 | **Climate Overview** | `custom:ha-climate-overview-card` | alle Klimageräte auf einen Blick |
 
 *Modern Lovelace cards for Home Assistant in one shared design – English summary below.*
@@ -337,6 +339,52 @@ media_player: media_player.tv_wohnzimmer    # optional: Läuft gerade, Lautstär
 # commands: { select: OK }                  # abweichende Harmony-Befehlsnamen
 ```
 
+## Modern Room Header
+
+Kopf einer Raumseite: großer Titel, darunter Status-Chips – nur die, die du einträgst:
+Licht (an/aus, %, Lichtfarbe; Tippen schaltet), Fenster/Türen („Schreibtisch offen“ / „Fenster zu“),
+Temperatur, Luftfeuchte (orange ab `humidity_warning`), Klima/Heizung (Sollwert in Modusfarbe),
+TV/Harmony (laufende Aktivität), beliebige weitere Chips. Ist ein Fenster offen, während Klima oder Heizung
+läuft, erscheint ein Hinweis mit Button „Klima aus“ (zweimal tippen zum Bestätigen).
+
+```yaml
+type: custom:ha-room-card
+title: Pascal
+icon: mdi:account
+light: light.licht_mein_zimmer
+contacts:
+  - entity: binary_sensor.fenster_schreibtisch
+    name: Schreibtisch
+temperature: climate.heizung_mein_zimmer     # Sensor oder Klima-Entität
+humidity: climate.heizung_mein_zimmer
+climate: climate.klima_pascal
+media: remote.harmony_schlafzimmer
+# chips: [switch.monitore]
+```
+
+## Modern Status Card
+
+Batterien und Kontakte auf einen Blick: „Alle in Ordnung“ bzw. „Schwach: Heizkörperthermostat 8 %“,
+aufklappbare Liste (schwächste zuerst, Ampelfarben, Batterietyp aus **Battery Notes** wie „2× AA“).
+Mit `areas` werden die Batterien eines Bereichs automatisch gefunden (je Gerät ein Sensor, Raumname wird
+aus den Namen entfernt). Tür-/Fensterkontakte als Zeilen „Offen/Zu“.
+
+```yaml
+type: custom:ha-status-card
+areas: [mein_zimmer]
+contacts:
+  - entity: binary_sensor.turkontakt
+    name: Tür
+# threshold: 20                         # schwach unter 20 %
+# navigation_path: /dashboard-final/batterie
+```
+
+### Licht-Presets
+
+`presets: default` zeigt in der Light Card bzw. Licht-Gruppe **Hell** (100 %/4000 K), **Warm** (70 %/2700 K)
+und **Gemütlich** (25 %/2200 K) – das aktive leuchtet. Eigene: `presets: [{ name: Lesen, icon: mdi:book, brightness: 80, kelvin: 3500 }]`
+(auch `rgb: [255, 0, 120]`).
+
 ## Heizungen (z.B. Homematic IP)
 
 Thermostate werden automatisch erkannt. Die Karte zeigt dann statt Lüfter, Lamellen und Luftstrom:
@@ -432,6 +480,8 @@ glow, smooth color transitions, animations), shipped as a single HACS download:
 - `custom:ha-cover-group-card` – any set of covers: all together on top, each cover below with only its supported controls
 - `custom:ha-switch-time-card` – a switch plus an input_datetime (alarm, time switch, sleep timer) with an app-friendly time picker
 - `custom:ha-media-card` – Harmony Hub activities and remote (commands routed to the right device) plus media player (now playing, volume, source)
+- `custom:ha-room-card` – room header with status chips and a "window open – A/C running" warning
+- `custom:ha-status-card` – batteries (per area, Battery Notes aware) and door/window contacts
 - `custom:ha-climate-overview-card` – all climate devices at a glance
 
 Install via HACS as a custom repository of type **Dashboard**. All cards have a visual editor and are

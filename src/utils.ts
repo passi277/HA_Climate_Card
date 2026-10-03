@@ -211,9 +211,11 @@ export const contactType = (entity?: HassEntity, override?: ContactType): Contac
   if (override) return override;
   const dc = entity?.attributes.device_class;
   if (dc === "door" || dc === "garage_door") return "door";
-  if (dc === "window") return "window";
   const name = `${entity?.attributes.friendly_name ?? ""} ${entity?.entity_id ?? ""}`;
-  return /t(ü|ue)r|door|\btor\b|garage/i.test(name) ? "door" : "window";
+  // Homematic meldet Türkontakte oft als device_class „window“ – ein eindeutiger Name gewinnt
+  const doorName = /t(ü|ue)r|door|\btor\b|garage/i.test(name) && !/fenster|window/i.test(name);
+  if (dc === "window") return doorName ? "door" : "window";
+  return doorName ? "door" : "window";
 };
 
 /**
@@ -636,3 +638,94 @@ export const formatMediaTime = (secs?: number): string => {
 /** Kurzer Anzeigename einer Harmony-Aktivität: „Smart TV wiedergeben“ → „Smart TV“. */
 export const activityLabel = (name: string): string =>
   name.replace(/\s+(wiedergeben|ansehen|anschauen|schauen|starten|spielen|hören|watch|play|listen|start)$/i, "").trim() || name;
+
+// ---------- Batterien ----------
+
+export interface BatteryInfo {
+  entity: string;
+  name: string;
+  level?: number;
+  low: boolean;
+  /** z.B. „2× AA“ (Battery Notes) */
+  type?: string;
+}
+
+/** Ein Batterie-Sensor → Info. Schwach bei < threshold oder wenn Battery Notes/binary_sensor „low“ meldet. */
+export const batteryInfo = (states: Record<string, HassEntity>, st: HassEntity, threshold = 20, strip: string[] = []): BatteryInfo => {
+  const a = st.attributes;
+  const domain = st.entity_id.split(".")[0];
+  const raw = Number(st.state);
+  const level = domain === "sensor" && Number.isFinite(raw) && !UNAVAILABLE.includes(st.state) ? Math.round(raw) : undefined;
+  const lowSensor = states[st.entity_id.replace(/^sensor\./, "binary_sensor.") + "_low"];
+  const low = domain === "binary_sensor" ? st.state === "on"
+    : a.battery_low === true || lowSensor?.state === "on" || (level != null && level < threshold);
+  let name = String(a.device_name ?? a.friendly_name ?? st.entity_id)
+    .replace(/\s*(batterie\+?|battery\+?|akku)(\s*(fast leer|low|niedrig))?\s*$/i, "").trim();
+  // Bereichsnamen („mein Zimmer“) weglassen – in der Raumkarte überflüssig
+  for (const word of strip.map((w) => w.trim()).filter((w) => w.length > 1)) {
+    const short = name.replace(new RegExp(`\\s*${word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*`, "i"), " ").trim();
+    if (short) name = short;
+  }
+  return { entity: st.entity_id, name, level, low, type: a.battery_type_and_quantity ?? a.battery_type ?? undefined };
+};
+
+/**
+ * Batterie-Sensoren der Geräte in den angegebenen Bereichen – je Gerät einer
+ * (Battery-Notes-Sensor bevorzugt, sonst Prozent-Sensor, sonst binary_sensor).
+ */
+export const areaBatteries = (
+  states: Record<string, HassEntity>,
+  entities: Record<string, { entity_id: string; device_id?: string | null; area_id?: string | null; hidden?: boolean }>,
+  devices: Record<string, { area_id?: string | null }>,
+  areas: string[],
+): string[] => {
+  const wanted = new Set(areas);
+  const byDevice = new Map<string, string[]>();
+  for (const e of Object.values(entities)) {
+    const st = states[e.entity_id];
+    if (!st || st.attributes.device_class !== "battery" || e.hidden) continue;
+    const area = e.area_id ?? (e.device_id ? devices[e.device_id]?.area_id : undefined);
+    if (!area || !wanted.has(area)) continue;
+    const key = e.device_id ?? e.entity_id;
+    byDevice.set(key, [...(byDevice.get(key) ?? []), e.entity_id]);
+  }
+  const score = (id: string) => (states[id]?.attributes.battery_type_and_quantity ? 0 : 2)
+    + (id.startsWith("sensor.") ? 0 : 1) + (/_low$/.test(id) ? 1 : 0);
+  return [...byDevice.values()].map((ids) => ids.sort((a, b) => score(a) - score(b))[0]);
+};
+
+// ---------- Licht-Presets ----------
+
+export interface LightPreset {
+  name: string;
+  icon?: string;
+  brightness?: number;
+  kelvin?: number;
+  rgb?: [number, number, number];
+}
+
+export const DEFAULT_LIGHT_PRESETS: LightPreset[] = [
+  { name: "bright", icon: "mdi:white-balance-sunny", brightness: 100, kelvin: 4000 },
+  { name: "warm", icon: "mdi:lightbulb-on", brightness: 70, kelvin: 2700 },
+  { name: "cozy", icon: "mdi:candle", brightness: 25, kelvin: 2200 },
+];
+
+/** Entspricht der aktuelle Zustand der Lampe dem Preset? (Helligkeit ±3 %, Kelvin ±150, Farbe ±25 je Kanal) */
+export const presetActive = (st: HassEntity | undefined, p: LightPreset): boolean => {
+  if (!st || st.state !== "on") return false;
+  const a = st.attributes;
+  if (p.brightness != null && Math.abs(brightnessPct(st) - p.brightness) > 3) return false;
+  if (p.kelvin != null && (a.color_mode !== "color_temp" || Math.abs(Number(a.color_temp_kelvin) - p.kelvin) > 150)) return false;
+  if (p.rgb) {
+    const c = a.rgb_color as number[] | undefined;
+    if (!Array.isArray(c) || c.some((v, i) => Math.abs(v - p.rgb![i]) > 25)) return false;
+  }
+  return true;
+};
+
+/** Service-Daten für light.turn_on. */
+export const presetData = (p: LightPreset): Record<string, unknown> => ({
+  ...(p.brightness != null ? { brightness_pct: p.brightness } : {}),
+  ...(p.kelvin != null ? { color_temp_kelvin: p.kelvin } : {}),
+  ...(p.rgb ? { rgb_color: p.rgb } : {}),
+});

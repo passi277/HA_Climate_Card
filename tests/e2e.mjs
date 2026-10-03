@@ -17,7 +17,7 @@ await p.waitForFunction(() => window.__ready, null, { timeout: 10000 });
 await p.waitForTimeout(500);
 
 const rendered = await p.evaluate(() =>
-  [...document.querySelectorAll("ha-climate-card, ha-climate-overview-card, ha-light-card, ha-light-group-card, ha-cover-card, ha-cover-group-card, ha-switch-time-card, ha-media-card")].filter((c) => c.shadowRoot?.querySelector("ha-card")).length);
+  [...document.querySelectorAll("ha-climate-card, ha-climate-overview-card, ha-light-card, ha-light-group-card, ha-cover-card, ha-cover-group-card, ha-switch-time-card, ha-media-card, ha-room-card, ha-status-card")].filter((c) => c.shadowRoot?.querySelector("ha-card")).length);
 rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Karten gerendert`);
 
 // Regler: Tippen in die Mitte verstellt nichts, Tippen auf den Ring schon
@@ -376,7 +376,7 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
   const res = await p.evaluate(async () => {
     const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     const press = (b) => { b.dispatchEvent(new PointerEvent("pointerdown", { button: 0, bubbles: true })); b.dispatchEvent(new PointerEvent("pointerup", { bubbles: true })); };
-    const [alarm, water] = [...document.querySelectorAll("ha-switch-time-card, ha-media-card")].map((c) => c.shadowRoot);
+    const [alarm, water] = [...document.querySelectorAll("ha-switch-time-card, ha-media-card, ha-room-card, ha-status-card")].map((c) => c.shadowRoot);
     const before = window.serviceCalls.length;
     const status = alarm.querySelector(".status").textContent.trim();
     alarm.querySelector(".switch").click();
@@ -446,6 +446,42 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
     ? ok("Medien: Steuerkreuz sendet Harmony-Befehle an das Gerät der Aktivität") : fail(`Befehle: ${sends}`);
   res.calls.includes("media_player.media_play_pause::") && res.calls.includes("media_player.volume_set:0.55:")
     ? ok("Medien: Wiedergabe/Pause und Lautstärkeregler am Media-Player") : fail(`Media-Player: ${res.calls}`);
+}
+
+// Raum-Kopf, Status, Licht-Presets
+{
+  const res = await p.evaluate(async () => {
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const room = document.querySelector("ha-room-card").shadowRoot;
+    const chips = [...room.querySelectorAll(".chip")].map((c) => c.dataset.key + ":" + c.textContent.trim());
+    const banner = room.querySelector(".banner")?.textContent.replace(/\s+/g, " ").trim();
+    const before = window.serviceCalls.length;
+    room.querySelector(".banner-action").click();
+    await wait(50);
+    const confirmText = room.querySelector(".banner-action").textContent.trim();
+    const callsAfterFirst = window.serviceCalls.length - before;
+    room.querySelector(".banner-action").click();
+    await wait(300);
+    const status = document.querySelector("ha-status-card").shadowRoot;
+    const summary = status.querySelector(".head .row-state").textContent.trim();
+    const bats = [...status.querySelectorAll(".battery .b-name > span")].map((x) => x.textContent.trim());
+    const door = status.querySelector(".contact ha-icon").icon;
+    const light = [...document.querySelectorAll("ha-light-card")].find((c) => c._config.presets === "default").shadowRoot;
+    const presets = [...light.querySelectorAll(".preset")].map((x) => (x.classList.contains("on") ? "*" : "") + x.querySelector("span").textContent.trim());
+    light.querySelectorAll(".preset")[2].click();
+    await wait(300);
+    return { chips, banner, confirmText, callsAfterFirst, summary, bats, door, presets,
+      calls: window.serviceCalls.slice(before).map((c) => `${c.domain}.${c.service}:${c.data.entity_id}:${c.data.brightness_pct ?? ""}:${c.data.color_temp_kelvin ?? ""}`) };
+  });
+  const keys = res.chips.map((c) => c.split(":")[0]).join(",");
+  keys === "light,contacts,temperature,humidity,climate,media" && res.chips[1].includes("Schreibtisch offen") && res.chips[5].includes("Smart TV")
+    ? ok("Raum-Kopf: 6 Status-Chips (Licht, Fenster, Temperatur, Feuchte, Klima, TV)") : fail(`Raum-Chips: ${JSON.stringify(res.chips)}`);
+  /Fenster offen – Klima läuft/.test(res.banner ?? "") && res.callsAfterFirst === 0 && res.confirmText === "Wirklich?" && res.calls.includes("climate.turn_off:climate.1ed763d9::")
+    ? ok("Raum-Kopf: Hinweis „Fenster offen – Klima läuft“, „Klima aus“ erst nach Bestätigung") : fail(`Banner: ${JSON.stringify(res)}`);
+  /Schwach: Heizkörperthermostat 8 %/.test(res.summary) && res.bats[0] === "Heizkörperthermostat" && res.bats.length === 4 && res.door === "mdi:door-closed"
+    ? ok("Status: Batterien aus Bereich (je Gerät eine, schwächste zuerst, ohne Raumnamen), Tür erkannt") : fail(`Status: ${JSON.stringify({ s: res.summary, b: res.bats, d: res.door })}`);
+  res.presets.join("|") === "Hell|*Warm|Gemütlich" && res.calls.includes("light.turn_on:light.licht_mein_zimmer:25:2200")
+    ? ok("Licht-Presets: aktives Preset markiert, „Gemütlich“ setzt 25 % / 2200 K") : fail(`Presets: ${JSON.stringify({ p: res.presets, c: res.calls })}`);
 }
 
 // Moduswechsel: jede Karte, jeder Modus (außer Auto/Heizen-Kühlen, dort zählt die Tätigkeit)
