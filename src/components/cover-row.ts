@@ -8,9 +8,20 @@ import "./gradient-slider";
 export const COVER_OPEN_COLOR = "#ffb74d";
 export const COVER_CLOSED_COLOR = "#6b8bab";
 
-/** Akzentfarbe nach Öffnung: geschlossen kühles Blaugrau → offen warmes Tageslicht. */
-export const coverColor = (pos?: number): string =>
-  pos == null ? "var(--state-cover-off-color, #8a8a8a)" : `color-mix(in srgb, ${COVER_OPEN_COLOR} ${Math.round(pos)}%, ${COVER_CLOSED_COLOR})`;
+export const COVER_NIGHT_COLOR = "#9fb4ff";
+
+/** Akzentfarbe nach Öffnung: geschlossen kühles Blaugrau → offen warmes Tageslicht (nachts Mondlicht). */
+export const coverColor = (pos?: number, night = false): string =>
+  pos == null ? "var(--state-cover-off-color, #8a8a8a)"
+    : `color-mix(in srgb, ${night ? COVER_NIGHT_COLOR : COVER_OPEN_COLOR} ${Math.round(pos)}%, ${COVER_CLOSED_COLOR})`;
+
+/** Wert und Gleitdauer eines Positionsreglers während der Fahrt (gleichmäßig zum Ziel). */
+export const coverGlide = (st: HassEntity, pos: number | undefined, target: number | undefined, travelTime: number) => {
+  const moving = coverMoving(st);
+  if (!moving || pos == null) return { value: pos, glide: undefined };
+  const goal = target ?? (moving === "opening" ? 100 : 0);
+  return { value: goal, glide: Math.max(0.6, (Math.abs(goal - pos) / 100) * Math.max(1, travelTime)) };
+};
 
 /** Statustext: „Öffnet …“, „Geschlossen“, „29 % offen“, „Offen“. */
 export const coverStatus = (hass: HomeAssistant, st: HassEntity, pos = coverPosition(st)): string => {
@@ -31,7 +42,13 @@ export class CoverRow extends LitElement {
   @property() entity = "";
   @property() name?: string;
   @property() icon?: string;
+  /** Ziel einer von außen (z.B. Gruppenkarte) gestarteten Fahrt */
+  @property({ type: Number }) target?: number;
+  /** Fahrzeit 0 → 100 % in Sekunden */
+  @property({ type: Number }) travelTime = 20;
   @state() private _pending?: number;
+  /** Ziel der selbst gestarteten Fahrt */
+  private _target?: number;
   private _sentAt?: string;
   private _timer?: number;
 
@@ -45,6 +62,7 @@ export class CoverRow extends LitElement {
       this._sentAt = undefined;
       this._pending = undefined;
     }
+    if (changed.has("hass") && st && !coverMoving(st) && this._target != null && !this._sentAt) this._target = undefined;
   }
 
   disconnectedCallback(): void {
@@ -54,6 +72,9 @@ export class CoverRow extends LitElement {
 
   private _call(service: string, data: Record<string, unknown> = {}): void {
     if (!this.hass) return;
+    this._target = service === "open_cover" ? 100 : service === "close_cover" ? 0
+      : service === "set_cover_position" ? Number(data.position) : undefined;
+    this._sentAt ??= this._st?.last_updated;
     window.dispatchEvent(new CustomEvent("haptic", { detail: "light" }));
     this.hass.callService("cover", service, { entity_id: this.entity, ...data }).catch((err) => {
       this._pending = undefined;
@@ -84,6 +105,7 @@ export class CoverRow extends LitElement {
     const pos = this._pending ?? coverPosition(st);
     const moving = coverMoving(st);
     const color = coverColor(pos);
+    const glide = this._pending == null ? coverGlide(st, pos, this._target ?? this.target, this.travelTime) : { value: pos, glide: undefined };
     const can = (f: number) => !unavailable && coverSupports(st, f);
     const open = (pos ?? 0) > 0;
     return html`<div class="row ${open ? "open" : ""} ${unavailable ? "unavailable" : ""} ${moving ?? ""}" style="--cc:${color}">
@@ -104,7 +126,7 @@ export class CoverRow extends LitElement {
             ?disabled=${pos === 0 && !moving} @click=${() => this._call("close_cover")}><ha-icon icon="mdi:arrow-down"></ha-icon></button>` : nothing}
         </div>
       </div>
-      ${can(CoverFeature.SET_POSITION) ? html`<hcc-gradient-slider small .min=${0} .max=${100} .step=${1} .value=${pos ?? 0}
+      ${can(CoverFeature.SET_POSITION) ? html`<hcc-gradient-slider small .min=${0} .max=${100} .step=${1} .value=${glide.value ?? 0} .glide=${glide.glide}
         .fill=${true} .active=${open} .color=${color}
         @value-changing=${(e: CustomEvent) => (this._pending = e.detail.value)}
         @value-changed=${(e: CustomEvent) => this._setPosition(e.detail.value)}></hcc-gradient-slider>` : nothing}

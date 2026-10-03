@@ -30,6 +30,8 @@ export class GradientSlider extends LitElement {
   /** Kleine Ausführung (Einzellampen) */
   @property({ type: Boolean, reflect: true }) small = false;
   @property({ type: Boolean }) disabled = false;
+  /** Gleichmäßig in so vielen Sekunden zum Wert gleiten (z.B. Rollladen-Fahrt) */
+  @property({ type: Number }) glide?: number;
 
   @state() private _drag = false;
   /** Kurze Animation nach einer Änderung */
@@ -120,7 +122,8 @@ export class GradientSlider extends LitElement {
         <span class="display">${this.display}</span>
       </div>` : nothing}
       <div class="track ${this._drag ? "drag" : ""} ${this.fill ? "filled" : ""} ${this.active ? "is-active" : ""} ${this._flash ? `flash ${this._flash}` : ""}"
-        style=${this.fill ? `--c:${this.color};--p:${pct}%;--f:${pct / 100}` : `background:${this.gradient}`} role="slider"
+        style=${(this.fill ? `--c:${this.color};--p:${pct}%;--f:${pct / 100}` : `background:${this.gradient}`)
+          + (this.glide ? `;--tw:${this.glide.toFixed(2)}s;--te:linear` : "")} role="slider"
         tabindex=${this.disabled ? -1 : 0} aria-disabled=${this.disabled}
         aria-label=${this.label} aria-valuemin=${this.min} aria-valuemax=${this.max} aria-valuenow=${this.value}
         @pointerdown=${this._down} @pointermove=${this._move} @pointerup=${this._up} @pointercancel=${this._up}
@@ -149,7 +152,7 @@ export class GradientSlider extends LitElement {
     .track:focus-visible { box-shadow: inset 0 0 0 1px rgba(127,127,127,0.25), 0 0 0 2px var(--hcc-accent, var(--primary-color)); }
     .knob { position: absolute; top: 50%; width: 22px; height: 22px; margin: -11px 0 0 -11px; border-radius: 50%;
       background: var(--k); box-shadow: 0 0 0 3px #fff, 0 2px 8px rgba(0,0,0,0.35);
-      transition: left 0.15s ease, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1); pointer-events: none; }
+      transition: left var(--tw, 0.15s) var(--te, ease), transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1); pointer-events: none; }
     .track.drag .knob { transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1); transform: scale(1.15); }
     :host([small]) .track { height: 22px; }
     :host([small]) .knob { width: 18px; height: 18px; margin: -9px 0 0 -9px; box-shadow: 0 0 0 2px #fff, 0 2px 6px rgba(0,0,0,0.3); }
@@ -161,7 +164,7 @@ export class GradientSlider extends LitElement {
     /* Knopf bleibt innerhalb der Leiste: Mitte wandert von ks/2 bis 100% − ks/2 */
     .track.filled .knob { left: calc(var(--p) + (0.5 - var(--f)) * var(--ks)); }
     .bar, .glow-bar { position: absolute; left: 0; top: 0; bottom: 0; border-radius: inherit; pointer-events: none;
-      width: calc(var(--p) + (1 - var(--f)) * var(--ks)); transition: width 0.25s var(--ease-out, ease), opacity 0.4s, background 0.6s; }
+      width: calc(var(--p) + (1 - var(--f)) * var(--ks)); transition: width var(--tw, 0.25s) var(--te, var(--ease-out, ease)), opacity 0.4s, background 0.6s; }
     .track.drag .bar, .track.drag .glow-bar { transition: opacity 0.4s, background 0.6s; }
     .bar { overflow: hidden; z-index: 1;
       background: linear-gradient(90deg, color-mix(in srgb, var(--c) 30%, transparent), var(--c)); }

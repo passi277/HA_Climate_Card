@@ -327,7 +327,12 @@
     "appearance": "Appearance",
     "expandable": "Details collapsible",
     "start_expanded": "Initially expanded",
-    "animations": "Animations"
+    "animations": "Animations",
+    "sky": "Sky by sun position",
+    "sky_section": "Sky & travel",
+    "sun_entity": "Sun (day/twilight/night)",
+    "weather_entity": "Weather in the window (clouds, rain, snow)",
+    "travel_time": "Travel time fully closed → open"
   },
   "cover_group_editor": {
     "entities": "Covers (order = display)",
@@ -338,6 +343,7 @@
     "show_positions": "Show quick positions",
     "positions": "Quick positions (% open, e.g. 0, 25, 50, 75, 100)",
     "animations": "Animations",
-    "hint": "Each cover automatically shows only what it supports: position slider, up/stop/down, tilt."
+    "hint": "Each cover automatically shows only what it supports: position slider, up/stop/down, tilt.",
+    "travel_time": "Travel time fully closed → open"
   }
 }

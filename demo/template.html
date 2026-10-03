@@ -35,6 +35,9 @@
     <div class="seg" role="group" aria-label="Design">
       <button data-theme="light">☀️ Hell</button><button data-theme="dark">🌙 Dunkel</button>
     </div>
+    <div class="seg" role="group" aria-label="Sonnenstand">
+      <button data-sun="day">🌤 Tag</button><button data-sun="twilight">🌇 Dämmerung</button><button data-sun="night">🌙 Nacht</button>
+    </div>
     <div class="seg" role="group" aria-label="Sprache">
       <button data-lang="de">DE</button><button data-lang="en">EN</button>
     </div>
@@ -83,6 +86,17 @@
     setTheme(!!params.get("dark") || (!params.has("dark") && matchMedia("(prefers-color-scheme: dark)").matches));
     markLang();
     document.querySelectorAll("[data-theme]").forEach((b) => b.addEventListener("click", () => { setTheme(b.dataset.theme === "dark"); updateUrl(); }));
+    const SUN = { day: { elevation: 20, azimuth: 237, rising: false }, twilight: { elevation: 1.5, azimuth: 262, rising: false },
+      night: { elevation: -25, azimuth: 330, rising: false } };
+    const markSun = () => document.querySelectorAll("[data-sun]").forEach((b) => b.setAttribute("aria-pressed",
+      String(SUN[b.dataset.sun].elevation === states["sun.sun"].attributes.elevation)));
+    document.querySelectorAll("[data-sun]").forEach((b) => b.addEventListener("click", () => {
+      const a = SUN[b.dataset.sun];
+      states["sun.sun"] = { ...states["sun.sun"], state: a.elevation > 0 ? "above_horizon" : "below_horizon",
+        attributes: { ...states["sun.sun"].attributes, ...a }, last_updated: new Date().toISOString() };
+      markSun();
+      const h = makeHass(); cards.forEach((c) => (c.hass = h));
+    }));
     document.querySelectorAll("[data-lang]").forEach((b) => b.addEventListener("click", () => {
       lang = b.dataset.lang; markLang(); updateUrl();
       const h = makeHass(); cards.forEach((c) => (c.hass = h));
@@ -181,6 +195,8 @@
       "light.wohnzimmer_regal": { state: "off", attributes: { friendly_name: "Regal", supported_color_modes: ["brightness"], color_mode: "brightness" } },
       "light.wohnzimmer_lichterkette": { state: "on", attributes: { friendly_name: "Lichterkette", supported_color_modes: ["onoff"], color_mode: "onoff", icon: "mdi:string-lights" } },
       "light.wohnzimmer_vitrine": { state: "unavailable", attributes: { friendly_name: "Vitrine", supported_color_modes: ["brightness"] } },
+      "sun.sun": { state: "above_horizon", attributes: { friendly_name: "Sun", elevation: 20, azimuth: 237, rising: false } },
+      "weather.garten": { state: "partlycloudy", attributes: { friendly_name: "Garten", temperature: 14 } },
       "cover.rollos_pascal": { state: "open", attributes: { friendly_name: "Rollos Pascal", current_position: 46, supported_features: 15,
         entity_id: ["cover.schreibtisch", "cover.tv"] } },
       "cover.schreibtisch": { state: "open", attributes: { friendly_name: "Schreibtisch", device_class: "shutter", current_position: 29, supported_features: 15 } },
@@ -275,6 +291,7 @@
               if (service === "stop_cover") { states[cid] = { ...c, state: cur > 0 ? "open" : "closed", last_updated: new Date().toISOString() }; continue; }
               const target = service === "open_cover" ? 100 : service === "close_cover" ? 0 : data.position;
               if (target == null || target === cur) continue;
+              // wie echte Rollläden: Position erst am Ende der Fahrt (Fahrzeit ~4 s für 0 → 100 %)
               states[cid] = { ...c, state: target > cur ? "opening" : "closing", last_updated: new Date().toISOString() };
               setTimeout(() => {
                 const s2 = states[cid];
@@ -283,7 +300,7 @@
                 if (a2.current_position != null || a.current_position != null) a2.current_position = target;
                 states[cid] = { ...s2, state: target > 0 ? "open" : "closed", attributes: a2, last_updated: new Date().toISOString() };
                 refresh();
-              }, 1600);
+              }, Math.max(600, Math.abs(target - cur) * 40));
             }
           }
           setTimeout(refresh, 150);
@@ -366,9 +383,9 @@
       ["Licht – Govee-Streifen (Segmente, Szenen-Suche, Gradient)", { _light: true, entity: "light.carport_2", start_expanded: true }],
       ["Licht-Gruppe – frei zusammengestellt (Farbe, Weißton, dimmbar, Ein/Aus)", { _group: true, title: "Wohnzimmer",
         entities: ["light.wohnzimmer_stehlampe", "light.wohnzimmer_decke", "light.wohnzimmer_regal", "light.wohnzimmer_lichterkette", "light.wohnzimmer_vitrine"] }],
-      ["Rollladen – Gruppe „Rollos Pascal“ (Fenster ziehen, Schnellwahl, Kontakt offen)", { _cover: true, entity: "cover.rollos_pascal", contact_sensors: ["binary_sensor.buero_fenster"] }],
-      ["Rollladen – Raffstore mit Lamellen (kompakt)", { _cover: true, entity: "cover.buero_raffstore", layout: "compact", start_expanded: true }],
-      ["Rollladen-Gruppe – frei zusammengestellt", { _coverGroup: true, title: "Rollläden",
+      ["Rollladen – Gruppe „Rollos Pascal“ (Fenster ziehen, Schnellwahl, Kontakt offen)", { _cover: true, entity: "cover.rollos_pascal", contact_sensors: ["binary_sensor.buero_fenster"], travel_time: 4, weather_entity: "weather.garten" }],
+      ["Rollladen – Raffstore mit Lamellen (kompakt)", { _cover: true, entity: "cover.buero_raffstore", layout: "compact", start_expanded: true, travel_time: 4 }],
+      ["Rollladen-Gruppe – frei zusammengestellt", { _coverGroup: true, title: "Rollläden", travel_time: 4,
         entities: ["cover.schreibtisch", "cover.tv", "cover.mario", "cover.buero_raffstore", "cover.terrasse_markise", "cover.kuche"] }],
       ["Übersicht – mehrere Geräte", { _overview: true, title: "Klimaanlagen", entities: ["climate.1ed763d9", "climate.wohnzimmer", "climate.heizung_mein_zimmer", "climate.buero", "climate.schlafzimmer"] }],
       ["Voll – Aus", { entity: "climate.schlafzimmer", layout: "full" }],
@@ -393,6 +410,7 @@
       grid.appendChild(wrap);
       cards.push(card);
     });
+    markSun();
     window.__ready = true;
   </script>
 </body>

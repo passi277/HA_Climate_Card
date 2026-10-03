@@ -28,6 +28,8 @@ export class HaCoverGroupCard extends LitElement {
   @state() private _config?: CoverGroupCardConfig;
   @state() private _pending?: number;
   @state() private _listOpen = true;
+  /** Ziele der von hier gestarteten Fahrten (für die gleichmäßige Animation der Zeilen) */
+  @state() private _targets: Record<string, number> = {};
   private _sentAt?: string;
   private _timer?: number;
 
@@ -90,6 +92,7 @@ export class HaCoverGroupCard extends LitElement {
       this._sentAt = undefined;
       this._pending = undefined;
     }
+    if (!this._sentAt && Object.keys(this._targets).length && !this._items().some((i) => coverMoving(i.st))) this._targets = {};
   }
 
   disconnectedCallback(): void {
@@ -101,6 +104,13 @@ export class HaCoverGroupCard extends LitElement {
     if (!this.hass || !ids.length) return;
     window.dispatchEvent(new CustomEvent("haptic", { detail: "light" }));
     this._sentAt = this._items().map((i) => i.st.last_updated).join(",");
+    const goal = service === "open_cover" ? 100 : service === "close_cover" ? 0 : service === "set_cover_position" ? Number(data.position) : undefined;
+    const next = { ...this._targets };
+    for (const id of ids) {
+      if (goal == null) delete next[id];
+      else next[id] = goal;
+    }
+    this._targets = next;
     this.hass.callService("cover", service, { entity_id: ids.length === 1 ? ids[0] : ids, ...data }).catch((err) => {
       this._pending = undefined;
       this.dispatchEvent(new CustomEvent("hass-notification", {
@@ -171,7 +181,8 @@ export class HaCoverGroupCard extends LitElement {
         </button>
         <div class="collapsible ${this._listOpen ? "open" : ""}" ?inert=${!this._listOpen}>
           <div class="collapsible-inner"><div class="covers">
-            ${items.map((i) => html`<hcc-cover-row .hass=${this.hass} .entity=${i.entity} .name=${i.name} .icon=${i.icon}></hcc-cover-row>`)}
+            ${items.map((i) => html`<hcc-cover-row .hass=${this.hass} .entity=${i.entity} .name=${i.name} .icon=${i.icon}
+              .target=${this._targets[i.entity]} .travelTime=${Number(this._config!.travel_time) || 20}></hcc-cover-row>`)}
           </div></div>
         </div>` : nothing}
     </ha-card>`;

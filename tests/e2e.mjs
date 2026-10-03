@@ -338,6 +338,35 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
   res.tilt ? ok("Raffstore: Lamellen-Regler") : fail("Lamellen-Regler fehlt");
 }
 
+// Rollladen: gleichmäßige Fahrt (Position kommt erst am Ende), Himmel nach Sonnenstand
+{
+  const win = () => document.querySelector("ha-cover-card").shadowRoot.querySelector("hcc-cover-window").shadowRoot;
+  await p.click('[data-sun="day"]');
+  await p.waitForTimeout(1500);
+  const h0 = await p.evaluate((f) => eval(f)().querySelector(".shutter").getBoundingClientRect().height, `(${win})`);
+  await p.evaluate(() => [...document.querySelector("ha-cover-card").shadowRoot.querySelectorAll(".cover-buttons .round")].at(-1).click());
+  await p.waitForTimeout(700);
+  const h1 = await p.evaluate((f) => eval(f)().querySelector(".shutter").getBoundingClientRect().height, `(${win})`);
+  await p.waitForTimeout(700);
+  const h2 = await p.evaluate((f) => eval(f)().querySelector(".shutter").getBoundingClientRect().height, `(${win})`);
+  const full = await p.evaluate((f) => eval(f)().querySelector(".glass").getBoundingClientRect().height, `(${win})`);
+  h0 < h1 && h1 < h2 && h2 < full - 2
+    ? ok(`Rollladen fährt gleichmäßig (${Math.round(h0)} → ${Math.round(h1)} → ${Math.round(h2)} px), ohne Sprung`)
+    : fail(`Fahrt nicht gleichmäßig: ${h0} ${h1} ${h2} / ${full}`);
+  await p.waitForTimeout(3000);
+  const sky = {};
+  for (const phase of ["day", "twilight", "night"]) {
+    await p.click(`[data-sun="${phase}"]`);
+    await p.waitForTimeout(300);
+    sky[phase] = await p.evaluate((f) => { const r = eval(f)(); return {
+      cls: r.querySelector(".sky").className, sun: !!r.querySelector(".sun"), moon: !!r.querySelector(".moon"), clouds: r.querySelectorAll(".cloud").length }; }, `(${win})`);
+  }
+  sky.day.sun && !sky.day.moon && /twilight/.test(sky.twilight.cls) && sky.night.moon && !sky.night.sun && sky.day.clouds === 1
+    ? ok("Fensterblick: Sonne am Tag, Abendrot in der Dämmerung, Mond nachts, Wolken laut Wetter")
+    : fail(`Himmel: ${JSON.stringify(sky)}`);
+  await p.click('[data-sun="day"]');
+}
+
 // Moduswechsel: jede Karte, jeder Modus (außer Auto/Heizen-Kühlen, dort zählt die Tätigkeit)
 const colorFails = await p.evaluate(async () => {
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));

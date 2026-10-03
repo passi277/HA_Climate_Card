@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { HassEntity } from "../src/types";
 import {
-  brightnessPct, contactType, coverIcon, coverPosition, editorOptions, isNoEffect, lightEditorOptions, segmentIds, detectDeviceType, kelvinToRgb, lightColor, relatedScenes, supportsColor, supportsColorTemp, dewPoint, nextSwitch, parseSchedule, scheduleTempAt, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
+  brightnessPct, contactType, coverIcon, coverPosition, skyPhase, sunPlacement, weatherOverlay, editorOptions, isNoEffect, lightEditorOptions, segmentIds, detectDeviceType, kelvinToRgb, lightColor, relatedScenes, supportsColor, supportsColorTemp, dewPoint, nextSwitch, parseSchedule, scheduleTempAt, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
   openContactsKey, powerOf, resolveContacts, secondsToDuration, stateIcon, temperatureOf, temperatureTint, trendSlope,
 } from "../src/utils";
 import { formatAttribute, localize } from "../src/localize/localize";
@@ -284,5 +284,29 @@ describe("covers", () => {
     expect(coverIcon(entity("cover.a", "closed", { device_class: "shutter", current_position: 0 }))).toBe("mdi:window-shutter");
     expect(coverIcon(entity("cover.a", "open", { device_class: "blind", current_position: 50 }))).toBe("mdi:blinds-horizontal");
     expect(coverIcon(entity("cover.a", "opening", {}))).toBe("mdi:arrow-up-box");
+  });
+});
+
+describe("sky", () => {
+  it("knows day, twilight and night", () => {
+    expect(skyPhase(20)).toBe("day");
+    expect(skyPhase(2)).toBe("twilight");
+    expect(skyPhase(-5)).toBe("twilight");
+    expect(skyPhase(-12)).toBe("night");
+    expect(skyPhase(undefined)).toBe("day");
+  });
+  it("places the sun east → west and higher with elevation", () => {
+    const morning = sunPlacement({ elevation: 5, azimuth: 100 });
+    const evening = sunPlacement({ elevation: 5, azimuth: 260 });
+    const noon = sunPlacement({ elevation: 40, azimuth: 180 });
+    expect(morning.x).toBeLessThan(evening.x);
+    expect(noon.y).toBeLessThan(morning.y);
+    expect(noon.y).toBeGreaterThanOrEqual(42);
+  });
+  it("maps weather to clouds, rain and snow", () => {
+    expect(weatherOverlay("sunny")).toEqual({ clouds: 0, rain: false, snow: false, fog: false });
+    expect(weatherOverlay("partlycloudy").clouds).toBe(1);
+    expect(weatherOverlay("rainy")).toMatchObject({ clouds: 2, rain: true });
+    expect(weatherOverlay("snowy").snow).toBe(true);
   });
 });

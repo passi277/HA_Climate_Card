@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.1
+- Rollläden fahren flüssig: Panzer bzw. Regler gleiten gleichmäßig zum Ziel, auch wenn das Gerät die Position erst am Ende meldet (`travel_time`); Stopp hält sanft an; keine ruckelnden Lamellen mehr
+- Blick aus dem Fenster nach Sonnenstand (`sun.sun`): Sonne nach Höhe/Himmelsrichtung, Abendrot, Mond und Sterne bei Nacht; optional Wetter (`weather_entity`); Akzentfarbe nachts Mondlicht
+
 ## 1.4.0 – Rollläden
 - Neu: **Modern Cover Card** (`custom:ha-cover-card`) – Fenster-Grafik zum Tippen/Ziehen, Auf/Stopp/Ab, Schnellwahl, Lamellen, Rollläden einer Cover-Gruppe, Fenster-/Türkontakte, Kompakt-Layout, visueller Editor
 - Neu: **Modern Cover Group** (`custom:ha-cover-group-card`) – Rollläden frei zusammenstellen; oben alle gemeinsam, darunter jeder einzeln mit genau seinen Funktionen

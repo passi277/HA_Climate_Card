@@ -509,3 +509,42 @@ export const coverIcon = (st?: HassEntity): string => {
   if (st?.state === "closing") return "mdi:arrow-down-box";
   return (coverPosition(st) ?? 0) > 0 ? open : closed;
 };
+
+export type SkyPhase = "day" | "twilight" | "night";
+
+export interface SunInfo { elevation: number; azimuth?: number; rising?: boolean; }
+
+/** Tag (> 6°), Dämmerung (−6° … 6°, bürgerliche Dämmerung), Nacht. */
+export const skyPhase = (elevation?: number): SkyPhase =>
+  elevation == null || elevation > 6 ? "day" : elevation >= -6 ? "twilight" : "night";
+
+/** Sonnenstand aus `sun.sun` (oder undefined, wenn keine Daten). */
+export const sunInfo = (st?: HassEntity): SunInfo | undefined => {
+  const e = Number(st?.attributes.elevation);
+  if (!st || !Number.isFinite(e)) return undefined;
+  const az = Number(st.attributes.azimuth);
+  return { elevation: e, azimuth: Number.isFinite(az) ? az : undefined, rising: st.attributes.rising };
+};
+
+/**
+ * Lage der Sonne im Fensterausschnitt in %: Ost (90°) links → West (270°) rechts,
+ * je höher die Sonne, desto weiter oben (Horizont bei 86 %, Mittagshöhe ~ 42 %).
+ */
+export const sunPlacement = (sun: SunInfo): { x: number; y: number } => {
+  const az = sun.azimuth ?? (sun.rising ? 110 : 250);
+  const x = Math.min(88, Math.max(12, 12 + ((az - 90) / 180) * 76));
+  // bewusst nur untere Fensterhälfte: auch bei halb geschlossenem Rollladen sichtbar
+  const y = Math.min(90, Math.max(42, 86 - (Math.max(-4, sun.elevation) / 55) * 44));
+  return { x: Math.round(x), y: Math.round(y) };
+};
+
+/** Wetterzustand → Darstellung im Fenster. */
+export const weatherOverlay = (condition?: string): { clouds: number; rain: boolean; snow: boolean; fog: boolean } => {
+  const c = condition ?? "";
+  return {
+    clouds: c === "partlycloudy" ? 1 : /pouring|lightning|rainy|snowy|hail|^cloudy$|fog/.test(c) ? 2 : 0,
+    rain: /rainy|pouring|hail/.test(c),
+    snow: /snowy/.test(c),
+    fog: c === "fog",
+  };
+};

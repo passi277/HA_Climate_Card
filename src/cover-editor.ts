@@ -28,13 +28,14 @@ export class HaCoverCardEditor extends LitElement {
   /** Nur Bereiche anbieten, die der Rollladen (bzw. die Gruppe) kann. */
   private _showKeys(): string[] {
     const st = this._config?.entity ? this.hass?.states[this._config.entity] : undefined;
-    if (!st) return ["covers", "positions", "tilt"];
+    if (!st) return ["covers", "positions", "tilt", "sky"];
     const members = Array.isArray(st.attributes.entity_id) ? st.attributes.entity_id as string[] : [];
     const all = [st, ...members.map((id) => this.hass!.states[id]).filter(Boolean)];
     const ok: Record<string, boolean> = {
       covers: members.length > 0 || !!this._config?.entities?.length,
       positions: coverSupports(st, CoverFeature.SET_POSITION),
       tilt: all.some((s) => coverSupports(s, CoverFeature.SET_TILT_POSITION) || coverSupports(s, CoverFeature.OPEN_TILT)),
+      sky: true,
     };
     return Object.keys(ok).filter((k) => ok[k]);
   }
@@ -59,6 +60,11 @@ export class HaCoverCardEditor extends LitElement {
         { name: "auto_entities", selector: { boolean: {} } },
         { name: "entities", selector: { entity: { multiple: true, filter: { domain: "cover" } } } },
         { name: "contact_sensors", selector: { entity: { multiple: true, filter: { domain: "binary_sensor" } } } },
+      ] },
+      { type: "expandable", name: "", flatten: true, title: this._t("sky_section"), icon: "mdi:weather-sunset", schema: [
+        { name: "sun_entity", selector: { entity: { filter: { domain: "sun" } } } },
+        { name: "weather_entity", selector: { entity: { filter: { domain: "weather" } } } },
+        { name: "travel_time", selector: { number: { min: 3, max: 120, step: 1, mode: "box", unit_of_measurement: "s" } } },
       ] },
       { type: "expandable", name: "", flatten: true, title: this._t("appearance"), icon: "mdi:palette-outline", schema: [
         { name: "expandable", selector: { boolean: {} } },
@@ -91,11 +97,11 @@ export class HaCoverCardEditor extends LitElement {
   protected render() {
     if (!this.hass || !this._config) return nothing;
     const data = {
-      layout: "full", auto_entities: true, expandable: true, animations: "full",
+      layout: "full", auto_entities: true, expandable: true, animations: "full", travel_time: 20, sun_entity: "sun.sun",
       ...this._config,
       positions: (this._config.positions ?? [0, 25, 50, 75, 100]).join(", "),
       entities: this._config.entities?.map((e) => (typeof e === "string" ? e : e.entity)),
-      show: { covers: true, positions: true, tilt: true, ...(this._config.show ?? {}) },
+      show: { covers: true, positions: true, tilt: true, sky: true, ...(this._config.show ?? {}) },
     };
     return html`<ha-form .hass=${this.hass} .data=${data} .schema=${this._schema()}
       .computeLabel=${this._computeLabel} @value-changed=${this._valueChanged}></ha-form>

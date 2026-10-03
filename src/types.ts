@@ -191,6 +191,8 @@ export interface CoverShowConfig {
   positions?: boolean;
   /** Lamellen-Neigung */
   tilt?: boolean;
+  /** Himmel nach Sonnenstand (Tag/Dämmerung/Nacht) */
+  sky?: boolean;
 }
 
 export interface CoverCardConfig {
@@ -207,6 +209,12 @@ export interface CoverCardConfig {
   auto_entities?: boolean;
   /** Fenster-/Türkontakte: Hinweis, wenn beim Schließen etwas offen ist */
   contact_sensors?: string[];
+  /** Fahrzeit ganz zu → ganz auf in Sekunden (für die gleichmäßige Fahrt-Animation, Standard 20) */
+  travel_time?: number;
+  /** Sonnenstand für den Himmel im Fenster (Standard sun.sun) */
+  sun_entity?: string;
+  /** Wetter im Fenster (Wolken, Regen, Schnee, Nebel) */
+  weather_entity?: string;
   expandable?: boolean;
   start_expanded?: boolean;
   animations?: "full" | "reduced" | "off";
@@ -221,5 +229,7 @@ export interface CoverGroupCardConfig {
   show_positions?: boolean;
   show_covers?: boolean;
   collapsed?: boolean;
+  /** Fahrzeit ganz zu → ganz auf in Sekunden (Standard 20) */
+  travel_time?: number;
   animations?: "full" | "reduced" | "off";
 }

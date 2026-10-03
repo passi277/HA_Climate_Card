@@ -4,14 +4,14 @@ import type { CoverCardConfig, CoverShowConfig, HassEntity, HomeAssistant } from
 import { localize } from "./localize/localize";
 import { cardStyles } from "./styles";
 import { DOCS_URL } from "./shared";
-import { coverIcon, coverMoving, coverPosition, CoverFeature, coverSupports, UNAVAILABLE } from "./utils";
-import { coverColor, coverStatus } from "./components/cover-row";
+import { coverIcon, coverMoving, coverPosition, CoverFeature, coverSupports, skyPhase, sunInfo, UNAVAILABLE } from "./utils";
+import { coverColor, coverGlide, coverStatus } from "./components/cover-row";
 import "./components/cover-row";
 import "./components/cover-window";
 import "./components/gradient-slider";
 import "./cover-editor";
 
-const DEFAULT_COVER_SHOW: Required<CoverShowConfig> = { covers: true, positions: true, tilt: true };
+const DEFAULT_COVER_SHOW: Required<CoverShowConfig> = { covers: true, positions: true, tilt: true, sky: true };
 export const DEFAULT_POSITIONS = [0, 25, 50, 75, 100];
 
 (window as any).customCards = (window as any).customCards || [];
@@ -55,6 +55,8 @@ export class HaCoverCard extends LitElement {
   @state() private _pendingTilt?: number;
   @state() private _expanded = false;
   @state() private _syncing = false;
+  /** Ziel der selbst gestarteten Fahrt (für die gleichmäßige Animation) */
+  @state() private _target?: number;
   private _timer?: number;
   private _sentAt?: string;
 
@@ -111,6 +113,14 @@ export class HaCoverCard extends LitElement {
       });
   }
 
+  private get _sunEntity(): string {
+    return this._config?.sun_entity ?? "sun.sun";
+  }
+
+  private get _travel(): number {
+    return Number(this._config?.travel_time) || 20;
+  }
+
   private _openContacts(): HassEntity[] {
     return (this._config?.contact_sensors ?? []).map((id) => this.hass!.states[id]).filter((s): s is HassEntity => s?.state === "on");
   }
@@ -118,7 +128,8 @@ export class HaCoverCard extends LitElement {
   private _watched(): string[] {
     const c = this._config;
     if (!c) return [];
-    return [c.entity, ...(c.contact_sensors ?? []), ...this._members().map((m) => m.entity)];
+    return [c.entity, ...(c.contact_sensors ?? []), ...this._members().map((m) => m.entity),
+      ...(this._show.sky ? [this._sunEntity, c.weather_entity ?? ""] : [])].filter(Boolean);
   }
 
   protected shouldUpdate(changed: PropertyValues): boolean {
@@ -137,6 +148,7 @@ export class HaCoverCard extends LitElement {
       this._pendingTilt = undefined;
       this._syncing = false;
     }
+    if (st && !this._sentAt && !coverMoving(st) && this._target != null) this._target = undefined;
   }
 
   disconnectedCallback(): void {
@@ -153,6 +165,10 @@ export class HaCoverCard extends LitElement {
   private _call(service: string, data: Record<string, unknown> = {}): void {
     const st = this._st;
     if (!this.hass || !st) return;
+    if (!service.includes("tilt")) {
+      this._target = service === "open_cover" ? 100 : service === "close_cover" ? 0
+        : service === "set_cover_position" ? Number(data.position) : undefined;
+    }
     this._sentAt = st.last_updated;
     this._syncing = true;
     window.setTimeout(() => (this._syncing = false), 5000);
@@ -245,6 +261,10 @@ export class HaCoverCard extends LitElement {
     const unavailable = UNAVAILABLE.includes(st.state);
     const pos = this._pending ?? coverPosition(st);
     const moving = coverMoving(st);
+    const sun = this._show.sky ? sunInfo(this.hass.states[this._sunEntity]) : undefined;
+    const night = skyPhase(sun?.elevation) === "night";
+    const weather = this._show.sky && c.weather_entity ? this.hass.states[c.weather_entity]?.state : undefined;
+    const glide = this._pending == null ? coverGlide(st, pos, this._target, this._travel) : { value: pos, glide: undefined };
     const settable = coverSupports(st, CoverFeature.SET_POSITION) && !unavailable;
     const members = this._show.covers ? this._members() : [];
     const openMembers = members.filter((m) => (coverPosition(this.hass!.states[m.entity]) ?? 0) > 0).length;
@@ -256,13 +276,14 @@ export class HaCoverCard extends LitElement {
       : nothing;
     const tilt = this._renderTilt(st);
     const membersTpl = members.length
-      ? html`<div class="members">${members.map((m) => html`<hcc-cover-row .hass=${this.hass} .entity=${m.entity} .name=${m.name} .icon=${m.icon}></hcc-cover-row>`)}</div>`
+      ? html`<div class="members">${members.map((m) => html`<hcc-cover-row .hass=${this.hass} .entity=${m.entity} .name=${m.name} .icon=${m.icon}
+          .target=${this._target} .travelTime=${this._travel}></hcc-cover-row>`)}</div>`
       : nothing;
     const details = compact ? [chips, tilt, membersTpl] : [tilt];
     const hasDetails = details.some((d) => d !== nothing);
     const expandable = c.expandable !== false && hasDetails;
     return html`<ha-card class="cover-card ${compact ? "compact" : "full"} ${(pos ?? 0) > 0 ? "active" : "off"} ${moving ? "moving" : ""} anim-${anim}"
-      style="--hcc-accent-c:${coverColor(pos)};--hcc-accent:var(--accent);--glow-strength:${0.25 + ((pos ?? 0) / 100) * 0.6}">
+      style="--hcc-accent-c:${coverColor(pos, night)};--hcc-accent:var(--accent);--glow-strength:${0.25 + ((pos ?? 0) / 100) * 0.6}">
       <div class="glow"><span class="blob b1"></span><span class="blob b2"></span></div>
       <div class="header">
         <button class="title" @click=${() => this._moreInfo(st.entity_id)}>
@@ -278,18 +299,21 @@ export class HaCoverCard extends LitElement {
       </div>
       ${this._renderPills(st)}
       ${compact
-        ? settable ? html`<hcc-gradient-slider .min=${0} .max=${100} .value=${pos ?? 0} .label=${this._t("cover.position")}
+        ? settable ? html`<hcc-gradient-slider .min=${0} .max=${100} .label=${this._t("cover.position")}
             .icon=${"mdi:window-shutter-settings"} .display=${pos != null ? `${pos} %` : "–"} .fill=${true} .active=${(pos ?? 0) > 0}
-            .color=${coverColor(pos)}
+            .value=${glide.value ?? 0} .glide=${glide.glide}
+            .color=${coverColor(pos, night)}
             @value-changing=${(e: CustomEvent) => (this._pending = e.detail.value)}
             @value-changed=${(e: CustomEvent) => this._setPosition(e.detail.value)}></hcc-gradient-slider>` : nothing
         : html`<div class="stage">
-            <hcc-cover-window .position=${pos} .moving=${moving} .settable=${settable} .disabled=${unavailable} .label=${name}
+            <hcc-cover-window .position=${pos} .moving=${this._pending == null ? moving : undefined} .target=${this._target}
+              .travelTime=${this._travel} .sun=${sun} .weather=${weather} .settable=${settable} .disabled=${unavailable} .label=${name}
               @value-changing=${(e: CustomEvent) => { this._pending = e.detail.value; this._haptic("selection"); }}
               @value-changed=${(e: CustomEvent) => this._setPosition(e.detail.value, 0)}></hcc-cover-window>
             <div class="readout">
               <span class="dial-big" data-pop="position">${pos != null ? pos : "–"}<sup>%</sup></span>
               <span class="dial-label">${this._t("cover.open_short")}</span>
+              ${moving && this._target != null ? html`<span class="goal"><ha-icon icon="mdi:arrow-right"></ha-icon>${this._target} %</span>` : nothing}
             </div>
           </div>
           ${this._renderButtons(st, pos)}
@@ -310,6 +334,9 @@ export class HaCoverCard extends LitElement {
     @keyframes nudge-down { 0%, 100% { transform: translateY(-1px); } 50% { transform: translateY(3px); } }
     .stage { position: relative; display: flex; flex-direction: column; align-items: center; gap: 10px; padding-top: 4px; }
     .readout { display: flex; align-items: baseline; gap: 8px; }
+    .goal { display: inline-flex; align-items: center; gap: 2px; font-size: 13px; font-weight: 600; color: var(--accent);
+      padding: 2px 8px; border-radius: 999px; background: color-mix(in srgb, var(--accent) 14%, transparent); animation: slide-in 0.4s var(--ease-out) both; }
+    .goal ha-icon { --mdc-icon-size: 14px; }
     .cover-buttons { display: flex; justify-content: center; gap: 16px; }
     .cover-buttons.small { gap: 6px; flex: none; }
     .round.small { width: 36px; height: 36px; }

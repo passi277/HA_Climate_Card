@@ -327,7 +327,12 @@
     "appearance": "Darstellung",
     "expandable": "Details ausklappbar",
     "start_expanded": "Anfangs ausgeklappt",
-    "animations": "Animationen"
+    "animations": "Animationen",
+    "sky": "Himmel nach Sonnenstand",
+    "sky_section": "Himmel & Fahrt",
+    "sun_entity": "Sonne (Tag/Dämmerung/Nacht)",
+    "weather_entity": "Wetter im Fenster (Wolken, Regen, Schnee)",
+    "travel_time": "Fahrzeit ganz zu → ganz auf"
   },
   "cover_group_editor": {
     "entities": "Rollläden (Reihenfolge = Anzeige)",
@@ -338,6 +343,7 @@
     "show_positions": "Schnellwahl zeigen",
     "positions": "Schnellwahl (% offen, z.B. 0, 25, 50, 75, 100)",
     "animations": "Animationen",
-    "hint": "Jeder Rollladen zeigt automatisch nur, was er kann: Positionsregler, Auf/Stopp/Ab, Lamellen."
+    "hint": "Jeder Rollladen zeigt automatisch nur, was er kann: Positionsregler, Auf/Stopp/Ab, Lamellen.",
+    "travel_time": "Fahrzeit ganz zu → ganz auf"
   }
 }

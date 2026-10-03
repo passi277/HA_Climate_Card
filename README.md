@@ -250,7 +250,10 @@ entities:
 
 - **Fenster-Grafik**: Der Rollladen fährt sichtbar herunter, Licht fällt durch den offenen Teil – **ins Fenster tippen oder ziehen** stellt die Position ein
 - **Auf / Stopp / Ab**, **Schnellwahl** (Zu, 25 %, 50 %, 75 %, Auf – frei einstellbar), Farbe wandert von kühlem Blaugrau (zu) zu warmem Tageslicht (offen)
-- Während der Fahrt laufen die Lamellen und ein Pfeil zeigt die Richtung; sonst ruht alles
+- **Gleichmäßige Fahrt**: Echte Rollläden melden ihre Position meist erst am Ende – die Karte lässt den Panzer
+  trotzdem flüssig zum Ziel gleiten (`travel_time`, Standard 20 s für ganz zu → ganz auf), Stopp hält ihn sanft an
+- **Blick aus dem Fenster nach Sonnenstand** (`sun.sun`): tagsüber Sonne (wandert mit Höhe und Himmelsrichtung),
+  Abend-/Morgenrot in der Dämmerung, nachts Mond und Sterne; optional Wolken, Regen, Schnee, Nebel aus `weather_entity`
 - **Cover-Gruppen** (z.B. „Rollos Pascal“): alle Rollläden der Gruppe darunter, jeder mit eigenem Regler
 - **Lamellen** (Raffstore/Jalousie) nur, wenn unterstützt; **Fenster-/Türkontakte** als Hinweis
 - Nur was das Gerät kann: ohne Positionsangabe nur Auf/Ab, ohne Stopp kein Stopp-Button
@@ -261,6 +264,9 @@ type: custom:ha-cover-card
 entity: cover.rollos_pascal          # einzelner Rollladen oder Cover-Gruppe
 contact_sensors: [binary_sensor.fenster_wohnzimmer]
 # positions: [0, 30, 60, 100]       # eigene Schnellwahl (% offen)
+# travel_time: 25                   # Fahrzeit ganz zu → ganz auf (s)
+# weather_entity: weather.zuhause   # Wolken/Regen im Fenster
+# show: { sky: false }              # neutraler Himmel statt Sonnenstand
 # layout: compact
 ```
 
