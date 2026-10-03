@@ -17,7 +17,7 @@ await p.waitForFunction(() => window.__ready, null, { timeout: 10000 });
 await p.waitForTimeout(500);
 
 const rendered = await p.evaluate(() =>
-  [...document.querySelectorAll("ha-climate-card, ha-climate-overview-card, ha-light-card, ha-light-group-card, ha-cover-card, ha-cover-group-card")].filter((c) => c.shadowRoot?.querySelector("ha-card")).length);
+  [...document.querySelectorAll("ha-climate-card, ha-climate-overview-card, ha-light-card, ha-light-group-card, ha-cover-card, ha-cover-group-card, ha-switch-time-card")].filter((c) => c.shadowRoot?.querySelector("ha-card")).length);
 rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Karten gerendert`);
 
 // Regler: Tippen in die Mitte verstellt nichts, Tippen auf den Ring schon
@@ -90,7 +90,7 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
     const before = window.serviceCalls.length;
     timer.querySelector("button.time").click();
     await wait(100);
-    const steps = timer.querySelectorAll(".step");
+    const steps = timer.querySelector("hcc-time-picker").shadowRoot.querySelectorAll(".step");
     const press = (b) => { b.dispatchEvent(new PointerEvent("pointerdown", { button: 0, bubbles: true })); b.dispatchEvent(new PointerEvent("pointerup", { bubbles: true })); };
     press(steps[1]); press(steps[1]); press(steps[3]);
     await wait(1300);
@@ -369,6 +369,38 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
     ? ok("Fensterblick: Sonne am Tag, Abendrot in der Dämmerung, Mond nachts, Wolken laut Wetter")
     : fail(`Himmel: ${JSON.stringify(sky)}`);
   await p.click('[data-sun="day"]');
+}
+
+// Schalter + Uhrzeit: Schalter, Zeitauswahl, Datum
+{
+  const res = await p.evaluate(async () => {
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const press = (b) => { b.dispatchEvent(new PointerEvent("pointerdown", { button: 0, bubbles: true })); b.dispatchEvent(new PointerEvent("pointerup", { bubbles: true })); };
+    const [alarm, water] = [...document.querySelectorAll("ha-switch-time-card")].map((c) => c.shadowRoot);
+    const before = window.serviceCalls.length;
+    const status = alarm.querySelector(".status").textContent.trim();
+    alarm.querySelector(".switch").click();
+    alarm.querySelector(".clock").click();
+    await wait(100);
+    const steps = alarm.querySelector("hcc-time-picker").shadowRoot.querySelectorAll(".step");
+    press(steps[1]); press(steps[3]); press(steps[3]);
+    await wait(1200);
+    water.querySelector(".clock").click();
+    await wait(100);
+    const wsteps = water.querySelector("hcc-time-picker").shadowRoot.querySelectorAll(".step");
+    press(wsteps[1]); press(wsteps[5]);
+    await wait(1200);
+    return { status, calls: window.serviceCalls.slice(before).map((c) => `${c.domain}.${c.service}:${c.data.entity_id}:${c.data.time ?? c.data.datetime ?? ""}`) };
+  });
+  const c = res.calls;
+  /^An · in /.test(res.status) && c.includes("homeassistant.turn_off:input_boolean.wecker:")
+    ? ok("Schalter + Uhrzeit: Status „An · in …“, Schalter schaltet") : fail(`Schalter: ${res.status} ${c}`);
+  c.filter((x) => x.startsWith("input_datetime.set_datetime:input_datetime.wecker_zeit")).length === 1 && c.includes("input_datetime.set_datetime:input_datetime.wecker_zeit:07:40:00")
+    ? ok("Schalter + Uhrzeit: Stunde/Minute einstellbar (06:30 → 07:40, ein Befehl)") : fail(`Zeit: ${c}`);
+  const d = new Date(Date.now() + 2 * 86400000);
+  const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  c.includes(`input_datetime.set_datetime:input_datetime.bewaesserung_start:${date} 19:16:00`)
+    ? ok("Schalter + Datum/Uhrzeit: Tag weiter, Minute in 1er-Schritten") : fail(`Datum: ${c}`);
 }
 
 // Moduswechsel: jede Karte, jeder Modus (außer Auto/Heizen-Kühlen, dort zählt die Tätigkeit)

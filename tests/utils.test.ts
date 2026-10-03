@@ -5,6 +5,7 @@ import {
   openContactsKey, powerOf, resolveContacts, secondsToDuration, stateIcon, temperatureOf, temperatureTint, trendSlope,
 } from "../src/utils";
 import { formatAttribute, localize } from "../src/localize/localize";
+import { datetimeParts, nextOccurrence } from "../src/switch-time-card";
 import type { HomeAssistant } from "../src/types";
 
 const entity = (id: string, state: string, attributes: Record<string, any> = {}): HassEntity =>
@@ -308,5 +309,21 @@ describe("sky", () => {
     expect(weatherOverlay("partlycloudy").clouds).toBe(1);
     expect(weatherOverlay("rainy")).toMatchObject({ clouds: 2, rain: true });
     expect(weatherOverlay("snowy").snow).toBe(true);
+  });
+});
+
+describe("switch + time", () => {
+  it("reads time-only and date+time helpers", () => {
+    const t = datetimeParts(entity("input_datetime.a", "06:30:00", { has_date: false, has_time: true, hour: 6, minute: 30 }));
+    expect(t).toMatchObject({ minutes: 390, hasTime: true, hasDate: false });
+    const d = datetimeParts(entity("input_datetime.b", "2026-10-04 19:15:00", { has_date: true, has_time: true, year: 2026, month: 10, day: 4, hour: 19, minute: 15 }));
+    expect(d.hasDate).toBe(true);
+    expect(d.date?.getDate()).toBe(4);
+  });
+  it("finds the next occurrence today or tomorrow", () => {
+    const now = new Date(2026, 9, 3, 20, 0).getTime();
+    expect(nextOccurrence(6 * 60 + 30, undefined, now)?.getDate()).toBe(4);
+    expect(nextOccurrence(21 * 60, undefined, now)?.getDate()).toBe(3);
+    expect(nextOccurrence(19 * 60, new Date(2026, 9, 10), now)?.getDate()).toBe(10);
   });
 });

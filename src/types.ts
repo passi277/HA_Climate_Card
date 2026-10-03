@@ -237,3 +237,20 @@ export interface CoverGroupCardConfig {
   weather_entity?: string;
   animations?: "full" | "reduced" | "off";
 }
+
+export interface SwitchTimeCardConfig {
+  type: string;
+  /** Schalter (input_boolean, switch, automation …) */
+  switch_entity?: string;
+  /** Zeit/Datum (input_datetime) */
+  time_entity?: string;
+  name?: string;
+  icon?: string;
+  /** Akzentfarbe (CSS-Farbe) */
+  color?: string;
+  /** Minutenschritte der Auswahl (Standard 5) */
+  minute_step?: number;
+  /** „in 7:12 h“ anzeigen (Standard an) */
+  show_remaining?: boolean;
+  animations?: "full" | "reduced" | "off";
+}

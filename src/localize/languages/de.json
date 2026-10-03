@@ -347,5 +347,35 @@
     "travel_time": "Fahrzeit ganz zu → ganz auf",
     "show_sky": "Himmel nach Sonnenstand",
     "weather_entity": "Wetter im Fenster"
+  },
+  "switch_time": {
+    "on": "An",
+    "off": "Aus",
+    "in": "in",
+    "past": "Zeitpunkt vorbei",
+    "today": "Heute",
+    "tomorrow": "Morgen",
+    "day": "Tag",
+    "days": "Tagen",
+    "date": "Tag"
+  },
+  "switch_time_editor": {
+    "switch_entity": "Schalter (input_boolean, switch, Automation …)",
+    "time_entity": "Uhrzeit / Datum (input_datetime)",
+    "name": "Name",
+    "icon": "Symbol",
+    "color": "Farbe",
+    "color_default": "Standard (Lila)",
+    "color_amber": "Bernstein",
+    "color_orange": "Orange",
+    "color_red": "Rot",
+    "color_pink": "Pink",
+    "color_purple": "Lila",
+    "color_blue": "Blau",
+    "color_teal": "Türkis",
+    "color_green": "Grün",
+    "minute_step": "Minutenschritte",
+    "show_remaining": "Restzeit anzeigen („in 7:12 h“)",
+    "hint": "Was beim Erreichen der Zeit passiert, regelt eine Automation (z.B. Auslöser „Zeit“ mit dem input_datetime, Bedingung: Schalter an)."
   }
 }

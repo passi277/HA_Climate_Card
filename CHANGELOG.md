@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.0 – Schalter + Uhrzeit
+- Neu: **Modern Switch & Time** (`custom:ha-switch-time-card`) – Schalter und `input_datetime` in einer Karte: Status mit Restzeit, große Uhrzeit, Stunden-/Minuten-Auswahl (auch Datum), Farbe und Minutenschritte wählbar, visueller Editor
+- Zeitauswahl als gemeinsame Komponente (auch im Sleeptimer); schnelles Tippen/Halten zählt sofort weiter
+
 ## 1.4.2
 - Rollladen-Gruppe und Gruppen-Mitglieder: Kacheln **nebeneinander** statt Zeilen untereinander – je Rollladen ein kleines Fenster mit Himmel (ziehen stellt die Position ein), Name, Status und Auf/Stopp/Ab; so viele pro Reihe, wie in die Breite passen
 - Rollladen-Gruppe: Himmel nach Sonnenstand und Wetter auch in den Kacheln (`show_sky`, `weather_entity`)

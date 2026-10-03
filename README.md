@@ -10,6 +10,7 @@ weiche Farbübergänge und Animationen. Ein HACS-Download, mehrere Karten:
 | **Modern Light Group** | `custom:ha-light-group-card` | frei zusammengestellte Lampen: Gruppe oben, Einzellampen darunter |
 | **Modern Cover Card** | `custom:ha-cover-card` | Rollläden, Jalousien, Markisen – einzeln oder als HA-Gruppe |
 | **Modern Cover Group** | `custom:ha-cover-group-card` | frei zusammengestellte Rollläden: alle oben, einzelne darunter |
+| **Modern Switch & Time** | `custom:ha-switch-time-card` | Schalter + Uhrzeit (input_datetime): Wecker, Zeitschaltung, Sleeptimer |
 | **Climate Overview** | `custom:ha-climate-overview-card` | alle Klimageräte auf einen Blick |
 
 *Modern Lovelace cards for Home Assistant in one shared design – English summary below.*
@@ -287,6 +288,27 @@ entities:
 # collapsed: true          # Einzelne anfangs zugeklappt
 ```
 
+## Modern Switch & Time
+
+Einfache Karte aus einem Schalter (`input_boolean`, `switch`, Automation …) und einem `input_datetime`:
+Status „An · in 7:12 h“, großer Schalter, große Uhrzeit – antippen öffnet die Stunden-/Minuten-Auswahl
+(−/+, gedrückt halten), bei `input_datetime` mit Datum zusätzlich der Tag (‹ Morgen, So., 04.10. ›).
+Änderungen werden gesammelt und nach kurzer Pause als ein Befehl gesendet.
+
+```yaml
+type: custom:ha-switch-time-card
+switch_entity: input_boolean.wecker
+time_entity: input_datetime.weckzeit
+# name: Wecker
+# icon: mdi:alarm
+# color: "#ffb300"        # Akzentfarbe
+# minute_step: 1          # Standard 5
+# show_remaining: false   # „in 7:12 h“ ausblenden
+```
+
+Was zur eingestellten Zeit passiert, regelt eine Automation (Auslöser „Zeit“ mit dem `input_datetime`,
+Bedingung: Schalter an).
+
 ## Heizungen (z.B. Homematic IP)
 
 Thermostate werden automatisch erkannt. Die Karte zeigt dann statt Lüfter, Lamellen und Luftstrom:
@@ -380,6 +402,7 @@ glow, smooth color transitions, animations), shipped as a single HACS download:
 - `custom:ha-cover-card` – covers/shutters (single or group): draggable window graphic, up/stop/down, quick
   positions, tilt, group members, window contacts
 - `custom:ha-cover-group-card` – any set of covers: all together on top, each cover below with only its supported controls
+- `custom:ha-switch-time-card` – a switch plus an input_datetime (alarm, time switch, sleep timer) with an app-friendly time picker
 - `custom:ha-climate-overview-card` – all climate devices at a glance
 
 Install via HACS as a custom repository of type **Dashboard**. All cards have a visual editor and are

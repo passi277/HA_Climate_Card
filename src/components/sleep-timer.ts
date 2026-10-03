@@ -1,8 +1,8 @@
 import { LitElement, css, html, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import type { HassEntity, HomeAssistant } from "../types";
-
-const pad = (n: number) => String(n).padStart(2, "0");
+import { pad } from "./time-picker";
+import "./time-picker";
 
 /**
  * Sleeptimer-Zeile für das klassische Helfer-Muster: ein Schalter (input_boolean/switch) schaltet
@@ -29,8 +29,6 @@ export class SleepTimer extends LitElement {
   @state() private _pending?: number;
   private _tick?: number;
   private _commitTimer?: number;
-  private _holdDelay?: number;
-  private _holdRepeat?: number;
 
   connectedCallback(): void {
     super.connectedCallback();
@@ -41,7 +39,6 @@ export class SleepTimer extends LitElement {
     super.disconnectedCallback();
     clearInterval(this._tick);
     clearTimeout(this._commitTimer);
-    this._holdEnd();
   }
 
   protected updated(): void {
@@ -100,7 +97,6 @@ export class SleepTimer extends LitElement {
   /** Auswahl ändern und kurz verzögert an Home Assistant übertragen (sammelt schnelles Tippen). */
   private _select(minutes: number): void {
     this._pending = ((Math.round(minutes) % 1440) + 1440) % 1440;
-    window.dispatchEvent(new CustomEvent("haptic", { detail: "selection" }));
     clearTimeout(this._commitTimer);
     this._commitTimer = window.setTimeout(() => this._commit(), 900);
   }
@@ -126,26 +122,8 @@ export class SleepTimer extends LitElement {
   /** Schnellwahl relativ zu jetzt, auf 5 Minuten gerundet. */
   private _inMinutes(delta: number): void {
     const now = new Date();
+    window.dispatchEvent(new CustomEvent("haptic", { detail: "selection" }));
     this._select(Math.round((now.getHours() * 60 + now.getMinutes() + delta) / 5) * 5);
-  }
-
-  private _holdStart(ev: PointerEvent, fn: () => void): void {
-    if (ev.button !== 0) return;
-    this._holdEnd();
-    fn();
-    this._holdDelay = window.setTimeout(() => (this._holdRepeat = window.setInterval(fn, 120)), 420);
-  }
-
-  private _holdEnd = (): void => {
-    clearTimeout(this._holdDelay);
-    clearInterval(this._holdRepeat);
-  };
-
-  private _stepButton(label: string, icon: string, fn: () => void) {
-    return html`<button class="step" aria-label=${label}
-      @pointerdown=${(e: PointerEvent) => this._holdStart(e, fn)} @pointerup=${this._holdEnd}
-      @pointerleave=${this._holdEnd} @pointercancel=${this._holdEnd} @contextmenu=${(e: Event) => e.preventDefault()}
-      @click=${(e: MouseEvent) => { if (e.detail === 0) fn(); }}><ha-icon icon=${icon}></ha-icon></button>`;
   }
 
   private _toggleEditor(): void {
@@ -154,29 +132,10 @@ export class SleepTimer extends LitElement {
   }
 
   private _renderEditor() {
-    const h = Math.floor(this._minutes / 60);
-    const m = this._minutes % 60;
     const quick = [30, 60, 120];
     return html`<div class="editor">
-      <div class="pickers">
-        <div class="picker">
-          <span class="picker-label">${this.hourText}</span>
-          <div class="picker-row">
-            ${this._stepButton(`${this.hourText} -`, "mdi:minus", () => this._select(this._minutes - 60))}
-            <span class="picker-value">${pad(h)}</span>
-            ${this._stepButton(`${this.hourText} +`, "mdi:plus", () => this._select(this._minutes + 60))}
-          </div>
-        </div>
-        <span class="colon">:</span>
-        <div class="picker">
-          <span class="picker-label">${this.minuteText}</span>
-          <div class="picker-row">
-            ${this._stepButton(`${this.minuteText} -`, "mdi:minus", () => this._select(Math.ceil(this._minutes / 5) * 5 - 5))}
-            <span class="picker-value">${pad(m)}</span>
-            ${this._stepButton(`${this.minuteText} +`, "mdi:plus", () => this._select(Math.floor(this._minutes / 5) * 5 + 5))}
-          </div>
-        </div>
-      </div>
+      <hcc-time-picker .minutes=${this._minutes} .hourText=${this.hourText} .minuteText=${this.minuteText}
+        @time-changed=${(e: CustomEvent) => this._select(e.detail.minutes)}></hcc-time-picker>
       <div class="quick">
         ${quick.map((q) => html`<button class="chip" @click=${() => this._inMinutes(q)}>${this.inText} ${q < 60 ? `${q} min` : `${q / 60} h`}</button>`)}
         <button class="chip done" @click=${this._toggleEditor}>${this.doneText}</button>
@@ -240,17 +199,7 @@ export class SleepTimer extends LitElement {
     .time:focus-visible { outline: 2px solid var(--timer-color); outline-offset: 1px; }
     .editor { padding: 4px 10px 12px; display: flex; flex-direction: column; gap: 10px; animation: open 0.3s cubic-bezier(0.22, 1, 0.36, 1); }
     @keyframes open { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
-    .pickers { display: flex; align-items: flex-end; justify-content: center; gap: 8px; }
-    .picker { display: flex; flex-direction: column; align-items: center; gap: 4px; }
-    .picker-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--secondary-text-color); }
-    .picker-row { display: flex; align-items: center; gap: 4px; padding: 3px; border-radius: 999px; background: var(--card-background-color, #fff); }
-    .picker-value { min-width: 42px; text-align: center; font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--primary-text-color); }
-    .colon { font-size: 26px; font-weight: 600; padding-bottom: 8px; color: var(--secondary-text-color); }
-    .step { width: 38px; height: 38px; border-radius: 50%; border: none; cursor: pointer; background: transparent;
-      color: var(--timer-color); display: flex; align-items: center; justify-content: center; padding: 0;
-      touch-action: manipulation; user-select: none; -webkit-user-select: none; transition: background 0.2s, transform 0.2s; }
-    .step:hover { background: color-mix(in srgb, var(--timer-color) 18%, transparent); }
-    .step:active { transform: scale(0.88); }
+    hcc-time-picker { --tp-color: var(--timer-color); }
     .quick { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
     .chip { border: none; border-radius: 999px; padding: 7px 12px; font: inherit; font-size: 13px; cursor: pointer;
       background: var(--card-background-color, #fff); color: var(--primary-text-color); }

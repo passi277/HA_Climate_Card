@@ -195,6 +195,11 @@
       "light.wohnzimmer_regal": { state: "off", attributes: { friendly_name: "Regal", supported_color_modes: ["brightness"], color_mode: "brightness" } },
       "light.wohnzimmer_lichterkette": { state: "on", attributes: { friendly_name: "Lichterkette", supported_color_modes: ["onoff"], color_mode: "onoff", icon: "mdi:string-lights" } },
       "light.wohnzimmer_vitrine": { state: "unavailable", attributes: { friendly_name: "Vitrine", supported_color_modes: ["brightness"] } },
+      "input_boolean.wecker": { state: "on", attributes: { friendly_name: "Wecker", icon: "mdi:alarm" } },
+      "input_datetime.wecker_zeit": { state: "06:30:00", attributes: { friendly_name: "Weckzeit", has_date: false, has_time: true, hour: 6, minute: 30, second: 0 } },
+      "input_boolean.gartenbewaesserung": { state: "off", attributes: { friendly_name: "Gartenbewässerung" } },
+      "input_datetime.bewaesserung_start": (() => { const d = new Date(Date.now() + 86400000); return { state: "", attributes: {
+        friendly_name: "Bewässerung Start", has_date: true, has_time: true, year: d.getFullYear(), month: d.getMonth() + 1, day: d.getDate(), hour: 19, minute: 15, second: 0 } }; })(),
       "sun.sun": { state: "above_horizon", attributes: { friendly_name: "Sun", elevation: 20, azimuth: 237, rising: false } },
       "weather.garten": { state: "partlycloudy", attributes: { friendly_name: "Garten", temperature: 14 } },
       "cover.rollos_pascal": { state: "open", attributes: { friendly_name: "Rollos Pascal", current_position: 46, supported_features: 15,
@@ -319,7 +324,12 @@
           if (service === "toggle") st = st === "on" ? "off" : "on";
           if (service === "turn_on") st = "on";
           if (service === "turn_off") st = "off";
-          if (service === "set_datetime") { const [h, m] = data.time.split(":").map(Number); st = data.time; attrs = { ...attrs, hour: h, minute: m }; }
+          if (service === "set_datetime") {
+            const [date, time] = data.datetime ? data.datetime.split(" ") : [data.date, data.time];
+            if (time) { const [h, m] = time.split(":").map(Number); attrs = { ...attrs, hour: h, minute: m }; }
+            if (date) { const [y, mo, d] = date.split("-").map(Number); attrs = { ...attrs, year: y, month: mo, day: d }; }
+            st = [date, time].filter(Boolean).join(" ");
+          }
           states[data.entity_id] = { ...s, state: st, attributes: attrs };
           setTimeout(() => { const h = makeHass(); cards.forEach((c) => (c.hass = h)); }, 150);
           return;
@@ -387,6 +397,9 @@
       ["Rollladen – Raffstore mit Lamellen (kompakt)", { _cover: true, entity: "cover.buero_raffstore", layout: "compact", start_expanded: true, travel_time: 4 }],
       ["Rollladen-Gruppe – frei zusammengestellt", { _coverGroup: true, title: "Rollläden", travel_time: 4,
         entities: ["cover.schreibtisch", "cover.tv", "cover.mario", "cover.buero_raffstore", "cover.terrasse_markise", "cover.kuche"] }],
+      ["Schalter + Uhrzeit – Wecker", { _switchTime: true, switch_entity: "input_boolean.wecker", time_entity: "input_datetime.wecker_zeit" }],
+      ["Schalter + Datum/Uhrzeit – Bewässerung (Farbe, 1-min-Schritte)", { _switchTime: true, switch_entity: "input_boolean.gartenbewaesserung",
+        time_entity: "input_datetime.bewaesserung_start", icon: "mdi:sprinkler-variant", color: "#26a69a", minute_step: 1 }],
       ["Übersicht – mehrere Geräte", { _overview: true, title: "Klimaanlagen", entities: ["climate.1ed763d9", "climate.wohnzimmer", "climate.heizung_mein_zimmer", "climate.buero", "climate.schlafzimmer"] }],
       ["Voll – Aus", { entity: "climate.schlafzimmer", layout: "full" }],
       ["Kompakt – Kühlen", { entity: "climate.wohnzimmer", layout: "compact", outdoor_sensor: "sensor.aussen", power_sensor: "sensor.klima_power" }],
@@ -399,9 +412,9 @@
     configs.forEach(([title, cfg], i) => {
       const wrap = document.createElement("div");
       wrap.innerHTML = `<h2>${title}</h2>`;
-      const { _overview, _light, _group, _cover, _coverGroup, ...rest } = cfg;
+      const { _overview, _light, _group, _cover, _coverGroup, _switchTime, ...rest } = cfg;
       const tag = _overview ? "ha-climate-overview-card" : _group ? "ha-light-group-card" : _light ? "ha-light-card"
-        : _cover ? "ha-cover-card" : _coverGroup ? "ha-cover-group-card" : "ha-climate-card";
+        : _cover ? "ha-cover-card" : _coverGroup ? "ha-cover-group-card" : _switchTime ? "ha-switch-time-card" : "ha-climate-card";
       const card = document.createElement(tag);
       card.id = "card" + i;
       card.setConfig({ type: `custom:${tag}`, ...rest });

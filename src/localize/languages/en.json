@@ -347,5 +347,35 @@
     "travel_time": "Travel time fully closed → open",
     "show_sky": "Sky by sun position",
     "weather_entity": "Weather in the window"
+  },
+  "switch_time": {
+    "on": "On",
+    "off": "Off",
+    "in": "in",
+    "past": "Time has passed",
+    "today": "Today",
+    "tomorrow": "Tomorrow",
+    "day": "day",
+    "days": "days",
+    "date": "Day"
+  },
+  "switch_time_editor": {
+    "switch_entity": "Switch (input_boolean, switch, automation …)",
+    "time_entity": "Time / date (input_datetime)",
+    "name": "Name",
+    "icon": "Icon",
+    "color": "Color",
+    "color_default": "Default (purple)",
+    "color_amber": "Amber",
+    "color_orange": "Orange",
+    "color_red": "Red",
+    "color_pink": "Pink",
+    "color_purple": "Purple",
+    "color_blue": "Blue",
+    "color_teal": "Teal",
+    "color_green": "Green",
+    "minute_step": "Minute steps",
+    "show_remaining": "Show remaining time (\"in 7:12 h\")",
+    "hint": "What happens at that time is handled by an automation (e.g. a \"time\" trigger using the input_datetime, condition: switch on)."
   }
 }
