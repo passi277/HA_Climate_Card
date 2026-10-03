@@ -254,3 +254,45 @@ export interface SwitchTimeCardConfig {
   show_remaining?: boolean;
   animations?: "full" | "reduced" | "off";
 }
+
+export interface MediaActivityConfig {
+  /** Name der Harmony-Aktivität */
+  name: string;
+  label?: string;
+  icon?: string;
+  /** Gerät für Steuerkreuz/Wiedergabe in dieser Aktivität */
+  control_device?: string;
+  /** Gerät für Lautstärke in dieser Aktivität */
+  volume_device?: string;
+}
+
+export interface MediaShowConfig {
+  activities?: boolean;
+  remote?: boolean;
+  volume?: boolean;
+  now_playing?: boolean;
+  source?: boolean;
+}
+
+export interface MediaCardConfig {
+  type: string;
+  /** remote.* (z.B. Harmony Hub) oder media_player.* */
+  entity: string;
+  /** Media-Player für „Läuft gerade“, Lautstärke, Quelle */
+  media_player?: string;
+  name?: string;
+  icon?: string;
+  layout?: CardLayout;
+  show?: MediaShowConfig;
+  /** Reihenfolge/Beschriftung/Symbole der Aktivitäten (sonst alle aus dem Hub) */
+  activities?: (string | MediaActivityConfig)[];
+  /** Harmony-Gerät für Steuerkreuz/Wiedergabe (sonst automatisch) */
+  control_device?: string;
+  /** Harmony-Gerät für Lautstärke (sonst automatisch, z.B. Soundbar/AV-Receiver) */
+  volume_device?: string;
+  /** Eigene Befehlsnamen, z.B. { select: "OK", back: "Return" } */
+  commands?: Record<string, string>;
+  expandable?: boolean;
+  start_expanded?: boolean;
+  animations?: "full" | "reduced" | "off";
+}

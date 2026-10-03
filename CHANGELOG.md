@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.6.0 – Medien
+- Neu: **Modern Media Card** (`custom:ha-media-card`) – Harmony-Hub-Aktivitäten als Kacheln, Fernbedienung (Steuerkreuz, Zurück/Home/Menü, Spulen/Play/Pause, Lautstärke/Kanal) mit automatischer Geräte-Zuordnung, Media-Player mit „Läuft gerade“, Lautstärkeregler und Quelle, Kompakt-Layout, visueller Editor
+
 ## 1.5.0 – Schalter + Uhrzeit
 - Neu: **Modern Switch & Time** (`custom:ha-switch-time-card`) – Schalter und `input_datetime` in einer Karte: Status mit Restzeit, große Uhrzeit, Stunden-/Minuten-Auswahl (auch Datum), Farbe und Minutenschritte wählbar, visueller Editor
 - Zeitauswahl als gemeinsame Komponente (auch im Sleeptimer); schnelles Tippen/Halten zählt sofort weiter

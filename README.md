@@ -11,6 +11,7 @@ weiche Farbübergänge und Animationen. Ein HACS-Download, mehrere Karten:
 | **Modern Cover Card** | `custom:ha-cover-card` | Rollläden, Jalousien, Markisen – einzeln oder als HA-Gruppe |
 | **Modern Cover Group** | `custom:ha-cover-group-card` | frei zusammengestellte Rollläden: alle oben, einzelne darunter |
 | **Modern Switch & Time** | `custom:ha-switch-time-card` | Schalter + Uhrzeit (input_datetime): Wecker, Zeitschaltung, Sleeptimer |
+| **Modern Media Card** | `custom:ha-media-card` | Harmony Hub (Aktivitäten, Fernbedienung) und Media-Player |
 | **Climate Overview** | `custom:ha-climate-overview-card` | alle Klimageräte auf einen Blick |
 
 *Modern Lovelace cards for Home Assistant in one shared design – English summary below.*
@@ -309,6 +310,33 @@ time_entity: input_datetime.weckzeit
 Was zur eingestellten Zeit passiert, regelt eine Automation (Auslöser „Zeit“ mit dem `input_datetime`,
 Bedingung: Schalter an).
 
+## Modern Media Card
+
+Für **Harmony Hubs** (`remote.*`) und/oder **Media-Player** (`media_player.*`):
+
+- **Aktivitäten** als Kacheln mit passendem Symbol (PlayStation, TV, PC, Lautsprecher …) und kurzen Namen
+  („Smart TV wiedergeben“ → „Smart TV“); die laufende leuchtet, beim Start pulsiert die gewählte; Power = alles aus
+- **Fernbedienung**: Steuerkreuz mit OK, Zurück/Home/Menü, Spulen/Play/Pause – gedrückt halten wiederholt.
+  Befehle gehen per `remote.send_command` an das Gerät der laufenden Aktivität (z.B. „Smart TV“ → Fernseher)
+- **Lautstärke**: am Media-Player als Regler, beim Harmony Hub als Lauter/Leiser/Stumm an Soundbar/AV-Receiver
+  (automatisch erkannt), dazu Kanal ±
+- **Läuft gerade** (mit `media_player`): Cover, Titel, Fortschritt, Zurück/Play-Pause/Weiter; **Quelle** wählbar
+- Nur was die Geräte können; Geräte und Aktivitäten im Editor einstellbar
+
+```yaml
+type: custom:ha-media-card
+entity: remote.harmony_hub_wohnzimmer
+media_player: media_player.tv_wohnzimmer    # optional: Läuft gerade, Lautstärke, Quelle
+# volume_device: Samsung 9.1.4              # sonst automatisch (Soundbar/AV-Receiver)
+# control_device: Sony TV Wohnzimmer        # sonst Gerät der laufenden Aktivität
+# activities:                               # Auswahl/Reihenfolge, eigene Namen/Symbole
+#   - Smart TV wiedergeben
+#   - name: Ps4
+#     label: PlayStation
+#     control_device: Philips AV-Switch
+# commands: { select: OK }                  # abweichende Harmony-Befehlsnamen
+```
+
 ## Heizungen (z.B. Homematic IP)
 
 Thermostate werden automatisch erkannt. Die Karte zeigt dann statt Lüfter, Lamellen und Luftstrom:
@@ -403,6 +431,7 @@ glow, smooth color transitions, animations), shipped as a single HACS download:
   positions, tilt, group members, window contacts
 - `custom:ha-cover-group-card` – any set of covers: all together on top, each cover below with only its supported controls
 - `custom:ha-switch-time-card` – a switch plus an input_datetime (alarm, time switch, sleep timer) with an app-friendly time picker
+- `custom:ha-media-card` – Harmony Hub activities and remote (commands routed to the right device) plus media player (now playing, volume, source)
 - `custom:ha-climate-overview-card` – all climate devices at a glance
 
 Install via HACS as a custom repository of type **Dashboard**. All cards have a visual editor and are

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { HassEntity } from "../src/types";
 import {
-  brightnessPct, contactType, coverIcon, datetimeParts, nextOccurrence, coverPosition, skyPhase, sunPlacement, weatherOverlay, editorOptions, isNoEffect, lightEditorOptions, segmentIds, detectDeviceType, kelvinToRgb, lightColor, relatedScenes, supportsColor, supportsColorTemp, dewPoint, nextSwitch, parseSchedule, scheduleTempAt, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
+  brightnessPct, contactType, activityIcon, activityLabel, guessControlDevice, guessVolumeDevice, coverIcon, datetimeParts, nextOccurrence, coverPosition, skyPhase, sunPlacement, weatherOverlay, editorOptions, isNoEffect, lightEditorOptions, segmentIds, detectDeviceType, kelvinToRgb, lightColor, relatedScenes, supportsColor, supportsColorTemp, dewPoint, nextSwitch, parseSchedule, scheduleTempAt, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
   openContactsKey, powerOf, resolveContacts, secondsToDuration, stateIcon, temperatureOf, temperatureTint, trendSlope,
 } from "../src/utils";
 import { formatAttribute, localize } from "../src/localize/localize";
@@ -324,5 +324,23 @@ describe("switch + time", () => {
     expect(nextOccurrence(6 * 60 + 30, undefined, now)?.getDate()).toBe(4);
     expect(nextOccurrence(21 * 60, undefined, now)?.getDate()).toBe(3);
     expect(nextOccurrence(19 * 60, new Date(2026, 9, 10), now)?.getDate()).toBe(10);
+  });
+});
+
+describe("media / Harmony", () => {
+  const devices = ["Philips AV-Switch", "Samsung 9.1.4", "Amazon Fire TV", "Google Multimedia-Player", "Sony TV Wohnzimmer"];
+  it("picks icons and short labels for activities", () => {
+    expect(activityIcon("Ps4")).toBe("mdi:sony-playstation");
+    expect(activityIcon("Atmos")).toBe("mdi:speaker");
+    expect(activityIcon("PC wiedergeben")).toBe("mdi:monitor");
+    expect(activityIcon("Smart TV wiedergeben")).toBe("mdi:television");
+    expect(activityLabel("Smart TV wiedergeben")).toBe("Smart TV");
+    expect(activityLabel("Ps4")).toBe("Ps4");
+  });
+  it("guesses volume and control devices", () => {
+    expect(guessVolumeDevice(devices)).toBe("Samsung 9.1.4");
+    expect(guessControlDevice(devices, "Smart TV wiedergeben")).toBe("Sony TV Wohnzimmer");
+    expect(guessControlDevice(devices, "Fire TV")).toBe("Amazon Fire TV");
+    expect(guessControlDevice(devices, "Ps4")).toBe("Amazon Fire TV");
   });
 });

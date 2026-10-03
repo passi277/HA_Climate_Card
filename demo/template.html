@@ -200,6 +200,16 @@
       "input_boolean.gartenbewaesserung": { state: "off", attributes: { friendly_name: "Gartenbewässerung" } },
       "input_datetime.bewaesserung_start": (() => { const d = new Date(Date.now() + 86400000); return { state: "", attributes: {
         friendly_name: "Bewässerung Start", has_date: true, has_time: true, year: d.getFullYear(), month: d.getMonth() + 1, day: d.getDate(), hour: 19, minute: 15, second: 0 } }; })(),
+      "remote.harmony_hub_wohnzimmer": { state: "on", attributes: { friendly_name: "Harmony Hub Wohnzimmer", supported_features: 4,
+        activity_list: ["Ps4", "Atmos", "PC wiedergeben", "Smart TV wiedergeben"], current_activity: "Smart TV wiedergeben", activity_starting: null,
+        devices_list: ["Philips AV-Switch", "Samsung 9.1.4", "Amazon Fire TV", "Google Multimedia-Player", "Sony TV Wohnzimmer"] } },
+      "media_player.fire_tv_wohnzimmer": { state: "playing", attributes: { friendly_name: "Fire TV Wohnzimmer", supported_features: 154509,
+        media_title: "Interstellar", media_artist: "Christopher Nolan", app_name: "Prime Video", media_duration: 10140, media_position: 4210,
+        media_position_updated_at: new Date().toISOString(), volume_level: 0.32, is_volume_muted: false,
+        source: "Prime Video", source_list: ["Prime Video", "Netflix", "YouTube", "Disney+", "Joyn", "ARD Mediathek"],
+        entity_picture: "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0b1a3a"/><stop offset="1" stop-color="#c98a3c"/></linearGradient></defs><rect width="64" height="64" fill="url(#g)"/><circle cx="40" cy="26" r="12" fill="#f6d28b" opacity=".9"/><circle cx="40" cy="26" r="16" fill="none" stroke="#f6d28b" stroke-width="1.5" opacity=".6"/></svg>') } },
+      "media_player.atmos": { state: "on", attributes: { friendly_name: "ATMOS", supported_features: 154509, volume_level: 0.4, is_volume_muted: false,
+        source: "HDMI", source_list: ["HDMI", "TV ARC", "Bluetooth", "Optisch"], sound_mode: "Standard" } },
       "sun.sun": { state: "above_horizon", attributes: { friendly_name: "Sun", elevation: 20, azimuth: 237, rising: false } },
       "weather.garten": { state: "partlycloudy", attributes: { friendly_name: "Garten", temperature: 14 } },
       "cover.rollos_pascal": { state: "open", attributes: { friendly_name: "Rollos Pascal", current_position: 46, supported_features: 15,
@@ -311,6 +321,36 @@
           setTimeout(refresh, 150);
           return;
         }
+        if (domain === "remote") {
+          const r = states[data.entity_id];
+          if (service === "turn_on" && data.activity) {
+            states[data.entity_id] = { ...r, state: "on", attributes: { ...r.attributes, activity_starting: data.activity } };
+            setTimeout(() => { const r2 = states[data.entity_id]; states[data.entity_id] = { ...r2, attributes: { ...r2.attributes, current_activity: data.activity, activity_starting: null } };
+              const h = makeHass(); cards.forEach((c) => (c.hass = h)); }, 900);
+          } else if (service === "turn_off") {
+            states[data.entity_id] = { ...r, state: "off", attributes: { ...r.attributes, current_activity: "PowerOff" } };
+          } else if (service === "turn_on") {
+            states[data.entity_id] = { ...r, state: "on", attributes: { ...r.attributes, current_activity: r.attributes.activity_list[0] } };
+          }
+          setTimeout(() => { const h = makeHass(); cards.forEach((c) => (c.hass = h)); }, 150);
+          return;
+        }
+        if (domain === "media_player") {
+          const m = states[data.entity_id];
+          const a = { ...m.attributes };
+          let st = m.state;
+          if (service === "media_play_pause") { st = st === "playing" ? "paused" : "playing"; a.media_position_updated_at = new Date().toISOString(); }
+          if (service === "volume_set") a.volume_level = data.volume_level;
+          if (service === "volume_up") a.volume_level = Math.min(1, (a.volume_level ?? 0) + 0.02);
+          if (service === "volume_down") a.volume_level = Math.max(0, (a.volume_level ?? 0) - 0.02);
+          if (service === "volume_mute") a.is_volume_muted = data.is_volume_muted;
+          if (service === "select_source") a.source = data.source;
+          if (service === "turn_off") st = "off";
+          if (service === "turn_on") st = "on";
+          states[data.entity_id] = { ...m, state: st, attributes: a, last_updated: new Date().toISOString() };
+          setTimeout(() => { const h = makeHass(); cards.forEach((c) => (c.hass = h)); }, 150);
+          return;
+        }
         if (domain === "timer") {
           const secs = data.duration ? data.duration.split(":").reduce((a, v) => a * 60 + Number(v), 0) : 0;
           states[data.entity_id] = service === "start"
@@ -400,6 +440,8 @@
       ["Schalter + Uhrzeit – Wecker", { _switchTime: true, switch_entity: "input_boolean.wecker", time_entity: "input_datetime.wecker_zeit" }],
       ["Schalter + Datum/Uhrzeit – Bewässerung (Farbe, 1-min-Schritte)", { _switchTime: true, switch_entity: "input_boolean.gartenbewaesserung",
         time_entity: "input_datetime.bewaesserung_start", icon: "mdi:sprinkler-variant", color: "#26a69a", minute_step: 1 }],
+      ["Medien – Harmony Hub (Aktivitäten, Fernbedienung) + Fire TV", { _media: true, entity: "remote.harmony_hub_wohnzimmer", media_player: "media_player.fire_tv_wohnzimmer" }],
+      ["Medien – Soundbar (Media-Player, kompakt)", { _media: true, entity: "media_player.atmos", layout: "compact" }],
       ["Übersicht – mehrere Geräte", { _overview: true, title: "Klimaanlagen", entities: ["climate.1ed763d9", "climate.wohnzimmer", "climate.heizung_mein_zimmer", "climate.buero", "climate.schlafzimmer"] }],
       ["Voll – Aus", { entity: "climate.schlafzimmer", layout: "full" }],
       ["Kompakt – Kühlen", { entity: "climate.wohnzimmer", layout: "compact", outdoor_sensor: "sensor.aussen", power_sensor: "sensor.klima_power" }],
@@ -412,9 +454,9 @@
     configs.forEach(([title, cfg], i) => {
       const wrap = document.createElement("div");
       wrap.innerHTML = `<h2>${title}</h2>`;
-      const { _overview, _light, _group, _cover, _coverGroup, _switchTime, ...rest } = cfg;
+      const { _overview, _light, _group, _cover, _coverGroup, _switchTime, _media, ...rest } = cfg;
       const tag = _overview ? "ha-climate-overview-card" : _group ? "ha-light-group-card" : _light ? "ha-light-card"
-        : _cover ? "ha-cover-card" : _coverGroup ? "ha-cover-group-card" : _switchTime ? "ha-switch-time-card" : "ha-climate-card";
+        : _cover ? "ha-cover-card" : _coverGroup ? "ha-cover-group-card" : _switchTime ? "ha-switch-time-card" : _media ? "ha-media-card" : "ha-climate-card";
       const card = document.createElement(tag);
       card.id = "card" + i;
       card.setConfig({ type: `custom:${tag}`, ...rest });

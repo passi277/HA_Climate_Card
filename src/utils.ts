@@ -569,3 +569,68 @@ export const nextOccurrence = (minutes: number | undefined, date: Date | undefin
   if (!date && d.getTime() <= now) d.setDate(d.getDate() + 1);
   return d;
 };
+
+// ---------- Medien ----------
+
+export const MediaFeature = {
+  PAUSE: 1, SEEK: 2, VOLUME_SET: 4, VOLUME_MUTE: 8, PREVIOUS_TRACK: 16, NEXT_TRACK: 32, TURN_ON: 128, TURN_OFF: 256,
+  VOLUME_STEP: 1024, SELECT_SOURCE: 2048, STOP: 4096, PLAY: 16384,
+} as const;
+
+export const mediaSupports = (st: HassEntity | undefined, f: number): boolean =>
+  !!st && ((Number(st.attributes.supported_features) || 0) & f) !== 0;
+
+const ACTIVITY_ICONS: [RegExp, string][] = [
+  [/ps\s?[345]|playstation/i, "mdi:sony-playstation"],
+  [/xbox/i, "mdi:microsoft-xbox"],
+  [/switch|nintendo/i, "mdi:nintendo-switch"],
+  [/spiel|game|konsole/i, "mdi:gamepad-variant"],
+  [/fire\s?tv|amazon/i, "mdi:amazon"],
+  [/netflix/i, "mdi:netflix"],
+  [/apple\s?tv/i, "mdi:apple"],
+  [/chrome|google/i, "mdi:google-chrome"],
+  [/pc|computer|rechner/i, "mdi:monitor"],
+  [/musik|music|radio|sonos|spotify|atmos|audio|soundbar/i, "mdi:speaker"],
+  [/film|movie|kino|blu.?ray|dvd/i, "mdi:movie-open"],
+  [/tv|fernseh|television/i, "mdi:television"],
+];
+
+/** Symbol für eine Aktivität anhand ihres Namens. */
+export const activityIcon = (name: string): string =>
+  ACTIVITY_ICONS.find(([re]) => re.test(name))?.[1] ?? "mdi:play-circle-outline";
+
+const VOLUME_DEVICE = /soundbar|receiver|\bavr\b|verstärker|amp|sonos|denon|yamaha|onkyo|marantz|bose|harman|samsung\s*\d|atmos|lautsprecher|speaker/i;
+
+/** Gerät für die Lautstärke: Soundbar/AV-Receiver, sonst der Fernseher, sonst das erste Gerät. */
+export const guessVolumeDevice = (devices: string[]): string | undefined =>
+  devices.find((d) => VOLUME_DEVICE.test(d) && !/switch/i.test(d)) ?? devices.find((d) => /tv|fernseh/i.test(d)) ?? devices[0];
+
+/**
+ * Gerät für Steuerkreuz/Wiedergabe in einer Aktivität: gleiches Stichwort im Namen
+ * („Smart TV wiedergeben“ → „Sony TV“, „Fire TV“ …), sonst Streaming-Gerät, sonst Fernseher.
+ */
+export const guessControlDevice = (devices: string[], activity?: string): string | undefined => {
+  const words = (activity ?? "").toLowerCase().split(/[^a-z0-9äöü]+/).filter((w) => w.length >= 2 && !["wiedergeben", "watch", "play", "smart"].includes(w));
+  // „Smart TV“ meint die Apps des Fernsehers selbst – dann den Fernseher vor Streaming-Sticks wählen
+  const smart = /smart/i.test(activity ?? "");
+  const streaming = /fire\s?tv|apple\s?tv|shield|chromecast|roku|stick/i;
+  const byWord = devices
+    .filter((d) => words.some((w) => d.toLowerCase().includes(w)) && !VOLUME_DEVICE.test(d))
+    .sort((x, y) => (smart ? Number(streaming.test(x)) - Number(streaming.test(y)) : 0))[0];
+  return byWord ?? devices.find((d) => /fire\s?tv|apple\s?tv|shield|chromecast|google|roku|media/i.test(d))
+    ?? devices.find((d) => /tv|fernseh/i.test(d)) ?? devices[0];
+};
+
+/** Sekunden → „m:ss“ bzw. „h:mm:ss“. */
+export const formatMediaTime = (secs?: number): string => {
+  if (secs == null || !Number.isFinite(secs)) return "";
+  const s = Math.max(0, Math.floor(secs));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const pad2 = (n: number) => String(n).padStart(2, "0");
+  return h ? `${h}:${pad2(m)}:${pad2(s % 60)}` : `${m}:${pad2(s % 60)}`;
+};
+
+/** Kurzer Anzeigename einer Harmony-Aktivität: „Smart TV wiedergeben“ → „Smart TV“. */
+export const activityLabel = (name: string): string =>
+  name.replace(/\s+(wiedergeben|ansehen|anschauen|schauen|starten|spielen|hören|watch|play|listen|start)$/i, "").trim() || name;

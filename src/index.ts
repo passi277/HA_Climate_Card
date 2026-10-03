@@ -7,3 +7,4 @@ import "./light-group-card";
 import "./cover-card";
 import "./cover-group-card";
 import "./switch-time-card";
+import "./media-card";

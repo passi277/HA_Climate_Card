@@ -17,7 +17,7 @@ await p.waitForFunction(() => window.__ready, null, { timeout: 10000 });
 await p.waitForTimeout(500);
 
 const rendered = await p.evaluate(() =>
-  [...document.querySelectorAll("ha-climate-card, ha-climate-overview-card, ha-light-card, ha-light-group-card, ha-cover-card, ha-cover-group-card, ha-switch-time-card")].filter((c) => c.shadowRoot?.querySelector("ha-card")).length);
+  [...document.querySelectorAll("ha-climate-card, ha-climate-overview-card, ha-light-card, ha-light-group-card, ha-cover-card, ha-cover-group-card, ha-switch-time-card, ha-media-card")].filter((c) => c.shadowRoot?.querySelector("ha-card")).length);
 rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Karten gerendert`);
 
 // Regler: Tippen in die Mitte verstellt nichts, Tippen auf den Ring schon
@@ -376,7 +376,7 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
   const res = await p.evaluate(async () => {
     const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     const press = (b) => { b.dispatchEvent(new PointerEvent("pointerdown", { button: 0, bubbles: true })); b.dispatchEvent(new PointerEvent("pointerup", { bubbles: true })); };
-    const [alarm, water] = [...document.querySelectorAll("ha-switch-time-card")].map((c) => c.shadowRoot);
+    const [alarm, water] = [...document.querySelectorAll("ha-switch-time-card, ha-media-card")].map((c) => c.shadowRoot);
     const before = window.serviceCalls.length;
     const status = alarm.querySelector(".status").textContent.trim();
     alarm.querySelector(".switch").click();
@@ -401,6 +401,40 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
   const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   c.includes(`input_datetime.set_datetime:input_datetime.bewaesserung_start:${date} 19:16:00`)
     ? ok("Schalter + Datum/Uhrzeit: Tag weiter, Minute in 1er-Schritten") : fail(`Datum: ${c}`);
+}
+
+// Medien: Harmony-Aktivitäten, Befehle an das richtige Gerät, Media-Player
+{
+  const res = await p.evaluate(async () => {
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const [hub, bar] = [...document.querySelectorAll("ha-media-card")].map((c) => c.shadowRoot);
+    const acts = [...hub.querySelectorAll(".activity")];
+    const labels = acts.map((a) => a.textContent.trim());
+    const active = hub.querySelector(".activity.on")?.textContent.trim();
+    const nowPlaying = hub.querySelector(".np-title")?.textContent.trim();
+    const before = window.serviceCalls.length;
+    acts[0].click();
+    await wait(50);
+    const starting = !!hub.querySelector(".activity.starting");
+    const press = (b) => { b.dispatchEvent(new PointerEvent("pointerdown", { button: 0, bubbles: true })); b.dispatchEvent(new PointerEvent("pointerup", { bubbles: true })); };
+    press(hub.querySelector(".dir.up"));
+    hub.querySelector(".ok").click();
+    hub.querySelector(".np-title").closest(".now").querySelector(".key.play").click();
+    const slider = bar.querySelector("hcc-gradient-slider");
+    slider.value = 55; slider.dispatchEvent(new CustomEvent("value-changed", { detail: { value: 55 } }));
+    await wait(1200);
+    return { labels, active, nowPlaying, starting, calls: window.serviceCalls.slice(before).map((c) => `${c.domain}.${c.service}:${c.data.activity ?? c.data.command ?? c.data.volume_level ?? ""}:${c.data.device ?? ""}`),
+      after: hub.querySelector(".activity.on")?.textContent.trim() };
+  });
+  res.labels.join("|") === "Ps4|Atmos|PC|Smart TV" && res.active === "Smart TV" && res.nowPlaying === "Interstellar"
+    ? ok("Medien: 4 Harmony-Aktivitäten (kurze Namen), aktive leuchtet, „Läuft gerade“") : fail(`Medien: ${JSON.stringify(res)}`);
+  res.calls.includes("remote.turn_on:Ps4:") && res.starting && res.after === "Ps4"
+    ? ok("Medien: Aktivität starten (Anzeige „startet“, danach aktiv)") : fail(`Aktivität: ${JSON.stringify(res)}`);
+  const sends = res.calls.filter((x) => x.startsWith("remote.send_command"));
+  sends.some((x) => x.startsWith("remote.send_command:DirectionUp:")) && sends.some((x) => x.startsWith("remote.send_command:Select:"))
+    ? ok("Medien: Steuerkreuz sendet Harmony-Befehle an das Gerät der Aktivität") : fail(`Befehle: ${sends}`);
+  res.calls.includes("media_player.media_play_pause::") && res.calls.includes("media_player.volume_set:0.55:")
+    ? ok("Medien: Wiedergabe/Pause und Lautstärkeregler am Media-Player") : fail(`Media-Player: ${res.calls}`);
 }
 
 // Moduswechsel: jede Karte, jeder Modus (außer Auto/Heizen-Kühlen, dort zählt die Tätigkeit)
