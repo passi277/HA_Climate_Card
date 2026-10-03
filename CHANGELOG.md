@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.7.4
+- Medienkarte: Fernbedienung ließ sich in Home Assistant nicht einklappen, wenn in der Konfiguration kein `layout` stand – jedes erneute `setConfig` von HA klappte sie wieder auf. Behoben
+
 ## 1.7.3
 - Medienkarte: **Sleeptimer** (`timer_switch` + `timer_time`, wie bei der Klima-Karte) für TV/Harmony
 - Medienkarte: Fernbedienung samt Umschalter auch bei ausgeschaltetem Hub (Harmony sendet Befehle trotzdem an die Geräte); Umschalter robuster

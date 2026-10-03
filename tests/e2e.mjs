@@ -543,6 +543,30 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
   res.offToggle ? ok("Medien: Fernbedienung auch bei ausgeschaltetem Hub ein-/ausklappbar") : fail("Fernbedienung fehlt bei Hub aus");
 }
 
+// Medien: eingeklappte Fernbedienung bleibt zu, wenn HA setConfig erneut aufruft (Konfiguration ohne layout)
+{
+  const res = await p.evaluate(async () => {
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const card = document.querySelector("ha-media-card");
+    const raw = { type: "custom:ha-media-card", entity: card._config.entity, media_player: card._config.media_player,
+      timer_switch: card._config.timer_switch, timer_time: card._config.timer_time };
+    const isOpen = () => card.shadowRoot.querySelector(".collapsible").classList.contains("open");
+    if (isOpen()) card.shadowRoot.querySelector(".remote-toggle").click();
+    await wait(100);
+    const closed = !isOpen();
+    card.setConfig({ ...raw });
+    await wait(100);
+    card.setConfig({ ...raw });
+    await wait(100);
+    const stillClosed = !isOpen();
+    card.shadowRoot.querySelector(".remote-toggle").click();
+    await wait(100);
+    return { closed, stillClosed, reopened: isOpen() };
+  });
+  res.closed && res.stillClosed && res.reopened
+    ? ok("Medien: Fernbedienung bleibt eingeklappt, auch wenn HA die Konfiguration neu setzt") : fail(`Einklappen: ${JSON.stringify(res)}`);
+}
+
 // Moduswechsel: jede Karte, jeder Modus (außer Auto/Heizen-Kühlen, dort zählt die Tätigkeit)
 const colorFails = await p.evaluate(async () => {
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));

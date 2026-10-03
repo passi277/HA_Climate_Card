@@ -73,7 +73,10 @@ export class HaMediaCard extends LitElement {
       throw new Error("ha-media-card: 'entity' muss remote.* oder media_player.* sein");
     }
     const first = !this._config;
-    const startChanged = this._config?.start_expanded !== config.start_expanded || this._config?.layout !== config.layout;
+    // Nur bei echten Änderungen zurücksetzen – HA ruft setConfig auch mit unveränderter Konfiguration erneut auf.
+    // (layout wird intern mit "full" ergänzt, daher normalisiert vergleichen)
+    const startChanged = this._config?.start_expanded !== config.start_expanded
+      || (this._config?.layout ?? "full") !== (config.layout ?? "full");
     this._config = { layout: "full", ...config };
     // Fernbedienung: im vollen Layout anfangs offen, kompakt zugeklappt
     if (first || startChanged) {
