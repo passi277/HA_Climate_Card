@@ -548,3 +548,24 @@ export const weatherOverlay = (condition?: string): { clouds: number; rain: bool
     fog: c === "fog",
   };
 };
+
+// ---------- Schalter + Uhrzeit ----------
+
+/** Uhrzeit/Datum eines input_datetime: Minuten seit Mitternacht und Datum (lokal). */
+export const datetimeParts = (st?: HassEntity): { minutes?: number; date?: Date; hasTime: boolean; hasDate: boolean } => {
+  const a = st?.attributes ?? {};
+  const hasDate = !!a.has_date;
+  const hasTime = a.has_time !== false;
+  const minutes = a.hour != null ? Number(a.hour) * 60 + Number(a.minute ?? 0) : undefined;
+  const date = hasDate && a.year != null ? new Date(Number(a.year), Number(a.month) - 1, Number(a.day)) : undefined;
+  return { minutes, date, hasTime, hasDate };
+};
+
+/** Nächster Zeitpunkt: festes Datum, sonst heute bzw. morgen um die Uhrzeit. */
+export const nextOccurrence = (minutes: number | undefined, date: Date | undefined, now = Date.now()): Date | undefined => {
+  if (minutes == null && !date) return undefined;
+  const d = date ? new Date(date) : new Date(now);
+  d.setHours(Math.floor((minutes ?? 0) / 60), (minutes ?? 0) % 60, 0, 0);
+  if (!date && d.getTime() <= now) d.setDate(d.getDate() + 1);
+  return d;
+};

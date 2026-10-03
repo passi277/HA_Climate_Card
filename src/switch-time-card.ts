@@ -4,7 +4,7 @@ import type { HassEntity, HomeAssistant, SwitchTimeCardConfig } from "./types";
 import { getLanguage, localize } from "./localize/localize";
 import { cardStyles } from "./styles";
 import { DOCS_URL } from "./shared";
-import { UNAVAILABLE } from "./utils";
+import { datetimeParts, nextOccurrence, UNAVAILABLE } from "./utils";
 import { pad } from "./components/time-picker";
 import "./components/time-picker";
 import "./switch-time-editor";
@@ -19,25 +19,6 @@ const DEFAULT_COLOR = "#7e57c2";
   preview: true,
   documentationURL: DOCS_URL,
 });
-
-/** Uhrzeit/Datum eines input_datetime: Minuten seit Mitternacht und Datum (lokal). */
-export const datetimeParts = (st?: HassEntity): { minutes?: number; date?: Date; hasTime: boolean; hasDate: boolean } => {
-  const a = st?.attributes ?? {};
-  const hasDate = !!a.has_date;
-  const hasTime = a.has_time !== false;
-  const minutes = a.hour != null ? Number(a.hour) * 60 + Number(a.minute ?? 0) : undefined;
-  const date = hasDate && a.year != null ? new Date(Number(a.year), Number(a.month) - 1, Number(a.day)) : undefined;
-  return { minutes, date, hasTime, hasDate };
-};
-
-/** Nächster Zeitpunkt: festes Datum, sonst heute bzw. morgen um die Uhrzeit. */
-export const nextOccurrence = (minutes: number | undefined, date: Date | undefined, now = Date.now()): Date | undefined => {
-  if (minutes == null && !date) return undefined;
-  const d = date ? new Date(date) : new Date(now);
-  d.setHours(Math.floor((minutes ?? 0) / 60), (minutes ?? 0) % 60, 0, 0);
-  if (!date && d.getTime() <= now) d.setDate(d.getDate() + 1);
-  return d;
-};
 
 @customElement("ha-switch-time-card")
 export class HaSwitchTimeCard extends LitElement {
