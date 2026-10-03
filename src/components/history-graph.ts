@@ -26,6 +26,8 @@ export class HistoryGraph extends LitElement {
   @property({ type: Number }) hours = 24;
   @property() emptyText = "";
   @property() unit = "";
+  /** Was gezeigt wird: Temperatur (Standard) oder Luftfeuchte (z.B. im Modus Entfeuchten). */
+  @property() metric: "temperature" | "humidity" = "temperature";
 
   @state() private _current: Point[] = [];
   @state() private _target: Point[] = [];
@@ -46,7 +48,7 @@ export class HistoryGraph extends LitElement {
   }
 
   protected updated(changed: PropertyValues): void {
-    const key = `${this.entity}|${this.sensor}|${this.hours}`;
+    const key = `${this.entity}|${this.sensor}|${this.hours}|${this.metric}`;
     if (this.hass && key !== this._key) {
       this._key = key;
       this._fetch();
@@ -82,12 +84,14 @@ export class HistoryGraph extends LitElement {
     const target: Point[] = [];
     const bands: Band[] = [];
     let lastAttrs: Record<string, any> = {};
+    const humidity = this.metric === "humidity";
+    const curAttr = humidity ? "current_humidity" : "current_temperature";
 
     climate.forEach((st, i) => {
       if (st.a) lastAttrs = st.a;
       const t = Math.max(st.lu * 1000, start);
-      const cur = Number(lastAttrs.current_temperature);
-      const tgt = Number(lastAttrs.temperature ?? lastAttrs.target_temp_high);
+      const cur = Number(lastAttrs[curAttr]);
+      const tgt = Number(humidity ? lastAttrs.humidity : lastAttrs.temperature ?? lastAttrs.target_temp_high);
       if (!this.sensor && Number.isFinite(cur)) current.push({ t, v: cur });
       if (Number.isFinite(tgt) && st.s !== "off") target.push({ t, v: tgt });
       else target.push({ t, v: NaN });
@@ -105,7 +109,7 @@ export class HistoryGraph extends LitElement {
       let sensorAttrs: Record<string, any> = {};
       for (const st of res[this.sensor] ?? []) {
         if (st.a) sensorAttrs = st.a;
-        const v = Number(isClimate ? sensorAttrs.current_temperature : st.s);
+        const v = Number(isClimate ? sensorAttrs[curAttr] : st.s);
         if (Number.isFinite(v)) current.push({ t: Math.max(st.lu * 1000, start), v });
       }
     }
@@ -148,6 +152,7 @@ export class HistoryGraph extends LitElement {
     const x = (t: number) => ((t - start) / (end - start)) * W;
     const y = (v: number) => H - ((v - lo) / (hi - lo)) * H;
     const last = this._current[this._current.length - 1];
+    const dec = this.metric === "humidity" ? 0 : 1;
     const pts = this._current.filter((p) => Number.isFinite(p.v));
     const area = pts.length > 1
       ? `${this._path(pts, x, y, false)} L ${x(pts[pts.length - 1].t).toFixed(1)} ${H} L ${x(pts[0].t).toFixed(1)} ${H} Z`
@@ -172,8 +177,8 @@ export class HistoryGraph extends LitElement {
           style="left:${((x(last.t) / W) * 100).toFixed(2)}%;top:${((y(last.v) / H) * 80).toFixed(1)}px"></span>` : nothing}
         <div class="labels">
           <span>-${this.hours}h</span>
-          <span>${minV.toFixed(1)}–${maxV.toFixed(1)}${this.unit}</span>
-          ${last ? html`<span>${last.v.toFixed(1)}${this.unit}</span>` : nothing}
+          <span>${minV.toFixed(dec)}–${maxV.toFixed(dec)}${this.unit}</span>
+          ${last ? html`<span>${last.v.toFixed(dec)}${this.unit}</span>` : nothing}
         </div>
       </div>`;
   }

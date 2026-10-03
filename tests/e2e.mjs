@@ -82,6 +82,42 @@ rendered >= 9 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Karte
   res.sleep ? ok("Sleeptimer-Zeile sichtbar") : fail("Sleeptimer fehlt");
 }
 
+// Sleeptimer: eigene Zeitauswahl (Stunde/Minute) statt nativem Zeitfeld
+{
+  const res = await p.evaluate(async () => {
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const timer = document.querySelector("#card0").shadowRoot.querySelector("hcc-sleep-timer").shadowRoot;
+    const before = window.serviceCalls.length;
+    timer.querySelector("button.time").click();
+    await wait(100);
+    const steps = timer.querySelectorAll(".step");
+    const press = (b) => { b.dispatchEvent(new PointerEvent("pointerdown", { button: 0, bubbles: true })); b.dispatchEvent(new PointerEvent("pointerup", { bubbles: true })); };
+    press(steps[1]); press(steps[1]); press(steps[3]);
+    await wait(1300);
+    const calls = window.serviceCalls.slice(before).filter((c) => c.service === "set_datetime");
+    return { editor: !!timer.querySelector(".editor"), calls: calls.map((c) => c.data.time) };
+  });
+  res.editor && res.calls.length === 1 && res.calls[0] === "01:35:00"
+    ? ok("Sleeptimer-Zeit per Stunde/Minute einstellbar (23:30 → 01:35, ein Befehl)")
+    : fail(`Zeitauswahl: ${JSON.stringify(res)}`);
+}
+
+// Entfeuchten: Verlauf zeigt Luftfeuchte
+{
+  const res = await p.evaluate(async () => {
+    const card = document.querySelector("#card1");
+    const bar = card.shadowRoot.querySelector("hcc-mode-bar");
+    bar.shadowRoot.querySelectorAll("button")[bar.modes.findIndex((m) => m.value === "dry")].click();
+    await new Promise((r) => setTimeout(r, 800));
+    const g = card.shadowRoot.querySelector("hcc-history-graph");
+    return { label: card.shadowRoot.querySelector(".graph-wrap .row-label").textContent, metric: g.metric,
+      unit: g.shadowRoot.querySelector(".labels span:last-child")?.textContent };
+  });
+  res.metric === "humidity" && res.label.includes("Luftfeuchte") && res.unit?.endsWith("%")
+    ? ok("Entfeuchten: Verlauf zeigt Luftfeuchte")
+    : fail(`Entfeuchten-Verlauf: ${JSON.stringify(res)}`);
+}
+
 // Moduswechsel: jede Karte, jeder Modus (außer Auto/Heizen-Kühlen, dort zählt die Tätigkeit)
 const colorFails = await p.evaluate(async () => {
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));

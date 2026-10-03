@@ -363,7 +363,9 @@ export class HaClimateCard extends LitElement {
   private _etaText(st: HassEntity): string | undefined {
     const goal = this._goal(st);
     const cur = this._currentTemp(st);
-    if (goal == null || cur == null || !this._isActive(st)) return undefined;
+    // Nur beim Heizen/Kühlen – beim Entfeuchten/Lüften ist eine Temperatur-Prognose irreführend
+    const action = this._action(st);
+    if (goal == null || cur == null || !["heating", "cooling", "preheating"].includes(action ?? "")) return undefined;
     const now = Date.now();
     const recent = this._samples.filter((p) => p.t >= now - 30 * 60000);
     const minutes = etaMinutes(cur, goal, trendSlope(recent));
@@ -883,7 +885,8 @@ export class HaClimateCard extends LitElement {
     if (show.timer && (this._config!.timer_switch || this._config!.timer_time)) {
       parts.push(html`<hcc-sleep-timer .hass=${hass} .switchEntity=${this._config!.timer_switch}
         .timeEntity=${this._config!.timer_time} .label=${this._t("card.sleep_timer")} .offText=${this._t("card.timer_off")}
-        .atText=${this._t("card.timer_at")} .inText=${this._t("card.timer_in")}></hcc-sleep-timer>`, "timer");
+        .atText=${this._t("card.timer_at")} .inText=${this._t("card.timer_in")}
+        .hourText=${this._t("card.hour")} .minuteText=${this._t("card.minute")} .doneText=${this._t("card.done")}></hcc-sleep-timer>`, "timer");
     }
 
     if (show.timer && this._config!.countdown_timer && hass.states[this._config!.countdown_timer]) {
@@ -917,11 +920,18 @@ export class HaClimateCard extends LitElement {
 
     const graphVisible = this._expanded || (this._config!.layout !== "compact" && this._config!.expandable === false);
     if (show.graph) {
+      // Beim Entfeuchten zeigt der Verlauf die Luftfeuchte statt der Temperatur
+      const humid = st.state === "dry";
+      const ext = this._externalTemp;
+      const graphSensor = humid
+        ? this._config!.humidity_sensor ?? (ext?.attributes.current_humidity != null ? ext.entity_id : undefined)
+        : ext?.entity_id;
       parts.push(html`<div class="graph-wrap">
-        <span class="row-label"><ha-icon icon="mdi:chart-line"></ha-icon>${this._t("card.history")}</span>
+        <span class="row-label"><ha-icon icon=${humid ? "mdi:water-percent" : "mdi:chart-line"}></ha-icon>${this._t("card.history")}${humid
+          ? ` · ${this._t("card.humidity")}` : ""}</span>
         ${this._graphLoaded || graphVisible ? html`<hcc-history-graph .hass=${hass} .entity=${st.entity_id}
-          .sensor=${this._externalTemp?.entity_id}
-          .hours=${this._config!.graph_hours ?? 24} .unit=${this._unit} .emptyText=${this._t("card.no_history")}
+          .sensor=${graphSensor} .metric=${humid ? "humidity" : "temperature"}
+          .hours=${this._config!.graph_hours ?? 24} .unit=${humid ? "%" : this._unit} .emptyText=${this._t("card.no_history")}
           style="--hcc-accent:${color}"></hcc-history-graph>` : html`<div class="graph-placeholder"></div>`}
       </div>`, "graph");
     }

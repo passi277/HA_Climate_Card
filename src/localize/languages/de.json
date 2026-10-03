@@ -48,7 +48,10 @@
     "contacts_open": "Fenster/Türen offen",
     "contacts": "Fenster & Türen",
     "open": "offen",
-    "closed": "geschlossen"
+    "closed": "geschlossen",
+    "hour": "Stunde",
+    "minute": "Minute",
+    "done": "Fertig"
   },
   "hvac_mode": {
     "off": "Aus",

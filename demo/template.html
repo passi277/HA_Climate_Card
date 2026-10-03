@@ -214,7 +214,7 @@
           for (let t = start, i = 0; t < end - 45 * 60; t += 1800, i++) {
             const cur = 23 + 2.5 * Math.sin(i / 7) + Math.random() * 0.3;
             arr.push(id.startsWith("climate")
-              ? { s: i > 40 ? "off" : "cool", lu: t, a: { current_temperature: +cur.toFixed(1), temperature: i < 20 ? 23 : 22, hvac_action: cur > 23.5 && i <= 40 ? "cooling" : "idle" } }
+              ? { s: i > 40 ? "off" : "cool", lu: t, a: { current_temperature: +cur.toFixed(1), current_humidity: Math.round(55 + 8 * Math.sin(i / 5)), humidity: 50, temperature: i < 20 ? 23 : 22, hvac_action: cur > 23.5 && i <= 40 ? "cooling" : "idle" } }
               : { s: (cur - 0.2).toFixed(1), lu: t });
           }
           // letzte 45 Minuten: dichter, Raum kühlt mit ca. 0,04 °/min ab (für die Ziel-Prognose)

@@ -48,7 +48,10 @@
     "contacts_open": "windows/doors open",
     "contacts": "Windows & doors",
     "open": "open",
-    "closed": "closed"
+    "closed": "closed",
+    "hour": "Hour",
+    "minute": "Minute",
+    "done": "Done"
   },
   "hvac_mode": {
     "off": "Off",

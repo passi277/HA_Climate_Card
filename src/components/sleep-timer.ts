@@ -18,9 +18,19 @@ export class SleepTimer extends LitElement {
   @property() offText = "Off";
   @property() atText = "Off at";
   @property() inText = "in";
+  @property() hourText = "Hour";
+  @property() minuteText = "Minute";
+  @property() doneText = "Done";
 
   @state() private _now = Date.now();
+  /** Zeitwahl geöffnet (eigene Auswahl statt <input type="time">, das in der HA-App nicht überall bedienbar ist). */
+  @state() private _editing = false;
+  /** Noch nicht übertragene Auswahl in Minuten seit Mitternacht. */
+  @state() private _pending?: number;
   private _tick?: number;
+  private _commitTimer?: number;
+  private _holdDelay?: number;
+  private _holdRepeat?: number;
 
   connectedCallback(): void {
     super.connectedCallback();
@@ -30,6 +40,23 @@ export class SleepTimer extends LitElement {
   disconnectedCallback(): void {
     super.disconnectedCallback();
     clearInterval(this._tick);
+    clearTimeout(this._commitTimer);
+    this._holdEnd();
+  }
+
+  protected updated(): void {
+    // Auswahl verwerfen, sobald Home Assistant den neuen Wert meldet
+    if (this._pending != null && this._pending === this._stateMinutes()) this._pending = undefined;
+  }
+
+  private _stateMinutes(): number | undefined {
+    const a = this._time?.attributes;
+    return a?.hour != null ? a.hour * 60 + (a.minute ?? 0) : undefined;
+  }
+
+  /** Angezeigte Zeit: eigene Auswahl, sonst Wert des Helfers. */
+  private get _minutes(): number {
+    return this._pending ?? this._stateMinutes() ?? 0;
   }
 
   private get _switch(): HassEntity | undefined {
@@ -45,17 +72,16 @@ export class SleepTimer extends LitElement {
     const t = this._time;
     if (!t) return undefined;
     const a = t.attributes;
-    if (a.has_date && a.timestamp) return new Date(a.timestamp * 1000);
-    if (a.hour == null || a.minute == null) return undefined;
+    if (this._pending == null && a.has_date && a.timestamp) return new Date(a.timestamp * 1000);
+    if (this._pending == null && (a.hour == null || a.minute == null)) return undefined;
     const d = new Date(this._now);
-    d.setHours(a.hour, a.minute, a.second ?? 0, 0);
+    d.setHours(Math.floor(this._minutes / 60), this._minutes % 60, 0, 0);
     if (d.getTime() <= this._now) d.setDate(d.getDate() + 1);
     return d;
   }
 
   private _timeValue(): string {
-    const a = this._time?.attributes;
-    return a?.hour != null ? `${pad(a.hour)}:${pad(a.minute ?? 0)}` : "";
+    return `${pad(Math.floor(this._minutes / 60))}:${pad(this._minutes % 60)}`;
   }
 
   private _remaining(target: Date): string {
@@ -71,21 +97,91 @@ export class SleepTimer extends LitElement {
     this.hass.callService("homeassistant", sw.state === "on" ? "turn_off" : "turn_on", { entity_id: sw.entity_id });
   }
 
-  private _setTime(ev: Event): void {
-    const value = (ev.target as HTMLInputElement).value;
+  /** Auswahl ändern und kurz verzögert an Home Assistant übertragen (sammelt schnelles Tippen). */
+  private _select(minutes: number): void {
+    this._pending = ((Math.round(minutes) % 1440) + 1440) % 1440;
+    window.dispatchEvent(new CustomEvent("haptic", { detail: "selection" }));
+    clearTimeout(this._commitTimer);
+    this._commitTimer = window.setTimeout(() => this._commit(), 900);
+  }
+
+  private _commit(): void {
+    clearTimeout(this._commitTimer);
     const t = this._time;
-    if (!value || !t || !this.hass) return;
+    if (this._pending == null || !t || !this.hass) return;
+    const h = Math.floor(this._pending / 60);
+    const m = this._pending % 60;
     const data: Record<string, unknown> = { entity_id: t.entity_id };
     if (t.attributes.has_date) {
-      const [h, m] = value.split(":").map(Number);
       const d = new Date();
       d.setHours(h, m, 0, 0);
       if (d.getTime() <= Date.now()) d.setDate(d.getDate() + 1);
       data.datetime = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(h)}:${pad(m)}:00`;
     } else {
-      data.time = `${value}:00`;
+      data.time = `${pad(h)}:${pad(m)}:00`;
     }
     this.hass.callService("input_datetime", "set_datetime", data);
+  }
+
+  /** Schnellwahl relativ zu jetzt, auf 5 Minuten gerundet. */
+  private _inMinutes(delta: number): void {
+    const now = new Date();
+    this._select(Math.round((now.getHours() * 60 + now.getMinutes() + delta) / 5) * 5);
+  }
+
+  private _holdStart(ev: PointerEvent, fn: () => void): void {
+    if (ev.button !== 0) return;
+    this._holdEnd();
+    fn();
+    this._holdDelay = window.setTimeout(() => (this._holdRepeat = window.setInterval(fn, 120)), 420);
+  }
+
+  private _holdEnd = (): void => {
+    clearTimeout(this._holdDelay);
+    clearInterval(this._holdRepeat);
+  };
+
+  private _stepButton(label: string, icon: string, fn: () => void) {
+    return html`<button class="step" aria-label=${label}
+      @pointerdown=${(e: PointerEvent) => this._holdStart(e, fn)} @pointerup=${this._holdEnd}
+      @pointerleave=${this._holdEnd} @pointercancel=${this._holdEnd} @contextmenu=${(e: Event) => e.preventDefault()}
+      @click=${(e: MouseEvent) => { if (e.detail === 0) fn(); }}><ha-icon icon=${icon}></ha-icon></button>`;
+  }
+
+  private _toggleEditor(): void {
+    if (this._editing) this._commit();
+    this._editing = !this._editing;
+  }
+
+  private _renderEditor() {
+    const h = Math.floor(this._minutes / 60);
+    const m = this._minutes % 60;
+    const quick = [30, 60, 120];
+    return html`<div class="editor">
+      <div class="pickers">
+        <div class="picker">
+          <span class="picker-label">${this.hourText}</span>
+          <div class="picker-row">
+            ${this._stepButton(`${this.hourText} -`, "mdi:minus", () => this._select(this._minutes - 60))}
+            <span class="picker-value">${pad(h)}</span>
+            ${this._stepButton(`${this.hourText} +`, "mdi:plus", () => this._select(this._minutes + 60))}
+          </div>
+        </div>
+        <span class="colon">:</span>
+        <div class="picker">
+          <span class="picker-label">${this.minuteText}</span>
+          <div class="picker-row">
+            ${this._stepButton(`${this.minuteText} -`, "mdi:minus", () => this._select(Math.ceil(this._minutes / 5) * 5 - 5))}
+            <span class="picker-value">${pad(m)}</span>
+            ${this._stepButton(`${this.minuteText} +`, "mdi:plus", () => this._select(Math.floor(this._minutes / 5) * 5 + 5))}
+          </div>
+        </div>
+      </div>
+      <div class="quick">
+        ${quick.map((q) => html`<button class="chip" @click=${() => this._inMinutes(q)}>${this.inText} ${q < 60 ? `${q} min` : `${q / 60} h`}</button>`)}
+        <button class="chip done" @click=${this._toggleEditor}>${this.doneText}</button>
+      </div>
+    </div>`;
   }
 
   private _moreInfo(entityId?: string): void {
@@ -98,9 +194,10 @@ export class SleepTimer extends LitElement {
     const armed = this._switch ? this._switch.state === "on" : true;
     const next = this._nextOff();
     const input = this._time
-      ? html`<input class="time" type="time" .value=${this._timeValue()} aria-label=${this.label} @change=${this._setTime} />`
+      ? html`<button class="time ${this._editing ? "editing" : ""} ${this._pending != null ? "pending" : ""}"
+          aria-label=${this.label} aria-expanded=${this._editing} @click=${this._toggleEditor}>${this._timeValue()}</button>`
       : nothing;
-    return html`<div class="timer ${armed ? "armed" : ""}">
+    return html`<div class="wrap ${armed ? "armed" : ""}"><div class="timer">
       <button class="badge" @click=${() => this._moreInfo(this.switchEntity ?? this.timeEntity)} aria-label=${this.label}>
         <ha-icon icon=${armed ? "mdi:sleep" : "mdi:sleep-off"}></ha-icon>
       </button>
@@ -113,16 +210,18 @@ export class SleepTimer extends LitElement {
       </div>
       ${this._switch ? html`<button class="switch ${armed ? "on" : ""}" role="switch" aria-checked=${armed}
         aria-label=${this.label} @click=${this._toggle}><span class="thumb"></span></button>` : nothing}
+    </div>
+    ${this._editing && this._time ? this._renderEditor() : nothing}
     </div>`;
   }
 
   static styles = css`
-    .timer {
-      display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: var(--hcc-inner-radius, 14px);
-      background: var(--hcc-chip-bg, rgba(127,127,127,0.12)); transition: background 0.3s;
-      --timer-color: var(--hcc-timer-color, #7e57c2);
+    .wrap {
+      border-radius: var(--hcc-inner-radius, 14px); background: var(--hcc-chip-bg, rgba(127,127,127,0.12));
+      transition: background 0.3s; --timer-color: var(--hcc-timer-color, #7e57c2);
     }
-    .timer.armed { background: color-mix(in srgb, var(--timer-color) 16%, transparent); }
+    .wrap.armed { background: color-mix(in srgb, var(--timer-color) 16%, transparent); }
+    .timer { display: flex; align-items: center; gap: 10px; padding: 8px 10px; }
     .badge { border: none; padding: 0; cursor: pointer; flex: none; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
       background: rgba(127,127,127,0.15); color: var(--secondary-text-color); }
     .armed .badge { background: var(--timer-color); color: #fff; }
@@ -132,12 +231,31 @@ export class SleepTimer extends LitElement {
     .status { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; font-size: 12px; color: var(--secondary-text-color); }
     .remaining { white-space: nowrap; }
     .time {
-      font: inherit; font-size: 13px; font-weight: 600; color: var(--primary-text-color); cursor: pointer;
+      font: inherit; font-size: 14px; font-weight: 700; color: var(--primary-text-color); cursor: pointer;
       background: var(--card-background-color, #fff); border: 1px solid var(--divider-color, rgba(127,127,127,0.3));
-      border-radius: 8px; padding: 1px 4px; color-scheme: light dark;
+      border-radius: 8px; padding: 2px 8px; font-variant-numeric: tabular-nums;
     }
-    .time::-webkit-calendar-picker-indicator { display: none; }
+    .time.editing { border-color: var(--timer-color); box-shadow: 0 0 0 2px color-mix(in srgb, var(--timer-color) 30%, transparent); }
+    .time.pending { color: var(--timer-color); }
     .time:focus-visible { outline: 2px solid var(--timer-color); outline-offset: 1px; }
+    .editor { padding: 4px 10px 12px; display: flex; flex-direction: column; gap: 10px; animation: open 0.3s cubic-bezier(0.22, 1, 0.36, 1); }
+    @keyframes open { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+    .pickers { display: flex; align-items: flex-end; justify-content: center; gap: 8px; }
+    .picker { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .picker-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--secondary-text-color); }
+    .picker-row { display: flex; align-items: center; gap: 4px; padding: 3px; border-radius: 999px; background: var(--card-background-color, #fff); }
+    .picker-value { min-width: 42px; text-align: center; font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--primary-text-color); }
+    .colon { font-size: 26px; font-weight: 600; padding-bottom: 8px; color: var(--secondary-text-color); }
+    .step { width: 38px; height: 38px; border-radius: 50%; border: none; cursor: pointer; background: transparent;
+      color: var(--timer-color); display: flex; align-items: center; justify-content: center; padding: 0;
+      touch-action: manipulation; user-select: none; -webkit-user-select: none; transition: background 0.2s, transform 0.2s; }
+    .step:hover { background: color-mix(in srgb, var(--timer-color) 18%, transparent); }
+    .step:active { transform: scale(0.88); }
+    .quick { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+    .chip { border: none; border-radius: 999px; padding: 7px 12px; font: inherit; font-size: 13px; cursor: pointer;
+      background: var(--card-background-color, #fff); color: var(--primary-text-color); }
+    .chip:hover { background: color-mix(in srgb, var(--timer-color) 18%, var(--card-background-color, #fff)); }
+    .chip.done { background: var(--timer-color); color: #fff; font-weight: 600; }
     .switch { flex: none; position: relative; width: 44px; height: 26px; border-radius: 13px; border: none; cursor: pointer;
       background: rgba(127,127,127,0.35); transition: background 0.2s; padding: 0; }
     .switch.on { background: var(--timer-color); }
