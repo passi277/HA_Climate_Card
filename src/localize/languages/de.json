@@ -1,0 +1,59 @@
+{
+  "card": {
+    "current": "Aktuell",
+    "target": "Ziel",
+    "humidity": "Luftfeuchte",
+    "target_humidity": "Ziel-Luftfeuchte",
+    "outdoor": "Außen",
+    "power": "Leistung",
+    "energy": "Energie",
+    "fan": "Lüfter",
+    "swing": "Lamellen",
+    "swing_horizontal": "Lamellen horizontal",
+    "preset": "Voreinstellung",
+    "mode": "Modus",
+    "history": "Verlauf",
+    "window_open": "Fenster offen",
+    "window_open_hint": "Ein Fenster ist geöffnet – Klimaanlage ggf. ausschalten.",
+    "unavailable": "Nicht verfügbar",
+    "entity_not_found": "Entität nicht gefunden",
+    "more": "Mehr",
+    "less": "Weniger",
+    "turn_on": "Einschalten",
+    "turn_off": "Ausschalten",
+    "no_history": "Keine Verlaufsdaten"
+  },
+  "hvac_mode": {
+    "off": "Aus", "heat": "Heizen", "cool": "Kühlen", "heat_cool": "Heizen/Kühlen",
+    "auto": "Automatisch", "dry": "Entfeuchten", "fan_only": "Nur Lüfter"
+  },
+  "hvac_action": {
+    "off": "Aus", "heating": "Heizt", "cooling": "Kühlt", "drying": "Entfeuchtet",
+    "idle": "Leerlauf", "fan": "Lüftet", "preheating": "Vorheizen", "defrosting": "Abtauen"
+  },
+  "editor": {
+    "entity": "Klima-Entität",
+    "name": "Name",
+    "icon": "Symbol",
+    "layout": "Layout",
+    "layout_full": "Voll (Drehregler)",
+    "layout_compact": "Kompakt (Kachel)",
+    "sections": "Sichtbare Bereiche",
+    "show_modes": "Betriebsmodi",
+    "show_fan": "Lüfterstufen",
+    "show_swing": "Lamellen",
+    "show_presets": "Voreinstellungen",
+    "show_humidity": "Ziel-Luftfeuchte",
+    "show_sensors": "Sensoren",
+    "show_graph": "Verlaufsgraph",
+    "sensors": "Zusätzliche Sensoren",
+    "temperature_sensor": "Raumtemperatur-Sensor",
+    "humidity_sensor": "Raumluftfeuchte-Sensor",
+    "outdoor_sensor": "Außentemperatur-Sensor",
+    "power_sensor": "Leistungssensor",
+    "energy_sensor": "Energiesensor",
+    "window_sensor": "Fenster-/Türkontakt",
+    "use_sensor_for_current": "Raumsensor als Ist-Temperatur verwenden",
+    "graph_hours": "Zeitraum Graph (Stunden)"
+  }
+}

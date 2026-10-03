@@ -1,0 +1,6 @@
+{
+  "name": "HA Climate Card",
+  "filename": "ha-climate-card.js",
+  "render_readme": true,
+  "homeassistant": "2024.8.0"
+}
