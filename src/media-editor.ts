@@ -55,6 +55,10 @@ export class HaMediaCardEditor extends LitElement {
         deviceSelect("control_device"),
         deviceSelect("volume_device"),
       ] }] : []),
+      { type: "expandable", name: "", flatten: true, title: this._t("timer_section"), icon: "mdi:sleep", schema: [
+        { name: "timer_switch", selector: { entity: { filter: { domain: ["input_boolean", "switch"] } } } },
+        { name: "timer_time", selector: { entity: { filter: { domain: "input_datetime" } } } },
+      ] },
       { type: "expandable", name: "", flatten: true, title: this._t("appearance"), icon: "mdi:palette-outline", schema: [
         { name: "expandable", selector: { boolean: {} } },
         { name: "start_expanded", selector: { boolean: {} } },

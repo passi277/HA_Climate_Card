@@ -299,6 +299,9 @@ export interface MediaCardConfig {
   control_device?: string;
   /** Harmony-Gerät für Lautstärke (sonst automatisch, z.B. Soundbar/AV-Receiver) */
   volume_device?: string;
+  /** Sleeptimer: Schalter (input_boolean/switch) + Ausschaltzeit (input_datetime), wie bei der Klima-Karte */
+  timer_switch?: string;
+  timer_time?: string;
   /** Eigene Befehlsnamen, z.B. { select: "OK", back: "Return" } */
   commands?: Record<string, string>;
   expandable?: boolean;

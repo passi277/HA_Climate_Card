@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.7.3
+- Medienkarte: **Sleeptimer** (`timer_switch` + `timer_time`, wie bei der Klima-Karte) für TV/Harmony
+- Medienkarte: Fernbedienung samt Umschalter auch bei ausgeschaltetem Hub (Harmony sendet Befehle trotzdem an die Geräte); Umschalter robuster
+
 ## 1.7.2
 - Schalter + Uhrzeit: `switch_style: button` – nur Symbol und Text, Tippen auf die Zeile schaltet (lange drücken = Details); an = Symbol leuchtet in der Akzentfarbe, Karte mit farbigem Rand
 

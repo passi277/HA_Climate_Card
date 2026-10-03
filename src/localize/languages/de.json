@@ -445,7 +445,10 @@
     "expandable": "Fernbedienung ausklappbar",
     "start_expanded": "Fernbedienung anfangs offen",
     "animations": "Animationen",
-    "hint": "Lautstärke geht automatisch an Soundbar/AV-Receiver, Steuerkreuz an das Gerät der laufenden Aktivität – im Abschnitt Harmony änderbar."
+    "hint": "Lautstärke geht automatisch an Soundbar/AV-Receiver, Steuerkreuz an das Gerät der laufenden Aktivität – im Abschnitt Harmony änderbar.",
+    "timer_section": "Sleeptimer",
+    "timer_switch": "Sleeptimer-Schalter (input_boolean/switch)",
+    "timer_time": "Ausschaltzeit (input_datetime)"
   },
   "room": {
     "title": "Raum",

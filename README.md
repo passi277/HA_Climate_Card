@@ -339,6 +339,8 @@ media_player: media_player.tv_wohnzimmer    # optional: Läuft gerade, Lautstär
 #     label: PlayStation
 #     control_device: Philips AV-Switch
 # commands: { select: OK }                  # abweichende Harmony-Befehlsnamen
+# timer_switch: input_boolean.schalter_tv   # Sleeptimer wie bei der Klima-Karte
+# timer_time: input_datetime.timer_tv
 ```
 
 ## Modern Room Header

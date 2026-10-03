@@ -9,6 +9,7 @@ import {
 } from "./utils";
 import "./components/gradient-slider";
 import "./components/attribute-select";
+import "./components/sleep-timer";
 import "./media-editor";
 
 const DEFAULT_MEDIA_SHOW: Required<MediaShowConfig> = { activities: true, remote: true, volume: true, now_playing: true, source: true };
@@ -153,7 +154,7 @@ export class HaMediaCard extends LitElement {
     if (!changed.has("hass") || changed.size > 1) return true;
     const old = changed.get("hass") as HomeAssistant | undefined;
     if (!old || !this._config) return true;
-    const ids = [this._config.entity, this._config.media_player].filter(Boolean) as string[];
+    const ids = [this._config.entity, this._config.media_player, this._config.timer_switch, this._config.timer_time].filter(Boolean) as string[];
     return ids.some((id) => old.states[id] !== this.hass!.states[id]) || old.locale !== this.hass!.locale;
   }
 
@@ -385,7 +386,8 @@ export class HaMediaCard extends LitElement {
   }
 
   private _renderExpand() {
-    return html`<button class="remote-toggle ${this._expanded ? "open" : ""}" @click=${this._toggleRemote} aria-expanded=${this._expanded}>
+    return html`<button type="button" class="remote-toggle ${this._expanded ? "open" : ""}" aria-expanded=${this._expanded}
+      @click=${(e: Event) => { e.stopPropagation(); this._toggleRemote(); }}>
       <ha-icon icon="mdi:remote"></ha-icon>
       <span>${this._t(this._expanded ? "media.remote_hide" : "media.remote_show")}</span>
       <ha-icon class="chevron" icon="mdi:chevron-down"></ha-icon>
@@ -412,7 +414,8 @@ export class HaMediaCard extends LitElement {
         : current ?? (m && mediaOn ? (m.attributes.media_title ? `${this._t(`media.state_${m.state}`)} · ${m.attributes.media_title}` : this._t(`media.state_${m.state}`)) : this._t("media.off"));
     const name = c.name ?? main.attributes.friendly_name ?? c.entity;
     const compact = c.layout === "compact";
-    const remote = show.remote && r && on ? this._renderRemote() : nothing;
+    // Fernbedienung auch bei ausgeschaltetem Hub – Harmony sendet Befehle trotzdem an die Geräte
+    const remote = show.remote && r && !unavailable ? this._renderRemote() : nothing;
     const expandable = c.expandable !== false && remote !== nothing;
     return html`<ha-card class="media-card ${compact ? "compact" : "full"} ${on ? "active" : "off"} anim-${c.animations ?? "full"}"
       style="--hcc-accent-c:${color};--hcc-accent:var(--accent)">
@@ -439,6 +442,10 @@ export class HaMediaCard extends LitElement {
         ? html`${this._renderExpand()}
                <div class="collapsible ${this._expanded ? "open" : ""}" ?inert=${!this._expanded}><div class="collapsible-inner">${remote}</div></div>`
         : remote}
+      ${c.timer_switch || c.timer_time ? html`<hcc-sleep-timer .hass=${this.hass} .switchEntity=${c.timer_switch} .timeEntity=${c.timer_time}
+        .label=${this._t("card.sleep_timer")} .offText=${this._t("card.timer_off")} .atText=${this._t("card.timer_at")}
+        .inText=${this._t("card.timer_in")} .hourText=${this._t("card.hour")} .minuteText=${this._t("card.minute")}
+        .doneText=${this._t("card.done")}></hcc-sleep-timer>` : nothing}
     </ha-card>`;
   }
 

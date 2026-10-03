@@ -445,7 +445,10 @@
     "expandable": "Remote collapsible",
     "start_expanded": "Remote initially open",
     "animations": "Animations",
-    "hint": "Volume goes to the soundbar/AV receiver automatically, the d-pad to the device of the running activity – changeable in the Harmony section."
+    "hint": "Volume goes to the soundbar/AV receiver automatically, the d-pad to the device of the running activity – changeable in the Harmony section.",
+    "timer_section": "Sleep timer",
+    "timer_switch": "Sleep timer switch (input_boolean/switch)",
+    "timer_time": "Off time (input_datetime)"
   },
   "room": {
     "title": "Room",

@@ -519,6 +519,30 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
     ? ok("Schalter als Button: nur Symbol + Text, Tippen schaltet") : fail(`Button-Modus: ${JSON.stringify(res)}`);
 }
 
+// Medien: Sleeptimer, Fernbedienung auch bei ausgeschaltetem Hub
+{
+  const res = await p.evaluate(async () => {
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const card = document.querySelector("ha-media-card");
+    const root = card.shadowRoot;
+    const timer = root.querySelector("hcc-sleep-timer");
+    const timerLabel = timer?.shadowRoot.querySelector(".label")?.textContent.trim();
+    const before = window.serviceCalls.length;
+    timer.shadowRoot.querySelector(".switch").click();
+    await wait(200);
+    const timerCall = window.serviceCalls.slice(before).map((c) => `${c.domain}.${c.service}:${c.data.entity_id}`)[0];
+    root.querySelector(".header .power").click();
+    await wait(400);
+    const offToggle = !!root.querySelector(".remote-toggle");
+    root.querySelector(".header .power").click();
+    await wait(1200);
+    return { timerLabel, timerCall, offToggle };
+  });
+  res.timerLabel === "Sleeptimer" && /^homeassistant\.turn_(on|off):input_boolean\.timer_klima_pascal$/.test(res.timerCall ?? "")
+    ? ok("Medien: Sleeptimer (Schalter + Uhrzeit) in der Medienkarte") : fail(`Media-Sleeptimer: ${JSON.stringify(res)}`);
+  res.offToggle ? ok("Medien: Fernbedienung auch bei ausgeschaltetem Hub ein-/ausklappbar") : fail("Fernbedienung fehlt bei Hub aus");
+}
+
 // Moduswechsel: jede Karte, jeder Modus (außer Auto/Heizen-Kühlen, dort zählt die Tätigkeit)
 const colorFails = await p.evaluate(async () => {
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
