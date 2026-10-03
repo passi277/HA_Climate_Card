@@ -259,6 +259,8 @@ export interface SwitchTimeCardConfig {
   minute_step?: number;
   /** „in 7:12 h“ anzeigen (Standard an) */
   show_remaining?: boolean;
+  /** toggle = Kippschalter rechts (Standard), button = ganze Zeile ist der Schalter (nur Symbol + Text) */
+  switch_style?: "toggle" | "button";
   animations?: "full" | "reduced" | "off";
 }
 

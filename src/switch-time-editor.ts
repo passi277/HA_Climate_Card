@@ -33,6 +33,10 @@ export class HaSwitchTimeCardEditor extends LitElement {
         ] } } },
         { name: "minute_step", selector: { select: { mode: "dropdown", options: ["1", "5", "10", "15"].map((v) => ({ value: v, label: `${v} min` })) } } },
       ] },
+      { name: "switch_style", selector: { select: { mode: "box", options: [
+        { value: "toggle", label: this._t("style_toggle") },
+        { value: "button", label: this._t("style_button") },
+      ] } } },
       { name: "show_remaining", selector: { boolean: {} } },
     ];
   }
@@ -48,13 +52,14 @@ export class HaSwitchTimeCardEditor extends LitElement {
     }
     if (config.minute_step === 5) delete config.minute_step;
     if (config.show_remaining === true) delete config.show_remaining;
+    if (config.switch_style === "toggle") delete config.switch_style;
     this._config = config;
     this.dispatchEvent(new CustomEvent("config-changed", { detail: { config }, bubbles: true, composed: true }));
   }
 
   protected render() {
     if (!this.hass || !this._config) return nothing;
-    const data = { show_remaining: true, color: "", ...this._config, minute_step: String(this._config.minute_step ?? 5) };
+    const data = { show_remaining: true, color: "", switch_style: "toggle", ...this._config, minute_step: String(this._config.minute_step ?? 5) };
     return html`<ha-form .hass=${this.hass} .data=${data} .schema=${this._schema()}
       .computeLabel=${this._computeLabel} @value-changed=${this._valueChanged}></ha-form>
       <p class="hint">${this._t("hint")}</p>

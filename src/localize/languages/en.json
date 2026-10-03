@@ -385,7 +385,10 @@
     "color_green": "Green",
     "minute_step": "Minute steps",
     "show_remaining": "Show remaining time (\"in 7:12 h\")",
-    "hint": "What happens at that time is handled by an automation (e.g. a \"time\" trigger using the input_datetime, condition: switch on)."
+    "hint": "What happens at that time is handled by an automation (e.g. a \"time\" trigger using the input_datetime, condition: switch on).",
+    "switch_style": "Switch style",
+    "style_toggle": "Toggle",
+    "style_button": "Icon + text only (tap toggles)"
   },
   "media": {
     "activities": "Activities",

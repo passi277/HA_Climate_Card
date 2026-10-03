@@ -308,6 +308,7 @@ time_entity: input_datetime.weckzeit
 # color: "#ffb300"        # Akzentfarbe
 # minute_step: 1          # Standard 5
 # show_remaining: false   # „in 7:12 h“ ausblenden
+# switch_style: button    # nur Symbol + Text, Tippen schaltet (statt Kippschalter)
 ```
 
 Was zur eingestellten Zeit passiert, regelt eine Automation (Auslöser „Zeit“ mit dem `input_datetime`,

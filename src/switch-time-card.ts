@@ -176,10 +176,14 @@ export class HaSwitchTimeCard extends LitElement {
     if (on && next && !past && c.show_remaining !== false) statusParts.push(`${this._t("switch_time.in")} ${this._remaining(next)}`);
     if (past) statusParts.push(this._t("switch_time.past"));
     const pending = this._pendingMinutes != null || !!this._pendingDate;
-    return html`<ha-card class="switch-time compact ${on ? "active" : "off"} anim-${anim}" style="--hcc-accent-c:${on ? color : "var(--state-inactive-color, #8a8a8a)"};--hcc-timer-color:${color}">
+    // „button“: ganze Kopfzeile ist der Schalter (Symbol + Text), kein Kippschalter
+    const buttonMode = !!sw && c.switch_style === "button";
+    return html`<ha-card class="switch-time compact ${on ? "active" : "off"} ${buttonMode ? "button-mode" : ""} anim-${anim}" style="--hcc-accent-c:${on ? color : "var(--state-inactive-color, #8a8a8a)"};--hcc-timer-color:${color}">
       <div class="glow"><span class="blob b1"></span><span class="blob b2"></span></div>
       <div class="header">
-        <button class="title" @click=${() => this._moreInfo(c.switch_entity ?? c.time_entity)}>
+        <button class="title" aria-pressed=${buttonMode ? on : nothing}
+          @click=${() => (buttonMode ? this._toggle() : this._moreInfo(c.switch_entity ?? c.time_entity))}
+          @contextmenu=${(e: Event) => { e.preventDefault(); this._moreInfo(c.switch_entity ?? c.time_entity); }}>
           <span class="icon-badge ${on ? "lit" : ""}">
             <ha-icon .icon=${c.icon ?? sw?.attributes.icon ?? (on ? "mdi:alarm" : "mdi:alarm-off")}></ha-icon>
           </span>
@@ -188,7 +192,7 @@ export class HaSwitchTimeCard extends LitElement {
             <span class="status">${unavailable ? this._t("card.unavailable") : statusParts.filter(Boolean).join(" · ")}</span>
           </span>
         </button>
-        ${sw ? html`<button class="switch ${on ? "on" : ""}" role="switch" aria-checked=${on} aria-label=${name}
+        ${sw && !buttonMode ? html`<button class="switch ${on ? "on" : ""}" role="switch" aria-checked=${on} aria-label=${name}
           ?disabled=${UNAVAILABLE.includes(sw.state)} @click=${this._toggle}><span class="thumb"></span></button>` : nothing}
       </div>
       ${t ? html`<button class="clock ${this._editing ? "editing" : ""} ${pending ? "pending" : ""}" aria-expanded=${this._editing}
@@ -222,6 +226,14 @@ export class HaSwitchTimeCard extends LitElement {
     ha-card.switch-time .blob { opacity: 0.45; animation-play-state: paused; }
     ha-card.switch-time.off .blob { opacity: 0.2; }
     .icon-badge.lit { box-shadow: 0 0 16px color-mix(in srgb, var(--accent) 50%, transparent); }
+    ha-card.button-mode { transition: background 0.4s, box-shadow 0.4s; }
+    ha-card.button-mode .title { flex: 1; cursor: pointer; border-radius: var(--hcc-inner-radius, 14px); transition: transform 0.2s var(--ease-spring); }
+    ha-card.button-mode .title:active { transform: scale(0.97); }
+    ha-card.button-mode.active { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--hcc-timer-color) 40%, transparent); }
+    ha-card.button-mode .icon-badge { transition: background 0.4s, color 0.4s, box-shadow 0.4s; }
+    ha-card.button-mode.active .icon-badge { background: var(--hcc-timer-color); color: #fff;
+      box-shadow: 0 4px 16px color-mix(in srgb, var(--hcc-timer-color) 50%, transparent); }
+    ha-card.button-mode.off .icon-badge { background: rgba(127,127,127,0.15); color: var(--secondary-text-color); }
     .switch { flex: none; position: relative; width: 52px; height: 30px; border-radius: 15px; border: none; cursor: pointer; padding: 0;
       background: rgba(127,127,127,0.35); transition: background 0.3s, box-shadow 0.3s; }
     .switch.on { background: var(--hcc-timer-color); box-shadow: 0 4px 14px color-mix(in srgb, var(--hcc-timer-color) 40%, transparent); }

@@ -505,6 +505,20 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
     : fail(`Einzellampe: ${JSON.stringify(res)}`);
 }
 
+// Schalter als Button: kein Kippschalter, Tippen auf Symbol/Text schaltet
+{
+  const res = await p.evaluate(async () => {
+    const card = [...document.querySelectorAll("ha-switch-time-card")].find((c) => c._config.switch_style === "button").shadowRoot;
+    const before = window.serviceCalls.length;
+    card.querySelector(".title").click();
+    await new Promise((r) => setTimeout(r, 200));
+    return { toggle: !!card.querySelector(".switch"), cls: card.querySelector("ha-card").className,
+      calls: window.serviceCalls.slice(before).map((c) => `${c.domain}.${c.service}`) };
+  });
+  !res.toggle && /button-mode/.test(res.cls) && res.calls.length === 1 && /^homeassistant\.turn_(on|off)$/.test(res.calls[0])
+    ? ok("Schalter als Button: nur Symbol + Text, Tippen schaltet") : fail(`Button-Modus: ${JSON.stringify(res)}`);
+}
+
 // Moduswechsel: jede Karte, jeder Modus (außer Auto/Heizen-Kühlen, dort zählt die Tätigkeit)
 const colorFails = await p.evaluate(async () => {
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));

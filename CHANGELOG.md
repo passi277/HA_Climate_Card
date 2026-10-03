@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.7.2
+- Schalter + Uhrzeit: `switch_style: button` – nur Symbol und Text, Tippen auf die Zeile schaltet (lange drücken = Details); an = Symbol leuchtet in der Akzentfarbe, Karte mit farbigem Rand
+
 ## 1.7.1
 - Light Card: Lampen einer Gruppe sind jetzt **einzeln steuerbar** – je Lampe Ein/Aus, leuchtender Helligkeitsregler und über ⚙ Weißton/Farbe/Effekt (nur was die Lampe kann). `lights_layout: tiles` zeigt wie bisher kompakte Ein/Aus-Kacheln
 - Lampenzeile als gemeinsame Komponente für Light Card und Licht-Gruppe

@@ -385,7 +385,10 @@
     "color_green": "Grün",
     "minute_step": "Minutenschritte",
     "show_remaining": "Restzeit anzeigen („in 7:12 h“)",
-    "hint": "Was beim Erreichen der Zeit passiert, regelt eine Automation (z.B. Auslöser „Zeit“ mit dem input_datetime, Bedingung: Schalter an)."
+    "hint": "Was beim Erreichen der Zeit passiert, regelt eine Automation (z.B. Auslöser „Zeit“ mit dem input_datetime, Bedingung: Schalter an).",
+    "switch_style": "Darstellung des Schalters",
+    "style_toggle": "Kippschalter",
+    "style_button": "Nur Symbol + Text (Tippen schaltet)"
   },
   "media": {
     "activities": "Aktivitäten",
