@@ -780,6 +780,17 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
     ? ok("Schalter + Uhrzeit: time.*-Entität lesen und per time.set_value setzen") : fail(`time-Entität: ${JSON.stringify(res)}`);
 }
 
+// Status: Einkaufsliste nach Batterietyp + „gewechselt vor …“
+{
+  const res = await p.evaluate(() => {
+    const root = document.querySelector("ha-status-card").shadowRoot;
+    return { shop: [...root.querySelectorAll(".shop-item .shop-qty")].map((x) => x.textContent.trim()),
+      small: [...root.querySelectorAll(".b-name small")].map((x) => x.textContent.trim()) };
+  });
+  res.shop.join() === "2× AA" && res.small.some((x) => /2× AAA · gewechselt vor 12 Tagen/.test(x)) && res.small.some((x) => /gewechselt \d\d\/\d{4}/.test(x))
+    ? ok("Status: Einkaufsliste (2× AA) und „gewechselt vor …“") : fail(`Status Einkaufsliste: ${JSON.stringify(res)}`);
+}
+
 // Moduswechsel: jede Karte, jeder Modus (außer Auto/Heizen-Kühlen, dort zählt die Tätigkeit)
 const colorFails = await p.evaluate(async () => {
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));

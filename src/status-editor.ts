@@ -25,7 +25,11 @@ export class HaStatusCardEditor extends LitElement {
       { name: "threshold", selector: { number: { min: 5, max: 60, step: 5, mode: "box", unit_of_measurement: "%" } } },
       { name: "contacts", selector: { entity: { multiple: true, filter: { domain: "binary_sensor" } } } },
       { name: "navigation_path", selector: { navigation: {} } },
-      { name: "expanded", selector: { boolean: {} } },
+      { type: "grid", name: "", schema: [
+        { name: "expanded", selector: { boolean: {} } },
+        { name: "shopping_list", selector: { boolean: {} } },
+        { name: "show_replaced", selector: { boolean: {} } },
+      ] },
     ];
   }
 
@@ -45,13 +49,16 @@ export class HaStatusCardEditor extends LitElement {
       if (v === "" || v == null || (Array.isArray(v) && !v.length)) delete config[key];
     }
     if (config.threshold === 20) delete config.threshold;
+    if (config.show_replaced === true) delete config.show_replaced;
+    if (config.expanded === false) delete config.expanded;
+    if (config.shopping_list === false) delete config.shopping_list;
     this._config = config;
     this.dispatchEvent(new CustomEvent("config-changed", { detail: { config }, bubbles: true, composed: true }));
   }
 
   protected render() {
     if (!this.hass || !this._config) return nothing;
-    const data = { threshold: 20, ...this._config, contacts: this._config.contacts?.map((e) => (typeof e === "string" ? e : e.entity)) };
+    const data = { threshold: 20, show_replaced: true, ...this._config, contacts: this._config.contacts?.map((e) => (typeof e === "string" ? e : e.entity)) };
     return html`<ha-form .hass=${this.hass} .data=${data} .schema=${this._schema()}
       .computeLabel=${this._computeLabel} @value-changed=${this._valueChanged}></ha-form>
       <p class="hint">${this._t("hint")}</p>

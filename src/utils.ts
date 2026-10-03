@@ -653,6 +653,11 @@ export interface BatteryInfo {
   low: boolean;
   /** z.B. „2× AA“ (Battery Notes) */
   type?: string;
+  /** Batterietyp ohne Anzahl („AA“) und Anzahl (Battery Notes) */
+  kind?: string;
+  quantity?: number;
+  /** Letzter Batteriewechsel (Battery Notes) */
+  replaced?: Date;
 }
 
 /** Ein Batterie-Sensor → Info. Schwach bei < threshold oder wenn Battery Notes/binary_sensor „low“ meldet. */
@@ -671,7 +676,32 @@ export const batteryInfo = (states: Record<string, HassEntity>, st: HassEntity, 
     const short = name.replace(new RegExp(`\\s*${word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*`, "i"), " ").trim();
     if (short) name = short;
   }
-  return { entity: st.entity_id, name, level, low, type: a.battery_type_and_quantity ?? a.battery_type ?? undefined };
+  const replaced = a.battery_last_replaced ? new Date(a.battery_last_replaced) : undefined;
+  return { entity: st.entity_id, name, level, low, type: a.battery_type_and_quantity ?? a.battery_type ?? undefined,
+    kind: a.battery_type ?? undefined, quantity: a.battery_quantity != null ? Number(a.battery_quantity) : undefined,
+    replaced: replaced && !Number.isNaN(replaced.getTime()) ? replaced : undefined };
+};
+
+export interface ShoppingItem {
+  kind: string;
+  count: number;
+  names: string[];
+}
+
+/** Einkaufsliste: schwache Batterien nach Typ gruppiert („3× CR2450“). */
+export const batteryShoppingList = (batteries: BatteryInfo[]): ShoppingItem[] => {
+  const map = new Map<string, ShoppingItem>();
+  for (const b of batteries.filter((x) => x.low)) {
+    const parsed = /^(\d+)\s*[×x]\s*(.+)$/i.exec(b.type ?? "");
+    const kind = b.kind ?? parsed?.[2] ?? b.type;
+    if (!kind) continue;
+    const qty = b.quantity ?? (parsed ? Number(parsed[1]) : 1);
+    const item = map.get(kind) ?? { kind, count: 0, names: [] };
+    item.count += qty;
+    item.names.push(b.name);
+    map.set(kind, item);
+  }
+  return [...map.values()].sort((a, b) => a.kind.localeCompare(b.kind));
 };
 
 /**

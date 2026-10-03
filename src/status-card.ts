@@ -4,7 +4,7 @@ import type { HomeAssistant, StatusCardConfig } from "./types";
 import { localize } from "./localize/localize";
 import { cardStyles } from "./styles";
 import { DOCS_URL } from "./shared";
-import { areaBatteries, batteryInfo, resolveContacts, UNAVAILABLE, type BatteryInfo } from "./utils";
+import { areaBatteries, batteryInfo, batteryShoppingList, resolveContacts, UNAVAILABLE, type BatteryInfo } from "./utils";
 import "./status-editor";
 
 (window as any).customCards = (window as any).customCards || [];
@@ -89,6 +89,27 @@ export class HaStatusCard extends LitElement {
       .sort((a, b) => Number(b.low) - Number(a.low) || (a.level ?? 101) - (b.level ?? 101) || a.name.localeCompare(b.name));
   }
 
+  /** „gewechselt vor 12 Tagen“ bzw. „gewechselt 03/2025“ */
+  private _replaced(d?: Date): string {
+    if (!d || this._config?.show_replaced === false) return "";
+    const days = Math.floor((Date.now() - d.getTime()) / 86_400_000);
+    if (days <= 0) return this._t("status.replaced_today");
+    if (days < 60) return this._t("status.replaced_days").replace("{n}", String(days));
+    return this._t("status.replaced_month").replace("{m}", `${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`);
+  }
+
+  private _renderShopping(batteries: BatteryInfo[]) {
+    if (!this._config!.shopping_list) return nothing;
+    const items = batteryShoppingList(batteries);
+    return html`<div class="shopping">
+      <span class="shop-title"><ha-icon icon="mdi:cart-outline"></ha-icon>${this._t("status.shopping_list")}</span>
+      ${items.length ? items.map((i) => html`<div class="shop-item">
+          <span class="shop-qty">${i.count}× ${i.kind}</span>
+          <span class="shop-names">${i.names.join(" · ")}</span>
+        </div>`) : html`<span class="shop-empty">${this._t("status.shopping_empty")}</span>`}
+    </div>`;
+  }
+
   private _moreInfo(entityId: string): void {
     this.dispatchEvent(new CustomEvent("hass-more-info", { detail: { entityId }, bubbles: true, composed: true }));
   }
@@ -139,12 +160,13 @@ export class HaStatusCard extends LitElement {
           ${batteries.map((b) => {
             const col = levelColor(b, threshold);
             return html`<button class="battery ${b.low ? "low" : ""}" style="--bc:${col}" @click=${() => this._moreInfo(b.entity)}>
-              <span class="b-name"><span>${b.name}</span>${b.type ? html`<small>${b.type}</small>` : nothing}</span>
+              <span class="b-name"><span>${b.name}</span>${b.type || b.replaced ? html`<small>${[b.type, this._replaced(b.replaced)].filter(Boolean).join(" · ")}</small>` : nothing}</span>
               <span class="b-bar"><span style="width:${b.level ?? (b.low ? 10 : 100)}%"></span></span>
               <span class="b-value">${b.level != null ? `${b.level} %` : this._t(b.low ? "status.low" : "status.ok")}</span>
             </button>`;
           })}
         </div></div></div>` : nothing}
+      ${batteries.length ? this._renderShopping(batteries) : nothing}
     </ha-card>`;
   }
 
@@ -178,6 +200,15 @@ export class HaStatusCard extends LitElement {
     .b-name small { font-size: 11px; color: var(--secondary-text-color); }
     .b-bar { height: 6px; border-radius: 3px; background: rgba(127,127,127,0.2); overflow: hidden; }
     .b-bar span { display: block; height: 100%; border-radius: inherit; background: var(--bc); transition: width 0.6s var(--ease-out); }
+    .shopping { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: var(--hcc-inner-radius, 14px);
+      background: rgba(127,127,127,0.07); }
+    .shop-title { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+      color: var(--secondary-text-color); }
+    .shop-title ha-icon { --mdc-icon-size: 16px; }
+    .shop-item { display: flex; flex-direction: column; gap: 1px; }
+    .shop-qty { font-size: 15px; font-weight: 700; }
+    .shop-names { font-size: 12px; color: var(--secondary-text-color); line-height: 1.35; }
+    .shop-empty { font-size: 13px; color: var(--secondary-text-color); }
     .b-value { font-size: 13px; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; color: var(--bc); }
   `];
 }

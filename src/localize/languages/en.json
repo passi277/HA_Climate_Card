@@ -512,7 +512,12 @@
     "closed": "Closed",
     "unknown": "Unknown",
     "show_list": "Show all",
-    "hide_list": "Hide list"
+    "hide_list": "Hide list",
+    "shopping_list": "Shopping list",
+    "shopping_empty": "No batteries needed right now 👍",
+    "replaced_today": "replaced today",
+    "replaced_days": "replaced {n} days ago",
+    "replaced_month": "replaced {m}"
   },
   "status_editor": {
     "title": "Title",
@@ -522,7 +527,9 @@
     "contacts": "Door/window contacts",
     "navigation_path": "Tap opens page",
     "expanded": "Battery list initially open",
-    "hint": "Areas: one battery sensor per device (Battery Notes preferred, incl. battery type like \"2× AA\")."
+    "hint": "Areas: one battery sensor per device (Battery Notes preferred, incl. battery type like \"2× AA\").",
+    "shopping_list": "Shopping list by battery type",
+    "show_replaced": "Show \"replaced … ago\""
   },
   "vacuum": {
     "rooms": "Rooms",

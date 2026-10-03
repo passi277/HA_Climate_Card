@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.12.0 – Batterie-Einkaufsliste
+- Status Card: **Einkaufsliste** (`shopping_list: true`) – schwache Batterien nach Typ gruppiert und summiert („2× AA – Heizkörperthermostat“), aus Battery Notes
+- Status Card: „**gewechselt vor 12 Tagen**“ bzw. „gewechselt 08/2025“ je Batterie (Battery Notes, `show_replaced: false` blendet es aus)
+
 ## 1.11.2
 - Schalter + Uhrzeit: auch **`time.*`-Entitäten** (z.B. Roborock „Bitte nicht stören Beginn“) – lesen und per `time.set_value` setzen
 - Saugroboter: `maintenance_sensors` – weitere Verbrauchsteile, z.B. die der Station (Dock-Bürste, Schmutzfänger), erscheinen in der Wartung

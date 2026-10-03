@@ -376,6 +376,10 @@ export interface StatusCardConfig {
   navigation_path?: string;
   /** Batterieliste anfangs offen */
   expanded?: boolean;
+  /** Einkaufsliste: schwache Batterien nach Typ gruppiert (Battery Notes) */
+  shopping_list?: boolean;
+  /** „gewechselt vor … Tagen“ anzeigen (Battery Notes, Standard an) */
+  show_replaced?: boolean;
   animations?: "full" | "reduced" | "off";
 }
 

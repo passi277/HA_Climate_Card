@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { HassEntity } from "../src/types";
 import {
-  alertActive, clockMinutes, upcomingPickups, wasteStyle, batteryIcon, doorDevices, doorKind, initials, isCharging, phoneSensors, brightnessPct, contactType, calibrationTransform, roomsFromMap, roomIcon, areaBatteries, batteryInfo, presetActive, presetData, DEFAULT_LIGHT_PRESETS, activityIcon, activityLabel, guessControlDevice, guessVolumeDevice, coverIcon, datetimeParts, nextOccurrence, coverPosition, skyPhase, sunPlacement, weatherOverlay, editorOptions, isNoEffect, lightEditorOptions, segmentIds, detectDeviceType, kelvinToRgb, lightColor, relatedScenes, supportsColor, supportsColorTemp, dewPoint, nextSwitch, parseSchedule, scheduleTempAt, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
+  alertActive, batteryShoppingList, clockMinutes, upcomingPickups, wasteStyle, batteryIcon, doorDevices, doorKind, initials, isCharging, phoneSensors, brightnessPct, contactType, calibrationTransform, roomsFromMap, roomIcon, areaBatteries, batteryInfo, presetActive, presetData, DEFAULT_LIGHT_PRESETS, activityIcon, activityLabel, guessControlDevice, guessVolumeDevice, coverIcon, datetimeParts, nextOccurrence, coverPosition, skyPhase, sunPlacement, weatherOverlay, editorOptions, isNoEffect, lightEditorOptions, segmentIds, detectDeviceType, kelvinToRgb, lightColor, relatedScenes, supportsColor, supportsColorTemp, dewPoint, nextSwitch, parseSchedule, scheduleTempAt, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
   openContactsKey, powerOf, resolveContacts, secondsToDuration, stateIcon, temperatureOf, temperatureTint, trendSlope,
 } from "../src/utils";
 import { formatAttribute, localize } from "../src/localize/localize";
@@ -487,5 +487,17 @@ describe("time entities", () => {
   it("reads time.* state as minutes", () => {
     expect(datetimeParts(entity("time.dnd_start", "22:30:00"))).toEqual({ minutes: 1350, hasTime: true, hasDate: false });
     expect(datetimeParts(entity("time.dnd_start", "unknown")).minutes).toBeUndefined();
+  });
+});
+
+describe("battery shopping list", () => {
+  it("groups low batteries by type and sums quantities", () => {
+    const list = batteryShoppingList([
+      { entity: "a", name: "Schalter Küche", low: true, type: "CR2450", kind: "CR2450", quantity: 1 },
+      { entity: "b", name: "Heizkörper Pascal", low: true, type: "2× AA" },
+      { entity: "c", name: "Heizkörper Bad", low: true, type: "2× AA" },
+      { entity: "d", name: "Wandthermostat", low: false, type: "2× AAA" },
+    ]);
+    expect(list).toEqual([{ kind: "AA", count: 4, names: ["Heizkörper Pascal", "Heizkörper Bad"] }, { kind: "CR2450", count: 1, names: ["Schalter Küche"] }]);
   });
 });

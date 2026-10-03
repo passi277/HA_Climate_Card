@@ -512,7 +512,12 @@
     "closed": "Zu",
     "unknown": "Unbekannt",
     "show_list": "Alle anzeigen",
-    "hide_list": "Liste ausblenden"
+    "hide_list": "Liste ausblenden",
+    "shopping_list": "Einkaufsliste",
+    "shopping_empty": "Aktuell wird keine Batterie benötigt 👍",
+    "replaced_today": "heute gewechselt",
+    "replaced_days": "gewechselt vor {n} Tagen",
+    "replaced_month": "gewechselt {m}"
   },
   "status_editor": {
     "title": "Titel",
@@ -522,7 +527,9 @@
     "contacts": "Tür-/Fensterkontakte",
     "navigation_path": "Tippen öffnet Seite",
     "expanded": "Batterieliste anfangs offen",
-    "hint": "Bereiche: je Gerät ein Batterie-Sensor (Battery Notes wird bevorzugt, inkl. Batterietyp wie „2× AA“)."
+    "hint": "Bereiche: je Gerät ein Batterie-Sensor (Battery Notes wird bevorzugt, inkl. Batterietyp wie „2× AA“).",
+    "shopping_list": "Einkaufsliste nach Batterietyp",
+    "show_replaced": "„gewechselt vor …“ anzeigen"
   },
   "vacuum": {
     "rooms": "Räume",

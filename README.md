@@ -414,6 +414,8 @@ contacts:
     name: Tür
 # threshold: 20                         # schwach unter 20 %
 # navigation_path: /dashboard-final/batterie
+shopping_list: true      # Einkaufsliste nach Batterietyp
+# show_replaced: false   # „gewechselt vor …“ ausblenden
 ```
 
 ### Licht-Presets
