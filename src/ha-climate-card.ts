@@ -3,7 +3,6 @@ import { customElement, property, state } from "lit/decorators.js";
 import type { ClimateCardConfig, HassEntity, HomeAssistant, ShowConfig } from "./types";
 import {
   AUTO_SHORTCUT_DOMAINS,
-  CARD_VERSION,
   ClimateFeature,
   DEFAULT_SHOW,
   HVAC_MODE_ORDER,
@@ -13,6 +12,7 @@ import {
 } from "./const";
 import { formatAttribute, formatMode, localize } from "./localize/localize";
 import { cardStyles } from "./styles";
+import { DOCS_URL } from "./shared";
 import type { SensorItem } from "./components/sensor-row";
 import { fallbackIcon, type ShortcutItem } from "./components/shortcut-row";
 import "./components/climate-dial";
@@ -41,26 +41,13 @@ interface ForecastDay { temperature?: number; templow?: number; condition?: stri
 
 const UNAVAILABLE = ["unavailable", "unknown"];
 
-console.info(
-  `%c HA-CLIMATE-CARD %c v${CARD_VERSION} `,
-  "color:#fff;background:#2196f3;font-weight:700;border-radius:4px 0 0 4px",
-  "color:#2196f3;background:#fff;font-weight:700;border-radius:0 4px 4px 0",
-);
-
-// Animierbare Modusfarbe: Farbwechsel werden weich überblendet statt hart umgeschaltet.
-try {
-  (window as any).CSS?.registerProperty?.({ name: "--hcc-accent-c", syntax: "<color>", inherits: true, initialValue: "transparent" });
-} catch {
-  /* bereits registriert */
-}
-
 (window as any).customCards = (window as any).customCards || [];
 (window as any).customCards.push({
   type: "ha-climate-card",
-  name: "HA Climate Card",
-  description: "Moderne Karte für Klimaanlagen mit Drehregler, allen Modi, Sensoren und Verlauf.",
+  name: "Modern Climate Card",
+  description: "Klimaanlagen & Heizungen: Drehregler, alle Modi, Wochenprogramm, Sensoren und Verlauf (HA Modern Home Cards).",
   preview: true,
-  documentationURL: "https://github.com/passi277/HA_Climate_Card",
+  documentationURL: DOCS_URL,
 });
 
 @customElement("ha-climate-card")

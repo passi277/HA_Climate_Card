@@ -247,7 +247,7 @@ export class HaClimateCardEditor extends LitElement {
     };
     return html`<ha-form .hass=${this.hass} .data=${data} .schema=${this._schema()}
       .computeLabel=${this._computeLabel} @value-changed=${this._valueChanged}></ha-form>
-      <div class="version">HA Climate Card v${CARD_VERSION}</div>`;
+      <div class="version">HA Modern Home Cards v${CARD_VERSION}</div>`;
   }
 
   static styles = css`

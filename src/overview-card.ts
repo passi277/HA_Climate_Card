@@ -2,6 +2,7 @@ import { LitElement, css, html, nothing, type PropertyValues } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import type { HassEntity, HomeAssistant, OverviewCardConfig, OverviewEntityConfig } from "./types";
 import { ClimateFeature, supports } from "./const";
+import { DOCS_URL } from "./shared";
 import { formatAttribute, formatMode, localize } from "./localize/localize";
 import { detectDeviceType, effectiveAction, isActive, modeColor, stateIcon, temperatureOf, temperatureTint, UNAVAILABLE } from "./utils";
 
@@ -11,7 +12,7 @@ import { detectDeviceType, effectiveAction, isActive, modeColor, stateIcon, temp
   name: "HA Climate Overview",
   description: "Alle Klimaanlagen auf einen Blick – mit Temperatur, Schnellregelung und „Alle aus“.",
   preview: true,
-  documentationURL: "https://github.com/passi277/HA_Climate_Card",
+  documentationURL: DOCS_URL,
 });
 
 /** Übersichtskarte für mehrere Klimageräte mit Sollwert-Stepper, Ein/Aus und "Alle aus". */

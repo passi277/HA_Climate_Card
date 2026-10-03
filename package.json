@@ -1,9 +1,9 @@
 {
-  "name": "ha-climate-card",
-  "version": "1.1.0",
-  "description": "Moderne Home Assistant Lovelace-Karte für Klimaanlagen",
+  "name": "ha-modern-home-cards",
+  "version": "1.2.0",
+  "description": "Moderne Home-Assistant-Karten im gleichen Design: Klima, Heizung, Licht",
   "type": "module",
-  "main": "dist/ha-climate-card.js",
+  "main": "dist/ha-modern-home-cards.js",
   "scripts": {
     "build": "rollup -c && node scripts/build-demo.mjs",
     "watch": "rollup -c --watch",

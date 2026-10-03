@@ -50,6 +50,8 @@ export class ClimateDial extends LitElement {
   /** Abstandsbogen nur verblassend in Modusfarbe (z.B. Entfeuchten/Lüften) statt warm/kalt. */
   @property({ type: Boolean }) fade = false;
   @property({ type: Boolean }) showCurrentLabel = true;
+  /** Füllmodus (z.B. Helligkeit): Bogen und Skala leuchten vom Anfang bis zum Wert. */
+  @property({ type: Boolean }) fill = false;
 
   @state() private _dragging?: Handle;
 
@@ -241,7 +243,9 @@ export class ClimateDial extends LitElement {
       } else if (this.value != null) {
         arcs = this.current != null
           ? this._deltaArc(this.value)
-          : svg`<path class="active" d=${arcPath(START, this._toAngle(this.value))} style="stroke:${this.color}"></path>`;
+          : this.fill
+            ? this._gradientArc(START, this._toAngle(this.value), `color-mix(in srgb, ${this.color} 35%, transparent)`, this.color)
+            : svg`<path class="active" d=${arcPath(START, this._toAngle(this.value))} style="stroke:${this.color}"></path>`;
       }
     }
     const curVal = this.current != null ? Math.min(this.max, Math.max(this.min, this.current)) : undefined;
@@ -257,6 +261,8 @@ export class ClimateDial extends LitElement {
     if (!this.disabled) {
       if (this.dual && this.low != null && this.high != null) {
         lit = { from: this._toAngle(this.low), to: this._toAngle(this.high), cFrom: this.lowColor, cTo: this.highColor, dir: 0 };
+      } else if (this.fill && target != null) {
+        lit = { from: START, to: this._toAngle(target), cFrom: `color-mix(in srgb, ${this.color} 35%, transparent)`, cTo: this.color, dir: 1 };
       } else if (target != null && curAngle != null) {
         const ta = this._toAngle(target);
         const cc = this._currentColor(target);

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { HassEntity } from "../src/types";
 import {
-  contactType, detectDeviceType, dewPoint, nextSwitch, parseSchedule, scheduleTempAt, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
+  brightnessPct, contactType, detectDeviceType, kelvinToRgb, lightColor, relatedScenes, supportsColor, supportsColorTemp, dewPoint, nextSwitch, parseSchedule, scheduleTempAt, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
   openContactsKey, powerOf, resolveContacts, secondsToDuration, stateIcon, temperatureOf, temperatureTint, trendSlope,
 } from "../src/utils";
 import { formatAttribute, localize } from "../src/localize/localize";
@@ -186,5 +186,38 @@ describe("heating profile (Homematic)", () => {
   it("uses the valve position to tell heating from idle", () => {
     expect(inferAction("heat", { current_temperature: 25, temperature: 21 }, { valve: 40 })).toBe("heating");
     expect(inferAction("auto", { current_temperature: 18, temperature: 21 }, { valve: 0 })).toBe("idle");
+  });
+});
+
+describe("lights", () => {
+  it("converts color temperatures to plausible RGB", () => {
+    const warm = kelvinToRgb(2200);
+    const cool = kelvinToRgb(6500);
+    expect(warm[0]).toBe(255);
+    expect(warm[2]).toBeLessThan(120);
+    expect(cool[2]).toBeGreaterThan(240);
+  });
+  it("derives color and brightness", () => {
+    expect(lightColor(entity("light.a", "on", { rgb_color: [255, 0, 238] }))).toBe("rgb(255,0,238)");
+    expect(lightColor(entity("light.a", "off", { rgb_color: [255, 0, 238] }))).toBeUndefined();
+    expect(lightColor(entity("light.a", "on", { color_temp_kelvin: 2700 }))).toMatch(/^rgb\(255,/);
+    expect(brightnessPct(entity("light.a", "on", { brightness: 128 }))).toBe(50);
+    expect(brightnessPct(entity("light.a", "off", { brightness: 128 }))).toBe(0);
+  });
+  it("knows color capabilities", () => {
+    const hue = entity("light.h", "on", { supported_color_modes: ["color_temp", "xy"] });
+    expect(supportsColor(hue)).toBe(true);
+    expect(supportsColorTemp(hue)).toBe(true);
+    expect(supportsColor(entity("light.w", "on", { supported_color_modes: ["color_temp"] }))).toBe(false);
+  });
+  it("finds the Hue scenes of a room group without duplicates", () => {
+    const group = entity("light.gaste_wc", "on", { friendly_name: "Gäste WC" });
+    const states = {
+      "light.gaste_wc": group,
+      "scene.gaste_wc_lesen": entity("scene.gaste_wc_lesen", "unknown", { group_name: "Gäste WC", name: "Lesen" }),
+      "scene.gaste_wc_lesen_2": entity("scene.gaste_wc_lesen_2", "unknown", { group_name: "Gäste WC", name: "Lesen" }),
+      "scene.flur_hell": entity("scene.flur_hell", "unknown", { group_name: "Flur", name: "Hell" }),
+    };
+    expect(relatedScenes(states, group).map((s) => s.entity_id)).toEqual(["scene.gaste_wc_lesen"]);
   });
 });

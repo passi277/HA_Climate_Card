@@ -1,9 +1,15 @@
-# HA Climate Card
+# HA Modern Home Cards
 
-Eine moderne Lovelace-Karte für Klimaanlagen in Home Assistant – mit Drehregler, allen
-`climate`-Funktionen, Zusatzsensoren, Fenster-Warnung und Temperaturverlauf.
+Moderne Lovelace-Karten für Home Assistant im gemeinsamen Design – Ring-Regler, Glow,
+weiche Farbübergänge und Animationen. Ein HACS-Download, mehrere Karten:
 
-*A modern Lovelace card for air conditioners in Home Assistant – English summary below.*
+| Karte | Typ | Für |
+| --- | --- | --- |
+| **Modern Climate Card** | `custom:ha-climate-card` | Klimaanlagen und Heizungen/Thermostate |
+| **Modern Light Card** | `custom:ha-light-card` | Lampen und Lichtgruppen (z.B. Hue-Räume) |
+| **Climate Overview** | `custom:ha-climate-overview-card` | alle Klimageräte auf einen Blick |
+
+*Modern Lovelace cards for Home Assistant in one shared design – English summary below.*
 
 <p align="center"><img src="docs/preview.gif" alt="Animierte Vorschau" width="360"></p>
 
@@ -11,7 +17,7 @@ Eine moderne Lovelace-Karte für Klimaanlagen in Home Assistant – mit Drehregl
 | --- | --- |
 | ![Vorschau hell](docs/preview-light.png) | ![Vorschau dunkel](docs/preview-dark.png) |
 
-## Funktionen
+## Modern Climate Card – Funktionen
 
 - **Zwei Layouts:** `full` (runder Drehregler, ziehbar) und `compact` (Kachel mit +/- und ausklappbaren Details)
 - **Alle Klima-Funktionen** – werden automatisch anhand von `supported_features` ein-/ausgeblendet:
@@ -51,14 +57,21 @@ Eine moderne Lovelace-Karte für Klimaanlagen in Home Assistant – mit Drehregl
 ### HACS (empfohlen)
 
 1. HACS öffnen → oben rechts **⋮ → Benutzerdefinierte Repositories**
-2. URL `https://github.com/passi277/HA_Climate_Card` mit Typ **Dashboard** hinzufügen
-3. „HA Climate Card“ suchen, installieren und den Browser neu laden
+2. URL `https://github.com/passi277/HA-Modern-Home-Cards` mit Typ **Dashboard** hinzufügen
+3. „HA Modern Home Cards“ suchen, installieren und den Browser neu laden
 
 ### Manuell
 
-1. `dist/ha-climate-card.js` nach `<config>/www/ha-climate-card.js` kopieren
+1. `dist/ha-modern-home-cards.js` nach `<config>/www/` kopieren
 2. Unter **Einstellungen → Dashboards → ⋮ → Ressourcen** hinzufügen:
-   URL `/local/ha-climate-card.js`, Typ **JavaScript-Modul**
+   URL `/local/ha-modern-home-cards.js`, Typ **JavaScript-Modul**
+
+### Umstieg von „HA Climate Card“
+
+Das Projekt hieß früher *HA Climate Card*. Alle Kartentypen bleiben gleich, deine Karten laufen weiter.
+`dist/ha-climate-card.js` wird übergangsweise weiter mitgeliefert. Nach der Umbenennung des Repos:
+in HACS das alte benutzerdefinierte Repository entfernen, das neue hinzufügen, installieren und die alte
+Ressource `/hacsfiles/HA_Climate_Card/ha-climate-card.js` unter *Dashboards → Ressourcen* löschen.
 
 ## Konfiguration
 
@@ -154,6 +167,37 @@ graph_hours: 24
 | `window_sensor` | entity | – | Veraltet (ein einzelner Kontakt) – funktioniert weiter und wird im Editor automatisch in `contact_sensors` übernommen |
 | `graph_hours` | number | `24` | Zeitraum des Verlaufsgraphen in Stunden |
 
+## Modern Light Card
+
+Licht im gleichen Design: Ring = Helligkeit, Glow und Ring leuchten in der echten Lichtfarbe.
+
+- **Helligkeitsring** (nur am Ring bedienbar) mit −/+ (gedrückt halten), Kompakt-Variante als Farbverlauf-Regler
+- **Lampen des Raums**: bei Lichtgruppen (z.B. Hue-Räume) automatisch, jede mit eigener Farbe, antippen schaltet, lange drücken öffnet Details
+- **Szenen**: Hue-Szenen der Gruppe automatisch (doppelte zusammengefasst) oder eigene Liste
+- **Weißton** (Kelvin-Regler) und **Farbe** (Farbton-Regler + Farbfelder), **Effekte** (z.B. Hue Play Gradient)
+- **Bewegungsmelder** („Bewegung vor 4 min“) und **Helligkeitssensor** (lx) im Kopf
+- Visueller Editor, Deutsch/Englisch, `animations`-Option
+
+```yaml
+type: custom:ha-light-card
+entity: light.gaste_wc                  # Lampe oder Gruppe
+motion_sensor: binary_sensor.bewegung_gaste_wc
+illuminance_sensor: sensor.helligkeit_gaste_wc
+layout: full                            # full | compact
+# entities: [light.a, light.b]          # eigene Lampenliste statt Gruppe
+# scenes: [scene.lesen, scene.hell]     # eigene Szenen statt Hue-Szenen
+```
+
+| Option | Standard | Beschreibung |
+| --- | --- | --- |
+| `entity` | – | `light.*` (Lampe oder Gruppe) |
+| `layout` | `full` | `full` (Ring) oder `compact` (Regler) |
+| `entities` / `auto_entities` | aus Gruppe / `true` | Lampen des Raums |
+| `scenes` / `auto_scenes` | Hue-Szenen / `true` | Szenen-Chips |
+| `motion_sensor`, `illuminance_sensor` | – | Anzeige im Kopf |
+| `show.lights/scenes/color/temperature/effects` | `true` | Bereiche ein-/ausblenden |
+| `expandable`, `start_expanded`, `animations` | `true`, `false`, `full` | wie bei der Klima-Karte |
+
 ## Heizungen (z.B. Homematic IP)
 
 Thermostate werden automatisch erkannt. Die Karte zeigt dann statt Lüfter, Lamellen und Luftstrom:
@@ -234,13 +278,18 @@ Ein Release wird über GitHub Releases erstellt; der Workflow hängt
 
 ## English
 
-**HA Climate Card** is a Lovelace card for air conditioners: a draggable round dial (or a
-compact tile), every `climate` feature (HVAC modes, single or range target temperature, fan,
-vertical & horizontal swing, presets, target humidity), extra sensors (room temperature/humidity,
-outdoor, power, energy, window contact with warning), a temperature history graph and a visual
-editor. Install it via HACS as a custom repository of type **Dashboard**, then add
-`type: custom:ha-climate-card` with your `entity`. All options are listed in the table above.
-The UI is available in German and English and follows your Home Assistant language.
+**HA Modern Home Cards** is a collection of Lovelace cards sharing one modern design (ring controls,
+glow, smooth color transitions, animations), shipped as a single HACS download:
+
+- `custom:ha-climate-card` – air conditioners and heating/thermostats: draggable dial, every `climate`
+  feature, inferred activity for devices like Gree, weekly schedule/boost/valves for thermostats like
+  Homematic IP, sensors, windows/doors, hints, timers, history graph
+- `custom:ha-light-card` – lights and light groups: brightness ring glowing in the light's color, room
+  lights, Hue scenes, white tone/color/effects, motion and illuminance
+- `custom:ha-climate-overview-card` – all climate devices at a glance
+
+Install via HACS as a custom repository of type **Dashboard**. All cards have a visual editor and are
+available in German and English.
 
 ## Lizenz
 

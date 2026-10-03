@@ -6,7 +6,7 @@ import * as mdi from "@mdi/js";
 
 const root = new URL("..", import.meta.url).pathname;
 const template = readFileSync(join(root, "demo/template.html"), "utf8");
-const card = readFileSync(join(root, "dist/ha-climate-card.js"), "utf8").replace(/<\/script/gi, "<\\/script");
+const card = readFileSync(join(root, "dist/ha-modern-home-cards.js"), "utf8").replace(/<\/script/gi, "<\\/script");
 
 const sources = [];
 const walk = (dir) => {

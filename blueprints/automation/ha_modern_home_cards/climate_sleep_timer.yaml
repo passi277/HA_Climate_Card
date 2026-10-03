@@ -1,11 +1,11 @@
 blueprint:
-  name: Klima-Sleeptimer (HA Climate Card)
+  name: Klima-Sleeptimer (HA Modern Home Cards)
   description: >-
     Schaltet eine Klimaanlage zur eingestellten Uhrzeit aus, wenn der Sleeptimer
     scharf geschaltet ist. Passt zu den Optionen `timer_switch` und `timer_time`
-    der HA Climate Card. Optional wird der Timer danach automatisch entschärft.
+    der Modern Climate Card. Optional wird der Timer danach automatisch entschärft.
   domain: automation
-  source_url: https://github.com/passi277/HA_Climate_Card/blob/main/blueprints/automation/ha_climate_card/climate_sleep_timer.yaml
+  source_url: https://github.com/passi277/HA-Modern-Home-Cards/blob/main/blueprints/automation/ha_modern_home_cards/climate_sleep_timer.yaml
   input:
     climate_entity:
       name: Klimaanlage

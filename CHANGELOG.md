@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.0 – HA Modern Home Cards
+- Projekt heißt jetzt **HA Modern Home Cards** (eine Kartensammlung, ein Bundle `ha-modern-home-cards.js`; `ha-climate-card.js` wird übergangsweise weiter mitgeliefert, Kartentypen unverändert)
+- Neu: **Modern Light Card** (`custom:ha-light-card`) – Helligkeitsring mit Glow in Lichtfarbe, Lampen der Gruppe, Hue-Szenen, Weißton/Farbe/Effekte, Bewegung & Helligkeit, Kompakt-Variante, visueller Editor
+- Regler: Füllmodus für Helligkeit
+
 ## 1.1.0
 - Heizungs-Profil (automatisch erkannt, `device_type`): Wochenprogramm-Zeitleiste mit Tagesauswahl und „Nächster Wechsel“, Boost-Button, Ventilöffnung je Heizkörper (`valve_sensors`, automatisch aus Gerät/Bereich), Batterie-Warnung (`battery_sensors`), Abwesend-Modus für Homematic(IP) Local, Wärmewellen-Animation, verständliche Modusnamen
 - Tätigkeit kann aus der Ventilöffnung abgeleitet werden

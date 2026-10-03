@@ -126,3 +126,31 @@ export interface OverviewCardConfig {
   show_all_off?: boolean;
   show_controls?: boolean;
 }
+
+export interface LightShowConfig {
+  lights?: boolean;
+  scenes?: boolean;
+  color?: boolean;
+  temperature?: boolean;
+  effects?: boolean;
+}
+
+export interface LightCardConfig {
+  type: string;
+  entity: string;
+  name?: string;
+  icon?: string;
+  layout?: CardLayout;
+  show?: LightShowConfig;
+  /** Einzelne Lampen des Raums (sonst aus der Gruppe übernommen) */
+  entities?: (string | { entity: string; name?: string })[];
+  auto_entities?: boolean;
+  /** Szenen (sonst Hue-Szenen der Gruppe) */
+  scenes?: string[];
+  auto_scenes?: boolean;
+  motion_sensor?: string;
+  illuminance_sensor?: string;
+  expandable?: boolean;
+  start_expanded?: boolean;
+  animations?: "full" | "reduced" | "off";
+}

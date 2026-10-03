@@ -346,3 +346,56 @@ export const percentOf = (entity?: HassEntity): number | undefined => {
 
 export const VALVE_PATTERN = /ventil|valve/i;
 export const BATTERY_PATTERN = /batter|spannungspegel|voltage_level/i;
+
+// ---------- Licht ----------
+
+/** Farbtemperatur (Kelvin) → RGB (Näherung nach Tanner Helland). */
+export const kelvinToRgb = (kelvin: number): [number, number, number] => {
+  const t = Math.min(40000, Math.max(1000, kelvin)) / 100;
+  const clamp = (v: number) => Math.round(Math.min(255, Math.max(0, v)));
+  const r = t <= 66 ? 255 : 329.698727446 * Math.pow(t - 60, -0.1332047592);
+  const g = t <= 66 ? 99.4708025861 * Math.log(t) - 161.1195681661 : 288.1221695283 * Math.pow(t - 60, -0.0755148492);
+  const b = t >= 66 ? 255 : t <= 19 ? 0 : 138.5177312231 * Math.log(t - 10) - 305.0447927307;
+  return [clamp(r), clamp(g), clamp(b)];
+};
+
+/** Aktuelle Lichtfarbe als CSS-Farbe (undefined, wenn aus). Weißlicht ohne Farbe → warmweiß. */
+export const lightColor = (st?: HassEntity): string | undefined => {
+  if (!st || st.state !== "on") return undefined;
+  const a = st.attributes;
+  if (Array.isArray(a.rgb_color)) return `rgb(${a.rgb_color.join(",")})`;
+  if (a.color_temp_kelvin) return `rgb(${kelvinToRgb(Number(a.color_temp_kelvin)).join(",")})`;
+  return "rgb(255, 196, 107)";
+};
+
+/** Helligkeit in % (0 wenn aus). */
+export const brightnessPct = (st?: HassEntity): number => {
+  if (!st || st.state !== "on") return 0;
+  const b = st.attributes.brightness;
+  return b == null ? 100 : Math.max(1, Math.round((Number(b) / 255) * 100));
+};
+
+const COLOR_MODES = ["hs", "xy", "rgb", "rgbw", "rgbww"];
+export const supportsColor = (st: HassEntity): boolean =>
+  ((st.attributes.supported_color_modes ?? []) as string[]).some((m) => COLOR_MODES.includes(m));
+export const supportsColorTemp = (st: HassEntity): boolean =>
+  ((st.attributes.supported_color_modes ?? []) as string[]).includes("color_temp");
+export const supportsBrightness = (st: HassEntity): boolean =>
+  ((st.attributes.supported_color_modes ?? []) as string[]).some((m) => m !== "onoff");
+
+/**
+ * Szenen zu einer Lichtgruppe: Hue-Szenen (`group_name` = Gruppenname), gleiche Namen nur einmal.
+ */
+export const relatedScenes = (states: Record<string, HassEntity>, light: HassEntity): HassEntity[] => {
+  const group = light.attributes.friendly_name;
+  const seen = new Set<string>();
+  return Object.values(states)
+    .filter((s) => s.entity_id.startsWith("scene.") && group && s.attributes.group_name === group)
+    .sort((a, b) => a.entity_id.localeCompare(b.entity_id))
+    .filter((s) => {
+      const name = String(s.attributes.name ?? s.attributes.friendly_name);
+      if (seen.has(name)) return false;
+      seen.add(name);
+      return true;
+    });
+};

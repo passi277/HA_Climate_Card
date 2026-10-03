@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>HA Climate Card – Demo</title>
+  <title>HA Modern Home Cards – Demo</title>
   <style>
     :root {
       --primary-color: #03a9f4; --primary-text-color: #212121; --secondary-text-color: #727272;
@@ -31,7 +31,7 @@
 </head>
 <body>
   <div class="toolbar" role="toolbar" aria-label="Demo-Einstellungen">
-    <span class="brand">HA Climate Card · Demo</span>
+    <span class="brand">HA Modern Home Cards · Demo</span>
     <div class="seg" role="group" aria-label="Design">
       <button data-theme="light">☀️ Hell</button><button data-theme="dark">🌙 Dunkel</button>
     </div>
@@ -146,6 +146,22 @@
       "sensor.etrv_fenster_ventil_offnungsgrad": { state: "42", attributes: { friendly_name: "Heizkörper Fenster Ventil-Öffnungsgrad", unit_of_measurement: "%" } },
       "sensor.etrv_tuer_ventil_offnungsgrad": { state: "18", attributes: { friendly_name: "Heizkörper Tür Ventil-Öffnungsgrad", unit_of_measurement: "%" } },
       "sensor.etrv_fenster_betriebsspannungspegel": { state: "12", attributes: { friendly_name: "Heizkörper Fenster Betriebsspannungspegel", unit_of_measurement: "%" } },
+      "light.gaste_wc": { state: "on", attributes: { friendly_name: "Gäste WC", supported_color_modes: ["color_temp", "xy"], color_mode: "xy",
+        brightness: 166, hs_color: [304, 100], rgb_color: [255, 0, 238], min_color_temp_kelvin: 2202, max_color_temp_kelvin: 4000,
+        entity_id: ["light.gaste_wc_oben", "light.gaste_wc_unten", "light.gaste_wc_spiegel"], supported_features: 40 } },
+      "light.gaste_wc_oben": { state: "on", attributes: { friendly_name: "Gäste WC oben", supported_color_modes: ["color_temp", "xy"], color_mode: "xy", brightness: 255, hs_color: [346, 100], rgb_color: [255, 0, 57] } },
+      "light.gaste_wc_unten": { state: "on", attributes: { friendly_name: "Gäste WC unten", supported_color_modes: ["color_temp", "xy"], color_mode: "xy", brightness: 90, hs_color: [270, 100], rgb_color: [140, 0, 255] } },
+      "light.gaste_wc_spiegel": { state: "off", attributes: { friendly_name: "Gäste WC Spiegel", supported_color_modes: ["color_temp"] } },
+      "scene.gaste_wc_entspannen": { state: "unknown", attributes: { friendly_name: "Gäste WC Entspannen", group_name: "Gäste WC", name: "Entspannen" } },
+      "scene.gaste_wc_entspannen_2": { state: "unknown", attributes: { friendly_name: "Gäste WC Entspannen", group_name: "Gäste WC", name: "Entspannen" } },
+      "scene.gaste_wc_hell": { state: "unknown", attributes: { friendly_name: "Gäste WC Hell", group_name: "Gäste WC", name: "Hell" } },
+      "scene.gaste_wc_nachtlicht": { state: "unknown", attributes: { friendly_name: "Gäste WC Nachtlicht", group_name: "Gäste WC", name: "Nachtlicht" } },
+      "scene.gaste_wc_lesen": { state: "unknown", attributes: { friendly_name: "Gäste WC Lesen", group_name: "Gäste WC", name: "Lesen" } },
+      "binary_sensor.gaste_wc_bewegung": { state: "off", last_changed: new Date(Date.now() - 4 * 60000).toISOString(), attributes: { friendly_name: "Bewegung Gäste WC", device_class: "motion" } },
+      "sensor.gaste_wc_lux": { state: "86", attributes: { unit_of_measurement: "lx", device_class: "illuminance" } },
+      "light.hue_play_gradient": { state: "on", attributes: { friendly_name: "Hue play gradient TV", supported_color_modes: ["color_temp", "xy"], color_mode: "color_temp",
+        brightness: 200, color_temp_kelvin: 2700, min_color_temp_kelvin: 2000, max_color_temp_kelvin: 6535, effect: "off",
+        effect_list: ["off", "candle", "fire", "prism", "sparkle", "opal", "glisten", "underwater", "cosmos", "sunbeam", "enchant", "sunrise", "sunset"] } },
       "sensor.wz_temp": { state: "25.1", attributes: { unit_of_measurement: "°C", device_class: "temperature" } },
       "sensor.aussen": { state: "31.6", attributes: { unit_of_measurement: "°C", device_class: "temperature" } },
       "sensor.klima_power": { state: "845", attributes: { unit_of_measurement: "W", device_class: "power" } },
@@ -155,7 +171,7 @@
       "binary_sensor.wz_balkontuer": { state: "on", attributes: { friendly_name: "Balkontür" } },
       "binary_sensor.wz_dachfenster": { state: "off", attributes: { friendly_name: "Dachfenster" } },
     };
-    for (const [id, s] of Object.entries(states)) Object.assign(s, { entity_id: id, last_changed: now, last_updated: now });
+    for (const [id, s] of Object.entries(states)) Object.assign(s, { entity_id: id, last_changed: s.last_changed ?? now, last_updated: now });
 
     // Simuliert, was das Gerät nach einer Änderung als Aktion meldet
     const deriveAction = (mode, a) => {
@@ -186,6 +202,25 @@
         window.serviceCalls.push({ domain, service, data });
         log(`${domain}.${service} ${JSON.stringify(data)}`);
         const s = states[data.entity_id];
+        if (domain === "light" || domain === "scene") {
+          if (domain === "light") {
+            let st = s.state;
+            const a = { ...s.attributes };
+            if (service === "toggle") st = st === "on" ? "off" : "on";
+            if (service === "turn_off") st = "off";
+            if (service === "turn_on") {
+              st = "on";
+              if (data.brightness_pct != null) a.brightness = Math.round((data.brightness_pct / 100) * 255);
+              if (data.hs_color) { a.hs_color = data.hs_color; const c = `hsl(${data.hs_color[0]},100%,50%)`; const el = document.createElement("div"); el.style.color = c; document.body.appendChild(el); a.rgb_color = getComputedStyle(el).color.match(/\d+/g).slice(0, 3).map(Number); el.remove(); a.color_mode = "xy"; a.color_temp_kelvin = null; }
+              if (data.color_temp_kelvin) { a.color_temp_kelvin = data.color_temp_kelvin; a.color_mode = "color_temp"; delete a.rgb_color; }
+              if (data.effect) a.effect = data.effect;
+              if (a.brightness == null) a.brightness = 200;
+            }
+            states[data.entity_id] = { ...s, state: st, attributes: a, last_updated: new Date().toISOString() };
+          }
+          setTimeout(() => { const h = makeHass(); cards.forEach((c) => (c.hass = h)); }, 150);
+          return;
+        }
         if (domain === "timer") {
           const secs = data.duration ? data.duration.split(":").reduce((a, v) => a * 60 + Number(v), 0) : 0;
           states[data.entity_id] = service === "start"
@@ -257,6 +292,9 @@
       ["Voll – Bereich + Schimmelwarnung", { entity: "climate.buero", layout: "full", humidity_sensor: "sensor.buero_feuchte", outdoor_sensor: "sensor.aussen", start_expanded: true }],
       ["Heizung – Homematic (Wochenprogramm, Ventile, Boost)", { entity: "climate.heizung_mein_zimmer", layout: "full",
         temperature_sensor: "climate.wandthermostat_mein_zimmer", start_expanded: true, show: { graph: false } }],
+      ["Licht – Hue-Raum (Lampen, Szenen, Bewegung)", { _light: true, entity: "light.gaste_wc", motion_sensor: "binary_sensor.gaste_wc_bewegung",
+        illuminance_sensor: "sensor.gaste_wc_lux", start_expanded: true }],
+      ["Licht – Hue Play (Weißton, Effekte, kompakt)", { _light: true, entity: "light.hue_play_gradient", layout: "compact" }],
       ["Übersicht – mehrere Geräte", { _overview: true, title: "Klimaanlagen", entities: ["climate.1ed763d9", "climate.wohnzimmer", "climate.heizung_mein_zimmer", "climate.buero", "climate.schlafzimmer"] }],
       ["Voll – Aus", { entity: "climate.schlafzimmer", layout: "full" }],
       ["Kompakt – Kühlen", { entity: "climate.wohnzimmer", layout: "compact", outdoor_sensor: "sensor.aussen", power_sensor: "sensor.klima_power" }],
@@ -269,10 +307,11 @@
     configs.forEach(([title, cfg], i) => {
       const wrap = document.createElement("div");
       wrap.innerHTML = `<h2>${title}</h2>`;
-      const { _overview, ...rest } = cfg;
-      const card = document.createElement(_overview ? "ha-climate-overview-card" : "ha-climate-card");
+      const { _overview, _light, ...rest } = cfg;
+      const tag = _overview ? "ha-climate-overview-card" : _light ? "ha-light-card" : "ha-climate-card";
+      const card = document.createElement(tag);
       card.id = "card" + i;
-      card.setConfig({ type: _overview ? "custom:ha-climate-overview-card" : "custom:ha-climate-card", ...rest });
+      card.setConfig({ type: `custom:${tag}`, ...rest });
       card.hass = hass;
       wrap.appendChild(card);
       grid.appendChild(wrap);

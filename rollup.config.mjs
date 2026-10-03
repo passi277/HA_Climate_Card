@@ -7,8 +7,12 @@ import minifyLiterals from "./scripts/minify-literals.mjs";
 const dev = process.env.ROLLUP_WATCH;
 
 export default {
-  input: "src/ha-climate-card.ts",
-  output: { file: "dist/ha-climate-card.js", format: "es", sourcemap: false },
+  input: "src/index.ts",
+  output: [
+    { file: "dist/ha-modern-home-cards.js", format: "es", sourcemap: false },
+    // Übergangsweise unter altem Namen, damit bestehende Installationen beim Update weiterlaufen
+    { file: "dist/ha-climate-card.js", format: "es", sourcemap: false },
+  ],
   plugins: [
     resolve(),
     json({ compact: true }),
