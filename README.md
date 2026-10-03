@@ -201,6 +201,7 @@ layout: full                            # full | compact
 | `entity` | – | `light.*` (Lampe oder Gruppe) |
 | `layout` | `full` | `full` (Ring) oder `compact` (Regler) |
 | `entities` / `auto_entities` | aus Gruppe / `true` | Lampen des Raums |
+| `lights_layout` | `rows` | `rows` = jede Lampe einzeln steuerbar (Regler, ⚙ Weißton/Farbe), `tiles` = kompakte Ein/Aus-Kacheln |
 | `scenes` / `auto_scenes` | Hue-Szenen / `true` | Szenen-Chips |
 | `segments` / `auto_segments` | `light.<name>_segment_NNN` / `true` | Segmente eines LED-Streifens |
 | `shortcuts` / `auto_shortcuts` | Schalter/Buttons des Geräts / `true` | Geräteschalter (ohne technische Power-/Request-Entitäten) |

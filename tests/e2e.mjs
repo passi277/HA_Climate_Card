@@ -150,7 +150,7 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
   await card.scrollIntoViewIfNeeded();
   const info = await p.evaluate(() => {
     const root = document.querySelector("ha-light-card").shadowRoot;
-    return { lights: root.querySelectorAll(".light").length, scenes: [...root.querySelectorAll(".scene")].map((b) => b.textContent.trim()) };
+    return { lights: root.querySelectorAll("hcc-lamp-row").length, scenes: [...root.querySelectorAll(".scene")].map((b) => b.textContent.trim()) };
   });
   info.lights === 3 && info.scenes.length === 4 && !info.scenes.includes("Gäste WC Entspannen")
     ? ok("Licht: 3 Lampen aus der Gruppe, 4 Hue-Szenen (ohne Doppelte, ohne Raumnamen)")
@@ -166,7 +166,7 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
   await p.evaluate(() => {
     const root = document.querySelector("ha-light-card").shadowRoot;
     root.querySelector(".scene").click();
-    root.querySelectorAll(".light")[2].click();
+    root.querySelectorAll("hcc-lamp-row")[2].shadowRoot.querySelector(".lamp-power").click();
   });
   await p.waitForTimeout(300);
   const calls = await p.evaluate((n) => window.serviceCalls.slice(n).map((c) => `${c.domain}.${c.service}:${c.data.entity_id}:${c.data.brightness_pct ?? ""}`), before);
@@ -216,14 +216,13 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
   const res = await p.evaluate(async () => {
     const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     const root = document.querySelector("ha-light-group-card").shadowRoot;
-    const lamp = (id) => root.querySelector(`.lamp[data-entity="${id}"]`);
     const caps = {};
-    for (const el of root.querySelectorAll(".lamp")) {
-      el.querySelector(".lamp-more")?.click();
+    for (const row of root.querySelectorAll("hcc-lamp-row")) {
+      row.shadowRoot.querySelector(".lamp-more")?.click();
       await wait(60);
-      const fresh = lamp(el.dataset.entity);
-      caps[fresh.dataset.entity.split(".")[1]] = {
-        slider: !!fresh.querySelector(":scope > hcc-gradient-slider"),
+      const fresh = row.shadowRoot;
+      caps[row.dataset.entity.split(".")[1]] = {
+        slider: !!fresh.querySelector(".lamp > hcc-gradient-slider"),
         more: !!fresh.querySelector(".lamp-more"),
         details: [...fresh.querySelectorAll(".lamp-details > *")].map((d) => d.icon),
         disabled: fresh.querySelector(".lamp-power").disabled,
@@ -482,6 +481,28 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
     ? ok("Status: Batterien aus Bereich (je Gerät eine, schwächste zuerst, ohne Raumnamen), Tür erkannt") : fail(`Status: ${JSON.stringify({ s: res.summary, b: res.bats, d: res.door })}`);
   res.presets.join("|") === "Hell|*Warm|Gemütlich" && res.calls.includes("light.turn_on:light.licht_mein_zimmer:25:2200")
     ? ok("Licht-Presets: aktives Preset markiert, „Gemütlich“ setzt 25 % / 2200 K") : fail(`Presets: ${JSON.stringify({ p: res.presets, c: res.calls })}`);
+}
+
+// Light Card: Lampen der Gruppe einzeln steuerbar
+{
+  const res = await p.evaluate(async () => {
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const rows = [...document.querySelector("ha-light-card").shadowRoot.querySelectorAll("hcc-lamp-row")];
+    const oben = rows.find((r) => r.entity === "light.gaste_wc_oben").shadowRoot;
+    const before = window.serviceCalls.length;
+    const slider = oben.querySelector("hcc-gradient-slider.brightness");
+    slider.value = 33;
+    slider.dispatchEvent(new CustomEvent("value-changed", { detail: { value: 33 } }));
+    oben.querySelector(".lamp-more").click();
+    await wait(400);
+    const details = [...oben.querySelectorAll(".lamp-details > *")].map((d) => d.icon);
+    const spiegel = rows.find((r) => r.entity === "light.gaste_wc_spiegel").shadowRoot;
+    return { details, spiegelSlider: !!spiegel.querySelector("hcc-gradient-slider.brightness"),
+      calls: window.serviceCalls.slice(before).map((c) => `${c.service}:${[].concat(c.data.entity_id).join(",")}:${c.data.brightness_pct ?? ""}`) };
+  });
+  res.calls.length === 1 && res.calls[0] === "turn_on:light.gaste_wc_oben:33" && res.details.join() === "mdi:thermometer,mdi:palette"
+    ? ok("Light Card: Lampe der Gruppe einzeln dimmbar (nur diese Lampe), ⚙ mit Weißton + Farbe")
+    : fail(`Einzellampe: ${JSON.stringify(res)}`);
 }
 
 // Moduswechsel: jede Karte, jeder Modus (außer Auto/Heizen-Kühlen, dort zählt die Tätigkeit)

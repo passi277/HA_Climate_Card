@@ -264,7 +264,10 @@
     "device": "Gerät: Segmente & Schalter",
     "auto_segments": "Segmente automatisch erkennen",
     "auto_shortcuts": "Schalter des Geräts übernehmen (z.B. Gradient)",
-    "default_presets": "Presets Hell / Warm / Gemütlich"
+    "default_presets": "Presets Hell / Warm / Gemütlich",
+    "lights_layout": "Darstellung der Lampen",
+    "lights_rows": "Einzeln steuerbar (Regler)",
+    "lights_tiles": "Kompakt (nur Ein/Aus)"
   },
   "light_group": {
     "title": "Lichter",

@@ -145,6 +145,8 @@ export interface LightCardConfig {
   icon?: string;
   layout?: CardLayout;
   show?: LightShowConfig;
+  /** Lampen der Gruppe als steuerbare Zeilen (Standard) oder kompakte Ein/Aus-Kacheln */
+  lights_layout?: "rows" | "tiles";
   /** Einzelne Lampen des Raums (sonst aus der Gruppe übernommen) */
   entities?: (string | { entity: string; name?: string })[];
   auto_entities?: boolean;

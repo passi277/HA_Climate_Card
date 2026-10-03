@@ -11,6 +11,7 @@ import {
   supportsColorTemp, UNAVAILABLE,
 } from "./utils";
 import "./components/climate-dial";
+import "./components/lamp-row";
 import { presetStyles, renderPresetChips, resolvePresets } from "./components/preset-chips";
 import { presetData } from "./utils";
 import "./components/gradient-slider";
@@ -358,6 +359,11 @@ export class HaLightCard extends LitElement {
   }
 
   private _renderMembers(members: Member[]) {
+    // Standard: jede Lampe einzeln steuerbar (Helligkeit, Weißton/Farbe/Effekt); „tiles“ = kompakte Ein/Aus-Kacheln
+    if (this._config!.lights_layout !== "tiles") {
+      return html`<div class="lamp-rows">${members.map((m) => html`<hcc-lamp-row .hass=${this.hass} .entity=${m.entity}
+        .name=${m.name} data-entity=${m.entity}></hcc-lamp-row>`)}</div>`;
+    }
     return html`<div class="lights">
       ${members.map((m) => {
         const on = m.st.state === "on";
@@ -512,6 +518,7 @@ export class HaLightCard extends LitElement {
     .icon-badge.lit ha-icon { animation: none; }
     .swatch-dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 4px;
       box-shadow: 0 0 0 2px rgba(255,255,255,0.6); }
+    .lamp-rows { display: flex; flex-direction: column; gap: 8px; }
     .lights { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
     .light { display: flex; align-items: center; gap: 10px; padding: 8px 10px; min-height: 48px; border: none; cursor: pointer;
       text-align: left; border-radius: var(--hcc-inner-radius, 14px); background: rgba(127,127,127,0.12); color: var(--secondary-text-color);

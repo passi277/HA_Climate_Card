@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.7.1
+- Light Card: Lampen einer Gruppe sind jetzt **einzeln steuerbar** – je Lampe Ein/Aus, leuchtender Helligkeitsregler und über ⚙ Weißton/Farbe/Effekt (nur was die Lampe kann). `lights_layout: tiles` zeigt wie bisher kompakte Ein/Aus-Kacheln
+- Lampenzeile als gemeinsame Komponente für Light Card und Licht-Gruppe
+
 ## 1.7.0 – Raum, Status, Presets
 - Neu: **Modern Room Header** (`custom:ha-room-card`) – Titel mit Status-Chips (Licht, Fenster/Türen, Temperatur, Feuchte, Klima/Heizung, TV/Harmony, eigene) und Hinweis „Fenster offen – Klima läuft“ mit bestätigtem „Klima aus“
 - Neu: **Modern Status Card** (`custom:ha-status-card`) – Batterien automatisch je Bereich (Battery Notes inkl. Batterietyp), Ampel-Liste, Tür-/Fensterkontakte, optional Navigation

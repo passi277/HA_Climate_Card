@@ -264,7 +264,10 @@
     "device": "Device: segments & switches",
     "auto_segments": "Detect segments automatically",
     "auto_shortcuts": "Use switches of the device (e.g. gradient)",
-    "default_presets": "Presets bright / warm / cozy"
+    "default_presets": "Presets bright / warm / cozy",
+    "lights_layout": "Lights display",
+    "lights_rows": "Individually controllable (sliders)",
+    "lights_tiles": "Compact (on/off only)"
   },
   "light_group": {
     "title": "Lights",

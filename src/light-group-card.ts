@@ -10,15 +10,13 @@ import {
 import "./components/gradient-slider";
 import { presetStyles, renderPresetChips, resolvePresets } from "./components/preset-chips";
 import { presetData } from "./utils";
-import "./components/attribute-select";
+import "./components/lamp-row";
 import "./light-group-editor";
 
 const OFF_COLOR = "var(--state-light-off-color, #8a8a8a)";
 const WARM = "rgb(255,196,107)";
 const HUE_SWATCHES = [0, 28, 50, 120, 180, 220, 270, 320];
 const WHITE_PRESETS = [2700, 4000, 6000];
-const HUE_GRADIENT = "linear-gradient(90deg, #f00, #ff0 17%, #0f0 33%, #0ff 50%, #00f 67%, #f0f 83%, #f00)";
-const NO_EFFECT = "__hcc_no_effect__";
 const rgb = (c: [number, number, number]) => `rgb(${c.join(",")})`;
 
 (window as any).customCards = (window as any).customCards || [];
@@ -49,7 +47,6 @@ export class HaLightGroupCard extends LitElement {
   @property({ attribute: false }) hass?: HomeAssistant;
   @state() private _config?: LightGroupCardConfig;
   @state() private _pending: Record<string, Pending> = {};
-  @state() private _open = new Set<string>();
   @state() private _listOpen = true;
   @state() private _groupColorOpen = false;
   private _timers: Record<string, number> = {};
@@ -172,17 +169,6 @@ export class HaLightGroupCard extends LitElement {
     return this._pending[`${ids.join(",")}|${kind}`]?.value;
   }
 
-  private _moreInfo(entityId: string): void {
-    this.dispatchEvent(new CustomEvent("hass-more-info", { detail: { entityId }, bubbles: true, composed: true }));
-  }
-
-  private _toggleOpen(entity: string): void {
-    const open = new Set(this._open);
-    if (open.has(entity)) open.delete(entity);
-    else open.add(entity);
-    this._open = open;
-  }
-
   // ---------- Gruppe ----------
 
   private _groupBrightness(lamps: Lamp[]): number {
@@ -231,100 +217,6 @@ export class HaLightGroupCard extends LitElement {
       </div>` : nothing}`;
   }
 
-  // ---------- Einzellampe ----------
-
-  private _lampStatus(l: Lamp, pct: number): string {
-    const st = l.st;
-    if (UNAVAILABLE.includes(st.state)) return this._t("card.unavailable");
-    if (st.state !== "on") return this._t("light.off");
-    const parts: string[] = [l.dim ? `${pct} %` : this._t("light.on")];
-    const a = st.attributes;
-    if (!isNoEffect(a.effect)) parts.push(String(a.effect));
-    else if (a.color_mode === "color_temp" && a.color_temp_kelvin) parts.push(`${Math.round(Number(a.color_temp_kelvin))} K`);
-    else if (Array.isArray(a.rgb_color) && l.color) parts.push(this._t("light.color"));
-    return parts.join(" · ");
-  }
-
-  private _renderLampDetails(l: Lamp) {
-    const a = l.st.attributes;
-    const ids = [l.entity];
-    const parts = [];
-    if (l.temp) {
-      const min = Number(a.min_color_temp_kelvin ?? 2000);
-      const max = Number(a.max_color_temp_kelvin ?? 6500);
-      const value = this._pendingValue(ids, "k") ?? Number(a.color_temp_kelvin ?? Math.round((min + max) / 2));
-      parts.push(html`<hcc-gradient-slider small .min=${min} .max=${max} .step=${50} .value=${value}
-        .label=${this._t("light.temperature")} .icon=${"mdi:thermometer"} .display=${`${Math.round(value)} K`}
-        .gradient=${`linear-gradient(90deg, ${rgb(kelvinToRgb(min))}, ${rgb(kelvinToRgb((min + max) / 2))}, ${rgb(kelvinToRgb(max))})`}
-        .knob=${rgb(kelvinToRgb(value))}
-        @value-changing=${(e: CustomEvent) => { this._pending = { ...this._pending, [`${l.entity}|k`]: { value: e.detail.value } }; }}
-        @value-changed=${(e: CustomEvent) => this._set(ids, "k", e.detail.value, { color_temp_kelvin: e.detail.value })}>
-      </hcc-gradient-slider>`);
-    }
-    if (l.color) {
-      const hue = this._pendingValue(ids, "h") ?? (Array.isArray(a.hs_color) ? Math.round(a.hs_color[0]) : 0);
-      parts.push(html`<hcc-gradient-slider small .min=${0} .max=${359} .value=${hue} .label=${this._t("light.color")}
-        .icon=${"mdi:palette"} .display=${`${hue}°`} .gradient=${HUE_GRADIENT} .knob=${`hsl(${hue}, 100%, 50%)`}
-        @value-changing=${(e: CustomEvent) => { this._pending = { ...this._pending, [`${l.entity}|h`]: { value: e.detail.value } }; }}
-        @value-changed=${(e: CustomEvent) => this._set(ids, "h", e.detail.value, { hs_color: [e.detail.value, 100] })}>
-      </hcc-gradient-slider>`);
-    }
-    if (l.effects.length) {
-      parts.push(html`<hcc-attribute-select .label=${this._t("light.effect")} .icon=${"mdi:auto-fix"} .dropdownThreshold=${4}
-        .selected=${isNoEffect(a.effect) ? NO_EFFECT : String(a.effect)}
-        .options=${[{ value: NO_EFFECT, label: this._t("light.no_effect") },
-          ...l.effects.map((e) => ({ value: e, label: e.charAt(0).toUpperCase() + e.slice(1) }))]}
-        @option-selected=${(e: CustomEvent) => this._setEffect(l, e.detail.value)}></hcc-attribute-select>`);
-    }
-    return parts;
-  }
-
-  private _setEffect(l: Lamp, value: string): void {
-    this._haptic("selection");
-    if (value !== NO_EFFECT) return this._call("turn_on", [l.entity], { effect: value });
-    const named = ((l.st.attributes.effect_list ?? []) as unknown[]).map(String).find((e) => isNoEffect(e) && e.trim() !== "");
-    if (named) return this._call("turn_on", [l.entity], { effect: named });
-    const a = l.st.attributes;
-    if (a.color_mode === "color_temp" && a.color_temp_kelvin) return this._call("turn_on", [l.entity], { color_temp_kelvin: a.color_temp_kelvin });
-    if (Array.isArray(a.rgb_color)) return this._call("turn_on", [l.entity], { rgb_color: a.rgb_color });
-    this._call("turn_on", [l.entity], {});
-  }
-
-  private _renderLamp(l: Lamp) {
-    const on = l.st.state === "on";
-    const unavailable = UNAVAILABLE.includes(l.st.state);
-    const pct = this._pendingValue([l.entity], "b") ?? brightnessPct(l.st);
-    const color = lightColor(l.st) ?? WARM;
-    const hasDetails = !unavailable && (l.temp || l.color || l.effects.length > 0);
-    const open = hasDetails && on && this._open.has(l.entity);
-    const icon = l.icon ?? l.st.attributes.icon ?? (on ? "mdi:lightbulb-on" : "mdi:lightbulb-outline");
-    return html`<div class="lamp ${on ? "on" : ""} ${unavailable ? "unavailable" : ""}" style="--lc:${color}" data-entity=${l.entity}>
-      <div class="lamp-head">
-        <button class="lamp-title" @click=${() => this._moreInfo(l.entity)}>
-          <span class="lamp-icon"><ha-icon .icon=${icon}></ha-icon></span>
-          <span class="lamp-text">
-            <span class="lamp-name">${l.name}</span>
-            <span class="lamp-state">${this._lampStatus(l, pct)}</span>
-          </span>
-        </button>
-        ${hasDetails && on ? html`<button class="lamp-more ${open ? "open" : ""}" aria-expanded=${open}
-          aria-label=${this._t(open ? "card.less" : "card.more")} @click=${() => this._toggleOpen(l.entity)}>
-          <ha-icon icon="mdi:tune-variant"></ha-icon></button>` : nothing}
-        <button class="lamp-power ${on ? "on" : ""}" ?disabled=${unavailable}
-          aria-label=${this._t(on ? "card.turn_off" : "card.turn_on")}
-          @click=${() => { this._haptic(); this._call("toggle", [l.entity]); }}>
-          <ha-icon icon="mdi:power"></ha-icon>
-        </button>
-      </div>
-      ${l.dim && !unavailable ? html`<hcc-gradient-slider small .min=${1} .max=${100} .value=${on ? pct : 0}
-        .fill=${true} .active=${on} .color=${color} .label=${""}
-        @value-changing=${(e: CustomEvent) => { this._pending = { ...this._pending, [`${l.entity}|b`]: { value: e.detail.value } }; }}
-        @value-changed=${(e: CustomEvent) => this._set([l.entity], "b", e.detail.value, { brightness_pct: e.detail.value })}>
-      </hcc-gradient-slider>` : nothing}
-      ${open ? html`<div class="lamp-details">${this._renderLampDetails(l)}</div>` : nothing}
-    </div>`;
-  }
-
   // ---------- Karte ----------
 
   protected render() {
@@ -369,7 +261,8 @@ export class HaLightGroupCard extends LitElement {
           <ha-icon class="chevron ${this._listOpen ? "open" : ""}" icon="mdi:chevron-down"></ha-icon>
         </button>
         <div class="collapsible ${this._listOpen ? "open" : ""}" ?inert=${!this._listOpen}>
-          <div class="collapsible-inner"><div class="lamps">${lamps.map((l) => this._renderLamp(l))}</div></div>
+          <div class="collapsible-inner"><div class="lamps">${lamps.map((l) => html`<hcc-lamp-row .hass=${this.hass} .entity=${l.entity}
+            .name=${l.name} .icon=${l.icon} data-entity=${l.entity}></hcc-lamp-row>`)}</div></div>
         </div>` : nothing}
     </ha-card>`;
   }
@@ -398,33 +291,5 @@ export class HaLightGroupCard extends LitElement {
       box-shadow: 0 0 0 2px rgba(255,255,255,0.15), 0 2px 6px rgba(0,0,0,0.25); transition: transform 0.2s var(--ease-spring); }
     .swatch:hover { transform: scale(1.12); }
     .lamps { display: flex; flex-direction: column; gap: 8px; }
-    .lamp { display: flex; flex-direction: column; gap: 8px; padding: 8px 10px 10px; border-radius: var(--hcc-inner-radius, 14px);
-      background: rgba(127,127,127,0.1); transition: background 0.4s, box-shadow 0.4s;
-      animation: slide-in 0.4s var(--ease-out) both; }
-    .lamp.on { background: color-mix(in srgb, var(--lc) 12%, transparent);
-      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lc) 26%, transparent); }
-    .lamp.unavailable { opacity: 0.5; }
-    .lamp-head { display: flex; align-items: center; gap: 8px; }
-    .lamp-title { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; border: none; background: none;
-      padding: 0; cursor: pointer; text-align: left; font: inherit; color: inherit; }
-    .lamp-icon { width: 34px; height: 34px; flex: none; border-radius: 50%; display: grid; place-items: center;
-      background: rgba(127,127,127,0.14); color: var(--secondary-text-color); transition: background 0.4s, color 0.4s, box-shadow 0.4s; }
-    .lamp-icon ha-icon { --mdc-icon-size: 20px; }
-    .lamp.on .lamp-icon { background: color-mix(in srgb, var(--lc) 24%, transparent); color: var(--lc);
-      box-shadow: 0 0 14px color-mix(in srgb, var(--lc) 45%, transparent); }
-    .lamp.on .lamp-icon ha-icon { filter: drop-shadow(0 0 5px color-mix(in srgb, var(--lc) 70%, transparent)); }
-    .lamp-text { display: flex; flex-direction: column; min-width: 0; }
-    .lamp-name { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .lamp-state { font-size: 12px; color: var(--secondary-text-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .lamp-more, .lamp-power { width: 34px; height: 34px; flex: none; border-radius: 50%; border: none; cursor: pointer;
-      display: grid; place-items: center; background: rgba(127,127,127,0.14); color: var(--secondary-text-color);
-      transition: background 0.3s, color 0.3s, transform 0.2s var(--ease-spring); }
-    .lamp-more ha-icon, .lamp-power ha-icon { --mdc-icon-size: 18px; }
-    .lamp-more:active, .lamp-power:active { transform: scale(0.9); }
-    .lamp-more.open { background: color-mix(in srgb, var(--lc) 26%, transparent); color: var(--primary-text-color); }
-    .lamp-power.on { background: var(--lc); color: rgba(0,0,0,0.7); box-shadow: 0 0 12px color-mix(in srgb, var(--lc) 55%, transparent); }
-    .lamp-power:disabled { opacity: 0.4; cursor: default; }
-    .lamp-details { display: flex; flex-direction: column; gap: 12px; padding-top: 4px; animation: slide-in 0.35s var(--ease-out) both; }
-    ha-card.anim-reduced .lamp, ha-card.anim-off .lamp { animation: none; }
   `];
 }

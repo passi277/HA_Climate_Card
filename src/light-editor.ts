@@ -37,6 +37,10 @@ export class HaLightCardEditor extends LitElement {
       { name: "default_presets", selector: { boolean: {} } },
       { type: "expandable", name: "", flatten: true, title: this._t("room"), icon: "mdi:lightbulb-group", schema: [
         { name: "auto_entities", selector: { boolean: {} } },
+        { name: "lights_layout", selector: { select: { mode: "box", options: [
+          { value: "rows", label: this._t("lights_rows") },
+          { value: "tiles", label: this._t("lights_tiles") },
+        ] } } },
         { name: "entities", selector: { entity: { multiple: true, filter: { domain: "light" } } } },
         { name: "auto_scenes", selector: { boolean: {} } },
         { name: "scenes", selector: { entity: { multiple: true, filter: { domain: "scene" } } } },
@@ -95,7 +99,7 @@ export class HaLightCardEditor extends LitElement {
     if (!this.hass || !this._config) return nothing;
     const data = {
       default_presets: this._config.presets === "default",
-      layout: "full", auto_entities: true, auto_scenes: true, auto_segments: true, auto_shortcuts: true, expandable: true, animations: "full",
+      layout: "full", lights_layout: "rows", auto_entities: true, auto_scenes: true, auto_segments: true, auto_shortcuts: true, expandable: true, animations: "full",
       ...this._config,
       entities: this._config.entities?.map((e) => (typeof e === "string" ? e : e.entity)),
       shortcuts: this._config.shortcuts?.map((e) => (typeof e === "string" ? e : e.entity)),
