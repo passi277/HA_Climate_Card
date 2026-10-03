@@ -307,7 +307,9 @@
     "tilt": "Tilt",
     "tilt_open": "Open tilt",
     "tilt_close": "Close tilt",
-    "contact_open": "open"
+    "contact_open": "open",
+    "timer": "Cover timer",
+    "timer_at": "Moves at"
   },
   "cover_group": {
     "title": "Covers",
@@ -341,7 +343,10 @@
     "sky_section": "Sky & travel",
     "sun_entity": "Sun (day/twilight/night)",
     "weather_entity": "Weather in the window (clouds, rain, snow)",
-    "travel_time": "Travel time fully closed → open"
+    "travel_time": "Travel time fully closed → open",
+    "timer_section": "Cover timer",
+    "timer_switch": "Timer switch (input_boolean/switch)",
+    "timer_time": "Time (input_datetime)"
   },
   "cover_group_editor": {
     "entities": "Covers (order = display)",
@@ -355,7 +360,10 @@
     "hint": "Each cover is shown as a tile side by side – with a draggable window and exactly the buttons it supports.",
     "travel_time": "Travel time fully closed → open",
     "show_sky": "Sky by sun position",
-    "weather_entity": "Weather in the window"
+    "weather_entity": "Weather in the window",
+    "timer_section": "Cover timer",
+    "timer_switch": "Timer switch (input_boolean/switch)",
+    "timer_time": "Time (input_datetime)"
   },
   "switch_time": {
     "on": "On",

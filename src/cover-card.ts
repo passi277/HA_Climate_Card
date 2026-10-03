@@ -9,6 +9,7 @@ import { coverColor, coverGlide, coverStatus, coverTileGridStyles } from "./comp
 import "./components/cover-tile";
 import "./components/cover-window";
 import "./components/gradient-slider";
+import "./components/sleep-timer";
 import "./cover-editor";
 
 const DEFAULT_COVER_SHOW: Required<CoverShowConfig> = { covers: true, positions: true, tilt: true, sky: true };
@@ -128,7 +129,7 @@ export class HaCoverCard extends LitElement {
   private _watched(): string[] {
     const c = this._config;
     if (!c) return [];
-    return [c.entity, ...(c.contact_sensors ?? []), ...this._members().map((m) => m.entity),
+    return [c.entity, c.timer_switch ?? "", c.timer_time ?? "", ...(c.contact_sensors ?? []), ...this._members().map((m) => m.entity),
       ...(this._show.sky ? [this._sunEntity, c.weather_entity ?? ""] : [])].filter(Boolean);
   }
 
@@ -322,6 +323,10 @@ export class HaCoverCard extends LitElement {
         ? html`<div class="collapsible ${this._expanded ? "open" : ""}" ?inert=${!this._expanded}><div class="collapsible-inner"><div class="controls">${details}</div></div></div>
                ${this._renderExpand()}`
         : html`<div class="controls">${details}</div>` : nothing}
+      ${c.timer_switch || c.timer_time ? html`<hcc-sleep-timer class="cover-timer" .hass=${this.hass} .switchEntity=${c.timer_switch}
+        .timeEntity=${c.timer_time} .label=${this._t("cover.timer")} .offText=${this._t("card.timer_off")} .atText=${this._t("cover.timer_at")}
+        .inText=${this._t("card.timer_in")} .hourText=${this._t("card.hour")} .minuteText=${this._t("card.minute")}
+        .doneText=${this._t("card.done")} .icon=${"mdi:timer-outline"} .iconOff=${"mdi:timer-off-outline"}></hcc-sleep-timer>` : nothing}
     </ha-card>`;
   }
 
@@ -344,6 +349,7 @@ export class HaCoverCard extends LitElement {
     .round:disabled { opacity: 0.35; cursor: default; transform: none; }
     .round.moving { background: var(--accent); color: rgba(0,0,0,0.75);
       box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 45%, transparent); }
+    hcc-sleep-timer.cover-timer { --hcc-timer-color: #42a5f5; }
     .members { display: flex; flex-direction: column; gap: 8px; }
     .tilt-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
     .row-label { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; color: var(--secondary-text-color);

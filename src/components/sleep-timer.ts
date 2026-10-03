@@ -15,6 +15,9 @@ export class SleepTimer extends LitElement {
   @property() switchEntity?: string;
   @property() timeEntity?: string;
   @property() label = "Sleeptimer";
+  /** Symbol an/aus (Standard Schlafen) */
+  @property() icon = "mdi:sleep";
+  @property() iconOff = "mdi:sleep-off";
   @property() offText = "Off";
   @property() atText = "Off at";
   @property() inText = "in";
@@ -158,7 +161,7 @@ export class SleepTimer extends LitElement {
       : nothing;
     return html`<div class="wrap ${armed ? "armed" : ""}"><div class="timer">
       <button class="badge" @click=${() => this._moreInfo(this.switchEntity ?? this.timeEntity)} aria-label=${this.label}>
-        <ha-icon icon=${armed ? "mdi:sleep" : "mdi:sleep-off"}></ha-icon>
+        <ha-icon icon=${armed ? this.icon : this.iconOff}></ha-icon>
       </button>
       <div class="text">
         <span class="label">${this.label}</span>

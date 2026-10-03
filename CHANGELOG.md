@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.7.5
+- Rollladen-Karte und Rollladen-Gruppe: **Rollo-Timer** (`timer_switch` + `timer_time`) – „Fährt um 06:30 · in 12:59 h“, Uhrzeit per Stunden-/Minuten-Auswahl, im Editor unter „Rollo-Timer“
+- Sleeptimer-Zeile: Symbol einstellbar (intern)
+
 ## 1.7.4
 - Medienkarte: Fernbedienung ließ sich in Home Assistant nicht einklappen, wenn in der Konfiguration kein `layout` stand – jedes erneute `setConfig` von HA klappte sie wieder auf. Behoben
 

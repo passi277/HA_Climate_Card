@@ -272,6 +272,8 @@ contact_sensors: [binary_sensor.fenster_wohnzimmer]
 # travel_time: 25                   # Fahrzeit ganz zu → ganz auf (s)
 # weather_entity: weather.zuhause   # Wolken/Regen im Fenster
 # show: { sky: false }              # neutraler Himmel statt Sonnenstand
+# timer_switch: input_boolean.schalter_rolladen   # Rollo-Timer („Fährt um …“)
+# timer_time: input_datetime.timer_rolladen
 # layout: compact
 ```
 

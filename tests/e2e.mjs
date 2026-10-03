@@ -567,6 +567,17 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
     ? ok("Medien: Fernbedienung bleibt eingeklappt, auch wenn HA die Konfiguration neu setzt") : fail(`Einklappen: ${JSON.stringify(res)}`);
 }
 
+// Rollladen: Rollo-Timer (Schalter + Uhrzeit)
+{
+  const res = await p.evaluate(async () => {
+    const t = document.querySelector("ha-cover-card").shadowRoot.querySelector("hcc-sleep-timer")?.shadowRoot;
+    return { label: t?.querySelector(".label")?.textContent.trim(), status: t?.querySelector(".status")?.textContent.replace(/\s+/g, " ").trim(),
+      icon: t?.querySelector(".badge ha-icon")?.getAttribute("icon") };
+  });
+  res.label === "Rollo-Timer" && /Fährt um/.test(res.status ?? "") && /timer/.test(res.icon ?? "")
+    ? ok("Rollladen: Rollo-Timer mit „Fährt um …“") : fail(`Rollo-Timer: ${JSON.stringify(res)}`);
+}
+
 // Moduswechsel: jede Karte, jeder Modus (außer Auto/Heizen-Kühlen, dort zählt die Tätigkeit)
 const colorFails = await p.evaluate(async () => {
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));

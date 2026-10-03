@@ -216,6 +216,9 @@ export interface CoverCardConfig {
   auto_entities?: boolean;
   /** Fenster-/Türkontakte: Hinweis, wenn beim Schließen etwas offen ist */
   contact_sensors?: string[];
+  /** Rollo-Timer: Schalter (input_boolean/switch) + Uhrzeit (input_datetime) */
+  timer_switch?: string;
+  timer_time?: string;
   /** Fahrzeit ganz zu → ganz auf in Sekunden (für die gleichmäßige Fahrt-Animation, Standard 20) */
   travel_time?: number;
   /** Sonnenstand für den Himmel im Fenster (Standard sun.sun) */
@@ -238,6 +241,9 @@ export interface CoverGroupCardConfig {
   collapsed?: boolean;
   /** Fahrzeit ganz zu → ganz auf in Sekunden (Standard 20) */
   travel_time?: number;
+  /** Rollo-Timer: Schalter + Uhrzeit */
+  timer_switch?: string;
+  timer_time?: string;
   /** Himmel nach Sonnenstand in den Kacheln (Standard an) */
   show_sky?: boolean;
   sun_entity?: string;

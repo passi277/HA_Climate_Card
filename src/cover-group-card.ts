@@ -9,6 +9,7 @@ import { coverColor, coverTileGridStyles } from "./components/cover-tile";
 import { DEFAULT_POSITIONS, positionChipStyles, renderPositionChips } from "./cover-card";
 import "./components/cover-tile";
 import "./components/gradient-slider";
+import "./components/sleep-timer";
 import "./cover-group-editor";
 
 (window as any).customCards = (window as any).customCards || [];
@@ -78,10 +79,11 @@ export class HaCoverGroupCard extends LitElement {
     if (!changed.has("hass") || changed.size > 1) return true;
     const old = changed.get("hass") as HomeAssistant | undefined;
     if (!old || !this._config) return true;
+    const timers = [this._config.timer_switch, this._config.timer_time].filter(Boolean) as string[];
     return this._config.entities.some((e) => {
       const id = typeof e === "string" ? e : e.entity;
       return old.states[id] !== this.hass!.states[id];
-    }) || old.locale !== this.hass!.locale;
+    }) || timers.some((id) => old.states[id] !== this.hass!.states[id]) || old.locale !== this.hass!.locale;
   }
 
   protected updated(changed: PropertyValues): void {
@@ -137,6 +139,7 @@ export class HaCoverGroupCard extends LitElement {
     const openCount = known.filter((p) => p > 0).length;
     const moving = available.map((i) => coverMoving(i.st)).find(Boolean);
     const anim = this._config.animations ?? "full";
+    const c = this._config;
     const sky = this._config.show_sky !== false;
     const sun = sky ? sunInfo(this.hass.states[this._config.sun_entity ?? "sun.sun"]) : undefined;
     const weather = sky && this._config.weather_entity ? this.hass.states[this._config.weather_entity]?.state : undefined;
@@ -189,6 +192,10 @@ export class HaCoverGroupCard extends LitElement {
               .target=${this._targets[i.entity]} .travelTime=${Number(this._config!.travel_time) || 20} .sun=${sun} .weather=${weather}></hcc-cover-tile>`)}
           </div></div>
         </div>` : nothing}
+      ${c.timer_switch || c.timer_time ? html`<hcc-sleep-timer class="cover-timer" .hass=${this.hass} .switchEntity=${c.timer_switch}
+        .timeEntity=${c.timer_time} .label=${this._t("cover.timer")} .offText=${this._t("card.timer_off")} .atText=${this._t("cover.timer_at")}
+        .inText=${this._t("card.timer_in")} .hourText=${this._t("card.hour")} .minuteText=${this._t("card.minute")}
+        .doneText=${this._t("card.done")} .icon=${"mdi:timer-outline"} .iconOff=${"mdi:timer-off-outline"}></hcc-sleep-timer>` : nothing}
     </ha-card>`;
   }
 
@@ -202,6 +209,7 @@ export class HaCoverGroupCard extends LitElement {
     .icon-badge[data-moving="closing"] ha-icon { animation: nudge-down 0.9s ease-in-out infinite; }
     @keyframes nudge-up { 0%, 100% { transform: translateY(1px); } 50% { transform: translateY(-3px); } }
     @keyframes nudge-down { 0%, 100% { transform: translateY(-1px); } 50% { transform: translateY(3px); } }
+    hcc-sleep-timer.cover-timer { --hcc-timer-color: #42a5f5; }
     .cover-buttons { display: flex; gap: 6px; flex: none; }
     .round.small { width: 36px; height: 36px; }
     .round.small ha-icon { --mdc-icon-size: 18px; }

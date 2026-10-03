@@ -35,6 +35,10 @@ export class HaCoverGroupCardEditor extends LitElement {
         { name: "show_sky", selector: { boolean: {} } },
         { name: "weather_entity", selector: { entity: { filter: { domain: "weather" } } } },
       ] },
+      { type: "expandable", name: "", flatten: true, title: this._t("timer_section"), icon: "mdi:timer-outline", schema: [
+        { name: "timer_switch", selector: { entity: { filter: { domain: ["input_boolean", "switch"] } } } },
+        { name: "timer_time", selector: { entity: { filter: { domain: "input_datetime" } } } },
+      ] },
       { name: "travel_time", selector: { number: { min: 3, max: 120, step: 1, mode: "box", unit_of_measurement: "s" } } },
       { name: "animations", selector: { select: { mode: "dropdown", options: ["full", "reduced", "off"].map((v) => ({ value: v, label: localize(this.hass, `editor.anim_${v}`) })) } } },
     ];

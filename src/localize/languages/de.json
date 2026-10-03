@@ -307,7 +307,9 @@
     "tilt": "Lamellen",
     "tilt_open": "Lamellen öffnen",
     "tilt_close": "Lamellen schließen",
-    "contact_open": "offen"
+    "contact_open": "offen",
+    "timer": "Rollo-Timer",
+    "timer_at": "Fährt um"
   },
   "cover_group": {
     "title": "Rollläden",
@@ -341,7 +343,10 @@
     "sky_section": "Himmel & Fahrt",
     "sun_entity": "Sonne (Tag/Dämmerung/Nacht)",
     "weather_entity": "Wetter im Fenster (Wolken, Regen, Schnee)",
-    "travel_time": "Fahrzeit ganz zu → ganz auf"
+    "travel_time": "Fahrzeit ganz zu → ganz auf",
+    "timer_section": "Rollo-Timer",
+    "timer_switch": "Timer-Schalter (input_boolean/switch)",
+    "timer_time": "Uhrzeit (input_datetime)"
   },
   "cover_group_editor": {
     "entities": "Rollläden (Reihenfolge = Anzeige)",
@@ -355,7 +360,10 @@
     "hint": "Jeder Rollladen erscheint als Kachel nebeneinander – mit Fenster zum Ziehen und genau den Knöpfen, die er kann.",
     "travel_time": "Fahrzeit ganz zu → ganz auf",
     "show_sky": "Himmel nach Sonnenstand",
-    "weather_entity": "Wetter im Fenster"
+    "weather_entity": "Wetter im Fenster",
+    "timer_section": "Rollo-Timer",
+    "timer_switch": "Timer-Schalter (input_boolean/switch)",
+    "timer_time": "Uhrzeit (input_datetime)"
   },
   "switch_time": {
     "on": "An",

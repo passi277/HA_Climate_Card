@@ -66,6 +66,10 @@ export class HaCoverCardEditor extends LitElement {
         { name: "weather_entity", selector: { entity: { filter: { domain: "weather" } } } },
         { name: "travel_time", selector: { number: { min: 3, max: 120, step: 1, mode: "box", unit_of_measurement: "s" } } },
       ] },
+      { type: "expandable", name: "", flatten: true, title: this._t("timer_section"), icon: "mdi:timer-outline", schema: [
+        { name: "timer_switch", selector: { entity: { filter: { domain: ["input_boolean", "switch"] } } } },
+        { name: "timer_time", selector: { entity: { filter: { domain: "input_datetime" } } } },
+      ] },
       { type: "expandable", name: "", flatten: true, title: this._t("appearance"), icon: "mdi:palette-outline", schema: [
         { name: "expandable", selector: { boolean: {} } },
         { name: "start_expanded", selector: { boolean: {} } },
