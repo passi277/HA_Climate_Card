@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { HassEntity } from "../src/types";
 import {
-  brightnessPct, contactType, detectDeviceType, kelvinToRgb, lightColor, relatedScenes, supportsColor, supportsColorTemp, dewPoint, nextSwitch, parseSchedule, scheduleTempAt, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
+  brightnessPct, contactType, isNoEffect, segmentIds, detectDeviceType, kelvinToRgb, lightColor, relatedScenes, supportsColor, supportsColorTemp, dewPoint, nextSwitch, parseSchedule, scheduleTempAt, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
   openContactsKey, powerOf, resolveContacts, secondsToDuration, stateIcon, temperatureOf, temperatureTint, trendSlope,
 } from "../src/utils";
 import { formatAttribute, localize } from "../src/localize/localize";
@@ -219,5 +219,15 @@ describe("lights", () => {
       "scene.flur_hell": entity("scene.flur_hell", "unknown", { group_name: "Flur", name: "Hell" }),
     };
     expect(relatedScenes(states, group).map((s) => s.entity_id)).toEqual(["scene.gaste_wc_lesen"]);
+  });
+  it("recognizes 'no effect' entries (Govee \"\", Hue off, WLED None)", () => {
+    for (const e of ["", "off", "None", null, undefined]) expect(isNoEffect(e)).toBe(true);
+    expect(isNoEffect("Fire-A")).toBe(false);
+  });
+  it("finds govee2mqtt segments, ignoring a numeric suffix of the main light", () => {
+    const states = Object.fromEntries(["light.carport_2", "light.carport_segment_010", "light.carport_segment_002",
+      "light.carport_segment_001", "light.carportx_segment_001", "light.garten_segment_001"].map((id) => [id, entity(id, "on")]));
+    expect(segmentIds(states, "light.carport_2")).toEqual(["light.carport_segment_001", "light.carport_segment_002", "light.carport_segment_010"]);
+    expect(segmentIds(states, "light.garten")).toEqual(["light.garten_segment_001"]);
   });
 });

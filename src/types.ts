@@ -133,6 +133,8 @@ export interface LightShowConfig {
   color?: boolean;
   temperature?: boolean;
   effects?: boolean;
+  segments?: boolean;
+  shortcuts?: boolean;
 }
 
 export interface LightCardConfig {
@@ -150,6 +152,12 @@ export interface LightCardConfig {
   auto_scenes?: boolean;
   motion_sensor?: string;
   illuminance_sensor?: string;
+  /** Segmente eines LED-Streifens (z.B. govee2mqtt `light.xyz_segment_001`) */
+  segments?: string[];
+  auto_segments?: boolean;
+  /** Schalter/Buttons des Geräts (z.B. Govee „Gradient“) */
+  shortcuts?: (string | ShortcutConfig)[];
+  auto_shortcuts?: boolean;
   expandable?: boolean;
   start_expanded?: boolean;
   animations?: "full" | "reduced" | "off";

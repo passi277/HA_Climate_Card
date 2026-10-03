@@ -1,18 +1,28 @@
 import { LitElement, css, html, nothing, type PropertyValues, type TemplateResult } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import type { HassEntity, HomeAssistant, LightCardConfig, LightShowConfig } from "./types";
+import type { ShortcutItem } from "./components/shortcut-row";
+import type { SegmentItem } from "./components/segment-strip";
 import { localize } from "./localize/localize";
 import { cardStyles } from "./styles";
 import { DOCS_URL } from "./shared";
 import {
-  brightnessPct, kelvinToRgb, lightColor, relatedScenes, supportsBrightness, supportsColor, supportsColorTemp, UNAVAILABLE,
+  brightnessPct, isNoEffect, kelvinToRgb, lightColor, relatedScenes, segmentIds, supportsBrightness, supportsColor,
+  supportsColorTemp, UNAVAILABLE,
 } from "./utils";
 import "./components/climate-dial";
 import "./components/gradient-slider";
 import "./components/attribute-select";
+import "./components/shortcut-row";
+import "./components/segment-strip";
 import "./light-editor";
 
-const DEFAULT_LIGHT_SHOW: Required<LightShowConfig> = { lights: true, scenes: true, color: true, temperature: true, effects: true };
+const DEFAULT_LIGHT_SHOW: Required<LightShowConfig> = {
+  lights: true, scenes: true, color: true, temperature: true, effects: true, segments: true, shortcuts: true,
+};
+/** Technische Geräte-Entitäten, die nicht als Schalter angeboten werden (govee2mqtt). */
+const SHORTCUT_EXCLUDE = /power.?switch|request|platform.?api|refresh|identify/i;
+const NO_EFFECT = "__hcc_no_effect__";
 const OFF_COLOR = "var(--state-light-off-color, #8a8a8a)";
 const HUE_SWATCHES = [0, 28, 50, 120, 180, 220, 270, 320];
 const HUE_GRADIENT = "linear-gradient(90deg, #f00, #ff0 17%, #0f0 33%, #0ff 50%, #00f 67%, #f0f 83%, #f00)";
@@ -105,10 +115,71 @@ export class HaLightCard extends LitElement {
     return c.auto_scenes === false || !st ? [] : relatedScenes(this.hass!.states, st);
   }
 
+  private _deviceCache?: { key: unknown; entity: string; ids: string[] };
+
+  /** Alle Entitäten desselben Geräts (ohne versteckte). */
+  private _deviceEntities(): string[] {
+    const hass = this.hass;
+    const entityId = this._config?.entity;
+    if (!hass?.entities || !entityId) return [];
+    const cache = this._deviceCache;
+    if (cache && cache.key === hass.entities && cache.entity === entityId) return cache.ids;
+    const deviceId = hass.entities[entityId]?.device_id;
+    const ids = deviceId
+      ? Object.values(hass.entities)
+          .filter((e) => e.device_id === deviceId && e.entity_id !== entityId && !e.hidden)
+          .map((e) => e.entity_id)
+          .sort()
+      : [];
+    this._deviceCache = { key: hass.entities, entity: entityId, ids };
+    return ids;
+  }
+
+  /** Kurzname ohne Geräte-/Lampennamen als Präfix. */
+  private _shortName(entityId: string): string {
+    const hass = this.hass!;
+    const full = String(hass.states[entityId]?.attributes.friendly_name ?? entityId.split(".")[1]);
+    const deviceId = hass.entities?.[entityId]?.device_id;
+    const device = deviceId ? hass.devices?.[deviceId] : undefined;
+    const prefixes = [device?.name_by_user, device?.name, this._st?.attributes.friendly_name, this._config?.name]
+      .filter((p): p is string => !!p)
+      .sort((x, y) => y.length - x.length);
+    for (const prefix of prefixes) {
+      if (full.toLowerCase().startsWith(prefix.toLowerCase() + " ")) {
+        const rest = full.slice(prefix.length + 1);
+        return rest.charAt(0).toUpperCase() + rest.slice(1);
+      }
+    }
+    return full;
+  }
+
+  private _segments(): SegmentItem[] {
+    const c = this._config!;
+    const hass = this.hass!;
+    const ids = c.segments ?? (c.auto_segments === false ? [] : [...new Set([
+      ...segmentIds(hass.states, c.entity),
+      ...this._deviceEntities().filter((id) => id.startsWith("light.") && /segment/i.test(id)),
+    ])]);
+    return ids.filter((id) => hass.states[id]).map((id) => ({ entity: id, name: this._shortName(id) }));
+  }
+
+  private _shortcuts(): ShortcutItem[] {
+    const c = this._config!;
+    const hass = this.hass!;
+    const list = c.shortcuts ?? (c.auto_shortcuts === false ? [] : this._deviceEntities()
+      .filter((id) => ["switch", "button"].includes(id.split(".")[0]) && !SHORTCUT_EXCLUDE.test(id)
+        && hass.entities?.[id]?.entity_category !== "diagnostic"));
+    return list
+      .map((s) => (typeof s === "string" ? { entity: s } : s))
+      .filter((s) => s?.entity && hass.states[s.entity])
+      .map((s) => ({ entity: s.entity, name: s.name ?? this._shortName(s.entity), icon: s.icon }));
+  }
+
   private _watched(): string[] {
     const c = this._config;
     if (!c) return [];
-    return [c.entity, c.motion_sensor, c.illuminance_sensor, ...this._members().map((m) => m.entity)].filter(Boolean) as string[];
+    return [c.entity, c.motion_sensor, c.illuminance_sensor, ...this._members().map((m) => m.entity),
+      ...this._segments().map((s) => s.entity), ...this._shortcuts().map((s) => s.entity)].filter(Boolean) as string[];
   }
 
   protected shouldUpdate(changed: PropertyValues): boolean {
@@ -237,7 +308,7 @@ export class HaLightCard extends LitElement {
     const c = this._config!;
     const hass = this.hass!;
     const pills: { icon: string; text: string; warn?: boolean }[] = [];
-    if (st.state === "on" && st.attributes.effect && st.attributes.effect !== "off" && st.attributes.effect !== "None") {
+    if (st.state === "on" && !isNoEffect(st.attributes.effect)) {
       pills.push({ icon: "mdi:auto-fix", text: String(st.attributes.effect) });
     }
     const motion = c.motion_sensor ? hass.states[c.motion_sensor] : undefined;
@@ -350,14 +421,32 @@ export class HaLightCard extends LitElement {
         </div>
       </div>`);
     }
-    const effects = (a.effect_list ?? []) as string[];
-    if (show.effects && effects.length) {
+    const effects = ((a.effect_list ?? []) as unknown[]).map(String);
+    const real = [...new Set(effects.filter((e) => !isNoEffect(e)))];
+    if (show.effects && real.length) {
       parts.push(html`<hcc-attribute-select .label=${this._t("light.effect")} .icon=${"mdi:auto-fix"}
-        .selected=${a.effect ?? "off"} .dropdownThreshold=${5}
-        .options=${effects.map((e) => ({ value: e, label: e === "off" ? this._t("light.no_effect") : e.charAt(0).toUpperCase() + e.slice(1) }))}
-        @option-selected=${(e: CustomEvent) => this._turnOn({ effect: e.detail.value })}></hcc-attribute-select>`);
+        .selected=${isNoEffect(a.effect) ? NO_EFFECT : String(a.effect)} .dropdownThreshold=${5}
+        .options=${[{ value: NO_EFFECT, label: this._t("light.no_effect") },
+          ...real.map((e) => ({ value: e, label: e.charAt(0).toUpperCase() + e.slice(1) }))]}
+        @option-selected=${(e: CustomEvent) => this._setEffect(e.detail.value, effects)}></hcc-attribute-select>`);
     }
     return parts;
+  }
+
+  /**
+   * Effekt setzen. „Kein Effekt“: vorhandenes `off`/`None` der Liste verwenden, sonst (Govee: `""`)
+   * die aktuelle Farbe bzw. den Weißton erneut setzen – das beendet die Szene zuverlässig.
+   */
+  private _setEffect(value: string, list: string[]): void {
+    this._haptic("selection");
+    if (value !== NO_EFFECT) return this._turnOn({ effect: value });
+    const named = list.find((e) => isNoEffect(e) && e.trim() !== "");
+    if (named) return this._turnOn({ effect: named });
+    const a = this._st!.attributes;
+    if (a.color_mode === "color_temp" && a.color_temp_kelvin) return this._turnOn({ color_temp_kelvin: a.color_temp_kelvin });
+    if (Array.isArray(a.rgb_color)) return this._turnOn({ rgb_color: a.rgb_color });
+    if (supportsColorTemp(this._st!)) return this._turnOn({ color_temp_kelvin: 3000 });
+    this._turnOn({ brightness_pct: brightnessPct(this._st) || 100 });
   }
 
   private _renderExpand() {
@@ -376,11 +465,15 @@ export class HaLightCard extends LitElement {
     const color = lightColor(st) ?? OFF_COLOR;
     const members = this._show.lights ? this._members() : [];
     const scenes = this._show.scenes ? this._scenes() : [];
+    const segments = this._show.segments ? this._segments() : [];
+    const shortcuts = this._show.shortcuts ? this._shortcuts() : [];
     const colorParts = on ? this._renderColor(st) : [];
     const compact = this._config.layout === "compact";
     const primary = [
       members.length ? this._renderMembers(members) : nothing,
+      segments.length ? html`<hcc-segment-strip .hass=${this.hass} .items=${segments} .label=${this._t("light.segments")}></hcc-segment-strip>` : nothing,
       scenes.length ? this._renderScenes(scenes, st) : nothing,
+      shortcuts.length ? html`<hcc-shortcut-row .hass=${this.hass} .items=${shortcuts}></hcc-shortcut-row>` : nothing,
     ];
     const details = colorParts.length
       ? html`<div class="controls">${colorParts}</div>`
@@ -443,5 +536,6 @@ export class HaLightCard extends LitElement {
     .swatch:hover { transform: scale(1.12); }
     .swatch.white { background: radial-gradient(circle at 35% 35%, #fff, rgb(255, 214, 160)); }
     ha-card.compact hcc-gradient-slider { margin-top: 2px; }
+    hcc-shortcut-row, hcc-segment-strip { --hcc-accent: var(--accent); }
   `];
 }

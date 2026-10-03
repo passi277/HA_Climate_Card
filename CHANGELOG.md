@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.1 – Govee
+- Light Card: **LED-Segmente** (govee2mqtt `light.<name>_segment_NNN`, automatisch erkannt) als farbige Leiste, Tippen öffnet Details
+- Light Card: **Geräteschalter** (z.B. Govee „Gradient“) automatisch aus dem Gerät, ohne technische Power-/Request-Entitäten
+- Auswahllisten mit vielen Einträgen (z.B. ~300 Govee-Szenen) haben ein **Suchfeld**
+- Effekte: leerer Eintrag / `off` / `None` = „Kein Effekt“; bei Govee beendet „Kein Effekt“ die Szene durch erneutes Setzen der Farbe
+- Editor: Segmente, Geräteschalter
+
 ## 1.2.0 – HA Modern Home Cards
 - Projekt heißt jetzt **HA Modern Home Cards** (eine Kartensammlung, ein Bundle `ha-modern-home-cards.js`; `ha-climate-card.js` wird übergangsweise weiter mitgeliefert, Kartentypen unverändert)
 - Neu: **Modern Light Card** (`custom:ha-light-card`) – Helligkeitsring mit Glow in Lichtfarbe, Lampen der Gruppe, Hue-Szenen, Weißton/Farbe/Effekte, Bewegung & Helligkeit, Kompakt-Variante, visueller Editor

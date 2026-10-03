@@ -174,7 +174,8 @@ Licht im gleichen Design: Ring = Helligkeit, Glow und Ring leuchten in der echte
 - **Helligkeitsring** (nur am Ring bedienbar) mit −/+ (gedrückt halten), Kompakt-Variante als Farbverlauf-Regler
 - **Lampen des Raums**: bei Lichtgruppen (z.B. Hue-Räume) automatisch, jede mit eigener Farbe, antippen schaltet, lange drücken öffnet Details
 - **Szenen**: Hue-Szenen der Gruppe automatisch (doppelte zusammengefasst) oder eigene Liste
-- **Weißton** (Kelvin-Regler) und **Farbe** (Farbton-Regler + Farbfelder), **Effekte** (z.B. Hue Play Gradient)
+- **Weißton** (Kelvin-Regler) und **Farbe** (Farbton-Regler + Farbfelder), **Szenen/Effekte** (z.B. Hue Play Gradient, Govee) – lange Listen mit Suchfeld
+- **LED-Segmente** als farbige Leiste und **Geräteschalter** (z.B. Govee „Gradient“), automatisch erkannt
 - **Bewegungsmelder** („Bewegung vor 4 min“) und **Helligkeitssensor** (lx) im Kopf
 - Visueller Editor, Deutsch/Englisch, `animations`-Option
 
@@ -194,9 +195,27 @@ layout: full                            # full | compact
 | `layout` | `full` | `full` (Ring) oder `compact` (Regler) |
 | `entities` / `auto_entities` | aus Gruppe / `true` | Lampen des Raums |
 | `scenes` / `auto_scenes` | Hue-Szenen / `true` | Szenen-Chips |
+| `segments` / `auto_segments` | `light.<name>_segment_NNN` / `true` | Segmente eines LED-Streifens |
+| `shortcuts` / `auto_shortcuts` | Schalter/Buttons des Geräts / `true` | Geräteschalter (ohne technische Power-/Request-Entitäten) |
 | `motion_sensor`, `illuminance_sensor` | – | Anzeige im Kopf |
-| `show.lights/scenes/color/temperature/effects` | `true` | Bereiche ein-/ausblenden |
+| `show.lights/scenes/color/temperature/effects/segments/shortcuts` | `true` | Bereiche ein-/ausblenden |
 | `expandable`, `start_expanded`, `animations` | `true`, `false`, `full` | wie bei der Klima-Karte |
+
+### Govee (govee2mqtt)
+
+Govee-Lampen und -Streifen funktionieren direkt: An/Aus, Helligkeit, Farbe, Weißton und die Govee-Szenen.
+
+- **Szenen**: Die ~300 Govee-Szenen erscheinen als Liste mit **Suche** („fire“ → alle Fire-Varianten). „Kein Effekt“ beendet eine Szene, indem die aktuelle Farbe bzw. der Weißton erneut gesetzt wird.
+- **Segmente**: `light.carport_segment_001…` werden zur Haupt-Lampe `light.carport` (auch `light.carport_2`) automatisch erkannt und als Leiste in ihrer Farbe gezeigt; Tippen öffnet die Details des Segments.
+- **Schalter** wie `switch.carport_gradient_toggle` erscheinen als Button; Power-Switch und „Request … State“-Buttons werden ausgeblendet.
+- Segmente und Schalter gibt es nur in der Home-Assistant-Instanz, in der govee2mqtt läuft. Wird die Lampe in ein anderes HA gespiegelt (z.B. per Remote Home-Assistant), dort die Karten ebenfalls über HACS installieren – oder die Segmente per `segments:` angeben, falls sie mitgespiegelt werden.
+
+```yaml
+type: custom:ha-light-card
+entity: light.carport_2
+# segments: [light.carport_segment_001, light.carport_segment_002]
+# shortcuts: [switch.carport_gradient_toggle]
+```
 
 ## Heizungen (z.B. Homematic IP)
 

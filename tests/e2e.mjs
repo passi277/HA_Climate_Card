@@ -176,6 +176,41 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
     ? ok("Licht: Szene aktiviert, einzelne Lampe geschaltet") : fail(`Szene/Lampe: ${calls}`);
 }
 
+// Govee (govee2mqtt): Segmente, Geräteschalter, durchsuchbare Szenen, „Kein Effekt“
+{
+  const res = await p.evaluate(async () => {
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const card = [...document.querySelectorAll("ha-light-card")].find((c) => c._config.entity === "light.carport_2");
+    const root = card.shadowRoot;
+    const segs = root.querySelector("hcc-segment-strip")?.shadowRoot.querySelectorAll(".seg") ?? [];
+    const switches = [...(root.querySelector("hcc-shortcut-row")?.shadowRoot.querySelectorAll(".sc span") ?? [])].map((s) => s.textContent.trim());
+    const sel = root.querySelector('hcc-attribute-select[icon="mdi:auto-fix"]') ?? [...root.querySelectorAll("hcc-attribute-select")].find((x) => x.icon === "mdi:auto-fix");
+    const sr = sel.shadowRoot;
+    sr.querySelector(".trigger").click();
+    await wait(100);
+    const search = sr.querySelector(".search");
+    search.value = "fire";
+    search.dispatchEvent(new Event("input"));
+    await wait(100);
+    const options = [...sr.querySelectorAll(".option span")].map((o) => o.textContent.trim());
+    const before = window.serviceCalls.length;
+    sr.querySelectorAll(".option")[1].click();
+    await wait(300);
+    sel.shadowRoot.querySelector(".trigger").click();
+    await wait(100);
+    sel.shadowRoot.querySelector(".option").click();
+    await wait(300);
+    const calls = window.serviceCalls.slice(before).map((c) => c.data);
+    return { segs: segs.length, switches, hasSearch: !!search, options, calls };
+  });
+  res.segs === 5 ? ok("Govee: 5 Segmente erkannt (light.carport_2 → carport_segment_00x)") : fail(`Segmente: ${res.segs}`);
+  res.switches.length === 1 && res.switches[0] === "Gradient" ? ok("Govee: Gradient-Schalter (ohne Power/Request)") : fail(`Schalter: ${res.switches}`);
+  res.hasSearch && res.options.length === 9 && res.options.every((o) => /fire/i.test(o))
+    ? ok("Szenen-Suche filtert („fire“ → 9 Treffer)") : fail(`Suche: ${JSON.stringify(res.options)}`);
+  res.calls[0]?.effect === "Fire-A" && res.calls[1] && !("effect" in res.calls[1]) && Array.isArray(res.calls[1].rgb_color)
+    ? ok("Szene per Klick gewählt, „Kein Effekt“ setzt die Farbe erneut") : fail(`Effekt: ${JSON.stringify(res.calls)}`);
+}
+
 // Moduswechsel: jede Karte, jeder Modus (außer Auto/Heizen-Kühlen, dort zählt die Tätigkeit)
 const colorFails = await p.evaluate(async () => {
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));

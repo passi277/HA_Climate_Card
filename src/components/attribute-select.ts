@@ -21,12 +21,18 @@ export class AttributeSelect extends LitElement {
   @property({ type: Number }) dropdownThreshold = 6;
 
   @state() private _open = false;
+  /** Suchtext in langen Listen (z.B. ~300 Govee-Szenen) */
+  @state() private _query = "";
+  /** Ab so vielen Optionen erscheint ein Suchfeld in der Liste. */
+  @property({ type: Number }) searchThreshold = 15;
   @query(".trigger") private _trigger?: HTMLButtonElement;
   @query(".menu") private _menu?: HTMLElement;
 
   private _onViewportChange = (ev: Event) => {
     // Scrollen innerhalb der Liste selbst schließt sie nicht
     if (ev.type === "scroll" && this._menu && ev.composedPath().includes(this._menu)) return;
+    // Bildschirmtastatur (Suche) verkleinert den Viewport → neu ausrichten statt schließen
+    if (ev.type === "resize" && this.shadowRoot?.activeElement?.classList.contains("search")) return this._position();
     this._close();
   };
 
@@ -62,8 +68,11 @@ export class AttributeSelect extends LitElement {
       window.addEventListener("resize", this._onViewportChange);
     }
     const target = menu.querySelector<HTMLElement>(".option.on") ?? menu.querySelector<HTMLElement>(".option");
-    target?.focus({ preventScroll: true });
     target?.scrollIntoView({ block: "nearest" });
+    const search = menu.querySelector<HTMLInputElement>(".search");
+    // Auf Touch-Geräten nicht sofort die Tastatur öffnen
+    if (search && window.matchMedia?.("(pointer: fine)").matches) search.focus({ preventScroll: true });
+    else target?.focus({ preventScroll: true });
   }
 
   private _close(focusTrigger = false): void {
@@ -71,6 +80,7 @@ export class AttributeSelect extends LitElement {
     window.removeEventListener("resize", this._onViewportChange);
     if (SUPPORTS_POPOVER && this._menu?.matches(":popover-open")) (this._menu as any).hidePopover();
     this._open = false;
+    this._query = "";
     if (focusTrigger) this._trigger?.focus();
   }
 
@@ -105,7 +115,14 @@ export class AttributeSelect extends LitElement {
 
   private _onMenuKey(ev: KeyboardEvent): void {
     const items = [...(this._menu?.querySelectorAll<HTMLElement>(".option") ?? [])];
-    const idx = items.indexOf(this.shadowRoot!.activeElement as HTMLElement);
+    const active = this.shadowRoot!.activeElement as HTMLElement;
+    if (active?.classList.contains("search")) {
+      if (ev.key === "ArrowDown") { ev.preventDefault(); items[0]?.focus(); }
+      else if (ev.key === "Enter" && items.length) { ev.preventDefault(); items[0].click(); }
+      else if (ev.key === "Escape") { ev.preventDefault(); this._close(true); }
+      return;
+    }
+    const idx = items.indexOf(active);
     const move = (i: number) => { ev.preventDefault(); items[(i + items.length) % items.length]?.focus(); };
     if (ev.key === "ArrowDown") move(idx + 1);
     else if (ev.key === "ArrowUp") move(idx - 1);
@@ -121,9 +138,17 @@ export class AttributeSelect extends LitElement {
 
   private _renderDropdown() {
     const current = this.options.find((o) => o.value === this.selected);
-    const menu = html`<div class="menu ${SUPPORTS_POPOVER ? "" : "inline"}" role="listbox" aria-label=${this.label}
+    const searchable = this.options.length > this.searchThreshold;
+    const norm = (t: string) => t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const q = norm(this._query.trim());
+    const shown = q ? this.options.filter((o) => norm(o.label).includes(q)) : this.options;
+    const menu = html`<div class="menu ${SUPPORTS_POPOVER ? "" : "inline"} ${searchable ? "searchable" : ""}" role="listbox" aria-label=${this.label}
       popover=${SUPPORTS_POPOVER ? "auto" : nothing} @toggle=${this._onMenuToggle} @keydown=${this._onMenuKey}>
-      ${this.options.map((o) => html`
+      ${searchable ? html`<div class="search-wrap"><ha-icon icon="mdi:magnify"></ha-icon>
+        <input class="search" type="search" .value=${this._query} placeholder="${this.label} …" aria-label=${this.label}
+          @input=${(e: Event) => (this._query = (e.target as HTMLInputElement).value)} />
+        <span class="count">${shown.length}</span></div>` : nothing}
+      ${shown.map((o) => html`
         <button class="option ${o.value === this.selected ? "on" : ""}" role="option"
           aria-selected=${o.value === this.selected} @click=${() => this._pick(o.value)}>
           <span>${o.label}</span>
@@ -220,5 +245,13 @@ export class AttributeSelect extends LitElement {
     .option.on { background: color-mix(in srgb, var(--hcc-accent, var(--primary-color)) 16%, transparent);
       color: var(--hcc-accent, var(--primary-color)); font-weight: 600; }
     .option ha-icon { --mdc-icon-size: 18px; flex: none; }
+    .search-wrap { position: sticky; top: -6px; z-index: 1; display: flex; align-items: center; gap: 6px; margin: -6px -6px 4px;
+      padding: 8px 10px; background: var(--card-background-color, var(--ha-card-background, #fff));
+      border-bottom: 1px solid var(--divider-color, rgba(127,127,127,0.2)); }
+    .search-wrap ha-icon { --mdc-icon-size: 18px; color: var(--secondary-text-color); flex: none; }
+    .search { flex: 1; min-width: 0; border: none; outline: none; background: transparent; font: inherit; font-size: 14px;
+      color: var(--primary-text-color); padding: 4px 0; }
+    .search::-webkit-search-cancel-button { cursor: pointer; }
+    .count { font-size: 11px; color: var(--secondary-text-color); font-variant-numeric: tabular-nums; }
   `;
 }

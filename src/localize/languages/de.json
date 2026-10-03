@@ -219,11 +219,12 @@
     "color": "Farbe",
     "temperature": "Weißton",
     "white": "Weiß",
-    "effect": "Effekt",
+    "effect": "Szene / Effekt",
     "no_effect": "Kein Effekt",
     "scenes": "Szenen",
     "motion": "Bewegung",
-    "motion_ago": "Bewegung vor"
+    "motion_ago": "Bewegung vor",
+    "segments": "Segmente"
   },
   "light_editor": {
     "entity": "Licht (Lampe oder Gruppe)",
@@ -237,7 +238,7 @@
     "scenes": "Szenen",
     "color": "Farbe",
     "temperature": "Weißton",
-    "effects": "Effekte",
+    "effects": "Szenen / Effekte",
     "room": "Raum: Lampen & Szenen",
     "auto_entities": "Lampen aus der Gruppe übernehmen",
     "entities": "Lampen (eigene Auswahl)",
@@ -249,6 +250,11 @@
     "appearance": "Darstellung",
     "expandable": "Farbe/Effekte ausklappbar",
     "start_expanded": "Anfangs ausgeklappt",
-    "animations": "Animationen"
+    "animations": "Animationen",
+    "segments": "Segmente (LED-Streifen)",
+    "shortcuts": "Geräteschalter",
+    "device": "Gerät: Segmente & Schalter",
+    "auto_segments": "Segmente automatisch erkennen",
+    "auto_shortcuts": "Schalter des Geräts übernehmen (z.B. Gradient)"
   }
 }

@@ -219,11 +219,12 @@
     "color": "Color",
     "temperature": "White tone",
     "white": "White",
-    "effect": "Effect",
+    "effect": "Scene / effect",
     "no_effect": "No effect",
     "scenes": "Scenes",
     "motion": "Motion",
-    "motion_ago": "Motion"
+    "motion_ago": "Motion",
+    "segments": "Segments"
   },
   "light_editor": {
     "entity": "Light (lamp or group)",
@@ -237,7 +238,7 @@
     "scenes": "Scenes",
     "color": "Color",
     "temperature": "White tone",
-    "effects": "Effects",
+    "effects": "Scenes / effects",
     "room": "Room: lights & scenes",
     "auto_entities": "Use the group's lights",
     "entities": "Lights (custom)",
@@ -249,6 +250,11 @@
     "appearance": "Appearance",
     "expandable": "Collapsible color/effects",
     "start_expanded": "Start expanded",
-    "animations": "Animations"
+    "animations": "Animations",
+    "segments": "Segments (LED strip)",
+    "shortcuts": "Device switches",
+    "device": "Device: segments & switches",
+    "auto_segments": "Detect segments automatically",
+    "auto_shortcuts": "Use switches of the device (e.g. gradient)"
   }
 }

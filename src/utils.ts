@@ -399,3 +399,19 @@ export const relatedScenes = (states: Record<string, HassEntity>, light: HassEnt
       return true;
     });
 };
+
+/** Effekt-Einträge, die „kein Effekt“ bedeuten (Govee: `""`, Hue/WLED: `off`/`None`). */
+export const isNoEffect = (effect: unknown): boolean =>
+  effect == null || ["", "off", "none"].includes(String(effect).trim().toLowerCase());
+
+/**
+ * Segment-Lampen eines LED-Streifens (govee2mqtt: `light.<name>_segment_001`).
+ * Ein Ziffern-Suffix der Haupt-Entität (`light.carport_2`) wird ignoriert.
+ */
+export const segmentIds = (states: Record<string, HassEntity>, entityId: string): string[] => {
+  const base = entityId.replace(/_\d+$/, "");
+  const re = new RegExp(`^${base.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:_\\d+)?_segment_\\d+$`);
+  return Object.keys(states)
+    .filter((id) => id !== entityId && re.test(id))
+    .sort((a, b) => Number(a.match(/(\d+)$/)![1]) - Number(b.match(/(\d+)$/)![1]));
+};

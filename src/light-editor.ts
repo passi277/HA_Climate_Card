@@ -4,7 +4,7 @@ import type { HomeAssistant, LightCardConfig } from "./types";
 import { CARD_VERSION } from "./const";
 import { localize } from "./localize/localize";
 
-const SHOW_KEYS = ["lights", "scenes", "color", "temperature", "effects"];
+const SHOW_KEYS = ["lights", "scenes", "color", "temperature", "effects", "segments", "shortcuts"];
 
 @customElement("ha-light-card-editor")
 export class HaLightCardEditor extends LitElement {
@@ -39,6 +39,12 @@ export class HaLightCardEditor extends LitElement {
         { name: "auto_scenes", selector: { boolean: {} } },
         { name: "scenes", selector: { entity: { multiple: true, filter: { domain: "scene" } } } },
       ] },
+      { type: "expandable", name: "", flatten: true, title: this._t("device"), icon: "mdi:led-strip-variant", schema: [
+        { name: "auto_segments", selector: { boolean: {} } },
+        { name: "segments", selector: { entity: { multiple: true, filter: { domain: "light" } } } },
+        { name: "auto_shortcuts", selector: { boolean: {} } },
+        { name: "shortcuts", selector: { entity: { multiple: true, filter: { domain: ["switch", "button", "input_boolean", "script", "scene"] } } } },
+      ] },
       { type: "expandable", name: "", flatten: true, title: this._t("sensors"), icon: "mdi:motion-sensor", schema: [
         { name: "motion_sensor", selector: { entity: { filter: { domain: "binary_sensor" } } } },
         { name: "illuminance_sensor", selector: { entity: { filter: [{ domain: "sensor", device_class: "illuminance" }, { domain: "sensor" }] } } },
@@ -62,6 +68,13 @@ export class HaLightCardEditor extends LitElement {
         return previous.find((p) => typeof p !== "string" && p.entity === id) ?? id;
       });
     }
+    if (Array.isArray(config.shortcuts)) {
+      const previous = this._config?.shortcuts ?? [];
+      config.shortcuts = config.shortcuts.map((e) => {
+        const id = typeof e === "string" ? e : e.entity;
+        return previous.find((p) => typeof p !== "string" && p.entity === id) ?? id;
+      });
+    }
     for (const key of Object.keys(config) as (keyof LightCardConfig)[]) {
       const v = config[key];
       if (v === "" || v == null || (Array.isArray(v) && !v.length)) delete config[key];
@@ -73,10 +86,11 @@ export class HaLightCardEditor extends LitElement {
   protected render() {
     if (!this.hass || !this._config) return nothing;
     const data = {
-      layout: "full", auto_entities: true, auto_scenes: true, expandable: true, animations: "full",
+      layout: "full", auto_entities: true, auto_scenes: true, auto_segments: true, auto_shortcuts: true, expandable: true, animations: "full",
       ...this._config,
       entities: this._config.entities?.map((e) => (typeof e === "string" ? e : e.entity)),
-      show: { lights: true, scenes: true, color: true, temperature: true, effects: true, ...(this._config.show ?? {}) },
+      shortcuts: this._config.shortcuts?.map((e) => (typeof e === "string" ? e : e.entity)),
+      show: { lights: true, scenes: true, color: true, temperature: true, effects: true, segments: true, shortcuts: true, ...(this._config.show ?? {}) },
     };
     return html`<ha-form .hass=${this.hass} .data=${data} .schema=${this._schema()}
       .computeLabel=${this._computeLabel} @value-changed=${this._valueChanged}></ha-form>
