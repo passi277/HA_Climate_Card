@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.13.1
+- Energy Card: **Einzelverbraucher als Kreise am Haus** (oben/unten, mit eigener Flusslinie) – die ersten zwei aktiven in Konfigurationsreihenfolge (`display_zero: true` zeigt auch 0 W), weitere darunter als Liste („Weitere Verbraucher“, `show_individual_list: false` blendet sie aus)
+- Energy Card: **ruhigere Animation** – Tempo nach Leistung in Watt (`max_expected_power`, Standard 2000 W) statt relativ zum größten Fluss; ein Punkt je Linie
+- Layout in drei Spalten (Netz · Solar/Batterie · Haus/Verbraucher), Beschriftung über bzw. unter den Kreisen
+
 ## 1.13.0 – Energiefluss
 - Neu: **Modern Energy Card** (`custom:ha-energy-card`) – animierter Energiefluss zwischen Solar, Batterie, Netz und Haus (Geschwindigkeit nach Leistung), Hausring nach Herkunft, Batterie-Ladestand als Ring, Autarkie, einzelne Verbraucher mit Balken; Konfiguration kompatibel zu power-flow-card-plus, visueller Editor
 

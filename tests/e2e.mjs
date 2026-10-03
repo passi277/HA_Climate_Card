@@ -800,6 +800,8 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
     const active = [...root.querySelectorAll(".line.active")].map((l) => l.id.replace("p-", "")).sort();
     const dots = root.querySelectorAll(".dot").length;
     const devices = [...root.querySelectorAll(".device .d-name")].map((x) => x.textContent.trim());
+    const indNodes = [...root.querySelectorAll(".n-indTop, .n-indBottom")].map((n) => n.title + ":" + n.querySelector(".val").textContent.trim());
+    const durs = [...root.querySelectorAll("animateMotion")].map((a) => parseFloat(a.getAttribute("dur")));
     const autarky = root.querySelector(".pill")?.textContent.trim();
     const day = { solar: val("solar"), home: val("home"), grid: val("grid"), battery: val("battery") };
     let info;
@@ -816,13 +818,14 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
     const night = [...root.querySelectorAll(".line.active")].map((l) => l.id.replace("p-", ""));
     const nightSub = root.querySelector(".n-battery .sub").textContent.trim();
     card.hass = h;
-    return { ...day, active, dots, devices, autarky, info, night, nightSub };
+    return { ...day, active, dots, indNodes, durs, devices, autarky, info, night, nightSub };
   });
   res.solar === "1,2 kW" && res.home === "410 W" && res.grid === "310 W" && res.battery === "81 %"
-    && res.active.join() === "sb,sg,sh" && res.dots === 6 && res.devices[0] === "Kühlschrank" && res.devices.at(-1) === "Pool"
+    && res.active.join() === "i0,i1,sb,sg,sh" && res.dots === 5 && res.indNodes.join() === "Kühlschrank:88 W,Außenstrom:8 W"
+    && res.devices.join() === "Starlink,Pumpe,Pool" && Math.min(...res.durs) > 2.5
     && /Autarkie 100/.test(res.autarky) && res.info === "sensor.solarbank_ladestand"
-    && res.night.join() === "bh" && /entlädt · 161 W/.test(res.nightSub)
-    ? ok("Energiefluss: Solar → Haus/Batterie/Netz, Verbraucher sortiert, abends Batterie → Haus") : fail(`Energiefluss: ${JSON.stringify(res)}`);
+    && res.night.join() === "bh,i0,i1" && /entlädt · 161 W/.test(res.nightSub)
+    ? ok("Energiefluss: Solar → Haus/Batterie/Netz, aktive Verbraucher als Kreise am Haus, ruhiges Tempo, abends Batterie → Haus") : fail(`Energiefluss: ${JSON.stringify(res)}`);
 }
 
 // Moduswechsel: jede Karte, jeder Modus (außer Auto/Heizen-Kühlen, dort zählt die Tätigkeit)

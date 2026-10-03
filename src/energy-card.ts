@@ -24,17 +24,23 @@ const COLORS = {
   home: "var(--primary-color)",
 };
 
-/** Knoten im Koordinatensystem 300 × 240 */
-const POS = { solar: [150, 40], grid: [42, 125], home: [258, 125], battery: [150, 205] } as const;
+/** Knoten im Koordinatensystem 300 × 270 (drei Spalten wie power-flow-card-plus) */
+const VW = 300;
+const VH = 270;
+const POS = { solar: [150, 50], grid: [50, 135], home: [250, 135], battery: [150, 220], indTop: [250, 50], indBottom: [250, 220] } as const;
 const R = 30;
 const PATHS: Record<string, string> = {
-  solarHome: `M150,${40 + R} Q150,125 ${258 - R},125`,
-  solarGrid: `M150,${40 + R} Q150,125 ${42 + R},125`,
-  solarBattery: `M150,${40 + R} L150,${205 - R}`,
-  gridHome: `M${42 + R},125 L${258 - R},125`,
-  gridBattery: `M${42 + R},125 Q150,125 150,${205 - R}`,
-  batteryHome: `M150,${205 - R} Q150,125 ${258 - R},125`,
+  solarHome: `M150,${50 + R} Q150,135 ${250 - R},135`,
+  solarGrid: `M150,${50 + R} Q150,135 ${50 + R},135`,
+  solarBattery: `M150,${50 + R} L150,${220 - R}`,
+  gridHome: `M${50 + R},135 L${250 - R},135`,
+  gridBattery: `M${50 + R},135 Q150,135 150,${220 - R}`,
+  batteryHome: `M150,${220 - R} Q150,135 ${250 - R},135`,
+  homeIndTop: `M250,${135 - R} L250,${50 + R}`,
+  homeIndBottom: `M250,${135 + R} L250,${220 - R}`,
 };
+const IND_COLORS = ["#d4e157", "#29b6f6", "#ff7043", "#ab47bc"];
+type LabelPos = "above" | "below" | "none";
 
 interface Flow { key: string; path: string; value: number; color: string; reverse?: boolean; }
 
@@ -121,27 +127,28 @@ export class HaEnergyCard extends LitElement {
 
   private _renderFlows(flows: Flow[]) {
     const c = this._config!;
-    const max = Math.max(1, ...flows.map((f) => f.value));
+    // Geschwindigkeit nach Leistung (wie use_new_flow_rate_model): wenig Watt = langsam
+    const maxPower = Number(c.max_expected_power ?? 2000) || 2000;
     const minRate = c.min_flow_rate ?? 0.75;
     const maxRate = c.max_flow_rate ?? 6;
     const anim = (c.animations ?? "full") !== "off";
     return svg`${flows.map((f) => {
       const active = f.value > 0.5;
       if (!active && c.display_zero_lines === false) return nothing;
-      const dur = maxRate - (maxRate - minRate) * Math.min(1, f.value / max);
+      const dur = maxRate - (maxRate - minRate) * Math.min(1, f.value / maxPower);
       return svg`<path id=${`p-${f.key}`} class="line ${active ? "active" : ""}" d=${f.path} style="--fc:${f.color}"></path>
-        ${active && anim ? [0, 0.5].map((offset) => svg`<circle class="dot" r="3.2" style="--fc:${f.color}">
-          <animateMotion dur=${`${dur.toFixed(2)}s`} repeatCount="indefinite" begin=${`-${(offset * dur).toFixed(2)}s`}
-            keyPoints=${f.reverse ? "1;0" : "0;1"} keyTimes="0;1" calcMode="linear">
+        ${active && anim ? svg`<circle class="dot" r="3.4" style="--fc:${f.color}">
+          <animateMotion dur=${`${dur.toFixed(2)}s`} repeatCount="indefinite" keyPoints=${f.reverse ? "1;0" : "0;1"} keyTimes="0;1" calcMode="linear">
             <mpath href=${`#p-${f.key}`}></mpath>
-          </animateMotion></circle>`) : nothing}`;
+          </animateMotion></circle>` : nothing}`;
     })}`;
   }
 
   private _node(key: keyof typeof POS, opts: { icon: string; value: string; label: string; color: string; entity?: string; sub?: string;
-    ring?: string; dim?: boolean; extra?: unknown }) {
+    ring?: string; dim?: boolean; extra?: unknown; labelPos?: LabelPos }) {
     const [x, y] = POS[key];
-    return html`<button class="node n-${key} ${opts.dim ? "dim" : ""}" style="left:${(x / 300) * 100}%;top:${(y / 240) * 100}%;--nc:${opts.color};${opts.ring ? `--ring:${opts.ring}` : ""}"
+    const pos = opts.labelPos ?? "below";
+    return html`<button class="node n-${key} ${opts.dim ? "dim" : ""}" style="left:${(x / VW) * 100}%;top:${(y / VH) * 100}%;--nc:${opts.color};${opts.ring ? `--ring:${opts.ring}` : ""}"
       title=${opts.label} @click=${() => this._moreInfo(opts.entity)}>
       <span class="ring"></span>
       <ha-icon .icon=${opts.icon}></ha-icon>
@@ -149,7 +156,7 @@ export class HaEnergyCard extends LitElement {
       ${opts.sub ? html`<span class="sub">${opts.sub}</span>` : nothing}
       ${opts.extra ?? nothing}
     </button>
-    <span class="label l-${key}" style="left:${(x / 300) * 100}%;top:${(y / 240) * 100}%">${opts.label}</span>`;
+    ${pos !== "none" ? html`<span class="label ${pos}" style="left:${(x / VW) * 100}%;top:${(y / VH) * 100}%">${opts.label}</span>` : nothing}`;
   }
 
   private _homeRing(f: EnergyFlows): string {
@@ -160,19 +167,29 @@ export class HaEnergyCard extends LitElement {
     return `conic-gradient(${COLORS.solar} 0 ${a}%, ${COLORS.battery} ${a}% ${b}%, ${COLORS.grid} ${b}% 100%)`;
   }
 
-  private _renderIndividual(home: number) {
-    const list = this._config!.entities.individual ?? [];
-    if (!list.length) return nothing;
+  /** Einzelverbraucher mit Leistung (Reihenfolge wie konfiguriert) */
+  private _individuals() {
+    return (this._config!.entities.individual ?? []).map((i, idx) => {
+      const st = this.hass!.states[i.entity];
+      const w = powerWatts(st);
+      return { ...i, st, w, idx, name: i.name ?? st?.attributes.friendly_name ?? i.entity, color: i.color ?? IND_COLORS[idx % IND_COLORS.length]!,
+        show: (w ?? 0) > 0.5 || i.display_zero === true };
+    });
+  }
+
+  private _renderIndividual(home: number, skip: Set<string>) {
+    const list = (this._config!.entities.individual ?? []).filter((i) => !skip.has(i.entity));
+    if (!list.length || this._config!.show_individual_list === false) return nothing;
     const rows = list.map((i) => {
       const st = this.hass!.states[i.entity];
       return { ...i, st, w: powerWatts(st), name: i.name ?? st?.attributes.friendly_name ?? i.entity };
     }).sort((a, b) => (b.w ?? -1) - (a.w ?? -1));
     const ref = Math.max(home, ...rows.map((r) => r.w ?? 0), 1);
-    return html`<div class="devices">
+    return html`${skip.size ? html`<span class="devices-title">${this._t("more_consumers")}</span>` : nothing}<div class="devices">
       ${rows.map((r) => {
         const on = (r.w ?? 0) > 0.5;
         const unavailable = r.w == null;
-        const color = r.color ?? "var(--primary-color)";
+        const color = r.color ?? IND_COLORS[(this._config!.entities.individual ?? []).findIndex((x) => x.entity === r.entity) % IND_COLORS.length]!;
         return html`<button class="device ${on ? "on" : ""} ${unavailable ? "unavailable" : ""}" style="--dc:${color}" @click=${() => this._moreInfo(r.entity)}>
           <span class="d-icon"><ha-icon .icon=${r.icon ?? r.st?.attributes.icon ?? "mdi:flash"}></ha-icon></span>
           <span class="d-main">
@@ -208,6 +225,10 @@ export class HaEnergyCard extends LitElement {
       if (f.batteryToGrid > 0.5) flows.push({ key: "bg", path: PATHS.gridBattery, value: f.batteryToGrid, color: COLORS.battery, reverse: true });
     }
     if (has.battery) flows.push({ key: "bh", path: PATHS.batteryHome, value: f.batteryToHome, color: COLORS.battery });
+    // Bis zu zwei aktive Einzelverbraucher als Kreise über und unter dem Haus
+    const slots = this._individuals().filter((i) => i.show).slice(0, 2);
+    const slotKeys = ["indTop", "indBottom"] as const;
+    slots.forEach((i, n) => flows.push({ key: `i${n}`, path: n === 0 ? PATHS.homeIndTop : PATHS.homeIndBottom, value: i.w ?? 0, color: i.color }));
 
     const batState = (batIn ?? 0) > 0.5 ? this._t("charging") : (batOut ?? 0) > 0.5 ? this._t("discharging") : this._t("idle");
     const gridState = (gridOut ?? 0) > 0.5 ? this._t("export") : this._t("import");
@@ -220,20 +241,22 @@ export class HaEnergyCard extends LitElement {
         ${f.autarky != null ? html`<span class="pill" title=${this._t("autarky")}><ha-icon icon="mdi:leaf"></ha-icon>${this._t("autarky")} ${f.autarky} %</span>` : nothing}
       </div>` : nothing}
       <div class="flow">
-        <svg viewBox="0 0 300 240" preserveAspectRatio="xMidYMid meet" aria-hidden="true">${this._renderFlows(flows)}</svg>
+        <svg viewBox="0 0 ${VW} ${VH}" preserveAspectRatio="xMidYMid meet" aria-hidden="true">${this._renderFlows(flows)}</svg>
         ${has.solar ? this._node("solar", { icon: e.solar?.icon ?? "mdi:solar-power-variant", value: this._fmt(solarW ?? 0), label: e.solar?.name ?? this._t("solar"),
-          color: COLORS.solar, entity: e.solar?.entity, dim: !(solarW && solarW > 0.5) }) : nothing}
+          color: COLORS.solar, entity: e.solar?.entity, dim: !(solarW && solarW > 0.5), labelPos: "above" }) : nothing}
+        ${slots.map((i, n) => this._node(slotKeys[n]!, { icon: i.icon ?? i.st?.attributes.icon ?? "mdi:flash", value: this._fmt(i.w ?? 0), label: i.name,
+          color: i.color, entity: i.entity, dim: !((i.w ?? 0) > 0.5), labelPos: n === 0 ? "above" : "below" }))}
         ${has.grid ? this._node("grid", { icon: e.grid?.icon ?? "mdi:transmission-tower", value: this._fmt(gridValue ?? 0), label: e.grid?.name ?? this._t("grid"),
           sub: gridState, color: (gridOut ?? 0) > 0.5 ? COLORS.gridOut : COLORS.grid, entity: this._firstId(e.grid?.entity), dim: !((gridValue ?? 0) > 0.5) }) : nothing}
         ${this._node("home", { icon: e.home?.icon ?? "mdi:home-lightning-bolt-outline", value: this._fmt(f.home), label: e.home?.name ?? this._t("home"),
-          color: COLORS.home, entity: e.home?.entity, ring: this._homeRing(f) })}
+          color: COLORS.home, entity: e.home?.entity, ring: this._homeRing(f), labelPos: "none" })}
         ${has.battery ? this._node("battery", { icon: soc != null ? batteryIcon(soc, (batIn ?? 0) > 0.5) : e.battery?.icon ?? "mdi:home-battery-outline",
           value: soc != null ? `${soc} %` : this._fmt((batOut ?? 0) || (batIn ?? 0)),
           sub: soc != null ? `${batState} · ${this._fmt((batOut ?? 0) > 0.5 ? batOut : batIn ?? 0)}` : batState,
           label: e.battery?.name ?? this._t("battery"), color: COLORS.battery, entity: e.battery?.state_of_charge ?? this._firstId(e.battery?.entity),
           ring: soc != null ? `conic-gradient(${COLORS.battery} 0 ${soc}%, color-mix(in srgb, ${COLORS.battery} 18%, transparent) ${soc}% 100%)` : undefined }) : nothing}
       </div>
-      ${this._renderIndividual(f.home)}
+      ${this._renderIndividual(f.home, new Set(slots.map((i) => i.entity)))}
     </ha-card>`;
   }
 
@@ -244,7 +267,7 @@ export class HaEnergyCard extends LitElement {
     .pill { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px 4px 8px; border-radius: 999px; font-size: 12.5px; font-weight: 600;
       color: var(--success-color, #43a047); background: color-mix(in srgb, var(--success-color, #43a047) 14%, transparent); }
     .pill ha-icon { --mdc-icon-size: 15px; }
-    .flow { position: relative; width: 100%; aspect-ratio: 300 / 240; container-type: inline-size; }
+    .flow { position: relative; width: 100%; aspect-ratio: 300 / 270; container-type: inline-size; }
     .flow svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
     .line { fill: none; stroke: color-mix(in srgb, var(--secondary-text-color) 22%, transparent); stroke-width: 1.6; transition: stroke 0.6s; }
     .line.active { stroke: color-mix(in srgb, var(--fc) 55%, transparent); stroke-width: 2; }
@@ -264,8 +287,9 @@ export class HaEnergyCard extends LitElement {
     .node.dim { opacity: 0.6; }
     .n-home .ring { padding: 4px; }
     .label { position: absolute; font-size: clamp(10px, 3.6cqi, 13px); font-weight: 600; color: var(--secondary-text-color); white-space: nowrap; pointer-events: none; }
-    .l-solar, .l-battery { transform: translate(calc(10cqi + 8px), -50%); }
-    .l-grid, .l-home { transform: translate(-50%, calc(10cqi + 6px)); }
+    .label.above { transform: translate(-50%, calc(-100% - 10cqi - 4px)); }
+    .label.below { transform: translate(-50%, calc(10cqi + 4px)); }
+    .devices-title { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--secondary-text-color); margin: 2px 2px -2px; }
     .devices { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
     .device { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: none; border-radius: var(--hcc-inner-radius, 14px); cursor: pointer;
       font: inherit; color: inherit; text-align: left; background: rgba(127,127,127,0.08); transition: background 0.3s; min-width: 0; }

@@ -636,7 +636,8 @@
     "import": "import",
     "export": "export",
     "autarky": "Self-sufficiency",
-    "unavailable": "unavailable"
+    "unavailable": "unavailable",
+    "more_consumers": "More consumers"
   },
   "energy_editor": {
     "title": "Title",

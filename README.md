@@ -497,7 +497,8 @@ alerts:
 
 Animierter Energiefluss zwischen **Solar, Netz, Batterie und Haus** – Punkte laufen schneller, je mehr Leistung fließt.
 Der Hausring zeigt, woher der Strom gerade kommt (Solar/Batterie/Netz), die Batterie ihren Ladestand als Ring.
-Oben „Autarkie“ in Prozent, darunter die **einzelnen Verbraucher** als Kacheln mit Balken (sortiert nach Leistung).
+Oben „Autarkie“ in Prozent. **Einzelverbraucher** erscheinen als Kreise über und unter dem Haus (die ersten zwei aktiven),
+alle weiteren darunter als Kacheln mit Balken.
 
 Die Konfiguration entspricht **power-flow-card-plus** – meist reicht es, `type` zu tauschen:
 
@@ -530,6 +531,7 @@ w_decimals: 0
 kw_decimals: 1
 min_flow_rate: 0.75    # Sekunden je Durchlauf bei viel Leistung
 max_flow_rate: 6       # … bei wenig Leistung
+# max_expected_power: 2000   # ab dieser Leistung laufen die Punkte am schnellsten
 ```
 
 Statt getrennter Sensoren geht auch ein Sensor mit Vorzeichen (`entity: sensor.grid_power`, positiv = Bezug bzw. Entladen; `invert_state: true` dreht es um).

@@ -636,7 +636,8 @@
     "import": "Bezug",
     "export": "Einspeisung",
     "autarky": "Autarkie",
-    "unavailable": "nicht erreichbar"
+    "unavailable": "nicht erreichbar",
+    "more_consumers": "Weitere Verbraucher"
   },
   "energy_editor": {
     "title": "Titel",

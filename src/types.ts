@@ -474,6 +474,8 @@ export interface EnergyIndividualConfig {
   name?: string;
   icon?: string;
   color?: string;
+  /** Auch bei 0 W als Kreis im Diagramm zeigen */
+  display_zero?: boolean;
 }
 
 export interface EnergyCardConfig {
@@ -495,6 +497,10 @@ export interface EnergyCardConfig {
   /** Animationsdauer der Punkte in Sekunden (schnellster / langsamster Fluss) */
   min_flow_rate?: number;
   max_flow_rate?: number;
+  /** Bei dieser Leistung laufen die Punkte am schnellsten (Standard 2000 W) */
+  max_expected_power?: number;
+  /** Weitere Verbraucher unter dem Diagramm als Liste (Standard an) */
+  show_individual_list?: boolean;
   /** Linien ohne Fluss trotzdem zeigen (Standard an) */
   display_zero_lines?: boolean;
   /** Tippen öffnet Details (Standard an) */
