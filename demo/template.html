@@ -234,7 +234,7 @@
 
     const configs = [
       ["Gree – Sleeptimer, Schnell-Timer, Lüften-Hinweis", { entity: "climate.1ed763d9", layout: "full", timer_switch: "input_boolean.timer_klima_pascal", timer_time: "input_datetime.timer_klima_pascal",
-        countdown_timer: "timer.klima_pascal", weather_entity: "weather.zuhause" }],
+        countdown_timer: "timer.klima_pascal", weather_entity: "weather.zuhause", outdoor_sensor: "weather.zuhause" }],
       ["Gree – ausgeklappt (Dropdown bei Lamellen)", { entity: "climate.1ed763d9", layout: "full", start_expanded: true, outdoor_sensor: "sensor.aussen", show: { graph: true } }],
       ["Voll – Ist-Temp vom Wandthermostat", { entity: "climate.wohnzimmer", layout: "full", show: { graph: true },
         temperature_sensor: "climate.hmip_wth_2_wohnzimmer", contact_sensors: ["binary_sensor.wz_fenster", "binary_sensor.wz_balkontuer", "binary_sensor.wz_dachfenster"], start_expanded: true, outdoor_sensor: "sensor.aussen", power_sensor: "sensor.klima_power", energy_sensor: "sensor.klima_energy" }],

@@ -103,7 +103,7 @@
     "dropdown_threshold": "Dropdown ab so vielen Optionen (0 = immer Chips)",
     "show_timer": "Sleeptimer",
     "timer_section": "Sleeptimer",
-    "timer_switch": "Schalter zum Scharfschalten (input_boolean)",
+    "timer_switch": "Schalter zum Scharfschalten (input_boolean) – Zeile erscheint unter dem Lüfter",
     "timer_time": "Ausschaltzeit (input_datetime)",
     "show_airflow": "Luftstrom-Animation",
     "show_hints": "Hinweise (Lüften, Taupunkt, Schimmel)",

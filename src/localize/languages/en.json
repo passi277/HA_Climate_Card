@@ -103,7 +103,7 @@
     "dropdown_threshold": "Dropdown from this many options (0 = always chips)",
     "show_timer": "Sleep timer",
     "timer_section": "Sleep timer",
-    "timer_switch": "Arming switch (input_boolean)",
+    "timer_switch": "Arming switch (input_boolean) – row appears below the fan",
     "timer_time": "Off time (input_datetime)",
     "show_airflow": "Airflow animation",
     "show_hints": "Hints (ventilation, dew point, mould)",

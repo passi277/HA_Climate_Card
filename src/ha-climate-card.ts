@@ -980,7 +980,15 @@ export class HaClimateCard extends LitElement {
     if (this._runtimeToday != null && this._runtimeToday >= 60) {
       items.push({ icon: "mdi:timer-sand", label: this._t("card.runtime_today"), value: this._fmtDuration(this._runtimeToday) });
     }
-    add(c.outdoor_sensor, "mdi:thermometer", "card.outdoor");
+    if (c.outdoor_sensor) {
+      const out = this.hass!.states[c.outdoor_sensor];
+      const t = temperatureOf(out);
+      // Nur anzeigen, wenn der Sensor wirklich eine Temperatur liefert
+      if (t != null) {
+        const unit = out.attributes.temperature_unit ?? out.attributes.unit_of_measurement ?? this._unit;
+        items.push({ entity: c.outdoor_sensor, icon: "mdi:thermometer", label: this._t("card.outdoor"), value: `${t} ${unit}` });
+      }
+    }
     if (c.weather_entity && this.hass!.states[c.weather_entity]) {
       const w = this.hass!.states[c.weather_entity];
       const f = this._forecast;

@@ -66,10 +66,14 @@ describe("colors and icons follow the mode", () => {
 
 describe("sensors", () => {
   it("reads temperatures from sensors, thermostats and weather", () => {
-    expect(temperatureOf(entity("sensor.t", "21.5"))).toBe(21.5);
+    expect(temperatureOf(entity("sensor.t", "21.5", { device_class: "temperature" }))).toBe(21.5);
     expect(temperatureOf(entity("climate.t", "heat", { current_temperature: 19 }))).toBe(19);
     expect(temperatureOf(entity("weather.home", "sunny", { temperature: 30 }))).toBe(30);
     expect(temperatureOf(entity("sensor.t", "unavailable"))).toBeUndefined();
+    // Zähler/andere Sensoren sind keine Temperatur (z.B. "sensor.weather" mit Zustand "2")
+    expect(temperatureOf(entity("sensor.weather", "2", { state_class: "total" }))).toBeUndefined();
+    expect(temperatureOf(entity("sensor.p", "800", { unit_of_measurement: "W" }))).toBeUndefined();
+    expect(temperatureOf(entity("sensor.t", "21.5", { unit_of_measurement: "°C" }))).toBe(21.5);
   });
   it("converts kW to W", () => {
     expect(powerOf(entity("sensor.p", "0.8", { unit_of_measurement: "kW" }))).toBe(800);

@@ -105,7 +105,11 @@ export const temperatureOf = (entity?: HassEntity): number | undefined => {
   const domain = entity.entity_id.split(".")[0];
   if (domain === "climate") return num(entity.attributes.current_temperature);
   if (domain === "weather") return num(entity.attributes.temperature);
-  return num(entity.state);
+  // Nur echte Temperatursensoren: Einheit °C/°F/K oder device_class temperature
+  // (verhindert z.B. "2" von einem Zähler-Sensor namens "Wetter").
+  const unit = entity.attributes.unit_of_measurement as string | undefined;
+  const isTemp = unit ? /^(°?[CF]|K)$/i.test(unit.trim()) : entity.attributes.device_class === "temperature";
+  return isTemp ? num(entity.state) : undefined;
 };
 
 /** Taupunkt nach Magnus-Formel; Temperatur in der Einheit `unit` (°C/°F). */

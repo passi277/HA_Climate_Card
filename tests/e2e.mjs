@@ -67,6 +67,21 @@ rendered >= 9 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Karte
     : fail(`Kontakte: ${JSON.stringify(res)}`);
 }
 
+// Außentemperatur aus Wetter-Entität, Sleeptimer sichtbar
+{
+  const res = await p.evaluate(async () => {
+    const card = document.querySelector("#card0");
+    const root = card.shadowRoot;
+    root.querySelector(".expand")?.click();
+    await new Promise((r) => setTimeout(r, 100));
+    const tiles = [...root.querySelector("hcc-sensor-row").shadowRoot.querySelectorAll(".item")]
+      .map((i) => `${i.querySelector(".label").textContent}=${i.querySelector(".value").textContent}`);
+    return { tiles, sleep: !!root.querySelector("hcc-sleep-timer")?.shadowRoot.querySelector(".timer") };
+  });
+  res.tiles.includes("Außen=19.5 °C") ? ok("Außentemperatur aus Wetter-Entität") : fail(`Kacheln: ${res.tiles.join(", ")}`);
+  res.sleep ? ok("Sleeptimer-Zeile sichtbar") : fail("Sleeptimer fehlt");
+}
+
 // Moduswechsel: jede Karte, jeder Modus (außer Auto/Heizen-Kühlen, dort zählt die Tätigkeit)
 const colorFails = await p.evaluate(async () => {
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));

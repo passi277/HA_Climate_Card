@@ -1,7 +1,7 @@
 import { LitElement, css, html, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import type { ClimateCardConfig, HomeAssistant } from "./types";
-import { DEFAULT_SHOW } from "./const";
+import { CARD_VERSION, DEFAULT_SHOW } from "./const";
 import { localize } from "./localize/localize";
 
 const sensor = (name: string, filter: Record<string, unknown>) => ({
@@ -68,7 +68,7 @@ export class HaClimateCardEditor extends LitElement {
           { name: "temperature_sensor", selector: { entity: { filter: [{ domain: "sensor", device_class: "temperature" }, { domain: "climate" }] } } },
           { name: "use_sensor_for_current", selector: { boolean: {} } },
           sensor("humidity_sensor", { domain: "sensor", device_class: "humidity" }),
-          sensor("outdoor_sensor", { domain: ["sensor", "weather"] }),
+          { name: "outdoor_sensor", selector: { entity: { filter: [{ domain: "sensor", device_class: "temperature" }, { domain: "weather" }] } } },
           sensor("power_sensor", { domain: "sensor", device_class: "power" }),
           { name: "power_threshold", selector: { number: { min: 0, max: 500, step: 1, mode: "box", unit_of_measurement: "W" } } },
           sensor("energy_sensor", { domain: "sensor", device_class: "energy" }),
@@ -205,10 +205,14 @@ export class HaClimateCardEditor extends LitElement {
       show: { ...DEFAULT_SHOW, ...(this._config.show ?? {}) },
     };
     return html`<ha-form .hass=${this.hass} .data=${data} .schema=${this._schema()}
-      .computeLabel=${this._computeLabel} @value-changed=${this._valueChanged}></ha-form>`;
+      .computeLabel=${this._computeLabel} @value-changed=${this._valueChanged}></ha-form>
+      <div class="version">HA Climate Card v${CARD_VERSION}</div>`;
   }
 
-  static styles = css`:host { display: block; }`;
+  static styles = css`
+    :host { display: block; }
+    .version { margin-top: 12px; text-align: right; font-size: 11px; color: var(--secondary-text-color); opacity: 0.7; }
+  `;
 }
 
 declare global {

@@ -1,6 +1,8 @@
 # Changelog
 
-## Unveröffentlicht
+## 1.0.1
+- Außentemperatur nur noch aus echten Temperatursensoren oder Wetter-Entitäten (vorher wurde z.B. ein Zähler-Sensor „Wetter“ mit Wert „2“ angezeigt); Editor filtert entsprechend
+- Kartenversion wird unten im Editor angezeigt
 - Regler reagiert nur noch auf Berührungen am Ring – Tippen in die Mitte oder neben den Bogen verstellt nichts mehr; Wischen über die Mitte scrollt die Seite
 - Beliebig viele Fenster- und Türkontakte (`contact_sensors`), Türen werden erkannt (device_class oder Name), Hinweis „Tür offen“ / „2 Fenster/Türen offen“, Chip-Reihe aller Kontakte
 
