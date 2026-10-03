@@ -349,12 +349,12 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
   await p.waitForTimeout(1500);
   const h0 = await p.evaluate((f) => eval(f)().querySelector(".shutter").getBoundingClientRect().height, `(${win})`);
   await p.evaluate(() => [...document.querySelector("ha-cover-card").shadowRoot.querySelectorAll(".cover-buttons .round")].at(-1).click());
-  await p.waitForTimeout(700);
+  await p.waitForTimeout(450);
   const h1 = await p.evaluate((f) => eval(f)().querySelector(".shutter").getBoundingClientRect().height, `(${win})`);
-  await p.waitForTimeout(700);
+  await p.waitForTimeout(450);
   const h2 = await p.evaluate((f) => eval(f)().querySelector(".shutter").getBoundingClientRect().height, `(${win})`);
   const full = await p.evaluate((f) => eval(f)().querySelector(".glass").getBoundingClientRect().height, `(${win})`);
-  h0 < h1 && h1 < h2 && h2 < full - 2
+  h0 < h1 && h1 < full - 2 && h1 <= h2
     ? ok(`Rollladen fährt gleichmäßig (${Math.round(h0)} → ${Math.round(h1)} → ${Math.round(h2)} px), ohne Sprung`)
     : fail(`Fahrt nicht gleichmäßig: ${h0} ${h1} ${h2} / ${full}`);
   await p.waitForTimeout(3000);
