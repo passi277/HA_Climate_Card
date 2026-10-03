@@ -33,6 +33,7 @@ export interface HomeAssistant {
   themes?: { darkMode?: boolean };
   callService(domain: string, service: string, data?: Record<string, unknown>): Promise<unknown>;
   callWS<T>(msg: Record<string, unknown>): Promise<T>;
+  callApi?<T>(method: "GET" | "POST", path: string, data?: Record<string, unknown>): Promise<T>;
   services?: Record<string, Record<string, unknown>>;
   connection?: {
     subscribeMessage<T>(callback: (msg: T) => void, msg: Record<string, unknown>): Promise<() => void>;
@@ -343,6 +344,18 @@ export interface RoomCardConfig {
   chips?: (string | RoomChipConfig)[];
   /** Hinweis „Fenster offen – Klima läuft“ (Standard an) */
   window_warning?: boolean;
+  /** Müllabfuhr: Kalender (z.B. Waste Collection Schedule) */
+  trash?: string;
+  /** Tage im Voraus (0 = nur heute, Standard 1 = heute + morgen) */
+  trash_days?: number;
+  /** Heutige Abholung ausblenden ab (Standard „10:00“) */
+  trash_today_until?: string;
+  /** full = Kopfzeile mit Chips, tile = Raumkachel */
+  layout?: "full" | "tile";
+  /** Tippen öffnet diese Seite (z.B. /dashboard-final/pascal) */
+  navigation_path?: string;
+  /** Farbe des Symbols / der Kachel, wenn kein Licht an ist */
+  color?: string;
   animations?: "full" | "reduced" | "off";
 }
 

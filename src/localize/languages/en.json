@@ -474,7 +474,10 @@
     "warn_hint": "close the window or switch off",
     "climate_off": "A/C off",
     "heating_off": "Heating off",
-    "confirm": "Sure?"
+    "confirm": "Sure?",
+    "today": "today",
+    "tomorrow": "tomorrow",
+    "in_days": "in {n} days"
   },
   "room_editor": {
     "title": "Title",
@@ -487,7 +490,16 @@
     "media": "TV / Harmony / media player",
     "chips": "More chips",
     "window_warning": "Warning \"window open – A/C running\"",
-    "humidity_warning": "Humidity warning from"
+    "humidity_warning": "Humidity warning from",
+    "trash": "Waste collection (calendar)",
+    "trash_days": "Waste: days ahead (0 = today only)",
+    "trash_today_until": "Hide today's pickup from",
+    "layout": "Layout",
+    "layout_full": "Header with chips",
+    "layout_tile": "Room tile (navigation)",
+    "navigation_path": "Tap opens page",
+    "color": "Color (when no light is on)",
+    "hint_tile": "Tile: tap opens the page, long press toggles the light. Small icons show light on, window open, A/C/TV on and waste pickups."
   },
   "status": {
     "batteries": "Batteries",

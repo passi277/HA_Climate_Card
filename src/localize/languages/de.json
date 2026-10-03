@@ -474,7 +474,10 @@
     "warn_hint": "Fenster schließen oder ausschalten",
     "climate_off": "Klima aus",
     "heating_off": "Heizung aus",
-    "confirm": "Wirklich?"
+    "confirm": "Wirklich?",
+    "today": "heute",
+    "tomorrow": "morgen",
+    "in_days": "in {n} Tagen"
   },
   "room_editor": {
     "title": "Titel",
@@ -487,7 +490,16 @@
     "media": "TV / Harmony / Media-Player",
     "chips": "Weitere Chips",
     "window_warning": "Hinweis „Fenster offen – Klima läuft“",
-    "humidity_warning": "Feuchte-Warnung ab"
+    "humidity_warning": "Feuchte-Warnung ab",
+    "trash": "Müllabfuhr (Kalender)",
+    "trash_days": "Müll: Tage im Voraus (0 = nur heute)",
+    "trash_today_until": "Heutige Abholung ausblenden ab",
+    "layout": "Darstellung",
+    "layout_full": "Kopfzeile mit Chips",
+    "layout_tile": "Raumkachel (Navigation)",
+    "navigation_path": "Tippen öffnet Seite",
+    "color": "Farbe (wenn kein Licht an)",
+    "hint_tile": "Kachel: Tippen öffnet die Seite, lange drücken schaltet das Licht. Kleine Symbole zeigen Licht an, Fenster offen, Klima/TV an und Müll."
   },
   "status": {
     "batteries": "Batterien",

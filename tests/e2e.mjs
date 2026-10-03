@@ -472,7 +472,7 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
     return { chips, banner, confirmText, callsAfterFirst, summary, bats, door, presets,
       calls: window.serviceCalls.slice(before).map((c) => `${c.domain}.${c.service}:${c.data.entity_id}:${c.data.brightness_pct ?? ""}:${c.data.color_temp_kelvin ?? ""}`) };
   });
-  const keys = res.chips.map((c) => c.split(":")[0]).join(",");
+  const keys = res.chips.map((c) => c.split(":")[0]).filter((k) => !k.startsWith("trash-")).join(",");
   keys === "light,contacts,temperature,humidity,climate,media" && res.chips[1].includes("Schreibtisch offen") && res.chips[5].includes("Smart TV")
     ? ok("Raum-Kopf: 6 Status-Chips (Licht, Fenster, Temperatur, Feuchte, Klima, TV)") : fail(`Raum-Chips: ${JSON.stringify(res.chips)}`);
   /Fenster offen – Klima läuft/.test(res.banner ?? "") && res.callsAfterFirst === 0 && res.confirmText === "Wirklich?" && res.calls.includes("climate.turn_off:climate.1ed763d9::")
@@ -668,6 +668,43 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
   });
   rto.call === "lock.unlock" && rto.on && rto.pill === "An" && rto.battery && rto.ringing === "Es klingelt!" && /^Geklingelt/.test(rto.rang)
     ? ok("Haustür: Ring to Open (lock.unlock), Batterie-Warnung, Klingeln + „Geklingelt“") : fail(`Haustür RTO/Klingel: ${JSON.stringify(rto)}`);
+}
+
+// Raum-Kopf: Müllabfuhr-Chips · Raumkacheln: Symbole, Navigation, lange drücken = Licht
+{
+  const res = await p.evaluate(async () => {
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const rooms = [...document.querySelectorAll("ha-room-card")];
+    const header = rooms.find((c) => c._config?.trash && c._config.layout !== "tile");
+    const trash = [...header.shadowRoot.querySelectorAll('.chip[data-key^="trash-"]')].map((x) => x.textContent.trim());
+    const tile = (t) => rooms.find((c) => c._config?.layout === "tile" && c._config.title === t).shadowRoot;
+    const marks = (t) => [...tile(t).querySelectorAll(".mark")].map((m) => m.dataset.key.replace(/^trash-.*/, "trash"));
+    const out = { trash, pascal: marks("Pascal"), pascalLit: tile("Pascal").querySelector("ha-card").classList.contains("lit"),
+      wohn: marks("Wohnzimmer"), zuhause: marks("Zuhause"), sub: tile("Pascal").querySelector(".tile-sub").textContent.trim(),
+      robo: tile("Saugroboter").querySelector(".tile-sub").textContent.trim() };
+    tile("Pascal").querySelector("ha-card").click();
+    await wait(50);
+    out.hash = location.hash;
+    return out;
+  });
+  JSON.stringify(res.trash) === JSON.stringify(["Altpapier · morgen", "Restmüll · morgen"])
+    ? ok("Raum-Kopf: Müllabfuhr aus dem Kalender (heute/morgen)") : fail(`Müll-Chips: ${JSON.stringify(res.trash)}`);
+  res.pascalLit && res.pascal.includes("light") && res.wohn.includes("contacts") && res.wohn.includes("media")
+    && res.zuhause.join() === "trash,trash" && /°C/.test(res.sub) && res.robo.length > 0 && res.hash === "#pascal"
+    ? ok("Raumkacheln: Licht leuchtet, Symbole für Fenster/TV/Müll, Temperatur, Tippen navigiert") : fail(`Raumkacheln: ${JSON.stringify(res)}`);
+
+  const gwc = await p.evaluateHandle(() => [...document.querySelectorAll("ha-room-card")].find((c) => c._config?.title === "Gäste WC" && c._config.layout === "tile").shadowRoot.querySelector("ha-card"));
+  await gwc.evaluate((e) => e.scrollIntoView({ block: "center" }));
+  const box = await gwc.boundingBox();
+  const before = await p.evaluate(() => [window.serviceCalls.length, location.hash]);
+  await p.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await p.mouse.down();
+  await p.waitForTimeout(650);
+  await p.mouse.up();
+  await p.waitForTimeout(100);
+  const after = await p.evaluate((n) => [window.serviceCalls.slice(n).map((c) => `${c.domain}.${c.service} ${c.data.entity_id}`), location.hash], before[0]);
+  after[0].join() === "homeassistant.toggle light.gaste_wc" && after[1] === before[1]
+    ? ok("Raumkachel: lange drücken schaltet das Licht (ohne zu navigieren)") : fail(`Raumkachel halten: ${JSON.stringify(after)}`);
 }
 
 // Moduswechsel: jede Karte, jeder Modus (außer Auto/Heizen-Kühlen, dort zählt die Tätigkeit)

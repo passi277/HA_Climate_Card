@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.10.0 – Raumkacheln & Müllabfuhr
+- Raumkarte: **Raumkacheln** (`layout: tile`) für Übersichtsseiten – Tippen öffnet die Raumseite (`navigation_path`), lange drücken schaltet das Licht, Symbol leuchtet in der Lichtfarbe, kleine Symbole für Licht an / Fenster offen / Klima / TV / Feuchte / Müll, Temperatur darunter
+- Raumkarte: **Müllabfuhr** (`trash: calendar.…`) – Chips wie „Restmüll · morgen“ mit Symbol und Farbe je Müllart (Rest, Papier, Bio, Gelber Sack, Glas …), heutige Abholung bis 10:00 (`trash_today_until`), Tage im Voraus (`trash_days`)
+- Raumkarte: `navigation_path` macht auch den Titel der Kopfzeile antippbar, `color` für das Raumsymbol
+
 ## 1.9.0 – Personen & Haustür
 - Neu: **Modern Presence Card** (`custom:ha-presence-card`) – Personen als Foto-Kacheln (Zuhause/Unterwegs/Zone, seit wann), Handy-Akku und Laden automatisch über den Device-Tracker, Haustür/Nuki Opener mit „Halten zum Öffnen“ (Fortschrittsring), Ring to Open, Klingel-Anzeige und Batterie-Warnung, visueller Editor
 

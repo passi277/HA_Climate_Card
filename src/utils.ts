@@ -848,3 +848,73 @@ export const doorDevices = (states: Record<string, HassEntity>, entities: Regist
 /** Nuki Opener (Ring to Open) oder normales Schloss? */
 export const doorKind = (model?: string | null): "opener" | "lock" =>
   /opener/i.test(model ?? "") ? "opener" : "lock";
+
+// ---------- Müllabfuhr ----------
+
+export interface CalendarEventLike {
+  summary?: string;
+  message?: string;
+  start: string | { date?: string; dateTime?: string };
+}
+
+export interface WastePickup {
+  name: string;
+  date: Date;
+  /** 0 = heute, 1 = morgen … */
+  days: number;
+  icon: string;
+  color: string;
+}
+
+const WASTE_STYLES: [RegExp, string, string][] = [
+  [/bio|organ|grün|kompost/i, "mdi:leaf", "#7cb342"],
+  [/papier|paper|pappe|karton/i, "mdi:newspaper-variant-outline", "#1e88e5"],
+  [/gelb|wertstoff|verpackung|plastik|recycl|leichtverp/i, "mdi:recycle", "#fbc02d"],
+  [/glas|glass/i, "mdi:bottle-wine-outline", "#43a047"],
+  [/sperr|bulky/i, "mdi:sofa-outline", "#8d6e63"],
+  [/schadstoff|hazard|elektro/i, "mdi:biohazard", "#e53935"],
+];
+
+/** Symbol + Farbe je Müllart (am Namen erkannt). */
+export const wasteStyle = (name: string): { icon: string; color: string } => {
+  const hit = WASTE_STYLES.find(([re]) => re.test(name));
+  return hit ? { icon: hit[1], color: hit[2] } : { icon: "mdi:trash-can-outline", color: "#78909c" };
+};
+
+const parseEventStart = (start: CalendarEventLike["start"]): Date | undefined => {
+  const raw = typeof start === "string" ? start : start.dateTime ?? start.date;
+  if (!raw) return undefined;
+  // Ganztägig („2026-10-08“ bzw. „2026-10-08 00:00:00“) als lokales Datum lesen
+  const m = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}))?/.exec(raw);
+  if (m && !/[zZ]|[+-]\d{2}:?\d{2}$/.test(raw)) return new Date(+m[1]!, +m[2]! - 1, +m[3]!, +(m[4] ?? 0), +(m[5] ?? 0));
+  const d = new Date(raw);
+  return Number.isNaN(d.getTime()) ? undefined : d;
+};
+
+const dayStart = (d: Date): number => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+
+/**
+ * Abholungen der nächsten Tage (0 = nur heute, 1 = heute + morgen …).
+ * Heutige Abholungen verschwinden ab `todayUntil` (Minuten nach Mitternacht, Standard 10:00).
+ */
+export const upcomingPickups = (events: CalendarEventLike[], now: Date, days = 1, todayUntil = 600): WastePickup[] => {
+  const today = dayStart(now);
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const out: WastePickup[] = [];
+  for (const ev of events) {
+    const date = parseEventStart(ev.start);
+    const name = (ev.summary ?? ev.message ?? "").trim();
+    if (!date || !name) continue;
+    const offset = Math.round((dayStart(date) - today) / 86_400_000);
+    if (offset < 0 || offset > days || (offset === 0 && nowMin >= todayUntil)) continue;
+    if (out.some((p) => p.name === name && p.days === offset)) continue;
+    out.push({ name, date, days: offset, ...wasteStyle(name) });
+  }
+  return out.sort((a, b) => a.days - b.days || a.name.localeCompare(b.name));
+};
+
+/** „HH:MM“ → Minuten nach Mitternacht */
+export const clockMinutes = (hhmm: string | undefined, fallback: number): number => {
+  const m = /^(\d{1,2}):(\d{2})/.exec(hhmm ?? "");
+  return m ? Math.min(1440, +m[1]! * 60 + +m[2]!) : fallback;
+};

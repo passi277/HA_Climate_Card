@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { HassEntity } from "../src/types";
 import {
-  batteryIcon, doorDevices, doorKind, initials, isCharging, phoneSensors, brightnessPct, contactType, calibrationTransform, roomsFromMap, roomIcon, areaBatteries, batteryInfo, presetActive, presetData, DEFAULT_LIGHT_PRESETS, activityIcon, activityLabel, guessControlDevice, guessVolumeDevice, coverIcon, datetimeParts, nextOccurrence, coverPosition, skyPhase, sunPlacement, weatherOverlay, editorOptions, isNoEffect, lightEditorOptions, segmentIds, detectDeviceType, kelvinToRgb, lightColor, relatedScenes, supportsColor, supportsColorTemp, dewPoint, nextSwitch, parseSchedule, scheduleTempAt, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
+  clockMinutes, upcomingPickups, wasteStyle, batteryIcon, doorDevices, doorKind, initials, isCharging, phoneSensors, brightnessPct, contactType, calibrationTransform, roomsFromMap, roomIcon, areaBatteries, batteryInfo, presetActive, presetData, DEFAULT_LIGHT_PRESETS, activityIcon, activityLabel, guessControlDevice, guessVolumeDevice, coverIcon, datetimeParts, nextOccurrence, coverPosition, skyPhase, sunPlacement, weatherOverlay, editorOptions, isNoEffect, lightEditorOptions, segmentIds, detectDeviceType, kelvinToRgb, lightColor, relatedScenes, supportsColor, supportsColorTemp, dewPoint, nextSwitch, parseSchedule, scheduleTempAt, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
   openContactsKey, powerOf, resolveContacts, secondsToDuration, stateIcon, temperatureOf, temperatureTint, trendSlope,
 } from "../src/utils";
 import { formatAttribute, localize } from "../src/localize/localize";
@@ -441,5 +441,31 @@ describe("presence", () => {
     expect(doorDevices(states, entities, "lock.unknown")).toEqual({});
     expect(doorKind("Nuki Opener")).toBe("opener");
     expect(doorKind("Smart Lock 3.0 Pro")).toBe("lock");
+  });
+});
+
+describe("waste collection", () => {
+  const events = [
+    { summary: "Restmüll", start: { date: "2026-10-08" } },
+    { summary: "Altpapier", start: { date: "2026-10-09" } },
+    { summary: "Bioabfall", start: { date: "2026-10-08" } },
+    { summary: "Gelber Sack", start: { date: "2026-10-12" } },
+  ];
+  it("shows today + tomorrow, hides today's pickup after 10:00", () => {
+    const morning = upcomingPickups(events, new Date(2026, 9, 8, 7, 30));
+    expect(morning.map((p) => `${p.name}@${p.days}`)).toEqual(["Bioabfall@0", "Restmüll@0", "Altpapier@1"]);
+    const noon = upcomingPickups(events, new Date(2026, 9, 8, 11, 0));
+    expect(noon.map((p) => p.name)).toEqual(["Altpapier"]);
+    expect(upcomingPickups(events, new Date(2026, 9, 7, 20, 0), 0)).toEqual([]);
+    expect(upcomingPickups(events, new Date(2026, 9, 7, 20, 0), 5).length).toBe(4);
+  });
+  it("reads the calendar attributes (next event) and styles by type", () => {
+    const [p] = upcomingPickups([{ message: "Restmüll", start: "2026-10-08 00:00:00" }], new Date(2026, 9, 7, 18, 0));
+    expect(p?.days).toBe(1);
+    expect(wasteStyle("Altpapier").icon).toBe("mdi:newspaper-variant-outline");
+    expect(wasteStyle("Gelber Sack").icon).toBe("mdi:recycle");
+    expect(wasteStyle("Restmüll").icon).toBe("mdi:trash-can-outline");
+    expect(clockMinutes("10:30", 600)).toBe(630);
+    expect(clockMinutes(undefined, 600)).toBe(600);
   });
 });

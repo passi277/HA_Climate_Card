@@ -367,7 +367,33 @@ temperature: climate.heizung_mein_zimmer     # Sensor oder Klima-Entität
 humidity: climate.heizung_mein_zimmer
 climate: climate.klima_pascal
 media: remote.harmony_schlafzimmer
+trash: calendar.abfallkalender_mannheim   # Müllabfuhr: „Restmüll · morgen“
+# trash_days: 1               # 0 = nur heute, 1 = heute + morgen (Standard)
+# trash_today_until: "10:00"  # heutige Abholung danach ausblenden
+# navigation_path: /dashboard-final/pascal   # Tippen auf den Titel öffnet die Seite
 # chips: [switch.monitore]
+```
+
+### Raumkacheln (`layout: tile`)
+
+Kompakte Kachel für Übersichtsseiten – drei nebeneinander (`grid_options: columns: 4`). Tippen öffnet die Raumseite,
+**lange drücken schaltet das Licht**. Das Symbol leuchtet in der Lichtfarbe, kleine Symbole zeigen, was gerade los ist:
+Licht an, Fenster offen, Klima/Heizung oder TV an, Feuchte zu hoch, Müllabfuhr heute/morgen. Darunter Temperatur/Feuchte
+oder der Wert des ersten Chips (z.B. Saugroboter-Status).
+
+```yaml
+type: custom:ha-room-card
+layout: tile
+title: Wohnzimmer
+icon: mdi:sofa
+color: "#fb8c00"              # Farbe, wenn kein Licht an ist
+navigation_path: /dashboard-final/wohnzimmer
+light: light.lampe_wohnzimmer
+temperature: sensor.wohnzimmer_temperatur
+climate: climate.klima_wohnzimmer
+contacts: [binary_sensor.fenster_wohnzimmer]
+grid_options:
+  columns: 4
 ```
 
 ## Modern Status Card
@@ -527,7 +553,7 @@ glow, smooth color transitions, animations), shipped as a single HACS download:
 - `custom:ha-cover-group-card` – any set of covers: all together on top, each cover below with only its supported controls
 - `custom:ha-switch-time-card` – a switch plus an input_datetime (alarm, time switch, sleep timer) with an app-friendly time picker
 - `custom:ha-media-card` – Harmony Hub activities and remote (commands routed to the right device) plus media player (now playing, volume, source)
-- `custom:ha-room-card` – room header with status chips and a "window open – A/C running" warning
+- `custom:ha-room-card` – room header with status chips (incl. waste collection from a calendar) and a "window open – A/C running" warning; `layout: tile` = room tile for overview pages (tap navigates, long press toggles the light)
 - `custom:ha-status-card` – batteries (per area, Battery Notes aware) and door/window contacts
 - `custom:ha-vacuum-card` – robot vacuum with live map, tap rooms on the map for room cleaning, controls, modes, maintenance
 - `custom:ha-presence-card` – people as photo tiles (home/away, phone battery and charging found automatically) plus front door: hold to open (Nuki Opener), Ring to Open, doorbell

@@ -19,9 +19,14 @@ export class HaRoomCardEditor extends LitElement {
 
   private _schema() {
     return [
+      { name: "layout", selector: { select: { mode: "dropdown", options: ["full", "tile"].map((v) => ({ value: v, label: this._t(`layout_${v}`) })) } } },
       { type: "grid", name: "", schema: [
         { name: "title", selector: { text: {} } },
         { name: "icon", selector: { icon: {} } },
+      ] },
+      { type: "grid", name: "", schema: [
+        { name: "navigation_path", selector: { navigation: {} } },
+        { name: "color", selector: { text: {} } },
       ] },
       { name: "light", selector: { entity: { filter: { domain: "light" } } } },
       { name: "contacts", selector: { entity: { multiple: true, filter: { domain: "binary_sensor" } } } },
@@ -31,6 +36,11 @@ export class HaRoomCardEditor extends LitElement {
       ] },
       { name: "climate", selector: { entity: { filter: { domain: "climate" } } } },
       { name: "media", selector: { entity: { filter: [{ domain: "remote" }, { domain: "media_player" }] } } },
+      { name: "trash", selector: { entity: { filter: { domain: "calendar" } } } },
+      ...(this._config?.trash ? [{ type: "grid", name: "", schema: [
+        { name: "trash_days", selector: { number: { min: 0, max: 14, step: 1, mode: "box" } } },
+        { name: "trash_today_until", selector: { text: {} } },
+      ] }] : []),
       { name: "chips", selector: { entity: { multiple: true } } },
       { type: "grid", name: "", schema: [
         { name: "window_warning", selector: { boolean: {} } },
@@ -57,6 +67,9 @@ export class HaRoomCardEditor extends LitElement {
       if (v === "" || v == null || (Array.isArray(v) && !v.length)) delete config[key];
     }
     if (config.window_warning === true) delete config.window_warning;
+    if (config.layout === "full") delete config.layout;
+    if (config.trash_days === 1) delete config.trash_days;
+    if (config.trash_today_until === "10:00") delete config.trash_today_until;
     this._config = config;
     this.dispatchEvent(new CustomEvent("config-changed", { detail: { config }, bubbles: true, composed: true }));
   }
@@ -64,14 +77,16 @@ export class HaRoomCardEditor extends LitElement {
   protected render() {
     if (!this.hass || !this._config) return nothing;
     const ids = (l?: (string | { entity: string })[]) => l?.map((e) => (typeof e === "string" ? e : e.entity));
-    const data = { window_warning: true, humidity_warning: 65, ...this._config, contacts: ids(this._config.contacts), chips: ids(this._config.chips) };
+    const data = { layout: "full", window_warning: true, humidity_warning: 65, trash_days: 1, trash_today_until: "10:00", ...this._config, contacts: ids(this._config.contacts), chips: ids(this._config.chips) };
     return html`<ha-form .hass=${this.hass} .data=${data} .schema=${this._schema()}
       .computeLabel=${this._computeLabel} @value-changed=${this._valueChanged}></ha-form>
+      ${this._config.layout === "tile" ? html`<p class="hint">${this._t("hint_tile")}</p>` : nothing}
       <div class="version">HA Modern Home Cards v${CARD_VERSION}</div>`;
   }
 
   static styles = css`
     :host { display: block; }
+    .hint { font-size: 12px; color: var(--secondary-text-color); margin: 8px 2px 0; }
     .version { margin-top: 12px; text-align: right; font-size: 11px; color: var(--secondary-text-color); opacity: 0.7; }
   `;
 }

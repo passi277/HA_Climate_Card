@@ -16,6 +16,7 @@
       --primary-text-color: #e1e1e1; --secondary-text-color: #9b9b9b; --card-background-color: #1c1c1c;
       --divider-color: rgba(255,255,255,0.12); background: #111;
     }
+    .tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
     .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; align-items: start; }
     .toolbar { position: sticky; top: 0; z-index: 10; display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
       margin: -24px -24px 20px; padding: 12px 24px; background: color-mix(in srgb, var(--card-background-color) 85%, transparent);
@@ -291,6 +292,8 @@
       "sensor.pascal_handy_charger_type": { state: "ac", attributes: { friendly_name: "Pascal S26 Charger type", device_class: "enum" } },
       "sensor.marcel_s24_battery_level": { state: "15", attributes: { friendly_name: "Marcel S24 Battery level", device_class: "battery", unit_of_measurement: "%" } },
       "sensor.marcel_s24_charger_type": { state: "none", attributes: { friendly_name: "Marcel S24 Charger type", device_class: "enum" } },
+      "calendar.abfall": { state: "off", attributes: { friendly_name: "Abfallkalender", message: "Restmüll", all_day: true,
+        start_time: (() => { const d = new Date(Date.now() + 86400000); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} 00:00:00`; })() } },
       "lock.klingel": { state: "locked", attributes: { friendly_name: "Klingel", supported_features: 1 } },
       "binary_sensor.klingel_klingelaktion": { state: "off", attributes: { friendly_name: "Klingel Klingelaktion" } },
       "binary_sensor.klingel_batterie": { state: "on", attributes: { friendly_name: "Klingel Batteriestand", device_class: "battery" } },
@@ -319,7 +322,16 @@
       ...(/_mein_zimmer_batter|zimmer_schalter_batter|turkontakt_mein_zimmer_batter/.test(id) ? { device_id: id.replace(/^\w+\.|_battery_plus.*|_batterie$/g, "") } : {}),
       area_id: /heizung_mein_zimmer|etrv_|wandthermostat_mein|_mein_zimmer_batter|zimmer_schalter_batter|turkontakt_mein_zimmer_batter/.test(id) ? "mein_zimmer" : null }]));
     const devices = { dev_opener: { id: "dev_opener", name: "Klingel", model: "Nuki Opener" }, dev_gree: { id: "dev_gree", name: "Klima Schlafzimmer" }, dev_govee: { id: "dev_govee", name: "Carport" } };
+    const ymd = (offset) => { const d = new Date(Date.now() + offset * 86400000); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
     const makeHass = () => ({
+      async callApi(method, path) {
+        if (path.startsWith("calendars/calendar.abfall")) return [
+          { summary: "Restmüll", start: { date: ymd(1) }, end: { date: ymd(2) } },
+          { summary: "Altpapier", start: { date: ymd(1) }, end: { date: ymd(2) } },
+          { summary: "Gelber Sack", start: { date: ymd(4) }, end: { date: ymd(5) } },
+        ];
+        return [];
+      },
       states: { ...states }, entities, devices, language: lang, locale: { language: lang },
       services: { homematicip_local: { enable_away_mode_by_duration: {}, disable_away_mode: {} } },
       config: { unit_system: { temperature: "°C" } },
@@ -527,7 +539,15 @@
       ["Medien – Soundbar (Media-Player, kompakt)", { _media: true, entity: "media_player.atmos", layout: "compact" }],
       ["Raum-Kopf – Pascal (Chips, Hinweis Fenster offen + Klima läuft)", { _room: true, title: "Pascal", icon: "mdi:account", light: "light.licht_mein_zimmer",
         contacts: [{ entity: "binary_sensor.fenster_pascal_schreibtisch", name: "Schreibtisch" }, { entity: "binary_sensor.fenster_pascal_tv", name: "TV" }],
-        temperature: "climate.heizung_mein_zimmer", humidity: "climate.heizung_mein_zimmer", climate: "climate.1ed763d9", media: "remote.harmony_schlafzimmer" }],
+        temperature: "climate.heizung_mein_zimmer", humidity: "climate.heizung_mein_zimmer", climate: "climate.1ed763d9", media: "remote.harmony_schlafzimmer", trash: "calendar.abfall" }],
+      ["Raumkacheln – Tippen öffnet die Seite, lange drücken schaltet das Licht", { _tiles: [
+        { title: "Pascal", icon: "mdi:account", color: "#42a5f5", light: "light.licht_mein_zimmer", temperature: "climate.heizung_mein_zimmer", climate: "climate.1ed763d9", navigation_path: "#pascal" },
+        { title: "Wohnzimmer", icon: "mdi:sofa", color: "#fb8c00", temperature: "sensor.aussen", climate: "climate.wohnzimmer", contacts: ["binary_sensor.buero_fenster"], media: "remote.harmony_hub_wohnzimmer", navigation_path: "#wohnzimmer" },
+        { title: "Bad", icon: "mdi:bathtub", color: "#26c6da", humidity: "sensor.buero_feuchte", navigation_path: "#bad" },
+        { title: "Gäste WC", icon: "mdi:toilet", color: "#29b6f6", light: "light.gaste_wc", navigation_path: "#gaeste-wc" },
+        { title: "Saugroboter", icon: "mdi:robot-vacuum", color: "#ab47bc", chips: ["vacuum.roborock_s8_maxv_ultra"], navigation_path: "#roborock" },
+        { title: "Zuhause", icon: "mdi:home", color: "#78909c", trash: "calendar.abfall", navigation_path: "#zuhause" },
+      ] }],
       ["Status – Batterien aus Bereich + Türkontakt", { _status: true, areas: ["mein_zimmer"], contacts: [{ entity: "binary_sensor.tuerkontakt_pascal", name: "Tür" }] }],
       ["Licht – Gruppe mit Presets Hell / Warm / Gemütlich", { _light: true, entity: "light.licht_mein_zimmer", name: "Licht Zimmer", presets: "default", layout: "compact" }],
       ["Schalter als Button – Monitore (nur Symbol + Text)", { _switchTime: true, switch_entity: "input_boolean.wecker", name: "Monitore", icon: "mdi:monitor-multiple", color: "#42a5f5", switch_style: "button" }],
@@ -545,6 +565,21 @@
     configs.forEach(([title, cfg], i) => {
       const wrap = document.createElement("div");
       wrap.innerHTML = `<h2>${title}</h2>`;
+      if (cfg._tiles) {
+        const box = document.createElement("div");
+        box.className = "tiles";
+        cfg._tiles.forEach((t, j) => {
+          const card = document.createElement("ha-room-card");
+          card.id = `card${i}_${j}`;
+          card.setConfig({ type: "custom:ha-room-card", layout: "tile", ...t });
+          card.hass = hass;
+          box.appendChild(card);
+          cards.push(card);
+        });
+        wrap.appendChild(box);
+        grid.appendChild(wrap);
+        return;
+      }
       const { _overview, _light, _group, _cover, _coverGroup, _switchTime, _media, _room, _status, _vacuum, _presence, ...rest } = cfg;
       const tag = _overview ? "ha-climate-overview-card" : _group ? "ha-light-group-card" : _light ? "ha-light-card"
         : _cover ? "ha-cover-card" : _coverGroup ? "ha-cover-group-card" : _switchTime ? "ha-switch-time-card" : _media ? "ha-media-card" : _room ? "ha-room-card" : _status ? "ha-status-card" : _vacuum ? "ha-vacuum-card" : _presence ? "ha-presence-card" : "ha-climate-card";
