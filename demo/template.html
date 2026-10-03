@@ -208,11 +208,20 @@
         const end = Date.now() / 1000, start = end - 24 * 3600;
         for (const id of msg.entity_ids) {
           const arr = [];
-          for (let t = start, i = 0; t < end; t += 1800, i++) {
+          for (let t = start, i = 0; t < end - 45 * 60; t += 1800, i++) {
             const cur = 23 + 2.5 * Math.sin(i / 7) + Math.random() * 0.3;
             arr.push(id.startsWith("climate")
               ? { s: i > 40 ? "off" : "cool", lu: t, a: { current_temperature: +cur.toFixed(1), temperature: i < 20 ? 23 : 22, hvac_action: cur > 23.5 && i <= 40 ? "cooling" : "idle" } }
               : { s: (cur - 0.2).toFixed(1), lu: t });
+          }
+          // letzte 45 Minuten: dichter, Raum kühlt mit ca. 0,04 °/min ab (für die Ziel-Prognose)
+          const live = states[id];
+          const now = live?.attributes.current_temperature ?? Number(live?.state);
+          for (let m = 45; m >= 0; m -= 5) {
+            const v = +(now + m * 0.04).toFixed(1);
+            arr.push(id.startsWith("climate")
+              ? { s: live.state, lu: end - m * 60, a: { ...live.attributes, current_temperature: v } }
+              : { s: String(v), lu: end - m * 60 });
           }
           out[id] = arr;
         }

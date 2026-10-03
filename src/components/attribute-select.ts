@@ -198,7 +198,7 @@ export class AttributeSelect extends LitElement {
     .trigger.open ha-icon { transform: rotate(180deg); }
 
     .menu {
-      margin: 0; padding: 6px; border: none; border-radius: 16px; box-sizing: border-box;
+      margin: 0; padding: 6px; border: none; border-radius: var(--hcc-inner-radius, 16px); box-sizing: border-box;
       background: var(--card-background-color, var(--ha-card-background, #fff)); color: var(--primary-text-color);
       box-shadow: 0 8px 28px rgba(0,0,0,0.22), 0 0 0 1px var(--divider-color, rgba(127,127,127,0.18));
       overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin;

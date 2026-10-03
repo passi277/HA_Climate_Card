@@ -48,6 +48,7 @@ export class ShortcutRow extends LitElement {
 
   private _activate(item: ShortcutItem): void {
     if (!this.hass) return;
+    window.dispatchEvent(new CustomEvent("haptic", { detail: "light" }));
     const domain = item.entity.split(".")[0];
     const data = { entity_id: item.entity };
     if (TOGGLE_DOMAINS.includes(domain)) this.hass.callService("homeassistant", "toggle", data);
@@ -90,7 +91,7 @@ export class ShortcutRow extends LitElement {
     .row { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
     .sc {
       display: flex; align-items: center; gap: 10px; padding: 8px 10px; min-height: 48px; border: none; text-align: left;
-      border-radius: 14px; background: var(--hcc-chip-bg, rgba(127,127,127,0.12)); color: var(--secondary-text-color);
+      border-radius: var(--hcc-inner-radius, 14px); background: var(--hcc-chip-bg, rgba(127,127,127,0.12)); color: var(--secondary-text-color);
       font: inherit; font-size: 13px; cursor: pointer; transition: background 0.25s, color 0.25s, box-shadow 0.3s, transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1); min-width: 0;
     }
     .sc span { max-width: 100%; line-height: 1.25; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; -webkit-hyphens: auto; hyphens: auto; }

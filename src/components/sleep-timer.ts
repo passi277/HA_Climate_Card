@@ -67,6 +67,7 @@ export class SleepTimer extends LitElement {
   private _toggle(): void {
     const sw = this._switch;
     if (!sw || !this.hass) return;
+    window.dispatchEvent(new CustomEvent("haptic", { detail: "light" }));
     this.hass.callService("homeassistant", sw.state === "on" ? "turn_off" : "turn_on", { entity_id: sw.entity_id });
   }
 
@@ -117,7 +118,7 @@ export class SleepTimer extends LitElement {
 
   static styles = css`
     .timer {
-      display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 14px;
+      display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: var(--hcc-inner-radius, 14px);
       background: var(--hcc-chip-bg, rgba(127,127,127,0.12)); transition: background 0.3s;
       --timer-color: var(--hcc-timer-color, #7e57c2);
     }

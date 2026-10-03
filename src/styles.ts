@@ -10,7 +10,15 @@ export const cardStyles = css`
     display: flex; flex-direction: column; gap: 14px;
     transition: --hcc-accent-c 0.7s ease, background 0.4s; isolation: isolate;
     font-variant-numeric: tabular-nums;
+    --hcc-inner-radius: calc(var(--ha-card-border-radius, 16px) * 0.85);
   }
+  /* animations: reduced → keine Daueranimationen; off → zusätzlich keine Übergänge */
+  ha-card.anim-reduced, ha-card.anim-off { --hcc-anim-state: paused; }
+  ha-card.anim-reduced .blob, ha-card.anim-off .blob,
+  ha-card.anim-reduced .icon-badge ha-icon, ha-card.anim-off .icon-badge ha-icon,
+  ha-card.anim-reduced .icon-badge::after, ha-card.anim-off .icon-badge::after { animation: none !important; }
+  ha-card.anim-off, ha-card.anim-off .collapsible, ha-card.anim-off .banner { transition: none !important; animation: none !important; }
+  .graph-placeholder { height: 80px; border-radius: var(--hcc-inner-radius, 12px); background: rgba(127,127,127,0.08); }
 
   /* Hintergrund-Glow: zwei weiche, langsam treibende Farbflächen in der Modusfarbe */
   .glow { position: absolute; inset: 0; pointer-events: none; z-index: -1; overflow: hidden; }
@@ -83,7 +91,7 @@ export const cardStyles = css`
   /* Window banner */
   .banner {
     animation: slide-in 0.45s var(--ease-out) both;
-    position: relative; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; cursor: pointer;
+    position: relative; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--hcc-inner-radius, 12px); cursor: pointer;
     background: color-mix(in srgb, var(--warning-color, #ff9800) 18%, transparent); color: var(--primary-text-color);
   }
   .banner ha-icon { color: var(--warning-color, #ff9800); flex: none; }
@@ -98,6 +106,11 @@ export const cardStyles = css`
     flex: none; border: none; border-radius: 999px; padding: 6px 12px; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
     background: var(--state-climate-dry-color, #00bcd4); color: #fff;
   }
+  .banner.error { background: color-mix(in srgb, var(--error-color, #db4437) 16%, transparent); }
+  .banner.error ha-icon { color: var(--error-color, #db4437); }
+  .sync { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; vertical-align: middle;
+    background: var(--accent); animation: sync 1s ease-in-out infinite; }
+  @keyframes sync { 0%, 100% { opacity: 0.25; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.1); } }
   .hints { position: relative; display: flex; flex-direction: column; gap: 8px; }
   @keyframes slide-in { from { opacity: 0; transform: translateY(-6px) scale(0.98); } to { opacity: 1; transform: none; } }
 
@@ -120,6 +133,19 @@ export const cardStyles = css`
   .dial-range .sep { color: var(--secondary-text-color); font-size: 0.7em; }
   .dial-sub { display: flex; align-items: center; gap: 4px; font-size: 14px; color: var(--secondary-text-color); margin-top: 4px; }
   .dial-sub ha-icon { --mdc-icon-size: 16px; margin-left: 4px; }
+  .dial-sub span { transition: color 0.6s; }
+  .eta { display: flex; align-items: center; gap: 3px; margin-top: 4px; font-size: 12px; font-weight: 500; color: var(--accent);
+    padding: 2px 8px; border-radius: 999px; background: color-mix(in srgb, var(--accent) 12%, transparent); animation: slide-in 0.5s var(--ease-out) both; }
+  .eta ha-icon { --mdc-icon-size: 14px; }
+  .compact-eta { align-self: flex-start; margin: -8px 0 0 2px; }
+  .big { transition: color 0.6s; }
+  .pills { position: relative; display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin-top: -6px; }
+  .pills::-webkit-scrollbar { display: none; }
+  .pill { flex: none; display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px 3px 7px; border-radius: 999px;
+    font-size: 12px; font-weight: 500; color: var(--primary-text-color);
+    background: color-mix(in srgb, var(--accent) 12%, rgba(127,127,127,0.08));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 22%, transparent); animation: slide-in 0.4s var(--ease-out) both; }
+  .pill ha-icon { --mdc-icon-size: 14px; color: var(--accent); }
   .dial-steppers { display: flex; justify-content: center; gap: 16px; margin-top: -24px; position: relative; flex-wrap: wrap; }
   .dial-steppers.dual { gap: 8px; margin-top: -8px; }
   hcc-climate-dial { margin-bottom: -16px; }
@@ -139,6 +165,7 @@ export const cardStyles = css`
     display: inline-flex; align-items: center; gap: 4px; padding: 4px; border-radius: 999px;
     background: rgba(127,127,127,0.12);
   }
+  .stepper button, .round { touch-action: manipulation; -webkit-user-select: none; user-select: none; }
   .stepper button {
     width: 34px; height: 34px; border-radius: 50%; border: none; cursor: pointer; background: transparent;
     display: flex; align-items: center; justify-content: center; color: var(--accent, var(--primary-text-color));
@@ -163,6 +190,22 @@ export const cardStyles = css`
   .compact-row { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
   .compact-current { display: flex; flex-direction: column; }
   .big { font-size: 34px; font-weight: 300; line-height: 1; }
+  /* Kompakt-Skala */
+  .gauge { position: relative; height: 18px; margin: -2px 6px 0; }
+  .gauge > span { position: absolute; top: 50%; transform: translateY(-50%); }
+  .g-track { left: 0; right: 0; height: 6px; border-radius: 3px;
+    background: color-mix(in srgb, var(--accent) 10%, rgba(127,127,127,0.2)); }
+  .g-zone { height: 6px; border-radius: 3px; opacity: 0.55; }
+  .g-seg { height: 6px; border-radius: 3px; background: linear-gradient(90deg, var(--c1), var(--c2));
+    box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 45%, transparent); transition: left 0.5s var(--ease-out), right 0.5s var(--ease-out); }
+  .g-seg.flowing { background-image: repeating-linear-gradient(90deg, rgba(255,255,255,0.45) 0 2px, transparent 2px 12px), linear-gradient(90deg, var(--c1), var(--c2));
+    background-size: 12px 100%, 100% 100%; animation: g-flow 0.9s linear infinite; animation-play-state: var(--hcc-anim-state, running); }
+  .g-seg.flowing.down { animation-direction: reverse; }
+  @keyframes g-flow { from { background-position: 0 0, 0 0; } to { background-position: 12px 0, 0 0; } }
+  .g-cur { width: 8px; height: 8px; margin-left: -4px; border-radius: 50%; background: var(--card-background-color, #fff);
+    box-shadow: 0 0 0 2.5px var(--secondary-text-color); transition: left 0.5s var(--ease-out); }
+  .g-knob { width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 3px var(--k),
+    0 2px 8px color-mix(in srgb, var(--k) 55%, transparent); transition: left 0.5s var(--ease-spring); }
   .compact-steppers { display: flex; gap: 6px; flex-wrap: wrap; }
   .expand {
     position: relative; align-self: center; display: flex; align-items: center; gap: 2px; border: none; background: none;

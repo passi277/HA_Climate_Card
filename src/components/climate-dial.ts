@@ -287,6 +287,7 @@ export class ClimateDial extends LitElement {
     .tick.lit { stroke-opacity: 0.85; stroke-width: 1.8; }
     .is-active .tick.lit { animation: pulse 1.8s ease-in-out infinite; }
     .glow-layer { opacity: 0.5; pointer-events: none; }
+    .tick.lit, .glow-layer, .flow, .center::before { animation-play-state: var(--hcc-anim-state, running) !important; }
     .glow-layer .flow { display: none; }
     .is-active .glow-layer { animation: glow 3s ease-in-out infinite; }
     .current { fill: var(--card-background-color, #fff); stroke-width: 3; filter: drop-shadow(0 1px 1.5px rgba(0,0,0,0.3)); }

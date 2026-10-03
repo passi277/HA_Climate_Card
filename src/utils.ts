@@ -10,32 +10,88 @@ const AUTO_MODES = ["auto", "heat_cool"];
  * Die gemeldete Aktion passt zum eingestellten Modus. Nach einem Moduswechsel melden viele Geräte
  * noch kurz die alte Aktion (z.B. "cooling" im Modus "heat") – dann zählt der Modus.
  */
-const actionMatchesMode = (st: HassEntity): boolean => {
-  const mapped = ACTION_TO_MODE[st.attributes.hvac_action];
+const actionMatchesMode = (st: HassEntity, action?: string): boolean => {
+  const mapped = ACTION_TO_MODE[action ?? ""];
   return !mapped || mapped === st.state || AUTO_MODES.includes(st.state);
 };
 
 /** Farbe nach eingestelltem Modus; nur bei Auto/Heizen-Kühlen nach der tatsächlichen Aktion. */
-export const modeColor = (st: HassEntity): string => {
+export const modeColor = (st: HassEntity, action: string | undefined = st.attributes.hvac_action): string => {
   if (st.state === "off" || UNAVAILABLE.includes(st.state)) return MODE_COLORS.off;
   if (AUTO_MODES.includes(st.state)) {
-    const fromAction = ACTION_TO_MODE[st.attributes.hvac_action];
+    const fromAction = ACTION_TO_MODE[action ?? ""];
     return MODE_COLORS[fromAction ?? st.state] ?? "var(--primary-color)";
   }
   return MODE_COLORS[st.state] ?? "var(--primary-color)";
 };
 
 /** Symbol der aktuellen Aktion, sofern sie zum Modus passt, sonst das Modus-Symbol. */
-export const stateIcon = (st: HassEntity): string => {
-  const action = st.attributes.hvac_action as string | undefined;
-  if (action && ACTION_ICONS[action] && actionMatchesMode(st)) return ACTION_ICONS[action];
+export const stateIcon = (st: HassEntity, action: string | undefined = st.attributes.hvac_action): string => {
+  if (action && ACTION_ICONS[action] && actionMatchesMode(st, action)) return ACTION_ICONS[action];
   return MODE_ICONS[st.state] ?? "mdi:air-conditioner";
 };
 
-export const isActive = (st: HassEntity): boolean => {
-  const action = st.attributes.hvac_action;
+/** Gerät arbeitet gerade (heizt, kühlt, entfeuchtet, lüftet). */
+export const isActive = (st: HassEntity, action: string | undefined = st.attributes.hvac_action): boolean => {
   if (st.state === "off" || UNAVAILABLE.includes(st.state)) return false;
-  return action ? !["idle", "off"].includes(action) : true;
+  return !!action && !["idle", "off"].includes(action);
+};
+
+export interface InferOptions {
+  /** Ist-Temperatur (z.B. vom externen Sensor), sonst `current_temperature` */
+  current?: number;
+  /** Aktuelle Leistung in W – unter `powerThreshold` gilt das Gerät als im Leerlauf */
+  power?: number;
+  powerThreshold?: number;
+  /** Toleranz um den Sollwert in Grad */
+  hysteresis?: number;
+}
+
+const num2 = (v: unknown): number | undefined => {
+  const n = v == null || v === "" ? NaN : Number(v);
+  return Number.isFinite(n) ? n : undefined;
+};
+
+/**
+ * Leitet die Tätigkeit für Geräte ohne `hvac_action` (z.B. Gree) ab: aus Modus, Ist- und
+ * Solltemperatur und optional der Leistungsaufnahme.
+ */
+export const inferAction = (mode: string, attrs: Record<string, any>, opts: InferOptions = {}): string | undefined => {
+  if (mode === "off") return "off";
+  if (UNAVAILABLE.includes(mode)) return undefined;
+  if (mode === "fan_only") return "fan";
+  const threshold = opts.powerThreshold ?? 25;
+  if (opts.power != null && opts.power < threshold) return "idle";
+  if (mode === "dry") return "drying";
+  const cur = opts.current ?? num2(attrs.current_temperature);
+  const h = opts.hysteresis ?? 0.3;
+  const target = num2(attrs.temperature);
+  const low = num2(attrs.target_temp_low);
+  const high = num2(attrs.target_temp_high);
+  const running = opts.power != null; // Leistung über Schwelle → läuft sicher
+  if (mode === "heat") return cur == null || target == null || cur < target - h ? "heating" : running ? "heating" : "idle";
+  if (mode === "cool") return cur == null || target == null || cur > target + h ? "cooling" : running ? "cooling" : "idle";
+  if (cur == null) return running ? "fan" : "idle";
+  const lo = low ?? target;
+  const hi = high ?? target;
+  if (lo != null && cur < lo - h) return "heating";
+  if (hi != null && cur > hi + h) return "cooling";
+  return running ? "fan" : "idle";
+};
+
+/** Gemeldete Tätigkeit oder – falls das Gerät keine meldet – abgeleitete. */
+export const effectiveAction = (st: HassEntity, opts: InferOptions = {}): { action?: string; inferred: boolean } => {
+  const reported = st.attributes.hvac_action as string | undefined;
+  if (reported) return { action: reported, inferred: false };
+  return { action: inferAction(st.state, st.attributes, opts), inferred: true };
+};
+
+/** Leistung eines Sensors in W (kW wird umgerechnet). */
+export const powerOf = (entity?: HassEntity): number | undefined => {
+  if (!entity) return undefined;
+  const v = num2(entity.state);
+  if (v == null) return undefined;
+  return /^kW$/i.test(entity.attributes.unit_of_measurement ?? "") ? v * 1000 : v;
 };
 
 const num = (raw: unknown): number | undefined => {
@@ -92,4 +148,43 @@ export const durationToSeconds = (d?: string): number => {
 export const secondsToDuration = (s: number): string => {
   const p = (n: number) => String(Math.floor(n)).padStart(2, "0");
   return `${p(s / 3600)}:${p((s % 3600) / 60)}:${p(s % 60)}`;
+};
+
+export interface Sample { t: number; v: number; }
+
+/** Steigung (Grad pro Minute) per linearer Regression über die Messpunkte. */
+export const trendSlope = (samples: Sample[]): number | undefined => {
+  if (samples.length < 2) return undefined;
+  const t0 = samples[0].t;
+  const xs = samples.map((s) => (s.t - t0) / 60000);
+  const span = xs[xs.length - 1] - xs[0];
+  if (span < 8) return undefined;
+  const n = xs.length;
+  const mx = xs.reduce((a, b) => a + b, 0) / n;
+  const my = samples.reduce((a, s) => a + s.v, 0) / n;
+  let num = 0;
+  let den = 0;
+  xs.forEach((x, i) => { num += (x - mx) * (samples[i].v - my); den += (x - mx) ** 2; });
+  return den ? num / den : undefined;
+};
+
+/**
+ * Geschätzte Minuten bis zum Ziel. `undefined`, wenn sich die Temperatur nicht (schnell genug)
+ * in Richtung Ziel bewegt oder die Schätzung über 4 Stunden liegt.
+ */
+export const etaMinutes = (current: number, target: number, slope?: number): number | undefined => {
+  if (slope == null || Math.abs(slope) < 0.008) return undefined;
+  const minutes = (target - current) / slope;
+  if (!Number.isFinite(minutes) || minutes <= 0 || minutes > 240) return undefined;
+  return minutes;
+};
+
+/** Farbton für eine Temperatur relativ zum Ziel: wärmer → orange, kälter → blau (max. bei 3° Abstand). */
+export const temperatureTint = (current: number | undefined, target: number | undefined): string | undefined => {
+  if (current == null || target == null) return undefined;
+  const delta = current - target;
+  if (Math.abs(delta) < 0.25) return undefined;
+  const pct = Math.round(Math.min(1, Math.abs(delta) / 3) * 75);
+  const color = delta > 0 ? "var(--state-climate-heat-color, #ff6d00)" : "var(--state-climate-cool-color, #2196f3)";
+  return `color-mix(in srgb, ${color} ${pct}%, var(--primary-text-color))`;
 };

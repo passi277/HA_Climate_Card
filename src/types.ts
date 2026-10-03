@@ -86,6 +86,8 @@ export interface ClimateCardConfig {
   weather_entity?: string;
   ventilation_delta?: number;
   humidity_warning?: number;
+  power_threshold?: number;
+  animations?: "full" | "reduced" | "off";
 }
 
 export interface OverviewEntityConfig {

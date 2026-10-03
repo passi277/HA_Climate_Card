@@ -2,6 +2,7 @@ import { LitElement, css, html, svg, nothing, type PropertyValues } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import type { HomeAssistant } from "../types";
 import { ACTION_TO_MODE, MODE_COLORS } from "../const";
+import { inferAction } from "../utils";
 
 interface CompressedState { s: string; a?: Record<string, any>; lu: number; }
 type HistoryResult = Record<string, CompressedState[]>;
@@ -90,7 +91,9 @@ export class HistoryGraph extends LitElement {
       if (!this.sensor && Number.isFinite(cur)) current.push({ t, v: cur });
       if (Number.isFinite(tgt) && st.s !== "off") target.push({ t, v: tgt });
       else target.push({ t, v: NaN });
-      const mode = ACTION_TO_MODE[lastAttrs.hvac_action as string];
+      // Geräte ohne hvac_action (z.B. Gree): Tätigkeit aus Modus und Temperaturen ableiten
+      const action = (lastAttrs.hvac_action as string | undefined) ?? inferAction(st.s, lastAttrs);
+      const mode = ACTION_TO_MODE[action ?? ""];
       if (mode && st.s !== "off") {
         const next = climate[i + 1] ? climate[i + 1].lu * 1000 : end;
         bands.push({ from: t, to: next, color: MODE_COLORS[mode] });
@@ -182,7 +185,7 @@ export class HistoryGraph extends LitElement {
     .area { fill: url(#areaGrad); stroke: none; }
     .dot { position: absolute; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%;
       background: var(--hcc-accent, var(--primary-color)); box-shadow: 0 0 0 0 var(--hcc-accent, var(--primary-color));
-      animation: dot-pulse 2.2s ease-out infinite; }
+      animation: dot-pulse 2.2s ease-out infinite; animation-play-state: var(--hcc-anim-state, running); }
     @keyframes dot-pulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--hcc-accent, var(--primary-color)) 60%, transparent); }
       100% { box-shadow: 0 0 0 10px transparent; } }
     @keyframes fade-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
@@ -191,7 +194,7 @@ export class HistoryGraph extends LitElement {
     .current { fill: none; stroke: var(--hcc-accent, var(--primary-color)); stroke-width: 2; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
     .target { fill: none; stroke: var(--secondary-text-color); stroke-width: 1.5; stroke-dasharray: 4 3; vector-effect: non-scaling-stroke; opacity: 0.7; }
     .labels { display: flex; justify-content: space-between; font-size: 11px; color: var(--secondary-text-color); margin-top: 4px; }
-    .placeholder { height: 80px; border-radius: 12px; background: rgba(127,127,127,0.08); }
+    .placeholder { height: 80px; border-radius: var(--hcc-inner-radius, 12px); background: rgba(127,127,127,0.08); }
     .placeholder.empty { display: flex; align-items: center; justify-content: center; font-size: 12px; color: var(--secondary-text-color); }
   `;
 }

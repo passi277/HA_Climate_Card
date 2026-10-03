@@ -12,21 +12,23 @@ export class Airflow extends LitElement {
   @property({ type: Boolean }) swingVertical = false;
   @property({ type: Boolean }) swingHorizontal = false;
   @property() color = "var(--primary-color)";
+  /** "heat": flimmernde, aufsteigende Warmluft; "cool": klare, fallende Kaltluft */
+  @property() variant: "cool" | "heat" | "neutral" = "neutral";
 
   protected render() {
     const duration = (2.8 - this.speed * 2).toFixed(2);
     const lines = [-75, -50, -25, 0, 25, 50, 75];
     return html`<svg viewBox="0 0 300 110" preserveAspectRatio="none"
-      class="${this.swingVertical ? "sv" : ""} ${this.swingHorizontal ? "sh" : ""}"
+      class="${this.swingVertical ? "sv" : ""} ${this.swingHorizontal ? "sh" : ""} ${this.variant}"
       style="--d:${duration}s;--c:${this.color}">
-      <g class="fan">
+      <g class="fan"><g class="shimmer">
         ${lines.map((dx, i) => {
           const x0 = 150 + dx;
           const x1 = 150 + dx * 1.5;
           const d = `M ${x0} 0 C ${x0 + dx * 0.15} 40, ${x1 - dx * 0.1} 75, ${x1} 110`;
           return svg`<path d=${d} style="animation-delay:-${(i * 0.37).toFixed(2)}s"></path>`;
         })}
-      </g>
+      </g></g>
     </svg>`;
   }
 
@@ -41,9 +43,17 @@ export class Airflow extends LitElement {
     .sv .fan { animation: sv 6s ease-in-out infinite; }
     .sh .fan { animation: sh 7s ease-in-out infinite; }
     .sv.sh .fan { animation: sv 6s ease-in-out infinite, sh 7s ease-in-out infinite; }
+    /* Heizen: Warmluft flimmert und steigt auf */
+    .heat path { stroke-opacity: 0.3; stroke-width: 2; stroke-dasharray: 3 12 8 17; animation-name: rise; }
+    .heat .shimmer { transform-origin: 150px 0; transform-box: view-box; animation: shimmer 2.2s ease-in-out infinite; }
+    .cool path { stroke-dasharray: 10 30; }
+    @keyframes rise { from { stroke-dashoffset: 0; } to { stroke-dashoffset: 40; } }
+    @keyframes shimmer { 0%, 100% { transform: skewX(0deg) scaleX(1); } 25% { transform: skewX(4deg) scaleX(1.03); }
+      75% { transform: skewX(-4deg) scaleX(0.97); } }
     @keyframes flow { from { stroke-dashoffset: 40; } to { stroke-dashoffset: 0; } }
     @keyframes sv { 0%, 100% { scale: 1 0.75; } 50% { scale: 1 1.15; } }
     @keyframes sh { 0%, 100% { rotate: -8deg; } 50% { rotate: 8deg; } }
-    @media (prefers-reduced-motion: reduce) { path, .fan { animation: none !important; } }
+    path, .fan, .shimmer { animation-play-state: var(--hcc-anim-state, running) !important; }
+    @media (prefers-reduced-motion: reduce) { path, .fan, .shimmer { animation: none !important; } }
   `;
 }

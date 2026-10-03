@@ -14,7 +14,7 @@ import {
 import { formatAttribute, formatMode, localize } from "./localize/localize";
 import { cardStyles } from "./styles";
 import type { SensorItem } from "./components/sensor-row";
-import type { ShortcutItem } from "./components/shortcut-row";
+import { fallbackIcon, type ShortcutItem } from "./components/shortcut-row";
 import "./components/climate-dial";
 import "./components/mode-bar";
 import "./components/attribute-select";
@@ -24,7 +24,10 @@ import "./components/shortcut-row";
 import "./components/sleep-timer";
 import "./components/countdown-timer";
 import "./components/airflow";
-import { dewPoint, isActive, modeColor, stateIcon, temperatureOf, WEATHER_ICONS } from "./utils";
+import {
+  dewPoint, effectiveAction, etaMinutes, inferAction, isActive, modeColor, powerOf, stateIcon, temperatureOf,
+  temperatureTint, trendSlope, WEATHER_ICONS, type Sample,
+} from "./utils";
 import "./editor";
 import "./overview-card";
 
@@ -66,6 +69,17 @@ export class HaClimateCard extends LitElement {
   @state() private _pendingHumidity?: number;
   @state() private _expanded = false;
   @state() private _forecast?: ForecastDay;
+  @state() private _syncing = false;
+  /** Verlauf erst laden, wenn er das erste Mal sichtbar ist. */
+  @state() private _graphLoaded = false;
+  @state() private _runtimeToday?: number;
+  @state() private _samples: Sample[] = [];
+  private _todayTimer?: number;
+  private _todayKey?: string;
+  @state() private _error?: string;
+  private _errorTimer?: number;
+  private _holdDelay?: number;
+  private _holdRepeat?: number;
 
   private _weatherUnsub?: Promise<() => void>;
   private _weatherKey?: string;
@@ -124,9 +138,18 @@ export class HaClimateCard extends LitElement {
     return ids.some((id) => old.states[id] !== this.hass!.states[id]) || old.locale !== this.hass!.locale;
   }
 
+  protected willUpdate(): void {
+    const c = this._config;
+    if (!this._graphLoaded && c && (this._expanded || (c.layout !== "compact" && c.expandable === false))) this._graphLoaded = true;
+  }
+
   protected updated(changed: PropertyValues): void {
     super.updated(changed);
-    if (changed.has("hass") || changed.has("_config")) this._subscribeWeather();
+    if (changed.has("hass") || changed.has("_config")) {
+      this._subscribeWeather();
+      this._maybeFetchToday();
+      this._recordSample();
+    }
     this._popChangedValues();
     // Ausstehende Sollwerte verwerfen, sobald HA einen neuen Zustand meldet.
     const st = this._stateObj;
@@ -134,6 +157,7 @@ export class HaClimateCard extends LitElement {
       this._sentAt = undefined;
       this._pending = undefined;
       this._pendingHumidity = undefined;
+      this._syncing = false;
     }
   }
 
@@ -163,6 +187,11 @@ export class HaClimateCard extends LitElement {
 
   disconnectedCallback(): void {
     super.disconnectedCallback();
+    this._holdEnd();
+    clearTimeout(this._errorTimer);
+    clearInterval(this._todayTimer);
+    this._todayTimer = undefined;
+    this._todayKey = undefined;
     this._unsubscribeWeather();
     clearTimeout(this._tempTimer);
     clearTimeout(this._humTimer);
@@ -198,11 +227,21 @@ export class HaClimateCard extends LitElement {
   }
 
   private _modeColor(st: HassEntity): string {
-    return modeColor(st);
+    return modeColor(st, this._action(st));
   }
 
   private _isActive(st: HassEntity): boolean {
-    return !!st.attributes.hvac_action && isActive(st);
+    return isActive(st, this._action(st));
+  }
+
+  /** Tätigkeit des Geräts – gemeldet oder (z.B. bei Gree) aus Temperatur/Leistung abgeleitet. */
+  private _action(st: HassEntity): string | undefined {
+    const c = this._config;
+    return effectiveAction(st, {
+      current: this._currentTemp(st),
+      power: c?.power_sensor ? powerOf(this.hass?.states[c.power_sensor]) : undefined,
+      powerThreshold: c?.power_threshold,
+    }).action;
   }
 
   // ---------- Wetter ----------
@@ -242,6 +281,135 @@ export class HaClimateCard extends LitElement {
       );
       this._weatherUnsub?.catch(() => undefined);
     });
+  }
+
+  // ---------- Verlauf heute: Laufzeit & Trend für die Ziel-Prognose ----------
+
+  private _maybeFetchToday(): void {
+    const c = this._config;
+    if (!c || !this.hass || !this.isConnected) return;
+    const key = `${c.entity}|${this._externalTemp?.entity_id ?? ""}`;
+    if (key === this._todayKey) return;
+    this._todayKey = key;
+    clearInterval(this._todayTimer);
+    this._fetchToday();
+    this._todayTimer = window.setInterval(() => this._fetchToday(), 10 * 60 * 1000);
+  }
+
+  private async _fetchToday(): Promise<void> {
+    const c = this._config;
+    const hass = this.hass;
+    if (!c || !hass) return;
+    const now = Date.now();
+    const midnight = new Date(); midnight.setHours(0, 0, 0, 0);
+    const start = Math.min(midnight.getTime(), now - 45 * 60000);
+    const sensor = this._externalTemp?.entity_id;
+    try {
+      const res = await hass.callWS<Record<string, { s: string; a?: Record<string, any>; lu: number }[]>>({
+        type: "history/history_during_period",
+        start_time: new Date(start).toISOString(),
+        end_time: new Date(now).toISOString(),
+        entity_ids: [c.entity, ...(sensor ? [sensor] : [])],
+        minimal_response: false, no_attributes: false, significant_changes_only: false,
+      });
+      // Laufzeit: Summe der Zeiträume, in denen das Gerät gearbeitet hat (seit Mitternacht)
+      let runtime = 0;
+      let attrs: Record<string, any> = {};
+      const rows = res[c.entity] ?? [];
+      rows.forEach((row, i) => {
+        if (row.a) attrs = row.a;
+        const from = Math.max(row.lu * 1000, midnight.getTime());
+        const to = rows[i + 1] ? rows[i + 1].lu * 1000 : now;
+        if (to <= from) return;
+        const action = (attrs.hvac_action as string | undefined) ?? inferAction(row.s, attrs);
+        if (action && !["idle", "off"].includes(action)) runtime += to - from;
+      });
+      this._runtimeToday = runtime / 1000;
+      // Messpunkte der letzten 45 Minuten für den Trend
+      const samples: Sample[] = [];
+      let last: Record<string, any> = {};
+      for (const row of res[sensor ?? c.entity] ?? []) {
+        if (row.a) last = row.a;
+        const v = Number(sensor && !sensor.startsWith("climate.") ? row.s : last.current_temperature);
+        if (Number.isFinite(v)) samples.push({ t: Math.max(row.lu * 1000, now - 45 * 60000), v });
+      }
+      this._samples = samples;
+    } catch (err) {
+      console.warn("ha-climate-card: history (today) failed", err);
+    }
+  }
+
+  /** Live-Messpunkte ergänzen, damit der Trend zwischen den Abrufen aktuell bleibt. */
+  private _recordSample(): void {
+    const st = this._stateObj;
+    const v = st ? this._currentTemp(st) : undefined;
+    if (v == null) return;
+    const now = Date.now();
+    const last = this._samples[this._samples.length - 1];
+    if (last && last.v === v) return;
+    this._samples = [...this._samples.filter((p) => p.t >= now - 45 * 60000), { t: now, v }];
+  }
+
+  /** Temperatur, auf die das Gerät gerade hinarbeitet (bei Bereich die nächste Grenze). */
+  private _goal(st: HassEntity): number | undefined {
+    if (st.state === "off") return undefined;
+    const t = this._targets(st);
+    if (!this._isDual(st)) return t.value;
+    const cur = this._currentTemp(st);
+    if (cur == null || t.low == null || t.high == null) return undefined;
+    return cur < t.low ? t.low : cur > t.high ? t.high : undefined;
+  }
+
+  private _etaText(st: HassEntity): string | undefined {
+    const goal = this._goal(st);
+    const cur = this._currentTemp(st);
+    if (goal == null || cur == null || !this._isActive(st)) return undefined;
+    const now = Date.now();
+    const recent = this._samples.filter((p) => p.t >= now - 30 * 60000);
+    const minutes = etaMinutes(cur, goal, trendSlope(recent));
+    if (minutes == null) return undefined;
+    const rounded = minutes < 15 ? Math.max(1, Math.round(minutes)) : Math.round(minutes / 5) * 5;
+    const text = rounded >= 60
+      ? `${Math.floor(rounded / 60)} h ${String(rounded % 60).padStart(2, "0")} min`
+      : `${rounded} min`;
+    return `${this._t("card.eta")} ${text}`;
+  }
+
+  private _fmtDuration(seconds: number): string {
+    const lang = this.hass?.locale?.language ?? this.hass?.language ?? "de";
+    if (seconds < 3600) return `${Math.round(seconds / 60)} min`;
+    return `${(seconds / 3600).toLocaleString(lang, { maximumFractionDigits: 1 })} h`;
+  }
+
+  /** Kleine Status-Chips unter dem Kopf: Voreinstellung, aktive Schalter, Timer. */
+  private _renderPills(st: HassEntity) {
+    const c = this._config!;
+    const hass = this.hass!;
+    const pills: { icon: string; text: string }[] = [];
+    const preset = st.attributes.preset_mode as string | undefined;
+    if (preset && !["none", "off"].includes(preset)) {
+      pills.push({ icon: "mdi:star-four-points-outline", text: formatAttribute(hass, st, "preset_mode", preset) });
+    }
+    if (c.timer_switch && hass.states[c.timer_switch]?.state === "on") {
+      const a = c.timer_time ? hass.states[c.timer_time]?.attributes : undefined;
+      const time = a?.hour != null ? `${String(a.hour).padStart(2, "0")}:${String(a.minute ?? 0).padStart(2, "0")}` : "";
+      pills.push({ icon: "mdi:sleep", text: time || this._t("card.sleep_timer") });
+    }
+    const timer = c.countdown_timer ? hass.states[c.countdown_timer] : undefined;
+    if (timer?.state === "active" && timer.attributes.finishes_at) {
+      const end = new Date(timer.attributes.finishes_at);
+      pills.push({ icon: "mdi:timer-outline", text: `${this._t("card.until")} ${String(end.getHours()).padStart(2, "0")}:${String(end.getMinutes()).padStart(2, "0")}` });
+    }
+    if (this._show.shortcuts) {
+      for (const item of this._shortcutItems(st)) {
+        const sh = hass.states[item.entity];
+        if (sh?.state === "on" && ["switch", "input_boolean", "light", "fan"].includes(item.entity.split(".")[0])) {
+          pills.push({ icon: item.icon ?? fallbackIcon(sh, item.entity, item.name), text: item.name });
+        }
+      }
+    }
+    if (!pills.length) return nothing;
+    return html`<div class="pills">${pills.slice(0, 5).map((p) => html`<span class="pill"><ha-icon .icon=${p.icon}></ha-icon>${p.text}</span>`)}</div>`;
   }
 
   private _outdoorTemp(): number | undefined {
@@ -369,17 +537,58 @@ export class HaClimateCard extends LitElement {
     const st = this._stateObj;
     if (!st || !this.hass) return;
     this._sentAt = st.last_updated;
+    this._syncing = true;
     this.hass.callService("climate", service, { entity_id: st.entity_id, ...data }).catch((err) => {
       console.error("ha-climate-card:", err);
       this._pending = undefined;
       this._pendingHumidity = undefined;
+      this._syncing = false;
+      this._showError(err?.message ?? String(err));
     });
     clearTimeout(this._clearTimer);
     this._clearTimer = window.setTimeout(() => {
       this._pending = undefined;
       this._pendingHumidity = undefined;
       this._sentAt = undefined;
+      this._syncing = false;
     }, 6000);
+  }
+
+  /** Fehler in der Karte anzeigen und zusätzlich als HA-Toast melden. */
+  private _showError(detail: string): void {
+    this._error = `${this._t("card.error")}: ${detail}`;
+    this.dispatchEvent(new CustomEvent("hass-notification", { detail: { message: this._error }, bubbles: true, composed: true }));
+    this._haptic("failure");
+    clearTimeout(this._errorTimer);
+    this._errorTimer = window.setTimeout(() => (this._error = undefined), 6000);
+  }
+
+  /** Haptisches Feedback in der Home-Assistant-App. */
+  private _haptic(type: "light" | "selection" | "success" | "failure" = "light"): void {
+    window.dispatchEvent(new CustomEvent("haptic", { detail: type }));
+  }
+
+  /** +/- gedrückt halten: sofort einmal, nach kurzer Pause fortlaufend wiederholen. */
+  private _holdStart(ev: PointerEvent, fn: () => void): void {
+    if (ev.button !== 0) return;
+    this._holdEnd();
+    fn();
+    this._holdDelay = window.setTimeout(() => {
+      this._holdRepeat = window.setInterval(fn, 110);
+    }, 420);
+  }
+
+  private _holdEnd = (): void => {
+    clearTimeout(this._holdDelay);
+    clearInterval(this._holdRepeat);
+  };
+
+  private _holdButton(label: string, icon: string, fn: () => void, cls = "") {
+    return html`<button class=${cls} aria-label=${label}
+      @pointerdown=${(e: PointerEvent) => this._holdStart(e, fn)} @pointerup=${this._holdEnd}
+      @pointerleave=${this._holdEnd} @pointercancel=${this._holdEnd}
+      @contextmenu=${(e: Event) => e.preventDefault()}
+      @click=${(e: MouseEvent) => { if (e.detail === 0) fn(); }}><ha-icon icon=${icon}></ha-icon></button>`;
   }
 
   private _scheduleTemp(delay: number): void {
@@ -398,7 +607,10 @@ export class HaClimateCard extends LitElement {
 
   private _onDialChanging(ev: CustomEvent): void {
     clearTimeout(this._tempTimer);
-    this._pending = { ...ev.detail };
+    const prev = this._pending;
+    const next = ev.detail as PendingTarget;
+    if (!prev || prev.value !== next.value || prev.low !== next.low || prev.high !== next.high) this._haptic("selection");
+    this._pending = { ...next };
   }
 
   private _onDialChanged(ev: CustomEvent): void {
@@ -418,6 +630,7 @@ export class HaClimateCard extends LitElement {
     next = Number(next.toFixed(step < 1 ? 1 : 0));
     if (which === "low" && t.high != null) next = Math.min(next, t.high);
     if (which === "high" && t.low != null) next = Math.max(next, t.low);
+    if (next !== t[which]) this._haptic("selection");
     this._pending = { ...t, [which]: next };
     this._scheduleTemp(1000);
   }
@@ -434,10 +647,12 @@ export class HaClimateCard extends LitElement {
   }
 
   private _setMode(ev: CustomEvent): void {
+    this._haptic("light");
     this._call("set_hvac_mode", { hvac_mode: ev.detail.mode });
   }
 
   private _togglePower(): void {
+    this._haptic("light");
     const st = this._stateObj;
     if (!st) return;
     const a = st.attributes;
@@ -460,23 +675,21 @@ export class HaClimateCard extends LitElement {
   // ---------- Render parts ----------
 
   private _renderHeader(st: HassEntity, name: string, color: string): TemplateResult {
-    const action = st.attributes.hvac_action as string | undefined;
+    const action = this._action(st);
     const statusText = action
       ? formatAttribute(this.hass!, st, "hvac_action", action)
       : formatMode(this.hass!, st, st.state);
-    const preset = st.attributes.preset_mode && st.attributes.preset_mode !== "none"
-      ? ` · ${formatAttribute(this.hass!, st, "preset_mode", st.attributes.preset_mode)}` : "";
     const canPower = (st.attributes.hvac_modes ?? []).includes("off")
       || supports(st.attributes, ClimateFeature.TURN_OFF);
     return html`
       <div class="header">
         <button class="title" @click=${() => this._moreInfo()}>
           <span class="icon-badge ${this._isActive(st) ? "active" : ""}" data-action=${action ?? ""} data-mode=${st.state}>
-            <ha-icon .icon=${this._config!.icon ?? stateIcon(st)}></ha-icon>
+            <ha-icon .icon=${this._config!.icon ?? stateIcon(st, action)}></ha-icon>
           </span>
           <span class="names">
             <span class="name">${name}</span>
-            <span class="status">${statusText}${preset}</span>
+            <span class="status">${this._syncing ? html`<span class="sync" title=${this._t("card.syncing")}></span>` : nothing}${statusText}</span>
           </span>
         </button>
         ${canPower ? html`
@@ -486,13 +699,19 @@ export class HaClimateCard extends LitElement {
             @click=${this._togglePower}>
             <ha-icon icon="mdi:power"></ha-icon>
           </button>` : nothing}
-      </div>`;
+      </div>
+      ${this._renderPills(st)}`;
   }
 
   /** Hinweise: Fenster offen, Lüften statt Kühlen/Heizen, hohe Luftfeuchte (Schimmelgefahr). */
   private _renderHints(st: HassEntity): TemplateResult | typeof nothing {
     const c = this._config!;
     const banners: TemplateResult[] = [];
+    if (this._error) {
+      banners.push(html`<div class="banner error" role="alert" @click=${() => (this._error = undefined)}>
+        <ha-icon icon="mdi:alert-circle-outline"></ha-icon><div><strong>${this._error}</strong></div>
+      </div>`);
+    }
     if (this._windowOpen()) {
       banners.push(html`<div class="banner" @click=${() => this._moreInfo(c.window_sensor)}>
         <ha-icon icon="mdi:window-open-variant"></ha-icon>
@@ -503,8 +722,9 @@ export class HaClimateCard extends LitElement {
       const inside = this._currentTemp(st);
       const outside = this._outdoorTemp();
       const delta = c.ventilation_delta ?? 3;
-      const cooling = st.state === "cool" || st.attributes.hvac_action === "cooling";
-      const heating = st.state === "heat" || st.attributes.hvac_action === "heating";
+      const action = this._action(st);
+      const cooling = st.state === "cool" || action === "cooling";
+      const heating = st.state === "heat" || action === "heating";
       if (!this._windowOpen() && inside != null && outside != null) {
         const fmt = (v: number) => `${v.toFixed(1)}°`;
         if (cooling && inside - outside >= delta) {
@@ -540,9 +760,9 @@ export class HaClimateCard extends LitElement {
 
   private _renderStepper(which: keyof PendingTarget, value: number | undefined, step: number, color?: string) {
     return html`<div class="stepper" style=${color && color !== ACCENT ? `--accent:${color}` : ""}>
-      <button aria-label="-" @click=${() => this._stepTarget(which, -1)}><ha-icon icon="mdi:minus"></ha-icon></button>
+      ${this._holdButton("-", "mdi:minus", () => this._stepTarget(which, -1))}
       <span class="stepper-value" data-pop=${`step-${which}`}>${this._fmt(value, step)}<small>${this._unit}</small></span>
-      <button aria-label="+" @click=${() => this._stepTarget(which, 1)}><ha-icon icon="mdi:plus"></ha-icon></button>
+      ${this._holdButton("+", "mdi:plus", () => this._stepTarget(which, 1))}
     </div>`;
   }
 
@@ -575,17 +795,19 @@ export class HaClimateCard extends LitElement {
                 </span>`
               : html`<span class="dial-big" data-pop="target">${this._fmt(t.value, step)}<sup>${this._unit}</sup></span>`}
           <span class="dial-sub">
-            ${!off && hasTarget ? html`<ha-icon icon="mdi:home-thermometer-outline"></ha-icon>${this._fmt(cur, step)}${this._unit}` : nothing}
+            ${!off && hasTarget ? html`<ha-icon icon="mdi:home-thermometer-outline"></ha-icon><span
+              style=${`color:${temperatureTint(cur, this._goal(st)) ?? "inherit"}`}>${this._fmt(cur, step)}${this._unit}</span>` : nothing}
             ${humidity != null ? html`<ha-icon icon="mdi:water-percent"></ha-icon>${Math.round(Number(humidity))}%` : nothing}
           </span>
+          ${this._etaText(st) ? html`<span class="eta"><ha-icon icon="mdi:timer-sand"></ha-icon>${this._etaText(st)}</span>` : nothing}
         </div>
       </hcc-climate-dial>
       ${!off && hasTarget ? html`<div class="dial-steppers ${dual ? "dual" : ""}">
         ${dual
           ? html`${this._renderStepper("low", t.low, step, "var(--state-climate-heat-color,#ff6d00)")}
                  ${this._renderStepper("high", t.high, step, "var(--state-climate-cool-color,#2196f3)")}`
-          : html`<button class="round" aria-label="-" @click=${() => this._stepTarget("value", -1)}><ha-icon icon="mdi:minus"></ha-icon></button>
-                 <button class="round" aria-label="+" @click=${() => this._stepTarget("value", 1)}><ha-icon icon="mdi:plus"></ha-icon></button>`}
+          : html`${this._holdButton("-", "mdi:minus", () => this._stepTarget("value", -1), "round")}
+                 ${this._holdButton("+", "mdi:plus", () => this._stepTarget("value", 1), "round")}`}
       </div>` : nothing}`;
   }
 
@@ -610,7 +832,7 @@ export class HaClimateCard extends LitElement {
       parts.push(html`<hcc-attribute-select .label=${this._t(labelKey)} .icon=${icon} .selected=${a[attr]}
         .options=${options.map((o) => ({ value: o, label: formatAttribute(hass, st, attr, o) }))}
         .dropdownThreshold=${this._config!.dropdown_threshold ?? 6}
-        @option-selected=${(e: CustomEvent) => this._call(service, { [attr]: e.detail.value })}>
+        @option-selected=${(e: CustomEvent) => { this._haptic("selection"); this._call(service, { [attr]: e.detail.value }); }}>
       </hcc-attribute-select>`, key);
     };
     select("fan", "fan_mode", "fan_modes", ClimateFeature.FAN_MODE, "card.fan", "mdi:fan", "set_fan_mode", show.fan);
@@ -641,9 +863,9 @@ export class HaClimateCard extends LitElement {
       parts.push(html`<div class="humidity-row">
         <span class="row-label"><ha-icon icon="mdi:water-percent"></ha-icon>${this._t("card.target_humidity")}</span>
         <div class="stepper">
-          <button aria-label="-" @click=${() => this._stepHumidity(-1)}><ha-icon icon="mdi:minus"></ha-icon></button>
+          ${this._holdButton("-", "mdi:minus", () => this._stepHumidity(-1))}
           <span class="stepper-value" data-pop="humidity">${hum}<small>%</small></span>
-          <button aria-label="+" @click=${() => this._stepHumidity(1)}><ha-icon icon="mdi:plus"></ha-icon></button>
+          ${this._holdButton("+", "mdi:plus", () => this._stepHumidity(1))}
         </div>
       </div>`, "humidity");
     }
@@ -653,13 +875,14 @@ export class HaClimateCard extends LitElement {
       if (items.length) parts.push(html`<hcc-sensor-row .items=${items}></hcc-sensor-row>`, "sensors");
     }
 
+    const graphVisible = this._expanded || (this._config!.layout !== "compact" && this._config!.expandable === false);
     if (show.graph) {
       parts.push(html`<div class="graph-wrap">
         <span class="row-label"><ha-icon icon="mdi:chart-line"></ha-icon>${this._t("card.history")}</span>
-        <hcc-history-graph .hass=${hass} .entity=${st.entity_id}
+        ${this._graphLoaded || graphVisible ? html`<hcc-history-graph .hass=${hass} .entity=${st.entity_id}
           .sensor=${this._externalTemp?.entity_id}
           .hours=${this._config!.graph_hours ?? 24} .unit=${this._unit} .emptyText=${this._t("card.no_history")}
-          style="--hcc-accent:${color}"></hcc-history-graph>
+          style="--hcc-accent:${color}"></hcc-history-graph>` : html`<div class="graph-placeholder"></div>`}
       </div>`, "graph");
     }
     return sections;
@@ -714,6 +937,9 @@ export class HaClimateCard extends LitElement {
     if (this._config?.layout === "compact" && hum != null) {
       items.push({ entity: c.humidity_sensor, icon: "mdi:water-percent", label: this._t("card.humidity"), value: `${Math.round(hum)} %` });
     }
+    if (this._runtimeToday != null && this._runtimeToday >= 60) {
+      items.push({ icon: "mdi:timer-sand", label: this._t("card.runtime_today"), value: this._fmtDuration(this._runtimeToday) });
+    }
     add(c.outdoor_sensor, "mdi:thermometer", "card.outdoor");
     if (c.weather_entity && this.hass!.states[c.weather_entity]) {
       const w = this.hass!.states[c.weather_entity];
@@ -750,6 +976,40 @@ export class HaClimateCard extends LitElement {
     return items;
   }
 
+  /** Schmale Skala für das Kompakt-Layout: Verlauf zwischen Ist und Ziel, wie beim Drehregler. */
+  private _renderGauge(st: HassEntity) {
+    if (st.state === "off") return nothing;
+    const a = st.attributes;
+    const min = Number(a.min_temp ?? 7);
+    const max = Number(a.max_temp ?? 35);
+    const pos = (v: number) => `${(Math.min(1, Math.max(0, (v - min) / (max - min || 1))) * 100).toFixed(2)}%`;
+    const cur = this._currentTemp(st);
+    const t = this._targets(st);
+    const dual = this._isDual(st);
+    const heat = "var(--state-climate-heat-color, #ff6d00)";
+    const cool = "var(--state-climate-cool-color, #2196f3)";
+    let seg: unknown = nothing;
+    if (dual && t.low != null && t.high != null) {
+      seg = html`<span class="g-zone" style="left:${pos(t.low)};right:calc(100% - ${pos(t.high)});background:linear-gradient(90deg, ${heat}, ${cool})"></span>`;
+    } else if (cur != null && t.value != null) {
+      const lo = Math.min(cur, t.value);
+      const hi = Math.max(cur, t.value);
+      const curColor = ["dry", "fan_only"].includes(st.state) ? "color-mix(in srgb, var(--accent) 25%, transparent)" : cur > t.value ? heat : cool;
+      const [cFrom, cTo] = cur < t.value ? [curColor, "var(--accent)"] : ["var(--accent)", curColor];
+      seg = html`<span class="g-seg ${this._isActive(st) ? "flowing" : ""} ${cur < t.value ? "up" : "down"}"
+        style="left:${pos(lo)};right:calc(100% - ${pos(hi)});--c1:${cFrom};--c2:${cTo}"></span>`;
+    }
+    return html`<div class="gauge" aria-hidden="true">
+      <span class="g-track"></span>
+      ${seg}
+      ${cur != null ? html`<span class="g-cur" style="left:${pos(cur)}"></span>` : nothing}
+      ${dual
+        ? html`<span class="g-knob" style="left:${pos(t.low ?? min)};--k:${heat}"></span><span class="g-knob" style="left:${pos(t.high ?? max)};--k:${cool}"></span>`
+        : t.value != null ? html`<span class="g-knob" style="left:${pos(t.value)};--k:var(--accent)"></span>` : nothing}
+    </div>
+    ${this._etaText(st) ? html`<span class="eta compact-eta"><ha-icon icon="mdi:timer-sand"></ha-icon>${this._etaText(st)}</span>` : nothing}`;
+  }
+
   private _renderCompact(st: HassEntity, name: string, color: string): TemplateResult {
     const step = this._step(st);
     const dual = this._isDual(st);
@@ -763,7 +1023,7 @@ export class HaClimateCard extends LitElement {
       </div>
       <div class="compact-row">
         <div class="compact-current">
-          <span class="big">${this._fmt(cur, step)}<sup>${this._unit}</sup></span>
+          <span class="big" style=${`color:${off ? "inherit" : temperatureTint(cur, this._goal(st)) ?? "inherit"}`}>${this._fmt(cur, step)}<sup>${this._unit}</sup></span>
           <span class="dial-label">${this._t("card.current")}</span>
         </div>
         ${!off && hasTarget
@@ -775,6 +1035,7 @@ export class HaClimateCard extends LitElement {
             : this._renderStepper("value", t.value, step, color)
           : nothing}
       </div>
+      ${this._renderGauge(st)}
       ${this._renderHints(st)}
       ${this._renderExpandButton()}
       ${this._renderCollapsible(this._renderSections(this._sections(st, color), color))}`;
@@ -782,7 +1043,7 @@ export class HaClimateCard extends LitElement {
 
   /** Luftstrom-Animation: nur wenn das Gerät läuft; Tempo nach Lüfterstufe, Pendeln nach Lamellen. */
   private _renderAirflow(st: HassEntity, color: string) {
-    if (!this._show.airflow || !isActive(st)) return nothing;
+    if (!this._show.airflow || !this._isActive(st) || (this._config!.animations ?? "full") !== "full") return nothing;
     const a = st.attributes;
     const fans = (a.fan_modes ?? []) as string[];
     const idx = fans.indexOf(a.fan_mode);
@@ -791,7 +1052,10 @@ export class HaClimateCard extends LitElement {
     const swinging = (v?: string) => !!v && (/swing|^on$|both|vertical|auto/i.test(v)) && !/fixed/i.test(v);
     const sv = swinging(a.swing_mode) && !/^horizontal$/i.test(a.swing_mode);
     const sh = swinging(a.swing_horizontal_mode) || /both|horizontal/i.test(a.swing_mode ?? "");
-    return html`<hcc-airflow .speed=${Math.max(0, Math.min(1, speed))} .swingVertical=${sv} .swingHorizontal=${sh} .color=${color}></hcc-airflow>`;
+    const action = this._action(st);
+    const variant = action === "heating" || action === "preheating" ? "heat" : action === "cooling" ? "cool" : "neutral";
+    return html`<hcc-airflow .speed=${Math.max(0, Math.min(1, speed))} .swingVertical=${sv} .swingHorizontal=${sh}
+      .color=${color} .variant=${variant}></hcc-airflow>`;
   }
 
   protected render() {
@@ -809,8 +1073,9 @@ export class HaClimateCard extends LitElement {
     }
     const color = ACCENT;
     const compact = this._config.layout === "compact";
-    const mood = st.state === "off" ? "off" : this._isActive(st) || !st.attributes.hvac_action ? "active" : "idle";
-    return html`<ha-card class="${compact ? "compact" : "full"} ${mood}" style="--hcc-accent-c:${this._modeColor(st)}">
+    const mood = st.state === "off" ? "off" : this._isActive(st) ? "active" : "idle";
+    const anim = this._config.animations ?? "full";
+    return html`<ha-card class="${compact ? "compact" : "full"} ${mood} anim-${anim}" style="--hcc-accent-c:${this._modeColor(st)}">
       <div class="glow"><span class="blob b1"></span><span class="blob b2"></span></div>
       ${this._renderAirflow(st, color)}
       ${compact

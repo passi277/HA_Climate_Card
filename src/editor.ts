@@ -70,6 +70,7 @@ export class HaClimateCardEditor extends LitElement {
           sensor("humidity_sensor", { domain: "sensor", device_class: "humidity" }),
           sensor("outdoor_sensor", { domain: ["sensor", "weather"] }),
           sensor("power_sensor", { domain: "sensor", device_class: "power" }),
+          { name: "power_threshold", selector: { number: { min: 0, max: 500, step: 1, mode: "box", unit_of_measurement: "W" } } },
           sensor("energy_sensor", { domain: "sensor", device_class: "energy" }),
           sensor("window_sensor", { domain: "binary_sensor" }),
         ],
@@ -120,6 +121,10 @@ export class HaClimateCardEditor extends LitElement {
         title: this._t("appearance"),
         icon: "mdi:palette-outline",
         schema: [
+          {
+            name: "animations",
+            selector: { select: { mode: "dropdown", options: ["full", "reduced", "off"].map((v) => ({ value: v, label: this._t(`anim_${v}`) })) } },
+          },
           { name: "expandable", selector: { boolean: {} } },
           { name: "start_expanded", selector: { boolean: {} } },
           { name: "dropdown_threshold", selector: { number: { min: 0, max: 20, step: 1, mode: "box" } } },
@@ -167,6 +172,8 @@ export class HaClimateCardEditor extends LitElement {
       use_sensor_for_current: true,
       expandable: true,
       dropdown_threshold: 6,
+      animations: "full",
+      power_threshold: 25,
       ventilation_delta: 3,
       humidity_warning: 70,
       ...this._config,

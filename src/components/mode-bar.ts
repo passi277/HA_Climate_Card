@@ -68,13 +68,13 @@ export class ModeBar extends LitElement {
   static styles = css`
     .bar { position: relative; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
     .indicator {
-      position: absolute; left: 0; top: 0; border-radius: 14px; pointer-events: none; opacity: 0;
+      position: absolute; left: 0; top: 0; border-radius: var(--hcc-inner-radius, 14px); pointer-events: none; opacity: 0;
       background: color-mix(in srgb, var(--mode-color) 24%, transparent);
       box-shadow: 0 4px 14px color-mix(in srgb, var(--mode-color) 28%, transparent), inset 0 0 0 1px color-mix(in srgb, var(--mode-color) 35%, transparent);
       transition: transform 0.45s cubic-bezier(0.34, 1.3, 0.64, 1), width 0.3s, background 0.45s, box-shadow 0.45s, opacity 0.2s;
     }
     .mode {
-      flex: 1 1 0; min-width: 40px; max-width: 64px; height: 44px; border: none; border-radius: 14px;
+      flex: 1 1 0; min-width: 40px; max-width: 64px; height: 44px; border: none; border-radius: var(--hcc-inner-radius, 14px);
       background: var(--hcc-chip-bg, rgba(127,127,127,0.12)); color: var(--secondary-text-color);
       cursor: pointer; display: flex; align-items: center; justify-content: center;
       transition: background 0.25s, color 0.25s, transform 0.1s;

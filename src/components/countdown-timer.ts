@@ -43,11 +43,13 @@ export class CountdownTimer extends LitElement {
 
   private _start(minutes: number): void {
     if (!this.hass || !this.entity) return;
+    window.dispatchEvent(new CustomEvent("haptic", { detail: "light" }));
     this.hass.callService("timer", "start", { entity_id: this.entity, duration: secondsToDuration(minutes * 60) });
   }
 
   private _cancel(): void {
     if (!this.hass || !this.entity) return;
+    window.dispatchEvent(new CustomEvent("haptic", { detail: "light" }));
     this.hass.callService("timer", "cancel", { entity_id: this.entity });
   }
 
@@ -89,7 +91,7 @@ export class CountdownTimer extends LitElement {
   }
 
   static styles = css`
-    .countdown { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border-radius: 14px;
+    .countdown { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border-radius: var(--hcc-inner-radius, 14px);
       background: var(--hcc-chip-bg, rgba(127,127,127,0.12)); --c: var(--hcc-timer-color, #7e57c2); }
     .countdown.running { background: color-mix(in srgb, var(--c) 16%, transparent); }
     .head { display: flex; align-items: center; gap: 8px; min-height: 24px; }
