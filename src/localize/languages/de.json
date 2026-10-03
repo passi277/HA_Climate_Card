@@ -343,7 +343,9 @@
     "show_positions": "Schnellwahl zeigen",
     "positions": "Schnellwahl (% offen, z.B. 0, 25, 50, 75, 100)",
     "animations": "Animationen",
-    "hint": "Jeder Rollladen zeigt automatisch nur, was er kann: Positionsregler, Auf/Stopp/Ab, Lamellen.",
-    "travel_time": "Fahrzeit ganz zu → ganz auf"
+    "hint": "Jeder Rollladen erscheint als Kachel nebeneinander – mit Fenster zum Ziehen und genau den Knöpfen, die er kann.",
+    "travel_time": "Fahrzeit ganz zu → ganz auf",
+    "show_sky": "Himmel nach Sonnenstand",
+    "weather_entity": "Wetter im Fenster"
   }
 }

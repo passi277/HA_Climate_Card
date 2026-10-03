@@ -343,7 +343,9 @@
     "show_positions": "Show quick positions",
     "positions": "Quick positions (% open, e.g. 0, 25, 50, 75, 100)",
     "animations": "Animations",
-    "hint": "Each cover automatically shows only what it supports: position slider, up/stop/down, tilt.",
-    "travel_time": "Travel time fully closed → open"
+    "hint": "Each cover is shown as a tile side by side – with a draggable window and exactly the buttons it supports.",
+    "travel_time": "Travel time fully closed → open",
+    "show_sky": "Sky by sun position",
+    "weather_entity": "Weather in the window"
   }
 }

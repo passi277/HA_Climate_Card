@@ -4,10 +4,10 @@ import type { CoverGroupCardConfig, HassEntity, HomeAssistant } from "./types";
 import { localize } from "./localize/localize";
 import { cardStyles } from "./styles";
 import { DOCS_URL } from "./shared";
-import { coverMoving, coverPosition, CoverFeature, coverSupports, UNAVAILABLE } from "./utils";
-import { coverColor } from "./components/cover-row";
+import { coverMoving, coverPosition, CoverFeature, coverSupports, skyPhase, sunInfo, UNAVAILABLE } from "./utils";
+import { coverColor, coverTileGridStyles } from "./components/cover-tile";
 import { DEFAULT_POSITIONS, positionChipStyles, renderPositionChips } from "./cover-card";
-import "./components/cover-row";
+import "./components/cover-tile";
 import "./components/gradient-slider";
 import "./cover-group-editor";
 
@@ -137,6 +137,10 @@ export class HaCoverGroupCard extends LitElement {
     const openCount = known.filter((p) => p > 0).length;
     const moving = available.map((i) => coverMoving(i.st)).find(Boolean);
     const anim = this._config.animations ?? "full";
+    const sky = this._config.show_sky !== false;
+    const sun = sky ? sunInfo(this.hass.states[this._config.sun_entity ?? "sun.sun"]) : undefined;
+    const weather = sky && this._config.weather_entity ? this.hass.states[this._config.weather_entity]?.state : undefined;
+    const night = skyPhase(sun?.elevation) === "night";
     const status = !items.length
       ? this._t("cover_group.no_covers")
       : moving
@@ -148,7 +152,7 @@ export class HaCoverGroupCard extends LitElement {
       : nothing;
     const posIds = positioned.map((i) => i.entity);
     return html`<ha-card class="cover-group-card compact ${(pos ?? 0) > 0 ? "active" : "off"} anim-${anim}"
-      style="--hcc-accent-c:${coverColor(pos)};--hcc-accent:var(--accent);--glow-strength:${0.25 + ((pos ?? 0) / 100) * 0.6}">
+      style="--hcc-accent-c:${coverColor(pos, night)};--hcc-accent:var(--accent);--glow-strength:${0.25 + ((pos ?? 0) / 100) * 0.6}">
       <div class="glow"><span class="blob b1"></span><span class="blob b2"></span></div>
       <div class="header">
         <div class="title static">
@@ -168,7 +172,7 @@ export class HaCoverGroupCard extends LitElement {
       </div>
       ${posIds.length ? html`<hcc-gradient-slider class="group-slider" .min=${0} .max=${100} .value=${pos ?? 0}
         .label=${this._t("cover_group.all")} .icon=${"mdi:window-shutter-settings"} .display=${pos != null ? `${pos} %` : "–"}
-        .fill=${true} .active=${(pos ?? 0) > 0} .color=${coverColor(pos)}
+        .fill=${true} .active=${(pos ?? 0) > 0} .color=${coverColor(pos, night)}
         @value-changing=${(e: CustomEvent) => (this._pending = e.detail.value)}
         @value-changed=${(e: CustomEvent) => this._setPosition(posIds, e.detail.value)}></hcc-gradient-slider>` : nothing}
       ${posIds.length && this._config.show_positions !== false
@@ -180,15 +184,15 @@ export class HaCoverGroupCard extends LitElement {
           <ha-icon class="chevron ${this._listOpen ? "open" : ""}" icon="mdi:chevron-down"></ha-icon>
         </button>
         <div class="collapsible ${this._listOpen ? "open" : ""}" ?inert=${!this._listOpen}>
-          <div class="collapsible-inner"><div class="covers">
-            ${items.map((i) => html`<hcc-cover-row .hass=${this.hass} .entity=${i.entity} .name=${i.name} .icon=${i.icon}
-              .target=${this._targets[i.entity]} .travelTime=${Number(this._config!.travel_time) || 20}></hcc-cover-row>`)}
+          <div class="collapsible-inner"><div class="cover-tiles">
+            ${items.map((i) => html`<hcc-cover-tile .hass=${this.hass} .entity=${i.entity} .name=${i.name} .icon=${i.icon}
+              .target=${this._targets[i.entity]} .travelTime=${Number(this._config!.travel_time) || 20} .sun=${sun} .weather=${weather}></hcc-cover-tile>`)}
           </div></div>
         </div>` : nothing}
     </ha-card>`;
   }
 
-  static styles = [cardStyles, positionChipStyles, css`
+  static styles = [cardStyles, positionChipStyles, coverTileGridStyles, css`
     ha-card.cover-group-card { gap: 12px; }
     ha-card.cover-group-card .collapsible { margin-top: -12px; }
     ha-card.cover-group-card .collapsible.open { margin-top: 0; }
@@ -206,6 +210,5 @@ export class HaCoverGroupCard extends LitElement {
       text-transform: uppercase; letter-spacing: 0.04em; }
     .chevron { --mdc-icon-size: 18px; transition: transform 0.3s var(--ease-out); }
     .chevron.open { transform: rotate(180deg); }
-    .covers { display: flex; flex-direction: column; gap: 8px; }
   `];
 }

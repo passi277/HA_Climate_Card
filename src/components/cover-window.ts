@@ -27,6 +27,8 @@ export class CoverWindow extends LitElement {
   @property({ type: Boolean }) settable = true;
   @property({ type: Boolean }) disabled = false;
   @property() label = "";
+  /** Kleine Ausführung (Kacheln) */
+  @property({ type: Boolean, reflect: true }) mini = false;
 
   @state() private _drag?: number;
   @state() private _flash = false;
@@ -225,6 +227,13 @@ export class CoverWindow extends LitElement {
     .window.drag .edge, .window.opening .edge, .window.closing .edge { box-shadow: 0 0 12px 2px color-mix(in srgb, var(--hcc-accent, var(--primary-color)) 80%, transparent); }
     .window.flash .edge { animation: edge-glow 1.4s ease-out; }
     .edge { animation-play-state: var(--hcc-anim-state, running) !important; }
+    :host([mini]) .window { width: 100%; }
+    :host([mini]) .box { height: 9px; margin: 0 -4px; border-radius: 5px 5px 2px 2px; }
+    :host([mini]) .glass { aspect-ratio: 1 / 0.9; box-shadow: inset 0 0 0 4px rgba(127,127,127,0.35), 0 4px 12px rgba(0,0,0,0.12); }
+    :host([mini]) .sill { height: 6px; margin: 0 -6px; }
+    :host([mini]) .dir { width: 30px; height: 30px; }
+    :host([mini]) .dir ha-icon { --mdc-icon-size: 18px; }
+    :host([mini]) .edge { height: 4px; }
     .sill { height: 10px; margin: 0 -12px; border-radius: 3px; background: rgba(127,127,127,0.35); }
     .dir { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 40px; height: 40px; border-radius: 50%;
       display: grid; place-items: center; background: color-mix(in srgb, var(--hcc-accent, var(--primary-color)) 85%, transparent);

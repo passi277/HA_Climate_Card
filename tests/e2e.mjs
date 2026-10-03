@@ -310,8 +310,11 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
     root.querySelector(".pos").click();
     await wait(300);
     const g = document.querySelector("ha-cover-group-card").shadowRoot;
-    const rows = Object.fromEntries([...g.querySelectorAll("hcc-cover-row")].map((r) => [r.entity.split(".")[1], {
-      slider: !!r.shadowRoot.querySelector("hcc-gradient-slider"), buttons: r.shadowRoot.querySelectorAll(".btn").length }]));
+    const tiles = [...g.querySelectorAll("hcc-cover-tile")];
+    const tops = new Set(tiles.slice(0, 2).map((t) => Math.round(t.getBoundingClientRect().top)));
+    const rows = Object.fromEntries(tiles.map((r) => [r.entity.split(".")[1], {
+      slider: r.shadowRoot.querySelector("hcc-cover-window").settable, buttons: r.shadowRoot.querySelectorAll(".btn").length }]));
+    rows.sideBySide = tops.size === 1;
     const b2 = window.serviceCalls.length;
     const slider = g.querySelector(".group-slider");
     slider.value = 50; slider.dispatchEvent(new CustomEvent("value-changed", { detail: { value: 50 } }));
@@ -330,7 +333,8 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
   res.calls.includes("set_cover_position:cover.rollos_pascal:0") ? ok("Rollladen: Schnellwahl „Zu“") : fail(`Schnellwahl: ${res.calls}`);
   const r = res.rows;
   r.schreibtisch?.slider && r.schreibtisch.buttons === 3 && !r.terrasse_markise?.slider && r.terrasse_markise.buttons === 2 && r.kuche?.buttons === 0
-    ? ok("Rollladen-Gruppe: Funktionen je Rollladen (Position, nur Auf/Ab, nicht verfügbar)") : fail(`Gruppe: ${JSON.stringify(r)}`);
+    && r.sideBySide
+    ? ok("Rollladen-Gruppe: Kacheln nebeneinander, Funktionen je Rollladen (Position, nur Auf/Ab, nicht verfügbar)") : fail(`Gruppe: ${JSON.stringify(r)}`);
   const pos = res.groupCalls.find((c) => c.s === "set_cover_position");
   const close = res.groupCalls.find((c) => c.s === "close_cover");
   pos?.ids.length === 4 && pos.p === 50 && close?.ids.length === 5 && !close.ids.includes("cover.kuche")

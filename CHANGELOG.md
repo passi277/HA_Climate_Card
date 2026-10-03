@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.2
+- Rollladen-Gruppe und Gruppen-Mitglieder: Kacheln **nebeneinander** statt Zeilen untereinander – je Rollladen ein kleines Fenster mit Himmel (ziehen stellt die Position ein), Name, Status und Auf/Stopp/Ab; so viele pro Reihe, wie in die Breite passen
+- Rollladen-Gruppe: Himmel nach Sonnenstand und Wetter auch in den Kacheln (`show_sky`, `weather_entity`)
+
 ## 1.4.1
 - Rollläden fahren flüssig: Panzer bzw. Regler gleiten gleichmäßig zum Ziel, auch wenn das Gerät die Position erst am Ende meldet (`travel_time`); Stopp hält sanft an; keine ruckelnden Lamellen mehr
 - Blick aus dem Fenster nach Sonnenstand (`sun.sun`): Sonne nach Höhe/Himmelsrichtung, Abendrot, Mond und Sterne bei Nacht; optional Wetter (`weather_entity`); Akzentfarbe nachts Mondlicht

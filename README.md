@@ -254,7 +254,7 @@ entities:
   trotzdem flüssig zum Ziel gleiten (`travel_time`, Standard 20 s für ganz zu → ganz auf), Stopp hält ihn sanft an
 - **Blick aus dem Fenster nach Sonnenstand** (`sun.sun`): tagsüber Sonne (wandert mit Höhe und Himmelsrichtung),
   Abend-/Morgenrot in der Dämmerung, nachts Mond und Sterne; optional Wolken, Regen, Schnee, Nebel aus `weather_entity`
-- **Cover-Gruppen** (z.B. „Rollos Pascal“): alle Rollläden der Gruppe darunter, jeder mit eigenem Regler
+- **Cover-Gruppen** (z.B. „Rollos Pascal“): alle Rollläden der Gruppe darunter als Kacheln nebeneinander
 - **Lamellen** (Raffstore/Jalousie) nur, wenn unterstützt; **Fenster-/Türkontakte** als Hinweis
 - Nur was das Gerät kann: ohne Positionsangabe nur Auf/Ab, ohne Stopp kein Stopp-Button
 - `layout: compact` mit leuchtendem Positionsregler
@@ -273,7 +273,9 @@ contact_sensors: [binary_sensor.fenster_wohnzimmer]
 ### Modern Cover Group
 
 Beliebige Rollläden in einer Karte: oben „Alle auf / Stopp / Alle zu“, gemeinsamer Positionsregler und Schnellwahl
-(nur für Rollläden mit Position), darunter jeder Rollladen einzeln – mit genau den Funktionen, die er kann.
+(nur für Rollläden mit Position), darunter jeder Rollladen als **Kachel nebeneinander** – kleines Fenster mit Himmel
+(ziehen stellt die Position ein), Name, Status und genau die Knöpfe, die er kann. So viele Kacheln pro Reihe, wie in
+die Breite passen. Die Rollläden einer Cover-Gruppe in der Modern Cover Card erscheinen ebenso als Kacheln.
 
 ```yaml
 type: custom:ha-cover-group-card

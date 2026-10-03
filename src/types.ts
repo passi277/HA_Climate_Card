@@ -231,5 +231,9 @@ export interface CoverGroupCardConfig {
   collapsed?: boolean;
   /** Fahrzeit ganz zu → ganz auf in Sekunden (Standard 20) */
   travel_time?: number;
+  /** Himmel nach Sonnenstand in den Kacheln (Standard an) */
+  show_sky?: boolean;
+  sun_entity?: string;
+  weather_entity?: string;
   animations?: "full" | "reduced" | "off";
 }

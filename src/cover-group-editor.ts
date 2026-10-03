@@ -31,6 +31,10 @@ export class HaCoverGroupCardEditor extends LitElement {
         { name: "show_positions", selector: { boolean: {} } },
       ] },
       { name: "positions", selector: { text: {} } },
+      { type: "grid", name: "", schema: [
+        { name: "show_sky", selector: { boolean: {} } },
+        { name: "weather_entity", selector: { entity: { filter: { domain: "weather" } } } },
+      ] },
       { name: "travel_time", selector: { number: { min: 3, max: 120, step: 1, mode: "box", unit_of_measurement: "s" } } },
       { name: "animations", selector: { select: { mode: "dropdown", options: ["full", "reduced", "off"].map((v) => ({ value: v, label: localize(this.hass, `editor.anim_${v}`) })) } } },
     ];
@@ -57,7 +61,7 @@ export class HaCoverGroupCardEditor extends LitElement {
   protected render() {
     if (!this.hass || !this._config) return nothing;
     const data = {
-      show_covers: true, collapsed: false, show_positions: true, animations: "full", travel_time: 20,
+      show_covers: true, collapsed: false, show_positions: true, animations: "full", travel_time: 20, show_sky: true,
       ...this._config,
       positions: (this._config.positions ?? [0, 25, 50, 75, 100]).join(", "),
       entities: (this._config.entities ?? []).map((e) => (typeof e === "string" ? e : e.entity)),

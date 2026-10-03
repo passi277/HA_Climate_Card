@@ -5,8 +5,8 @@ import { localize } from "./localize/localize";
 import { cardStyles } from "./styles";
 import { DOCS_URL } from "./shared";
 import { coverIcon, coverMoving, coverPosition, CoverFeature, coverSupports, skyPhase, sunInfo, UNAVAILABLE } from "./utils";
-import { coverColor, coverGlide, coverStatus } from "./components/cover-row";
-import "./components/cover-row";
+import { coverColor, coverGlide, coverStatus, coverTileGridStyles } from "./components/cover-tile";
+import "./components/cover-tile";
 import "./components/cover-window";
 import "./components/gradient-slider";
 import "./cover-editor";
@@ -276,8 +276,8 @@ export class HaCoverCard extends LitElement {
       : nothing;
     const tilt = this._renderTilt(st);
     const membersTpl = members.length
-      ? html`<div class="members">${members.map((m) => html`<hcc-cover-row .hass=${this.hass} .entity=${m.entity} .name=${m.name} .icon=${m.icon}
-          .target=${this._target} .travelTime=${this._travel}></hcc-cover-row>`)}</div>`
+      ? html`<div class="cover-tiles">${members.map((m) => html`<hcc-cover-tile .hass=${this.hass} .entity=${m.entity} .name=${m.name} .icon=${m.icon}
+          .target=${this._target} .travelTime=${this._travel} .sun=${sun} .weather=${weather}></hcc-cover-tile>`)}</div>`
       : nothing;
     const details = compact ? [chips, tilt, membersTpl] : [tilt];
     const hasDetails = details.some((d) => d !== nothing);
@@ -325,7 +325,7 @@ export class HaCoverCard extends LitElement {
     </ha-card>`;
   }
 
-  static styles = [cardStyles, positionChipStyles, css`
+  static styles = [cardStyles, positionChipStyles, coverTileGridStyles, css`
     ha-card.cover-card .blob { opacity: var(--glow-strength, 0.5); }
     ha-card.cover-card:not(.moving) .blob { animation-play-state: paused; }
     .icon-badge[data-moving="opening"] ha-icon { animation: nudge-up 0.9s ease-in-out infinite; }
