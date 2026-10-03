@@ -21,15 +21,27 @@
     "less": "Less",
     "turn_on": "Turn on",
     "turn_off": "Turn off",
-    "no_history": "No history data"
+    "no_history": "No history data",
+    "shortcuts": "Shortcuts"
   },
   "hvac_mode": {
-    "off": "Off", "heat": "Heat", "cool": "Cool", "heat_cool": "Heat/Cool",
-    "auto": "Auto", "dry": "Dry", "fan_only": "Fan only"
+    "off": "Off",
+    "heat": "Heat",
+    "cool": "Cool",
+    "heat_cool": "Heat/Cool",
+    "auto": "Auto",
+    "dry": "Dry",
+    "fan_only": "Fan only"
   },
   "hvac_action": {
-    "off": "Off", "heating": "Heating", "cooling": "Cooling", "drying": "Drying",
-    "idle": "Idle", "fan": "Fan", "preheating": "Preheating", "defrosting": "Defrosting"
+    "off": "Off",
+    "heating": "Heating",
+    "cooling": "Cooling",
+    "drying": "Drying",
+    "idle": "Idle",
+    "fan": "Fan",
+    "preheating": "Preheating",
+    "defrosting": "Defrosting"
   },
   "editor": {
     "entity": "Climate entity",
@@ -54,6 +66,14 @@
     "energy_sensor": "Energy sensor",
     "window_sensor": "Window / door contact",
     "use_sensor_for_current": "Use room sensor as current temperature",
-    "graph_hours": "Graph period (hours)"
+    "graph_hours": "Graph period (hours)",
+    "show_shortcuts": "Shortcut buttons",
+    "shortcuts_section": "Shortcut buttons",
+    "shortcuts": "Entities (switches, scripts, scenes, buttons)",
+    "auto_shortcuts": "Automatically add the device's switches",
+    "appearance": "Appearance",
+    "expandable": "Collapsible details (full layout)",
+    "start_expanded": "Start expanded",
+    "dropdown_threshold": "Dropdown from this many options (0 = always chips)"
   }
 }

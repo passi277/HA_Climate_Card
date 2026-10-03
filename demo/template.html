@@ -80,6 +80,19 @@
         hvac_modes: ["off", "cool", "heat"], hvac_action: "off",
         current_temperature: 23.0, temperature: 20, min_temp: 16, max_temp: 30, fan_modes: ["auto", "low"], fan_mode: "auto",
       }},
+      "climate.1ed763d9": { state: "cool", attributes: {
+        friendly_name: "Klima Schlafzimmer", supported_features: 953,
+        hvac_modes: ["auto", "cool", "dry", "fan_only", "heat", "off"], min_temp: 8, max_temp: 30, target_temp_step: 1,
+        fan_modes: ["auto", "low", "medium low", "medium", "medium high", "high"], fan_mode: "low",
+        preset_modes: ["eco", "away", "boost", "none", "sleep"], preset_mode: "none",
+        swing_modes: ["default", "full_swing", "fixed_upper", "fixed_upper_middle", "fixed_middle", "fixed_lower_middle", "fixed_lower", "swing_upper", "swing_upper_middle", "swing_middle", "swing_lower_middle", "swing_lower"],
+        swing_horizontal_modes: ["default", "full_swing", "left", "left_center", "center", "right_center", "right"],
+        current_temperature: 25, temperature: 23, swing_mode: "fixed_upper", swing_horizontal_mode: "full_swing",
+      }},
+      "switch.1ed763d9_frische_luft": { state: "off", attributes: { friendly_name: "Klima Schlafzimmer Frischluft" } },
+      "switch.1ed763d9_leise": { state: "on", attributes: { friendly_name: "Klima Schlafzimmer Leiser Modus" } },
+      "switch.1ed763d9_panel_leuchte": { state: "on", attributes: { friendly_name: "Klima Schlafzimmer Bedienfeld-Beleuchtung" } },
+      "switch.1ed763d9_xfan": { state: "off", attributes: { friendly_name: "Klima Schlafzimmer Zusatzlüfter" } },
       "sensor.wz_temp": { state: "25.1", attributes: { unit_of_measurement: "°C", device_class: "temperature" } },
       "sensor.aussen": { state: "31.6", attributes: { unit_of_measurement: "°C", device_class: "temperature" } },
       "sensor.klima_power": { state: "845", attributes: { unit_of_measurement: "W", device_class: "power" } },
@@ -89,13 +102,20 @@
     for (const [id, s] of Object.entries(states)) Object.assign(s, { entity_id: id, last_changed: now, last_updated: now });
 
     const cards = [];
+    const entities = Object.fromEntries(Object.keys(states).map((id) => [id, { entity_id: id, device_id: id.includes("1ed763d9") ? "dev_gree" : null }]));
+    const devices = { dev_gree: { id: "dev_gree", name: "Klima Schlafzimmer" } };
     const makeHass = () => ({
-      states: { ...states }, language: lang, locale: { language: lang },
+      states: { ...states }, entities, devices, language: lang, locale: { language: lang },
       config: { unit_system: { temperature: "°C" } },
       async callService(domain, service, data) {
         window.serviceCalls.push({ domain, service, data });
         log(`${domain}.${service} ${JSON.stringify(data)}`);
         const s = states[data.entity_id];
+        if (domain === "homeassistant" && service === "toggle") {
+          states[data.entity_id] = { ...s, state: s.state === "on" ? "off" : "on" };
+          setTimeout(() => { const h = makeHass(); cards.forEach((c) => (c.hass = h)); }, 150);
+          return;
+        }
         const attrs = { ...s.attributes };
         let st = s.state;
         if (service === "set_hvac_mode") st = data.hvac_mode;
@@ -125,6 +145,8 @@
     });
 
     const configs = [
+      ["Gree – Schalter automatisch, eingeklappt", { entity: "climate.1ed763d9", layout: "full", window_sensor: "binary_sensor.buero_fenster" }],
+      ["Gree – ausgeklappt (Dropdown bei Lamellen)", { entity: "climate.1ed763d9", layout: "full", start_expanded: true, outdoor_sensor: "sensor.aussen", show: { graph: true } }],
       ["Voll – Kühlen, alle Features", { entity: "climate.wohnzimmer", layout: "full", show: { graph: true },
         temperature_sensor: "sensor.wz_temp", outdoor_sensor: "sensor.aussen", power_sensor: "sensor.klima_power", energy_sensor: "sensor.klima_energy" }],
       ["Voll – Bereich heat_cool + Fenster offen", { entity: "climate.buero", layout: "full", window_sensor: "binary_sensor.buero_fenster", outdoor_sensor: "sensor.aussen" }],

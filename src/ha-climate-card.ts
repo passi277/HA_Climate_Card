@@ -4,25 +4,30 @@ import type { ClimateCardConfig, HassEntity, HomeAssistant, ShowConfig } from ".
 import {
   ACTION_ICONS,
   ACTION_TO_MODE,
+  AUTO_SHORTCUT_DOMAINS,
   CARD_VERSION,
   ClimateFeature,
   DEFAULT_SHOW,
   HVAC_MODE_ORDER,
   MODE_COLORS,
   MODE_ICONS,
+  PRIMARY_SECTIONS,
   supports,
 } from "./const";
 import { formatAttribute, formatMode, localize } from "./localize/localize";
 import { cardStyles } from "./styles";
 import type { SensorItem } from "./components/sensor-row";
+import type { ShortcutItem } from "./components/shortcut-row";
 import "./components/climate-dial";
 import "./components/mode-bar";
 import "./components/attribute-select";
 import "./components/sensor-row";
 import "./components/history-graph";
+import "./components/shortcut-row";
 import "./editor";
 
 interface PendingTarget { value?: number; low?: number; high?: number; }
+interface Section { key: string; tpl: TemplateResult; }
 
 const UNAVAILABLE = ["unavailable", "unknown"];
 
@@ -67,12 +72,15 @@ export class HaClimateCard extends LitElement {
     if (!config?.entity || !config.entity.startsWith("climate.")) {
       throw new Error("ha-climate-card: 'entity' muss eine climate-Entität sein (climate.xyz)");
     }
+    const startChanged = this._config?.start_expanded !== config.start_expanded;
     this._config = { layout: "full", graph_hours: 24, ...config };
+    if (startChanged) this._expanded = !!config.start_expanded;
   }
 
   public getCardSize(): number {
     if (this._config?.layout === "compact") return this._expanded ? 6 : 2;
-    return this._show.graph ? 9 : 7;
+    if (this._config?.expandable !== false && !this._expanded) return 6;
+    return this._show.graph ? 10 : 8;
   }
 
   public getGridOptions() {
@@ -94,7 +102,7 @@ export class HaClimateCard extends LitElement {
     const ids = [
       this._config.entity, this._config.temperature_sensor, this._config.humidity_sensor,
       this._config.outdoor_sensor, this._config.power_sensor, this._config.energy_sensor,
-      this._config.window_sensor,
+      this._config.window_sensor, ...this._shortcutIds(),
     ].filter(Boolean) as string[];
     return ids.some((id) => old.states[id] !== this.hass!.states[id]) || old.locale !== this.hass!.locale;
   }
@@ -188,6 +196,56 @@ export class HaClimateCard extends LitElement {
   private _windowOpen(): boolean {
     const id = this._config?.window_sensor;
     return !!id && this.hass?.states[id]?.state === "on";
+  }
+
+  private _autoShortcutCache?: { key: unknown; device?: string; ids: string[] };
+
+  /** Schalter/Buttons desselben Geräts (z.B. Gree: Frischluft, Leise, Licht, X-Fan). */
+  private _autoShortcutIds(): string[] {
+    const hass = this.hass;
+    const entityId = this._config?.entity;
+    if (!hass?.entities || !entityId) return [];
+    const cache = this._autoShortcutCache;
+    if (cache && cache.key === hass.entities && cache.device === entityId) return cache.ids;
+    const deviceId = hass.entities[entityId]?.device_id;
+    const ids = deviceId
+      ? Object.values(hass.entities)
+          .filter((e) => e.device_id === deviceId && e.entity_id !== entityId && !e.hidden
+            && AUTO_SHORTCUT_DOMAINS.includes(e.entity_id.split(".")[0]))
+          .map((e) => e.entity_id)
+          .sort()
+      : [];
+    this._autoShortcutCache = { key: hass.entities, device: entityId, ids };
+    return ids;
+  }
+
+  private _shortcutIds(): string[] {
+    const c = this._config;
+    if (!c) return [];
+    if (c.shortcuts) return c.shortcuts.map((s) => (typeof s === "string" ? s : s.entity));
+    return c.auto_shortcuts === false ? [] : this._autoShortcutIds();
+  }
+
+  private _shortName(entityId: string, st: HassEntity): string {
+    const full: string = this.hass!.states[entityId]?.attributes.friendly_name ?? entityId.split(".")[1];
+    const deviceId = this.hass!.entities?.[entityId]?.device_id;
+    const device = deviceId ? this.hass!.devices?.[deviceId] : undefined;
+    const prefixes = [device?.name_by_user, device?.name, st.attributes.friendly_name, this._config?.name]
+      .filter((p): p is string => !!p)
+      .sort((x, y) => y.length - x.length);
+    for (const prefix of prefixes) {
+      if (full.toLowerCase().startsWith(prefix.toLowerCase() + " ")) return full.slice(prefix.length + 1);
+    }
+    return full;
+  }
+
+  private _shortcutItems(st: HassEntity): ShortcutItem[] {
+    const c = this._config!;
+    const list = c.shortcuts ?? (c.auto_shortcuts === false ? [] : this._autoShortcutIds());
+    return list
+      .map((s) => (typeof s === "string" ? { entity: s } : s))
+      .filter((s) => s?.entity && this.hass!.states[s.entity])
+      .map((s) => ({ entity: s.entity, name: s.name ?? this._shortName(s.entity, st), icon: s.icon }));
   }
 
   // ---------- Service calls ----------
@@ -376,33 +434,40 @@ export class HaClimateCard extends LitElement {
       </div>` : nothing}`;
   }
 
-  private _renderControls(st: HassEntity, color: string): TemplateResult {
+  private _sections(st: HassEntity, color: string): Section[] {
     const a = st.attributes;
     const show = this._show;
     const hass = this.hass!;
-    const parts: TemplateResult[] = [];
+    const sections: Section[] = [];
+    const parts = { push: (tpl: TemplateResult, key: string) => sections.push({ key, tpl }) };
 
     const modes = ((a.hvac_modes ?? []) as string[])
       .slice()
       .sort((x, y) => HVAC_MODE_ORDER.indexOf(x) - HVAC_MODE_ORDER.indexOf(y))
       .map((m) => ({ value: m, label: formatMode(hass, st, m) }));
     if (show.modes && modes.length > 1) {
-      parts.push(html`<hcc-mode-bar .modes=${modes} .selected=${st.state} @mode-selected=${this._setMode}></hcc-mode-bar>`);
+      parts.push(html`<hcc-mode-bar .modes=${modes} .selected=${st.state} @mode-selected=${this._setMode}></hcc-mode-bar>`, "modes");
     }
 
-    const select = (attr: string, list: string, feature: number, labelKey: string, icon: string, service: string, enabled: boolean) => {
+    const select = (key: string, attr: string, list: string, feature: number, labelKey: string, icon: string, service: string, enabled: boolean) => {
       const options = a[list] as string[] | undefined;
       if (!enabled || !supports(a, feature) || !options?.length) return;
       parts.push(html`<hcc-attribute-select .label=${this._t(labelKey)} .icon=${icon} .selected=${a[attr]}
         .options=${options.map((o) => ({ value: o, label: formatAttribute(hass, st, attr, o) }))}
+        .dropdownThreshold=${this._config!.dropdown_threshold ?? 6}
         @option-selected=${(e: CustomEvent) => this._call(service, { [attr]: e.detail.value })}>
-      </hcc-attribute-select>`);
+      </hcc-attribute-select>`, key);
     };
-    select("fan_mode", "fan_modes", ClimateFeature.FAN_MODE, "card.fan", "mdi:fan", "set_fan_mode", show.fan);
-    select("swing_mode", "swing_modes", ClimateFeature.SWING_MODE, "card.swing", "mdi:arrow-oscillating", "set_swing_mode", show.swing);
-    select("swing_horizontal_mode", "swing_horizontal_modes", ClimateFeature.SWING_HORIZONTAL_MODE,
+    select("fan", "fan_mode", "fan_modes", ClimateFeature.FAN_MODE, "card.fan", "mdi:fan", "set_fan_mode", show.fan);
+    select("swing", "swing_mode", "swing_modes", ClimateFeature.SWING_MODE, "card.swing", "mdi:arrow-oscillating", "set_swing_mode", show.swing);
+    select("swing", "swing_horizontal_mode", "swing_horizontal_modes", ClimateFeature.SWING_HORIZONTAL_MODE,
       "card.swing_horizontal", "mdi:arrow-left-right", "set_swing_horizontal_mode", show.swing);
-    select("preset_mode", "preset_modes", ClimateFeature.PRESET_MODE, "card.preset", "mdi:star-outline", "set_preset_mode", show.presets);
+    select("presets", "preset_mode", "preset_modes", ClimateFeature.PRESET_MODE, "card.preset", "mdi:star-outline", "set_preset_mode", show.presets);
+
+    if (show.shortcuts) {
+      const items = this._shortcutItems(st);
+      if (items.length) parts.push(html`<hcc-shortcut-row .hass=${hass} .items=${items}></hcc-shortcut-row>`, "shortcuts");
+    }
 
     if (show.humidity && supports(a, ClimateFeature.TARGET_HUMIDITY) && a.humidity != null) {
       const hum = this._pendingHumidity ?? Number(a.humidity);
@@ -413,12 +478,12 @@ export class HaClimateCard extends LitElement {
           <span class="stepper-value">${hum}<small>%</small></span>
           <button aria-label="+" @click=${() => this._stepHumidity(1)}><ha-icon icon="mdi:plus"></ha-icon></button>
         </div>
-      </div>`);
+      </div>`, "humidity");
     }
 
     if (show.sensors) {
       const items = this._sensorItems(st);
-      if (items.length) parts.push(html`<hcc-sensor-row .items=${items}></hcc-sensor-row>`);
+      if (items.length) parts.push(html`<hcc-sensor-row .items=${items}></hcc-sensor-row>`, "sensors");
     }
 
     if (show.graph) {
@@ -428,9 +493,34 @@ export class HaClimateCard extends LitElement {
           .sensor=${this._config!.use_sensor_for_current ? this._config!.temperature_sensor : undefined}
           .hours=${this._config!.graph_hours ?? 24} .unit=${this._unit} .emptyText=${this._t("card.no_history")}
           style="--hcc-accent:${color}"></hcc-history-graph>
-      </div>`);
+      </div>`, "graph");
     }
-    return html`<div class="controls" style="--hcc-accent:${color}">${parts}</div>`;
+    return sections;
+  }
+
+  private _renderSections(sections: Section[], color: string) {
+    if (!sections.length) return nothing;
+    return html`<div class="controls" style="--hcc-accent:${color}">${sections.map((s) => s.tpl)}</div>`;
+  }
+
+  private _renderExpandButton() {
+    return html`<button class="expand" @click=${() => { this._expanded = !this._expanded; }} aria-expanded=${this._expanded}>
+      <span>${this._t(this._expanded ? "card.less" : "card.more")}</span>
+      <ha-icon icon=${this._expanded ? "mdi:chevron-up" : "mdi:chevron-down"}></ha-icon>
+    </button>`;
+  }
+
+  /** Volles Layout: Hauptbereiche immer sichtbar, Details optional ausklappbar. */
+  private _renderFullControls(st: HassEntity, color: string) {
+    const sections = this._sections(st, color);
+    if (this._config!.expandable === false) return this._renderSections(sections, color);
+    const primary = sections.filter((s) => PRIMARY_SECTIONS.includes(s.key));
+    const details = sections.filter((s) => !PRIMARY_SECTIONS.includes(s.key));
+    return html`
+      ${this._renderSections(primary, color)}
+      ${details.length ? html`
+        ${this._expanded ? this._renderSections(details, color) : nothing}
+        ${this._renderExpandButton()}` : nothing}`;
   }
 
   private _sensorItems(st: HassEntity): SensorItem[] {
@@ -487,11 +577,8 @@ export class HaClimateCard extends LitElement {
           : nothing}
       </div>
       ${this._renderWindowWarning()}
-      <button class="expand" @click=${() => { this._expanded = !this._expanded; }} aria-expanded=${this._expanded}>
-        <span>${this._t(this._expanded ? "card.less" : "card.more")}</span>
-        <ha-icon icon=${this._expanded ? "mdi:chevron-up" : "mdi:chevron-down"}></ha-icon>
-      </button>
-      ${this._expanded ? this._renderControls(st, color) : nothing}`;
+      ${this._renderExpandButton()}
+      ${this._expanded ? this._renderSections(this._sections(st, color), color) : nothing}`;
   }
 
   protected render() {
@@ -517,7 +604,7 @@ export class HaClimateCard extends LitElement {
           ${this._renderHeader(st, name, color)}
           ${this._renderWindowWarning()}
           ${this._renderDial(st, color)}
-          ${this._renderControls(st, color)}`}
+          ${this._renderFullControls(st, color)}`}
     </ha-card>`;
   }
 

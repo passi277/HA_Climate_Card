@@ -74,7 +74,33 @@ export class HaClimateCardEditor extends LitElement {
           sensor("window_sensor", { domain: "binary_sensor" }),
         ],
       },
-      { name: "graph_hours", selector: { number: { min: 1, max: 168, step: 1, mode: "box", unit_of_measurement: "h" } } },
+      {
+        type: "expandable",
+        name: "",
+        flatten: true,
+        title: this._t("shortcuts_section"),
+        icon: "mdi:gesture-tap-button",
+        schema: [
+          { name: "auto_shortcuts", selector: { boolean: {} } },
+          {
+            name: "shortcuts",
+            selector: { entity: { multiple: true, filter: { domain: ["switch", "input_boolean", "light", "fan", "script", "scene", "button", "input_button", "automation"] } } },
+          },
+        ],
+      },
+      {
+        type: "expandable",
+        name: "",
+        flatten: true,
+        title: this._t("appearance"),
+        icon: "mdi:palette-outline",
+        schema: [
+          { name: "expandable", selector: { boolean: {} } },
+          { name: "start_expanded", selector: { boolean: {} } },
+          { name: "dropdown_threshold", selector: { number: { min: 0, max: 20, step: 1, mode: "box" } } },
+          { name: "graph_hours", selector: { number: { min: 1, max: 168, step: 1, mode: "box", unit_of_measurement: "h" } } },
+        ],
+      },
     ];
   }
 
@@ -85,8 +111,17 @@ export class HaClimateCardEditor extends LitElement {
 
   private _valueChanged(ev: CustomEvent): void {
     const config = { ...ev.detail.value } as ClimateCardConfig;
+    // Im YAML gesetzte Namen/Icons der Schalter beim Bearbeiten über die Entitätsliste erhalten.
+    if (Array.isArray(config.shortcuts)) {
+      const previous = this._config?.shortcuts ?? [];
+      config.shortcuts = config.shortcuts.map((s) => {
+        const id = typeof s === "string" ? s : s.entity;
+        return previous.find((p) => typeof p !== "string" && p.entity === id) ?? id;
+      });
+    }
     for (const key of Object.keys(config) as (keyof ClimateCardConfig)[]) {
-      if (config[key] === "" || config[key] == null) delete config[key];
+      const v = config[key];
+      if (v === "" || v == null || (Array.isArray(v) && !v.length)) delete config[key];
     }
     this._config = config;
     this.dispatchEvent(new CustomEvent("config-changed", { detail: { config }, bubbles: true, composed: true }));
@@ -97,7 +132,11 @@ export class HaClimateCardEditor extends LitElement {
     const data = {
       layout: "full",
       graph_hours: 24,
+      auto_shortcuts: true,
+      expandable: true,
+      dropdown_threshold: 6,
       ...this._config,
+      shortcuts: this._config.shortcuts?.map((s) => (typeof s === "string" ? s : s.entity)),
       show: { ...DEFAULT_SHOW, ...(this._config.show ?? {}) },
     };
     return html`<ha-form .hass=${this.hass} .data=${data} .schema=${this._schema()}

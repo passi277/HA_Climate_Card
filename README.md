@@ -18,6 +18,9 @@ Eine moderne Lovelace-Karte für Klimaanlagen in Home Assistant – mit Drehregl
   - Lüfterstufen, Lamellen vertikal **und horizontal**, Voreinstellungen (Eco, Boost, Sleep …)
   - Ziel-Luftfeuchte
   - Aktuelle Aktion (heizt/kühlt/Leerlauf) mit Farbe und Animation
+- **Ausklappbar:** Auch im vollen Layout bleiben Regler, Modi, Lüfter und Schalter sichtbar; Lamellen, Voreinstellungen, Luftfeuchte, Sensoren und Verlauf liegen unter „Mehr“
+- **Dropdown bei vielen Optionen:** z.B. die 12 Lamellen-Stellungen von Gree-Geräten (Schwelle einstellbar)
+- **Schalter-Buttons:** Schalter und Buttons desselben Geräts werden automatisch übernommen (z.B. Gree: Frischluft, Leiser Modus, Bedienfeld-Beleuchtung, X-Fan) – oder eigene Schalter, Skripte und Szenen festlegen
 - **Zusatzsensoren:** Raumtemperatur, Raumluftfeuchte, Außentemperatur, Leistung, Energie, Fenster-/Türkontakt
 - **Fenster-Warnung**, wenn der Kontakt offen ist
 - **Verlaufsgraph** (Ist- und Zieltemperatur, Heiz-/Kühlphasen als Farbbänder)
@@ -56,6 +59,16 @@ show:
   humidity: true
   sensors: true
   graph: true
+  shortcuts: true
+expandable: true        # Details im vollen Layout ausklappbar
+start_expanded: false
+dropdown_threshold: 6   # ab 7 Optionen Dropdown statt Chips
+auto_shortcuts: true    # Schalter des Geräts automatisch anzeigen
+# shortcuts:            # optional: eigene Liste (ersetzt die automatische)
+#   - switch.klima_frische_luft
+#   - entity: script.klima_turbo_10_min
+#     name: Turbo
+#     icon: mdi:rocket-launch
 temperature_sensor: sensor.wohnzimmer_temperatur
 use_sensor_for_current: false
 humidity_sensor: sensor.wohnzimmer_luftfeuchte
@@ -79,6 +92,12 @@ graph_hours: 24
 | `show.humidity` | bool | `true` | Ziel-Luftfeuchte |
 | `show.sensors` | bool | `true` | Sensor-Kacheln |
 | `show.graph` | bool | `false` | Verlaufsgraph |
+| `show.shortcuts` | bool | `true` | Schalter-Buttons |
+| `expandable` | bool | `true` | Volles Layout: Details (Lamellen, Voreinstellungen, Luftfeuchte, Sensoren, Verlauf) unter „Mehr“ einklappen |
+| `start_expanded` | bool | `false` | Details anfangs ausgeklappt |
+| `dropdown_threshold` | number | `6` | Mehr Optionen als dieser Wert → Dropdown statt Chips (`0` = immer Chips) |
+| `auto_shortcuts` | bool | `true` | Schalter/Buttons desselben Geräts automatisch als Buttons anzeigen |
+| `shortcuts` | list | – | Eigene Buttons: Entity-IDs oder `{entity, name, icon}`; Schalter werden umgeschaltet, Skripte/Szenen gestartet, Buttons gedrückt. Rechtsklick/langes Drücken öffnet die Details |
 | `temperature_sensor` | entity | – | Externer Raumtemperatur-Sensor |
 | `use_sensor_for_current` | bool | `false` | Raumsensor statt `current_temperature` anzeigen (auch im Graph) |
 | `humidity_sensor` | entity | – | Externer Luftfeuchte-Sensor |

@@ -6,8 +6,23 @@ export interface HassEntity {
   last_updated: string;
 }
 
+export interface EntityRegistryEntry {
+  entity_id: string;
+  device_id?: string | null;
+  hidden?: boolean;
+  entity_category?: string | null;
+}
+
+export interface DeviceRegistryEntry {
+  id: string;
+  name?: string | null;
+  name_by_user?: string | null;
+}
+
 export interface HomeAssistant {
   states: Record<string, HassEntity>;
+  entities?: Record<string, EntityRegistryEntry>;
+  devices?: Record<string, DeviceRegistryEntry>;
   language: string;
   locale?: { language: string };
   config: { unit_system: { temperature: string } };
@@ -29,6 +44,13 @@ export interface ShowConfig {
   humidity?: boolean;
   sensors?: boolean;
   graph?: boolean;
+  shortcuts?: boolean;
+}
+
+export interface ShortcutConfig {
+  entity: string;
+  name?: string;
+  icon?: string;
 }
 
 export interface ClimateCardConfig {
@@ -46,4 +68,9 @@ export interface ClimateCardConfig {
   window_sensor?: string;
   use_sensor_for_current?: boolean;
   graph_hours?: number;
+  shortcuts?: (string | ShortcutConfig)[];
+  auto_shortcuts?: boolean;
+  expandable?: boolean;
+  start_expanded?: boolean;
+  dropdown_threshold?: number;
 }

@@ -21,15 +21,27 @@
     "less": "Weniger",
     "turn_on": "Einschalten",
     "turn_off": "Ausschalten",
-    "no_history": "Keine Verlaufsdaten"
+    "no_history": "Keine Verlaufsdaten",
+    "shortcuts": "Schalter"
   },
   "hvac_mode": {
-    "off": "Aus", "heat": "Heizen", "cool": "Kühlen", "heat_cool": "Heizen/Kühlen",
-    "auto": "Automatisch", "dry": "Entfeuchten", "fan_only": "Nur Lüfter"
+    "off": "Aus",
+    "heat": "Heizen",
+    "cool": "Kühlen",
+    "heat_cool": "Heizen/Kühlen",
+    "auto": "Automatisch",
+    "dry": "Entfeuchten",
+    "fan_only": "Nur Lüfter"
   },
   "hvac_action": {
-    "off": "Aus", "heating": "Heizt", "cooling": "Kühlt", "drying": "Entfeuchtet",
-    "idle": "Leerlauf", "fan": "Lüftet", "preheating": "Vorheizen", "defrosting": "Abtauen"
+    "off": "Aus",
+    "heating": "Heizt",
+    "cooling": "Kühlt",
+    "drying": "Entfeuchtet",
+    "idle": "Leerlauf",
+    "fan": "Lüftet",
+    "preheating": "Vorheizen",
+    "defrosting": "Abtauen"
   },
   "editor": {
     "entity": "Klima-Entität",
@@ -54,6 +66,14 @@
     "energy_sensor": "Energiesensor",
     "window_sensor": "Fenster-/Türkontakt",
     "use_sensor_for_current": "Raumsensor als Ist-Temperatur verwenden",
-    "graph_hours": "Zeitraum Graph (Stunden)"
+    "graph_hours": "Zeitraum Graph (Stunden)",
+    "show_shortcuts": "Schalter-Buttons",
+    "shortcuts_section": "Schalter-Buttons",
+    "shortcuts": "Entitäten (Schalter, Skripte, Szenen, Buttons)",
+    "auto_shortcuts": "Schalter des Geräts automatisch übernehmen",
+    "appearance": "Darstellung",
+    "expandable": "Details ausklappbar (volles Layout)",
+    "start_expanded": "Anfangs ausgeklappt",
+    "dropdown_threshold": "Dropdown ab so vielen Optionen (0 = immer Chips)"
   }
 }
