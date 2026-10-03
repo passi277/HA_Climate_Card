@@ -602,5 +602,18 @@
     "doorbell": "Klingel-Sensor (sonst automatisch)",
     "columns": "Kacheln pro Zeile",
     "hint": "Handy-Akku und Ladestatus werden automatisch über den Device-Tracker der Person gefunden (Companion App). Klingel und Batterie-Warnung kommen automatisch vom Schloss-Gerät."
+  },
+  "alert": {
+    "window_open": "Fenster offen",
+    "door_open": "Tür offen",
+    "contacts_open": "Fenster/Türen offen",
+    "all_ok": "Alles in Ordnung",
+    "hidden_hint": "Ohne aktiven Hinweis ist die Karte im Dashboard ausgeblendet."
+  },
+  "alert_editor": {
+    "contacts": "Fenster-/Türkontakte (Hinweis „Fenster offen“)",
+    "show_ok": "„Alles in Ordnung“ statt ausblenden",
+    "ok_text": "Text bei alles in Ordnung",
+    "hint": "Die Karte erscheint nur, wenn ein Hinweis aktiv ist. Weitere Hinweise (z.B. Saugroboter-Fehler, Alarm, Batterie) per YAML unter „alerts“:"
   }
 }

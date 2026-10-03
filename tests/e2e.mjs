@@ -17,7 +17,7 @@ await p.waitForFunction(() => window.__ready, null, { timeout: 10000 });
 await p.waitForTimeout(500);
 
 const rendered = await p.evaluate(() =>
-  [...document.querySelectorAll("ha-climate-card, ha-climate-overview-card, ha-light-card, ha-light-group-card, ha-cover-card, ha-cover-group-card, ha-switch-time-card, ha-media-card, ha-room-card, ha-status-card, ha-vacuum-card, ha-presence-card")].filter((c) => c.shadowRoot?.querySelector("ha-card")).length);
+  [...document.querySelectorAll("ha-climate-card, ha-climate-overview-card, ha-light-card, ha-light-group-card, ha-cover-card, ha-cover-group-card, ha-switch-time-card, ha-media-card, ha-room-card, ha-status-card, ha-vacuum-card, ha-presence-card, ha-alert-card")].filter((c) => c.shadowRoot?.querySelector("ha-card")).length);
 rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Karten gerendert`);
 
 // Regler: Tippen in die Mitte verstellt nichts, Tippen auf den Ring schon
@@ -714,6 +714,36 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
   const after = await p.evaluate((n) => [window.serviceCalls.slice(n).map((c) => `${c.domain}.${c.service} ${c.data.entity_id}`), location.hash], before[0]);
   after[0].join() === "homeassistant.toggle light.gaste_wc" && after[1] === before[1]
     ? ok("Raumkachel: lange drücken schaltet das Licht (ohne zu navigieren)") : fail(`Raumkachel halten: ${JSON.stringify(after)}`);
+}
+
+// Hinweis-Karte: nur sichtbar, wenn etwas los ist
+{
+  const res = await p.evaluate(async () => {
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const card = document.querySelector("ha-alert-card");
+    const rows = () => [...card.shadowRoot.querySelectorAll(".row")].map((r) => r.querySelector(".title").textContent.trim() + "|" + (r.querySelector(".msg")?.textContent.trim() ?? ""));
+    const h = card.hass;
+    card.hass = { ...h, states: { ...h.states, "vacuum.roborock_s8_maxv_ultra": { ...h.states["vacuum.roborock_s8_maxv_ultra"], state: "cleaning" } } };
+    await wait(100);
+    const before = rows();
+    const st = { ...h.states };
+    for (const id of ["binary_sensor.buero_fenster", "binary_sensor.wz_balkontuer", "binary_sensor.wz_fenster"]) st[id] = { ...st[id], state: "off" };
+    st["vacuum.roborock_s8_maxv_ultra"] = { ...st["vacuum.roborock_s8_maxv_ultra"], state: "docked" };
+    let visEvent;
+    card.addEventListener("card-visibility-changed", (e) => (visEvent = e.detail.value), { once: true });
+    card.hass = { ...h, states: st };
+    await wait(100);
+    const hidden = card.hasAttribute("hidden") && getComputedStyle(card).display === "none";
+    card.hass = { ...h, states: { ...st, "vacuum.roborock_s8_maxv_ultra": { ...st["vacuum.roborock_s8_maxv_ultra"], state: "error" } } };
+    await wait(100);
+    const back = !card.hasAttribute("hidden") && rows();
+    card.hass = h;
+    await wait(100);
+    return { before, hidden, visEvent, back };
+  });
+  res.before.join() === "Fenster/Türen offen|Büro · Balkontür,Saugroboter putzt|cleaning"
+    && res.hidden && res.visEvent === false && res.back?.join() === "Saugroboter hat ein Problem|error"
+    ? ok("Hinweis-Karte: „Fenster/Türen offen – Büro · Balkontür“, Saugroboter; ohne Hinweis ausgeblendet") : fail(`Hinweis-Karte: ${JSON.stringify(res)}`);
 }
 
 // Moduswechsel: jede Karte, jeder Modus (außer Auto/Heizen-Kühlen, dort zählt die Tätigkeit)

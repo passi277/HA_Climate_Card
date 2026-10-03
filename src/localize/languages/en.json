@@ -602,5 +602,18 @@
     "doorbell": "Doorbell sensor (otherwise automatic)",
     "columns": "Tiles per row",
     "hint": "Phone battery and charging state are found automatically via the person's device tracker (Companion app). Doorbell and battery warning come automatically from the lock device."
+  },
+  "alert": {
+    "window_open": "Window open",
+    "door_open": "Door open",
+    "contacts_open": "Windows/doors open",
+    "all_ok": "All good",
+    "hidden_hint": "Without an active alert the card is hidden on the dashboard."
+  },
+  "alert_editor": {
+    "contacts": "Window/door contacts (\"window open\" alert)",
+    "show_ok": "Show \"all good\" instead of hiding",
+    "ok_text": "Text when all good",
+    "hint": "The card only appears while an alert is active. More alerts (e.g. vacuum error, alarm, battery) via YAML under \"alerts\":"
   }
 }

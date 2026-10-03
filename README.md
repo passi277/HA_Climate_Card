@@ -16,6 +16,7 @@ weiche Farbübergänge und Animationen. Ein HACS-Download, mehrere Karten:
 | **Modern Status Card** | `custom:ha-status-card` | Batterien (automatisch je Bereich) und Tür-/Fensterkontakte |
 | **Modern Vacuum Card** | `custom:ha-vacuum-card` | Saugroboter mit Karte, Raumauswahl und Raumreinigung |
 | **Modern Presence Card** | `custom:ha-presence-card` | Personen mit Foto und Handy-Akku plus Haustür (Nuki Opener: Halten zum Öffnen, Ring to Open) |
+| **Modern Alert Card** | `custom:ha-alert-card` | Hinweise, die nur erscheinen, wenn etwas los ist („Fenster offen – Marcel“) |
 | **Climate Overview** | `custom:ha-climate-overview-card` | alle Klimageräte auf einen Blick |
 
 *Modern Lovelace cards for Home Assistant in one shared design – English summary below.*
@@ -459,6 +460,33 @@ door_name: Klingel
 # show_battery: false
 ```
 
+## Modern Alert Card (Hinweise)
+
+Erscheint **nur, wenn etwas los ist** – sonst ist die Karte samt Platz ausgeblendet (wie eine bedingte Karte).
+Jeder aktive Hinweis ist eine farbige Zeile mit pulsierendem Symbol; Tippen öffnet die Details oder eine Seite.
+
+- `contacts`: „Fenster offen – Marcel“, bei mehreren „Fenster/Türen offen – Küche · Marcel“
+- `alerts`: beliebige Entitäten mit `state` / `state_not` / `above` / `below`, `severity` (info, warning, error, success)
+
+```yaml
+type: custom:ha-alert-card
+contacts:
+  - entity: binary_sensor.fenster_kuche
+    name: Küche
+  - entity: binary_sensor.fernster_marcel
+    name: Marcel
+alerts:
+  - entity: vacuum.roborock_s8_maxv_ultra
+    state: error
+    severity: error
+    title: Saugroboter hat ein Problem
+    navigation_path: /dashboard-final/roborock
+  - entity: sensor.bad_batterie
+    below: 10
+    title: Batterie Bad fast leer
+# show_ok: true   # statt ausblenden „Alles in Ordnung“ zeigen
+```
+
 ## Heizungen (z.B. Homematic IP)
 
 Thermostate werden automatisch erkannt. Die Karte zeigt dann statt Lüfter, Lamellen und Luftstrom:
@@ -558,6 +586,7 @@ glow, smooth color transitions, animations), shipped as a single HACS download:
 - `custom:ha-status-card` – batteries (per area, Battery Notes aware) and door/window contacts
 - `custom:ha-vacuum-card` – robot vacuum with live map, tap rooms on the map for room cleaning, controls, modes, maintenance
 - `custom:ha-presence-card` – people as photo tiles (home/away, phone battery and charging found automatically) plus front door: hold to open (Nuki Opener), Ring to Open, doorbell
+- `custom:ha-alert-card` – alerts that only appear when something is going on (window open, vacuum error, low battery …), hidden otherwise
 - `custom:ha-climate-overview-card` – all climate devices at a glance
 
 Install via HACS as a custom repository of type **Dashboard**. All cards have a visual editor and are

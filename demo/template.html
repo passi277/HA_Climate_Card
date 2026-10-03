@@ -540,6 +540,10 @@
       ["Raum-Kopf – Pascal (Chips, Hinweis Fenster offen + Klima läuft)", { _room: true, title: "Pascal", icon: "mdi:account", light: "light.licht_mein_zimmer",
         contacts: [{ entity: "binary_sensor.fenster_pascal_schreibtisch", name: "Schreibtisch" }, { entity: "binary_sensor.fenster_pascal_tv", name: "TV" }],
         temperature: "climate.heizung_mein_zimmer", humidity: "climate.heizung_mein_zimmer", climate: "climate.1ed763d9", media: "remote.harmony_schlafzimmer", trash: "calendar.abfall" }],
+      ["Hinweis-Karte – erscheint nur, wenn etwas los ist (Fenster offen, Saugroboter putzt)", { _alert: true,
+        contacts: [{ entity: "binary_sensor.buero_fenster", name: "Büro" }, { entity: "binary_sensor.wz_balkontuer", name: "Balkontür" }, "binary_sensor.wz_fenster"],
+        alerts: [{ entity: "vacuum.roborock_s8_maxv_ultra", state: ["cleaning", "returning"], severity: "info", title: "Saugroboter putzt", icon: "mdi:robot-vacuum", navigation_path: "#roborock" },
+          { entity: "vacuum.roborock_s8_maxv_ultra", state: "error", severity: "error", title: "Saugroboter hat ein Problem", icon: "mdi:robot-vacuum-alert" }] }],
       ["Raumkacheln – Tippen öffnet die Seite, lange drücken schaltet das Licht", { _tiles: [
         { title: "Pascal", icon: "mdi:account", color: "#42a5f5", light: "light.licht_mein_zimmer", temperature: "climate.heizung_mein_zimmer", climate: "climate.1ed763d9", navigation_path: "#pascal" },
         { title: "Wohnzimmer", icon: "mdi:sofa", color: "#fb8c00", temperature: "sensor.aussen", climate: "climate.wohnzimmer", contacts: ["binary_sensor.buero_fenster"], media: "remote.harmony_hub_wohnzimmer", navigation_path: "#wohnzimmer" },
@@ -580,9 +584,9 @@
         grid.appendChild(wrap);
         return;
       }
-      const { _overview, _light, _group, _cover, _coverGroup, _switchTime, _media, _room, _status, _vacuum, _presence, ...rest } = cfg;
+      const { _overview, _light, _group, _cover, _coverGroup, _switchTime, _media, _room, _status, _vacuum, _presence, _alert, ...rest } = cfg;
       const tag = _overview ? "ha-climate-overview-card" : _group ? "ha-light-group-card" : _light ? "ha-light-card"
-        : _cover ? "ha-cover-card" : _coverGroup ? "ha-cover-group-card" : _switchTime ? "ha-switch-time-card" : _media ? "ha-media-card" : _room ? "ha-room-card" : _status ? "ha-status-card" : _vacuum ? "ha-vacuum-card" : _presence ? "ha-presence-card" : "ha-climate-card";
+        : _cover ? "ha-cover-card" : _coverGroup ? "ha-cover-group-card" : _switchTime ? "ha-switch-time-card" : _media ? "ha-media-card" : _room ? "ha-room-card" : _status ? "ha-status-card" : _vacuum ? "ha-vacuum-card" : _presence ? "ha-presence-card" : _alert ? "ha-alert-card" : "ha-climate-card";
       const card = document.createElement(tag);
       card.id = "card" + i;
       card.setConfig({ type: `custom:${tag}`, ...rest });

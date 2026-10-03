@@ -918,3 +918,30 @@ export const clockMinutes = (hhmm: string | undefined, fallback: number): number
   const m = /^(\d{1,2}):(\d{2})/.exec(hhmm ?? "");
   return m ? Math.min(1440, +m[1]! * 60 + +m[2]!) : fallback;
 };
+
+// ---------- Hinweise ----------
+
+export interface AlertCondition {
+  state?: string | string[];
+  state_not?: string | string[];
+  above?: number;
+  below?: number;
+}
+
+/** Ist der Hinweis aktiv? Ohne Bedingung: Zustand „on“. Nicht verfügbare Entitäten nur bei ausdrücklicher Bedingung. */
+export const alertActive = (st: HassEntity | undefined, c: AlertCondition): boolean => {
+  if (!st) return false;
+  const list = (v?: string | string[]) => (v == null ? undefined : ([] as string[]).concat(v).map(String));
+  const is = list(c.state);
+  const not = list(c.state_not);
+  if (!is && !not && c.above == null && c.below == null) return st.state === "on";
+  if (is && !is.includes(st.state)) return false;
+  if (not?.includes(st.state)) return false;
+  if (c.above != null || c.below != null) {
+    const v = Number(st.state);
+    if (!Number.isFinite(v) || UNAVAILABLE.includes(st.state)) return false;
+    if (c.above != null && !(v > c.above)) return false;
+    if (c.below != null && !(v < c.below)) return false;
+  }
+  return true;
+};

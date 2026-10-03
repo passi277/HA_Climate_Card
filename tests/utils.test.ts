@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { HassEntity } from "../src/types";
 import {
-  clockMinutes, upcomingPickups, wasteStyle, batteryIcon, doorDevices, doorKind, initials, isCharging, phoneSensors, brightnessPct, contactType, calibrationTransform, roomsFromMap, roomIcon, areaBatteries, batteryInfo, presetActive, presetData, DEFAULT_LIGHT_PRESETS, activityIcon, activityLabel, guessControlDevice, guessVolumeDevice, coverIcon, datetimeParts, nextOccurrence, coverPosition, skyPhase, sunPlacement, weatherOverlay, editorOptions, isNoEffect, lightEditorOptions, segmentIds, detectDeviceType, kelvinToRgb, lightColor, relatedScenes, supportsColor, supportsColorTemp, dewPoint, nextSwitch, parseSchedule, scheduleTempAt, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
+  alertActive, clockMinutes, upcomingPickups, wasteStyle, batteryIcon, doorDevices, doorKind, initials, isCharging, phoneSensors, brightnessPct, contactType, calibrationTransform, roomsFromMap, roomIcon, areaBatteries, batteryInfo, presetActive, presetData, DEFAULT_LIGHT_PRESETS, activityIcon, activityLabel, guessControlDevice, guessVolumeDevice, coverIcon, datetimeParts, nextOccurrence, coverPosition, skyPhase, sunPlacement, weatherOverlay, editorOptions, isNoEffect, lightEditorOptions, segmentIds, detectDeviceType, kelvinToRgb, lightColor, relatedScenes, supportsColor, supportsColorTemp, dewPoint, nextSwitch, parseSchedule, scheduleTempAt, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
   openContactsKey, powerOf, resolveContacts, secondsToDuration, stateIcon, temperatureOf, temperatureTint, trendSlope,
 } from "../src/utils";
 import { formatAttribute, localize } from "../src/localize/localize";
@@ -467,5 +467,18 @@ describe("waste collection", () => {
     expect(wasteStyle("Restmüll").icon).toBe("mdi:trash-can-outline");
     expect(clockMinutes("10:30", 600)).toBe(630);
     expect(clockMinutes(undefined, 600)).toBe(600);
+  });
+});
+
+describe("alerts", () => {
+  it("is active on matching states / thresholds", () => {
+    expect(alertActive(entity("binary_sensor.x", "on"), {})).toBe(true);
+    expect(alertActive(entity("binary_sensor.x", "off"), {})).toBe(false);
+    expect(alertActive(entity("vacuum.r", "error"), { state: ["error", "cleaning"] })).toBe(true);
+    expect(alertActive(entity("vacuum.r", "docked"), { state: "error" })).toBe(false);
+    expect(alertActive(entity("sensor.remote", "disconnected"), { state_not: "connected" })).toBe(true);
+    expect(alertActive(entity("sensor.b", "8"), { below: 10 })).toBe(true);
+    expect(alertActive(entity("sensor.b", "unavailable"), { below: 10 })).toBe(false);
+    expect(alertActive(undefined, {})).toBe(false);
   });
 });

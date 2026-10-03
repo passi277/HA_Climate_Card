@@ -425,3 +425,35 @@ export interface PresenceCardConfig {
   columns?: number;
   animations?: "full" | "reduced" | "off";
 }
+
+export interface AlertConfig {
+  /** Entität, deren Zustand den Hinweis auslöst */
+  entity?: string;
+  /** Fenster-/Türkontakte: Hinweis „Fenster offen – Marcel“, sobald einer offen ist */
+  contacts?: (string | ContactConfig)[];
+  /** Aktiv bei diesem Zustand / diesen Zuständen (ohne Angabe: „on“) */
+  state?: string | string[];
+  state_not?: string | string[];
+  above?: number;
+  below?: number;
+  title?: string;
+  /** Zweite Zeile (Standard: Zustand bzw. Namen der offenen Kontakte) */
+  message?: string;
+  icon?: string;
+  /** info (blau), warning (orange, Standard), error (rot), success (grün) – oder eine CSS-Farbe */
+  severity?: "info" | "warning" | "error" | "success";
+  color?: string;
+  /** Tippen öffnet diese Seite (sonst Details der Entität) */
+  navigation_path?: string;
+}
+
+export interface AlertCardConfig {
+  type: string;
+  alerts?: AlertConfig[];
+  /** Kurzform für den häufigsten Fall: Fenster-/Türkontakte */
+  contacts?: (string | ContactConfig)[];
+  /** Statt auszublenden „Alles in Ordnung“ zeigen */
+  show_ok?: boolean;
+  ok_text?: string;
+  animations?: "full" | "reduced" | "off";
+}
