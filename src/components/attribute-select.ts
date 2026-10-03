@@ -173,10 +173,12 @@ export class AttributeSelect extends LitElement {
     .chip {
       flex: 0 0 auto; border: none; border-radius: 999px; padding: 7px 14px; font: inherit; font-size: 13px;
       background: var(--hcc-chip-bg, rgba(127,127,127,0.12)); color: var(--primary-text-color);
-      cursor: pointer; transition: background 0.2s, color 0.2s;
+      cursor: pointer; transition: background 0.25s, color 0.25s, box-shadow 0.3s, transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
     .chip:hover { background: rgba(127,127,127,0.2); }
-    .chip.on { background: var(--hcc-accent, var(--primary-color)); color: var(--text-primary-color, #fff); }
+    .chip.on { background: var(--hcc-accent, var(--primary-color)); color: var(--text-primary-color, #fff);
+      box-shadow: 0 3px 10px color-mix(in srgb, var(--hcc-accent, var(--primary-color)) 35%, transparent); }
+    .chip:active { transform: scale(0.95); }
     .chip:focus-visible { outline: 2px solid var(--hcc-accent, var(--primary-color)); outline-offset: 2px; }
     .chip:disabled { opacity: 0.5; cursor: default; }
     .dropdown-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
@@ -186,6 +188,7 @@ export class AttributeSelect extends LitElement {
       padding: 7px 10px 7px 14px; font: inherit; font-size: 13px; cursor: pointer;
       background: var(--hcc-accent, var(--primary-color)); color: var(--text-primary-color, #fff);
       transition: filter 0.2s, box-shadow 0.2s;
+      box-shadow: 0 3px 10px color-mix(in srgb, var(--hcc-accent, var(--primary-color)) 35%, transparent);
     }
     .trigger span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .trigger:hover { filter: brightness(1.08); }

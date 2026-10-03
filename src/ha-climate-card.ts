@@ -30,6 +30,8 @@ import "./overview-card";
 
 interface PendingTarget { value?: number; low?: number; high?: number; }
 interface Section { key: string; tpl: TemplateResult; }
+/** Kinder erben die (animierte) Modusfarbe der Karte. */
+const ACCENT = "var(--accent)";
 interface ForecastDay { temperature?: number; templow?: number; condition?: string; precipitation_probability?: number; }
 
 const UNAVAILABLE = ["unavailable", "unknown"];
@@ -39,6 +41,13 @@ console.info(
   "color:#fff;background:#2196f3;font-weight:700;border-radius:4px 0 0 4px",
   "color:#2196f3;background:#fff;font-weight:700;border-radius:0 4px 4px 0",
 );
+
+// Animierbare Modusfarbe: Farbwechsel werden weich überblendet statt hart umgeschaltet.
+try {
+  (window as any).CSS?.registerProperty?.({ name: "--hcc-accent-c", syntax: "<color>", inherits: true, initialValue: "transparent" });
+} catch {
+  /* bereits registriert */
+}
 
 (window as any).customCards = (window as any).customCards || [];
 (window as any).customCards.push({
@@ -118,6 +127,7 @@ export class HaClimateCard extends LitElement {
   protected updated(changed: PropertyValues): void {
     super.updated(changed);
     if (changed.has("hass") || changed.has("_config")) this._subscribeWeather();
+    this._popChangedValues();
     // Ausstehende Sollwerte verwerfen, sobald HA einen neuen Zustand meldet.
     const st = this._stateObj;
     if (st && this._sentAt && st.last_updated !== this._sentAt) {
@@ -130,6 +140,25 @@ export class HaClimateCard extends LitElement {
   connectedCallback(): void {
     super.connectedCallback();
     if (this.hass) this._subscribeWeather();
+  }
+
+  private _popValues = new Map<string, string | null>();
+
+  /** Kleine Feder-Animation, wenn sich ein angezeigter Wert (Sollwert, Luftfeuchte) ändert. */
+  private _popChangedValues(): void {
+    const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    this.shadowRoot?.querySelectorAll<HTMLElement>("[data-pop]").forEach((el) => {
+      const key = el.dataset.pop!;
+      const value = el.textContent;
+      const prev = this._popValues.get(key);
+      if (!reduced && prev !== undefined && prev !== value) {
+        el.animate(
+          [{ transform: "translateY(4px) scale(0.94)", opacity: 0.4 }, { transform: "none", opacity: 1 }],
+          { duration: 380, easing: "cubic-bezier(0.34, 1.56, 0.64, 1)" },
+        );
+      }
+      this._popValues.set(key, value);
+    });
   }
 
   disconnectedCallback(): void {
@@ -442,7 +471,7 @@ export class HaClimateCard extends LitElement {
     return html`
       <div class="header">
         <button class="title" @click=${() => this._moreInfo()}>
-          <span class="icon-badge ${this._isActive(st) ? "active" : ""}" style="--accent:${color}">
+          <span class="icon-badge ${this._isActive(st) ? "active" : ""}" data-action=${action ?? ""} data-mode=${st.state}>
             <ha-icon .icon=${this._config!.icon ?? stateIcon(st)}></ha-icon>
           </span>
           <span class="names">
@@ -451,7 +480,7 @@ export class HaClimateCard extends LitElement {
           </span>
         </button>
         ${canPower ? html`
-          <button class="power ${st.state !== "off" ? "on" : ""}" style="--accent:${color}"
+          <button class="power ${st.state !== "off" ? "on" : ""}"
             title=${this._t(st.state === "off" ? "card.turn_on" : "card.turn_off")}
             aria-label=${this._t(st.state === "off" ? "card.turn_on" : "card.turn_off")}
             @click=${this._togglePower}>
@@ -510,9 +539,9 @@ export class HaClimateCard extends LitElement {
   }
 
   private _renderStepper(which: keyof PendingTarget, value: number | undefined, step: number, color?: string) {
-    return html`<div class="stepper" style=${color ? `--accent:${color}` : ""}>
+    return html`<div class="stepper" style=${color && color !== ACCENT ? `--accent:${color}` : ""}>
       <button aria-label="-" @click=${() => this._stepTarget(which, -1)}><ha-icon icon="mdi:minus"></ha-icon></button>
-      <span class="stepper-value">${this._fmt(value, step)}<small>${this._unit}</small></span>
+      <span class="stepper-value" data-pop=${`step-${which}`}>${this._fmt(value, step)}<small>${this._unit}</small></span>
       <button aria-label="+" @click=${() => this._stepTarget(which, 1)}><ha-icon icon="mdi:plus"></ha-icon></button>
     </div>`;
   }
@@ -544,7 +573,7 @@ export class HaClimateCard extends LitElement {
                   <span class="sep">–</span>
                   <span style="color:var(--state-climate-cool-color,#2196f3)">${this._fmt(t.high, step)}</span>
                 </span>`
-              : html`<span class="dial-big">${this._fmt(t.value, step)}<sup>${this._unit}</sup></span>`}
+              : html`<span class="dial-big" data-pop="target">${this._fmt(t.value, step)}<sup>${this._unit}</sup></span>`}
           <span class="dial-sub">
             ${!off && hasTarget ? html`<ha-icon icon="mdi:home-thermometer-outline"></ha-icon>${this._fmt(cur, step)}${this._unit}` : nothing}
             ${humidity != null ? html`<ha-icon icon="mdi:water-percent"></ha-icon>${Math.round(Number(humidity))}%` : nothing}
@@ -613,7 +642,7 @@ export class HaClimateCard extends LitElement {
         <span class="row-label"><ha-icon icon="mdi:water-percent"></ha-icon>${this._t("card.target_humidity")}</span>
         <div class="stepper">
           <button aria-label="-" @click=${() => this._stepHumidity(-1)}><ha-icon icon="mdi:minus"></ha-icon></button>
-          <span class="stepper-value">${hum}<small>%</small></span>
+          <span class="stepper-value" data-pop="humidity">${hum}<small>%</small></span>
           <button aria-label="+" @click=${() => this._stepHumidity(1)}><ha-icon icon="mdi:plus"></ha-icon></button>
         </div>
       </div>`, "humidity");
@@ -641,10 +670,17 @@ export class HaClimateCard extends LitElement {
     return html`<div class="controls" style="--hcc-accent:${color}">${sections.map((s) => s.tpl)}</div>`;
   }
 
+  /** Ausklappbarer Bereich mit weicher Höhen-Animation (grid-template-rows 0fr → 1fr). */
+  private _renderCollapsible(content: unknown) {
+    return html`<div class="collapsible ${this._expanded ? "open" : ""}" ?inert=${!this._expanded} aria-hidden=${!this._expanded}>
+      <div class="collapsible-inner">${content}</div>
+    </div>`;
+  }
+
   private _renderExpandButton() {
     return html`<button class="expand" @click=${() => { this._expanded = !this._expanded; }} aria-expanded=${this._expanded}>
       <span>${this._t(this._expanded ? "card.less" : "card.more")}</span>
-      <ha-icon icon=${this._expanded ? "mdi:chevron-up" : "mdi:chevron-down"}></ha-icon>
+      <ha-icon class="chevron" icon="mdi:chevron-down"></ha-icon>
     </button>`;
   }
 
@@ -657,7 +693,7 @@ export class HaClimateCard extends LitElement {
     return html`
       ${this._renderSections(primary, color)}
       ${details.length ? html`
-        ${this._expanded ? this._renderSections(details, color) : nothing}
+        ${this._renderCollapsible(this._renderSections(details, color))}
         ${this._renderExpandButton()}` : nothing}`;
   }
 
@@ -741,7 +777,7 @@ export class HaClimateCard extends LitElement {
       </div>
       ${this._renderHints(st)}
       ${this._renderExpandButton()}
-      ${this._expanded ? this._renderSections(this._sections(st, color), color) : nothing}`;
+      ${this._renderCollapsible(this._renderSections(this._sections(st, color), color))}`;
   }
 
   /** Luftstrom-Animation: nur wenn das Gerät läuft; Tempo nach Lüfterstufe, Pendeln nach Lamellen. */
@@ -766,15 +802,16 @@ export class HaClimateCard extends LitElement {
     }
     const name = this._config.name ?? st.attributes.friendly_name ?? st.entity_id;
     if (UNAVAILABLE.includes(st.state)) {
-      return html`<ha-card class="unavailable">
+      return html`<ha-card class="unavailable" style="--hcc-accent-c:${MODE_COLORS.off}">
         ${this._renderHeader(st, name, MODE_COLORS.off)}
         <div class="warning">${this._t("card.unavailable")}</div>
       </ha-card>`;
     }
-    const color = this._modeColor(st);
+    const color = ACCENT;
     const compact = this._config.layout === "compact";
-    return html`<ha-card class=${compact ? "compact" : "full"} style="--accent:${color}">
-      <div class="glow"></div>
+    const mood = st.state === "off" ? "off" : this._isActive(st) || !st.attributes.hvac_action ? "active" : "idle";
+    return html`<ha-card class="${compact ? "compact" : "full"} ${mood}" style="--hcc-accent-c:${this._modeColor(st)}">
+      <div class="glow"><span class="blob b1"></span><span class="blob b2"></span></div>
       ${this._renderAirflow(st, color)}
       ${compact
         ? this._renderCompact(st, name, color)

@@ -145,15 +145,28 @@ export class HistoryGraph extends LitElement {
     const x = (t: number) => ((t - start) / (end - start)) * W;
     const y = (v: number) => H - ((v - lo) / (hi - lo)) * H;
     const last = this._current[this._current.length - 1];
+    const pts = this._current.filter((p) => Number.isFinite(p.v));
+    const area = pts.length > 1
+      ? `${this._path(pts, x, y, false)} L ${x(pts[pts.length - 1].t).toFixed(1)} ${H} L ${x(pts[0].t).toFixed(1)} ${H} Z`
+      : "";
 
     return html`
       <div class="graph">
         <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" style="stop-color:var(--hcc-accent, var(--primary-color));stop-opacity:0.35"></stop>
+              <stop offset="100%" style="stop-color:var(--hcc-accent, var(--primary-color));stop-opacity:0"></stop>
+            </linearGradient>
+          </defs>
           ${this._bands.map((b) => svg`<rect x=${x(b.from)} y="0" width=${Math.max(0.5, x(b.to) - x(b.from))}
             height=${H} style="fill:${b.color}" class="band"></rect>`)}
           <path class="target" d=${this._path(this._target, x, y, true)}></path>
+          ${area ? svg`<path class="area" d=${area}></path>` : nothing}
           <path class="current" d=${this._path(this._current, x, y, false)}></path>
         </svg>
+        ${last && Number.isFinite(last.v) ? html`<span class="dot"
+          style="left:${((x(last.t) / W) * 100).toFixed(2)}%;top:${((y(last.v) / H) * 80).toFixed(1)}px"></span>` : nothing}
         <div class="labels">
           <span>-${this.hours}h</span>
           <span>${minV.toFixed(1)}–${maxV.toFixed(1)}${this.unit}</span>
@@ -164,7 +177,16 @@ export class HistoryGraph extends LitElement {
 
   static styles = css`
     :host { display: block; }
+    .graph { position: relative; animation: fade-in 0.6s ease both; }
     .graph svg { width: 100%; height: 80px; display: block; overflow: visible; }
+    .area { fill: url(#areaGrad); stroke: none; }
+    .dot { position: absolute; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%;
+      background: var(--hcc-accent, var(--primary-color)); box-shadow: 0 0 0 0 var(--hcc-accent, var(--primary-color));
+      animation: dot-pulse 2.2s ease-out infinite; }
+    @keyframes dot-pulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--hcc-accent, var(--primary-color)) 60%, transparent); }
+      100% { box-shadow: 0 0 0 10px transparent; } }
+    @keyframes fade-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+    @media (prefers-reduced-motion: reduce) { .dot, .graph { animation: none; } }
     .band { opacity: 0.14; }
     .current { fill: none; stroke: var(--hcc-accent, var(--primary-color)); stroke-width: 2; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
     .target { fill: none; stroke: var(--secondary-text-color); stroke-width: 1.5; stroke-dasharray: 4 3; vector-effect: non-scaling-stroke; opacity: 0.7; }

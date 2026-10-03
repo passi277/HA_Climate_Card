@@ -91,12 +91,14 @@ export class ShortcutRow extends LitElement {
     .sc {
       display: flex; align-items: center; gap: 10px; padding: 8px 10px; min-height: 48px; border: none; text-align: left;
       border-radius: 14px; background: var(--hcc-chip-bg, rgba(127,127,127,0.12)); color: var(--secondary-text-color);
-      font: inherit; font-size: 13px; cursor: pointer; transition: background 0.2s, color 0.2s, transform 0.1s; min-width: 0;
+      font: inherit; font-size: 13px; cursor: pointer; transition: background 0.25s, color 0.25s, box-shadow 0.3s, transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1); min-width: 0;
     }
     .sc span { max-width: 100%; line-height: 1.25; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; -webkit-hyphens: auto; hyphens: auto; }
     .sc:hover { background: rgba(127,127,127,0.2); }
     .sc:active { transform: scale(0.95); }
-    .sc.on { background: color-mix(in srgb, var(--hcc-accent, var(--primary-color)) 22%, transparent); color: var(--hcc-accent, var(--primary-color)); }
+    .sc.on { background: color-mix(in srgb, var(--hcc-accent, var(--primary-color)) 22%, transparent); color: var(--hcc-accent, var(--primary-color));
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--hcc-accent, var(--primary-color)) 30%, transparent); }
+    .sc.on ha-icon, .sc.on ha-state-icon { filter: drop-shadow(0 0 6px color-mix(in srgb, var(--hcc-accent, var(--primary-color)) 60%, transparent)); }
     .sc:focus-visible { outline: 2px solid var(--hcc-accent, var(--primary-color)); outline-offset: 2px; }
     .sc:disabled { opacity: 0.4; cursor: default; }
     ha-icon, ha-state-icon { --mdc-icon-size: 22px; flex: none; }

@@ -133,8 +133,9 @@ export class ClimateDial extends LitElement {
       <g class="handle ${this._dragging === handle ? "dragging" : ""}" tabindex=${this.disabled ? -1 : 0}
         role="slider" aria-valuemin=${this.min} aria-valuemax=${this.max} aria-valuenow=${v}
         aria-label=${handle} @keydown=${(e: KeyboardEvent) => this._onKey(handle, e)}>
-        <circle cx=${p.x} cy=${p.y} r="13" class="halo" style="fill:${color}"></circle>
-        <circle cx=${p.x} cy=${p.y} r="9" class="knob" style="stroke:${color}"></circle>
+        <circle cx=${p.x} cy=${p.y} r="14" class="halo" style="fill:${color}"></circle>
+        <circle cx=${p.x} cy=${p.y} r="9" class="knob"
+          style="stroke:${color};filter:drop-shadow(0 2px 6px color-mix(in srgb, ${color} 55%, transparent))"></circle>
       </g>`;
   }
 
@@ -215,6 +216,20 @@ export class ClimateDial extends LitElement {
     const markerColor = this.disabled || target == null ? "var(--secondary-text-color)" : this._currentColor(target);
     const ticks = Array.from({ length: 55 }, (_, i) => START + (SWEEP / 54) * i);
 
+    // Skalenstriche im Bereich zwischen Ist und Ziel (bzw. Komfortzone) leuchten mit Farbverlauf
+    let lit: { from: number; to: number; cFrom: string; cTo: string; dir: number } | undefined;
+    if (!this.disabled) {
+      if (this.dual && this.low != null && this.high != null) {
+        lit = { from: this._toAngle(this.low), to: this._toAngle(this.high), cFrom: this.lowColor, cTo: this.highColor, dir: 0 };
+      } else if (target != null && curAngle != null) {
+        const ta = this._toAngle(target);
+        const cc = this._currentColor(target);
+        lit = curAngle < ta
+          ? { from: curAngle, to: ta, cFrom: cc, cTo: this.color, dir: 1 }
+          : { from: ta, to: curAngle, cFrom: this.color, cTo: cc, dir: -1 };
+      }
+    }
+
     return html`
       <div class="dial ${this.active ? "is-active" : ""}" style="--dial-color:${this.color}">
         <svg viewBox="0 0 200 200"
@@ -225,14 +240,24 @@ export class ClimateDial extends LitElement {
               <stop offset="0%" stop-color=${this.lowColor}></stop>
               <stop offset="100%" stop-color=${this.highColor}></stop>
             </linearGradient>
+            <filter id="arcGlow" x="-30%" y="-30%" width="160%" height="160%">
+              <feGaussianBlur stdDeviation="5"></feGaussianBlur>
+            </filter>
           </defs>
-          ${ticks.map((a) => {
+          ${ticks.map((a, idx) => {
+            const on = lit && a >= lit.from - 0.01 && a <= lit.to + 0.01;
             const o = polar(a, R + 16);
-            const i = polar(a, R + 11);
-            return svg`<line class="tick" x1=${o.x} y1=${o.y} x2=${i.x} y2=${i.y}></line>`;
+            const i = polar(a, on ? R + 10 : R + 12);
+            if (!on || !lit) return svg`<line class="tick" x1=${o.x} y1=${o.y} x2=${i.x} y2=${i.y}></line>`;
+            const pct = lit.to - lit.from < 0.01 ? 100 : ((a - lit.from) / (lit.to - lit.from)) * 100;
+            // Lauflicht in Richtung Ziel
+            const order = lit.dir >= 0 ? idx : ticks.length - idx;
+            return svg`<line class="tick lit" x1=${o.x} y1=${o.y} x2=${i.x} y2=${i.y}
+              style="stroke:color-mix(in srgb, ${lit.cTo} ${pct.toFixed(0)}%, ${lit.cFrom});animation-delay:${(order * 0.06).toFixed(2)}s"></line>`;
           })}
           <path class="track" d=${arcPath(START, end)}
             style=${this.disabled ? "" : `stroke:color-mix(in srgb, ${this.color} 10%, var(--hcc-track, rgba(127,127,127,0.22)))`}></path>
+          ${this.disabled ? nothing : svg`<g class="glow-layer" filter="url(#arcGlow)">${arcs}</g>`}
           ${arcs}
           ${cur && curLabel && curVal != null ? svg`
             <circle class="current" cx=${cur.x} cy=${cur.y} r="5.5" style="stroke:${markerColor}"></circle>
@@ -258,23 +283,43 @@ export class ClimateDial extends LitElement {
     .flow.up { animation: flow-up 1.4s linear infinite; }
     .flow.down { animation: flow-down 1.4s linear infinite; }
     .current-label { font-size: 9px; font-weight: 600; fill: var(--secondary-text-color); text-anchor: middle; dominant-baseline: central; pointer-events: none; }
-    .tick { stroke: var(--secondary-text-color); stroke-opacity: 0.25; stroke-width: 1.2; stroke-linecap: round; }
-    .is-active .tick { stroke: var(--dial-color); stroke-opacity: 0.45; animation: pulse 2.4s ease-in-out infinite; }
+    .tick { stroke: var(--secondary-text-color); stroke-opacity: 0.22; stroke-width: 1.2; stroke-linecap: round; }
+    .tick.lit { stroke-opacity: 0.85; stroke-width: 1.8; }
+    .is-active .tick.lit { animation: pulse 1.8s ease-in-out infinite; }
+    .glow-layer { opacity: 0.5; pointer-events: none; }
+    .glow-layer .flow { display: none; }
+    .is-active .glow-layer { animation: glow 3s ease-in-out infinite; }
     .current { fill: var(--card-background-color, #fff); stroke-width: 3; filter: drop-shadow(0 1px 1.5px rgba(0,0,0,0.3)); }
     .handle { cursor: grab; outline: none; }
-    .handle .halo { opacity: 0; transition: opacity 0.2s; }
-    .handle:hover .halo, .handle:focus-visible .halo, .handle.dragging .halo { opacity: 0.25; }
+    .handle circle { transform-box: fill-box; transform-origin: center; }
+    .handle .halo { opacity: 0.12; transform: scale(0.8);
+      transition: opacity 0.25s, transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); }
+    .handle:hover .halo, .handle:focus-visible .halo { opacity: 0.25; transform: scale(1); }
+    .handle.dragging .halo { opacity: 0.3; transform: scale(1.25); }
     .handle.dragging { cursor: grabbing; }
-    .knob { fill: var(--card-background-color, #fff); stroke-width: 4; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.35)); }
+    .knob { fill: #fff; stroke-width: 4; transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+    .handle.dragging .knob { transform: scale(1.15); }
     .center {
       position: absolute; inset: 22%; display: flex; flex-direction: column;
       align-items: center; justify-content: center; text-align: center; pointer-events: none;
     }
+    /* Weicher Lichthof hinter der Zahl, atmet solange das Gerät arbeitet */
+    .center::before {
+      content: ""; position: absolute; inset: -6%; border-radius: 50%; z-index: -1;
+      background: radial-gradient(closest-side, color-mix(in srgb, var(--dial-color) 16%, transparent), transparent);
+      opacity: 0.8; transition: opacity 0.6s;
+    }
+    .is-active .center::before { animation: breathe-glow 3.2s ease-in-out infinite; }
+    .dial { isolation: isolate; }
     .center ::slotted(*) { pointer-events: auto; }
     @keyframes flow-up { from { stroke-dashoffset: 18; } to { stroke-dashoffset: 0; } }
     @keyframes flow-down { from { stroke-dashoffset: 0; } to { stroke-dashoffset: 18; } }
-    @keyframes pulse { 0%, 100% { stroke-opacity: 0.2; } 50% { stroke-opacity: 0.6; } }
-    @media (prefers-reduced-motion: reduce) { .is-active .tick, .flow { animation: none; } }
+    @keyframes pulse { 0%, 100% { stroke-opacity: 0.35; } 50% { stroke-opacity: 1; } }
+    @keyframes glow { 0%, 100% { opacity: 0.4; } 50% { opacity: 0.75; } }
+    @keyframes breathe-glow { 0%, 100% { opacity: 0.6; transform: scale(0.94); } 50% { opacity: 1; transform: scale(1.04); } }
+    @media (prefers-reduced-motion: reduce) {
+      .is-active .tick, .flow, .is-active .glow-layer, .is-active .center::before { animation: none; }
+    }
   `;
 }
 
