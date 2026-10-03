@@ -74,10 +74,11 @@ export class CountdownTimer extends LitElement {
     const progress = running ? Math.min(100, (remaining / total) * 100) : 0;
     return html`<div class="countdown ${running ? "running" : ""}">
       <div class="head">
-        <span class="title"><ha-icon icon="mdi:timer-outline"></ha-icon>${this.label}</span>
-        ${running ? html`<span class="remaining">${this._fmtRemaining(remaining)}</span>
-          <button class="cancel" @click=${this._cancel} aria-label=${this.cancelText} title=${this.cancelText}>
-            <ha-icon icon="mdi:close"></ha-icon></button>` : nothing}
+        <span class="title"><ha-icon icon="mdi:timer-outline"></ha-icon>${running
+          ? html`<span class="remaining">${this._fmtRemaining(remaining)}</span>` : this.label}</span>
+        ${running ? html`
+          <button class="cancel" @click=${this._cancel}>
+            <ha-icon icon="mdi:timer-off-outline"></ha-icon><span>${this.cancelText}</span></button>` : nothing}
       </div>
       ${running ? html`<div class="bar"><div style="width:${progress}%"></div></div>` : nothing}
       <div class="chips">
@@ -91,12 +92,14 @@ export class CountdownTimer extends LitElement {
       background: var(--hcc-chip-bg, rgba(127,127,127,0.12)); --c: var(--hcc-timer-color, #7e57c2); }
     .countdown.running { background: color-mix(in srgb, var(--c) 16%, transparent); }
     .head { display: flex; align-items: center; gap: 8px; min-height: 24px; }
-    .title { display: flex; align-items: center; gap: 6px; flex: 1; font-size: 12px; font-weight: 500;
+    .title { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; white-space: nowrap; font-size: 12px; font-weight: 500;
       color: var(--secondary-text-color); text-transform: uppercase; letter-spacing: 0.04em; }
     .title ha-icon { --mdc-icon-size: 16px; }
     .remaining { font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--primary-text-color); }
-    .cancel { border: none; background: rgba(127,127,127,0.18); color: var(--primary-text-color); width: 26px; height: 26px;
-      border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; }
+    .cancel { display: flex; align-items: center; gap: 4px; border: none; border-radius: 999px; padding: 5px 12px 5px 9px;
+      font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.2s;
+      background: color-mix(in srgb, var(--error-color, #db4437) 16%, transparent); color: var(--error-color, #db4437); }
+    .cancel:hover { background: color-mix(in srgb, var(--error-color, #db4437) 26%, transparent); }
     .cancel ha-icon { --mdc-icon-size: 16px; }
     .bar { height: 4px; border-radius: 2px; background: rgba(127,127,127,0.2); overflow: hidden; }
     .bar div { height: 100%; background: var(--c); transition: width 1s linear; }
