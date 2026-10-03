@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.2
+- Editor zeigt nur zum Gerät passende Optionen: Heizungen ohne Lüfter, Lamellen und Leistungsschwelle („Wärmewellen-Animation“ statt „Luftstrom“), Lüfter/Lamellen/Voreinstellungen/Ziel-Luftfeuchte nur bei unterstützten Funktionen; Hinweis „Erkannt: Heizung / Klimaanlage“
+- Light-Editor: Farbe, Weißton, Effekte, Lampenliste und Segmente nur, wenn die Lampe bzw. Gruppe sie unterstützt
+
 ## 1.3.1
 - Lichtregler: Glow, Lauflicht und Skala spielen nur noch kurz nach einer Änderung (heller → Lauflicht nach rechts, dunkler → nach links, neue Farbe → Aufleuchten) statt dauerhaft
 

@@ -262,6 +262,32 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
   res.animated ? ok("Kompakter Lichtregler: ruht, Lauflicht nur kurz nach Änderung (dunkler → nach links)") : fail("Regler-Animation nicht nur bei Änderung");
 }
 
+// Editor: nur zum Gerät passende Optionen (Heizung ohne Lüfter/Lamellen)
+{
+  const res = await p.evaluate(async () => {
+    const hass = document.querySelector("ha-climate-card").hass;
+    const names = (schema) => schema.flatMap((s) => (s.schema ? names(s.schema) : [s.name]));
+    const run = async (entity, extra = {}) => {
+      const ed = document.createElement("ha-climate-card-editor");
+      ed.hass = hass;
+      ed.setConfig({ type: "custom:ha-climate-card", entity, ...extra });
+      document.body.appendChild(ed);
+      await ed.updateComplete;
+      const out = { names: names(ed._schema()), detected: ed.shadowRoot.querySelector(".detected")?.textContent.replace(/\s+/g, " ").trim() };
+      ed.remove();
+      return out;
+    };
+    return { heat: await run("climate.heizung_mein_zimmer", { power_sensor: "sensor.klima_power" }), ac: await run("climate.1ed763d9", { power_sensor: "sensor.klima_power" }) };
+  });
+  const h = res.heat.names;
+  !h.includes("fan") && !h.includes("swing") && !h.includes("power_threshold") && h.includes("valve_sensors") && /Heizung/.test(res.heat.detected ?? "")
+    ? ok("Editor Heizung: keine Lüfter/Lamellen/Leistungsschwelle, Heizungsfelder, „Erkannt: Heizung“")
+    : fail(`Editor Heizung: ${JSON.stringify(res.heat)}`);
+  const a = res.ac.names;
+  a.includes("fan") && a.includes("swing") && a.includes("power_threshold") && !a.includes("valve_sensors")
+    ? ok("Editor Klima: Lüfter, Lamellen, Leistungsschwelle, keine Heizungsfelder") : fail(`Editor Klima: ${JSON.stringify(res.ac)}`);
+}
+
 // Moduswechsel: jede Karte, jeder Modus (außer Auto/Heizen-Kühlen, dort zählt die Tätigkeit)
 const colorFails = await p.evaluate(async () => {
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));

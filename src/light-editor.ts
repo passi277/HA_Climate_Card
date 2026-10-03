@@ -3,8 +3,7 @@ import { customElement, property, state } from "lit/decorators.js";
 import type { HomeAssistant, LightCardConfig } from "./types";
 import { CARD_VERSION } from "./const";
 import { localize } from "./localize/localize";
-
-const SHOW_KEYS = ["lights", "scenes", "color", "temperature", "effects", "segments", "shortcuts"];
+import { lightEditorOptions } from "./utils";
 
 @customElement("ha-light-card-editor")
 export class HaLightCardEditor extends LitElement {
@@ -20,6 +19,8 @@ export class HaLightCardEditor extends LitElement {
   }
 
   private _schema() {
+    // Nur Bereiche anbieten, die die gewählte Lampe (bzw. Gruppe) auch kann
+    const opts = lightEditorOptions(this.hass?.states ?? {}, this._config?.entity, this._config);
     return [
       { name: "entity", required: true, selector: { entity: { domain: "light" } } },
       { type: "grid", name: "", schema: [
@@ -31,7 +32,7 @@ export class HaLightCardEditor extends LitElement {
         { value: "compact", label: this._t("layout_compact") },
       ] } } },
       { type: "expandable", name: "show", title: this._t("sections"), icon: "mdi:eye-outline", schema: [
-        { type: "grid", name: "", schema: SHOW_KEYS.map((k) => ({ name: k, selector: { boolean: {} } })) },
+        { type: "grid", name: "", schema: opts.show.map((k) => ({ name: k, selector: { boolean: {} } })) },
       ] },
       { type: "expandable", name: "", flatten: true, title: this._t("room"), icon: "mdi:lightbulb-group", schema: [
         { name: "auto_entities", selector: { boolean: {} } },
@@ -40,7 +41,8 @@ export class HaLightCardEditor extends LitElement {
         { name: "scenes", selector: { entity: { multiple: true, filter: { domain: "scene" } } } },
       ] },
       { type: "expandable", name: "", flatten: true, title: this._t("device"), icon: "mdi:led-strip-variant", schema: [
-        { name: "auto_segments", selector: { boolean: {} } },
+        // Auto-Erkennung nur, wenn Segmente gefunden wurden; eigene Liste bleibt immer möglich
+        ...(opts.segments ? [{ name: "auto_segments", selector: { boolean: {} } }] : []),
         { name: "segments", selector: { entity: { multiple: true, filter: { domain: "light" } } } },
         { name: "auto_shortcuts", selector: { boolean: {} } },
         { name: "shortcuts", selector: { entity: { multiple: true, filter: { domain: ["switch", "button", "input_boolean", "script", "scene"] } } } },

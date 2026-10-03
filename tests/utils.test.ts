@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { HassEntity } from "../src/types";
 import {
-  brightnessPct, contactType, isNoEffect, segmentIds, detectDeviceType, kelvinToRgb, lightColor, relatedScenes, supportsColor, supportsColorTemp, dewPoint, nextSwitch, parseSchedule, scheduleTempAt, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
+  brightnessPct, contactType, editorOptions, isNoEffect, lightEditorOptions, segmentIds, detectDeviceType, kelvinToRgb, lightColor, relatedScenes, supportsColor, supportsColorTemp, dewPoint, nextSwitch, parseSchedule, scheduleTempAt, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
   openContactsKey, powerOf, resolveContacts, secondsToDuration, stateIcon, temperatureOf, temperatureTint, trendSlope,
 } from "../src/utils";
 import { formatAttribute, localize } from "../src/localize/localize";
@@ -229,5 +229,46 @@ describe("lights", () => {
       "light.carport_segment_001", "light.carportx_segment_001", "light.garten_segment_001"].map((id) => [id, entity(id, "on")]));
     expect(segmentIds(states, "light.carport_2")).toEqual(["light.carport_segment_001", "light.carport_segment_002", "light.carport_segment_010"]);
     expect(segmentIds(states, "light.garten")).toEqual(["light.garten_segment_001"]);
+  });
+});
+
+describe("editor options", () => {
+  const gree = entity("climate.gree", "cool", { hvac_modes: ["off", "auto", "cool", "dry", "fan_only", "heat"], supported_features: 1 | 8 | 16 | 32 | 128 | 256 | 512 });
+  const hmip = entity("climate.hmip", "heat", { hvac_modes: ["auto", "heat", "off"], supported_features: 1 | 16 | 128 | 256 });
+  const noSwing = entity("climate.ac", "cool", { hvac_modes: ["off", "cool", "heat", "fan_only"], supported_features: 1 | 8 });
+
+  it("offers fan, swing and presets for a Gree air conditioner", () => {
+    const o = editorOptions(gree, "auto");
+    expect(o.type).toBe("ac");
+    expect(o.show).toEqual(expect.arrayContaining(["fan", "swing", "presets", "airflow"]));
+    expect(o.show).not.toContain("humidity");
+    expect(o.selects).toBe(true);
+  });
+  it("hides fan and swing for a Homematic thermostat", () => {
+    const o = editorOptions(hmip);
+    expect(o.type).toBe("heating");
+    expect(o.show).not.toContain("fan");
+    expect(o.show).not.toContain("swing");
+    expect(o.show).toContain("presets");
+  });
+  it("respects features and manual device type", () => {
+    expect(editorOptions(noSwing).show).not.toContain("swing");
+    expect(editorOptions(noSwing).show).toContain("fan");
+    const forced = editorOptions(gree, "heating");
+    expect(forced.configured).toBe(true);
+    expect(forced.show).not.toContain("fan");
+    expect(editorOptions(undefined).show).toContain("swing");
+  });
+  it("offers only light features the lamp supports", () => {
+    const states = {
+      "light.weiss": entity("light.weiss", "on", { supported_color_modes: ["color_temp"] }),
+      "light.carport_2": entity("light.carport_2", "on", { supported_color_modes: ["rgb", "color_temp"], effect_list: ["", "Fire"] }),
+      "light.carport_segment_001": entity("light.carport_segment_001", "on", { supported_color_modes: ["rgb"] }),
+    };
+    const white = lightEditorOptions(states, "light.weiss");
+    expect(white.show).toEqual(["scenes", "temperature", "shortcuts"]);
+    const govee = lightEditorOptions(states, "light.carport_2");
+    expect(govee.show).toEqual(expect.arrayContaining(["color", "temperature", "effects", "segments"]));
+    expect(govee.show).not.toContain("lights");
   });
 });

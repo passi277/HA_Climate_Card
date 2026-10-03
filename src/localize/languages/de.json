@@ -138,7 +138,11 @@
     "valve_sensors": "Ventilöffnung (Heizkörper)",
     "battery_sensors": "Batterie (Thermostate)",
     "auto_heating_sensors": "Ventile & Batterien aus Gerät/Raum automatisch übernehmen",
-    "away_temperature": "Temperatur bei Abwesenheit"
+    "away_temperature": "Temperatur bei Abwesenheit",
+    "show_airflow_heating": "Wärmewellen-Animation",
+    "detected": "Erkannt",
+    "configured": "Eingestellt",
+    "only_matching": "es werden nur passende Optionen angezeigt"
   },
   "overview": {
     "title": "Klimaanlagen",

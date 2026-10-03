@@ -138,7 +138,11 @@
     "valve_sensors": "Valve position (radiators)",
     "battery_sensors": "Battery (thermostats)",
     "auto_heating_sensors": "Add valves & batteries from device/area automatically",
-    "away_temperature": "Away temperature"
+    "away_temperature": "Away temperature",
+    "show_airflow_heating": "Heat wave animation",
+    "detected": "Detected",
+    "configured": "Configured",
+    "only_matching": "only matching options are shown"
   },
   "overview": {
     "title": "Air conditioners",

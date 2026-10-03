@@ -2,7 +2,7 @@ import { LitElement, css, html, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import type { ClimateCardConfig, HomeAssistant } from "./types";
 import { CARD_VERSION, DEFAULT_SHOW } from "./const";
-import { detectDeviceType } from "./utils";
+import { editorOptions } from "./utils";
 import { localize } from "./localize/localize";
 
 const sensor = (name: string, filter: Record<string, unknown>) => ({
@@ -23,14 +23,16 @@ export class HaClimateCardEditor extends LitElement {
     return localize(this.hass, `editor.${key}`);
   }
 
+  /** Was passt zum eingetragenen Gerät (Heizung/Klima, Features)? */
+  private get _options() {
+    const c = this._config;
+    const st = c?.entity ? this.hass?.states[c.entity] : undefined;
+    return editorOptions(st, c?.device_type);
+  }
+
   /** Heizungs-Felder nur zeigen, wenn das Gerät eine Heizung ist (oder so eingestellt). */
   private get _isHeating(): boolean {
-    const c = this._config;
-    if (!c) return false;
-    if (c.device_type === "heating") return true;
-    if (c.device_type === "ac") return false;
-    const st = c.entity ? this.hass?.states[c.entity] : undefined;
-    return !!st && detectDeviceType(st) === "heating";
+    return this._options.type === "heating";
   }
 
   private _heatingSchema() {
@@ -51,6 +53,8 @@ export class HaClimateCardEditor extends LitElement {
   }
 
   private _schema() {
+    const opts = this._options;
+    const ac = opts.type !== "heating";
     return [
       { name: "entity", required: true, selector: { entity: { domain: "climate" } } },
       {
@@ -92,7 +96,7 @@ export class HaClimateCardEditor extends LitElement {
           {
             type: "grid",
             name: "",
-            schema: Object.keys(DEFAULT_SHOW).map((k) => ({ name: k, selector: { boolean: {} } })),
+            schema: opts.show.map((k) => ({ name: k, selector: { boolean: {} } })),
           },
         ],
       },
@@ -108,7 +112,10 @@ export class HaClimateCardEditor extends LitElement {
           sensor("humidity_sensor", { domain: "sensor", device_class: "humidity" }),
           { name: "outdoor_sensor", selector: { entity: { filter: [{ domain: "sensor", device_class: "temperature" }, { domain: "weather" }] } } },
           sensor("power_sensor", { domain: "sensor", device_class: "power" }),
-          { name: "power_threshold", selector: { number: { min: 0, max: 500, step: 1, mode: "box", unit_of_measurement: "W" } } },
+          // Tätigkeit aus der Leistung ableiten (z.B. Gree) – nur Klima mit Leistungssensor
+          ...(ac && this._config?.power_sensor
+            ? [{ name: "power_threshold", selector: { number: { min: 0, max: 500, step: 1, mode: "box", unit_of_measurement: "W" } } }]
+            : []),
           sensor("energy_sensor", { domain: "sensor", device_class: "energy" }),
           {
             name: "contact_sensors",
@@ -174,7 +181,7 @@ export class HaClimateCardEditor extends LitElement {
           },
           { name: "expandable", selector: { boolean: {} } },
           { name: "start_expanded", selector: { boolean: {} } },
-          { name: "dropdown_threshold", selector: { number: { min: 0, max: 20, step: 1, mode: "box" } } },
+          ...(opts.selects ? [{ name: "dropdown_threshold", selector: { number: { min: 0, max: 20, step: 1, mode: "box" } } }] : []),
           { name: "graph_hours", selector: { number: { min: 1, max: 168, step: 1, mode: "box", unit_of_measurement: "h" } } },
         ],
       },
@@ -182,6 +189,7 @@ export class HaClimateCardEditor extends LitElement {
   }
 
   private _computeLabel = (schema: { name: string }): string => {
+    if (schema.name === "airflow" && this._isHeating) return this._t("show_airflow_heating");
     if (schema.name in DEFAULT_SHOW) return this._t(`show_${schema.name}`);
     return this._t(schema.name);
   };
@@ -245,13 +253,23 @@ export class HaClimateCardEditor extends LitElement {
       countdown_durations: this._config.countdown_durations?.join(", "),
       show: { ...DEFAULT_SHOW, ...(this._config.show ?? {}) },
     };
-    return html`<ha-form .hass=${this.hass} .data=${data} .schema=${this._schema()}
+    const opts = this._options;
+    return html`${opts.type ? html`<div class="detected">
+        <ha-icon icon=${opts.type === "heating" ? "mdi:radiator" : "mdi:air-conditioner"}></ha-icon>
+        <span><strong>${this._t(opts.configured ? "configured" : "detected")}: ${this._t(`device_${opts.type}`)}</strong>
+          – ${this._t("only_matching")}</span>
+      </div>` : nothing}
+      <ha-form .hass=${this.hass} .data=${data} .schema=${this._schema()}
       .computeLabel=${this._computeLabel} @value-changed=${this._valueChanged}></ha-form>
       <div class="version">HA Modern Home Cards v${CARD_VERSION}</div>`;
   }
 
   static styles = css`
     :host { display: block; }
+    .detected { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; padding: 8px 12px; border-radius: 12px;
+      font-size: 13px; color: var(--secondary-text-color); background: rgba(127,127,127,0.1); }
+    .detected ha-icon { --mdc-icon-size: 20px; color: var(--primary-color); flex: none; }
+    .detected strong { color: var(--primary-text-color); font-weight: 500; }
     .version { margin-top: 12px; text-align: right; font-size: 11px; color: var(--secondary-text-color); opacity: 0.7; }
   `;
 }

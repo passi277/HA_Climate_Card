@@ -1,5 +1,5 @@
 import type { ContactConfig, ContactType, HassEntity } from "./types";
-import { ACTION_ICONS, ACTION_TO_MODE, MODE_COLORS, MODE_ICONS } from "./const";
+import { ACTION_ICONS, ACTION_TO_MODE, ClimateFeature, DEFAULT_SHOW, MODE_COLORS, MODE_ICONS, supports } from "./const";
 
 export const UNAVAILABLE = ["unavailable", "unknown"];
 
@@ -414,4 +414,57 @@ export const segmentIds = (states: Record<string, HassEntity>, entityId: string)
   return Object.keys(states)
     .filter((id) => id !== entityId && re.test(id))
     .sort((a, b) => Number(a.match(/(\d+)$/)![1]) - Number(b.match(/(\d+)$/)![1]));
+};
+
+// ---------- Editor ----------
+
+export interface EditorOptions {
+  /** Erkannter bzw. eingestellter Gerätetyp (undefined ohne Entität) */
+  type?: DeviceType;
+  /** Wurde der Typ manuell eingestellt? */
+  configured: boolean;
+  /** Sinnvolle Bereiche für „Sichtbare Bereiche“ */
+  show: (keyof typeof DEFAULT_SHOW)[];
+  /** Gibt es Auswahllisten (Lüfter, Lamellen, Voreinstellungen)? */
+  selects: boolean;
+}
+
+/** Welche Editor-Optionen passen zum Gerät? Heizungen ohne Lüfter/Lamellen, Felder nur bei passenden Features. */
+export const editorOptions = (st: HassEntity | undefined, deviceType?: "auto" | "ac" | "heating"): EditorOptions => {
+  const all = Object.keys(DEFAULT_SHOW) as (keyof typeof DEFAULT_SHOW)[];
+  const configured = deviceType === "ac" || deviceType === "heating";
+  if (!st) return { type: configured ? (deviceType as DeviceType) : undefined, configured, show: all, selects: true };
+  const type: DeviceType = configured ? (deviceType as DeviceType) : detectDeviceType(st);
+  const a = st.attributes;
+  const fan = type === "ac" && supports(a, ClimateFeature.FAN_MODE);
+  const swing = type === "ac" && (supports(a, ClimateFeature.SWING_MODE) || supports(a, ClimateFeature.SWING_HORIZONTAL_MODE));
+  const presets = supports(a, ClimateFeature.PRESET_MODE);
+  const humidity = supports(a, ClimateFeature.TARGET_HUMIDITY);
+  const ok: Record<string, boolean> = { fan, swing, presets, humidity };
+  return { type, configured, show: all.filter((k) => ok[k] ?? true), selects: fan || swing || presets };
+};
+
+/**
+ * Sinnvolle Bereiche für den Light-Editor: Farbe/Weißton/Effekte nur, wenn die Lampe bzw. eine
+ * Lampe der Gruppe das kann; Lampenliste nur bei Gruppen, Segmente nur bei LED-Streifen.
+ */
+export const lightEditorOptions = (
+  states: Record<string, HassEntity>,
+  entityId: string | undefined,
+  config: { entities?: unknown[]; segments?: unknown[] } = {},
+): { show: string[]; segments: boolean } => {
+  const all = ["lights", "scenes", "color", "temperature", "effects", "segments", "shortcuts"];
+  const st = entityId ? states[entityId] : undefined;
+  if (!st) return { show: all, segments: true };
+  const memberIds = Array.isArray(st.attributes.entity_id) ? (st.attributes.entity_id as string[]) : [];
+  const lamps = [st, ...memberIds.map((id) => states[id]).filter((s): s is HassEntity => !!s)];
+  const segments = !!config.segments?.length || segmentIds(states, st.entity_id).length > 0;
+  const ok: Record<string, boolean> = {
+    lights: memberIds.length > 0 || !!config.entities?.length,
+    color: lamps.some(supportsColor),
+    temperature: lamps.some(supportsColorTemp),
+    effects: lamps.some((l) => ((l.attributes.effect_list ?? []) as unknown[]).some((e) => !isNoEffect(e))),
+    segments,
+  };
+  return { show: all.filter((k) => ok[k] ?? true), segments };
 };
