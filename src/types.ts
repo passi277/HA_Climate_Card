@@ -565,6 +565,8 @@ export interface IrrigationCardConfig {
   run_all_active?: string;
   /** Notaus (Skript) – sonst: alle Timer stoppen, Ventile und Pumpe aus */
   stop_all?: string;
+  /** Schnellwahl der Laufzeit in Minuten (Standard 5, 10, 15, 20, 30, 45, 60) */
+  durations?: number[];
   /** Text-Entität mit Infos zum letzten Lauf */
   last_run?: string;
   zones: IrrigationZoneConfig[];

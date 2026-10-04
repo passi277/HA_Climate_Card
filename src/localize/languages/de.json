@@ -694,7 +694,8 @@
     "on": "An",
     "pump_needed": "Pumpe einschalten, um Ventile zu öffnen",
     "open_valve": "Ventil öffnen",
-    "close_valve": "Ventil schließen"
+    "close_valve": "Ventil schließen",
+    "close": "Schließen"
   },
   "irrigation_editor": {
     "title": "Titel",

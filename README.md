@@ -550,7 +550,8 @@ Statt getrennter Sensoren geht auch ein Sensor mit Vorzeichen (`entity: sensor.g
 
 Oben das Hauswasserwerk (Tippen = Pumpe ein/aus), darunter ein **Verteiler**, von dem die Ventile **parallel** abgehen – das Wasser fließt animiert
 in jeden offenen Strang. Ein weiterer Strang **„Sonstiges“** zeigt, wenn die Pumpe Strom zieht, obwohl kein Ventil offen ist (z.B. Wasserhahn).
-Je Ventil: Restzeit mit Fortschrittsring, Durchfluss (L/min), Akku-Warnung, Laufzeit (tippen = Regler) und ▶ / ⏸ / ⏹.
+Je Ventil: Restzeit mit Fortschrittsring, Durchfluss (L/min), Akku-Warnung, Laufzeit und ▶ / ⏸ / ⏹.
+Tippen auf die Laufzeit öffnet die **Laufzeit-Einstellung direkt in der Karte**: −/+, Schnellwahl (5 · 10 · 15 · 20 · 30 · 45 · 60 min, änderbar mit `durations`) und „Starten“.
 **Tippen aufs Ventil-Symbol öffnet bzw. schließt nur das Ventil** (ohne Timer/Skript), lange drücken zeigt Details.
 Ist die Pumpe aus, sind Ventile und Stränge zu sehen, lassen sich aber nicht von Hand öffnen (Schließen/Stoppen geht immer).
 Dazu Modus-Auswahl, Startzeit, „Alle nacheinander“, „Alles aus“ und der letzte Lauf.
@@ -567,6 +568,7 @@ run_all_active: input_boolean.durchlauf_aktiv
 stop_all: script.notaus                  # optional, sonst: Timer stoppen, Ventile + Pumpe aus
 last_run: input_text.letzter_lauf
 # show_other: false                     # Strang „Sonstiges“ ausblenden
+# durations: [5, 10, 15, 30, 60]         # Schnellwahl der Laufzeit
 zones:
   - valve: switch.ventil_rasen           # switch.* oder valve.*
     name: Rasen

@@ -918,6 +918,23 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
   okState && okActions && okLock
     ? ok("Bewässerung: Ventile parallel am Verteiler + „Sonstiges“, Tippen schaltet nur das Ventil, Start/Pause/Stopp, ohne Pumpe gesperrt, Modus")
     : fail(`Bewässerung: ${JSON.stringify({ okState, okActions, okLock, r0, start, r1, pause, r2, stop, stop1, tapOpen, tapClose, r3, mode, r4, locked })}`);
+  // Laufzeit direkt in der Karte: Schnellwahl sofort, −/+ gesammelt, Start nutzt den neuen Wert
+  const ed = async (fn, wait = 300) => { const n = await p.evaluate(() => window.serviceCalls.length); await card.evaluate(fn); await p.waitForTimeout(wait);
+    return p.evaluate((n) => window.serviceCalls.slice(n).map((c) => `${c.domain}.${c.service} ${c.data.entity_id}${c.data.value != null ? " " + c.data.value : ""}${c.data.duration ? " " + c.data.duration : ""}`), n); };
+  await card.evaluate((c) => c.shadowRoot.querySelector('.zone[data-zone="1"] .dur').click());
+  await p.waitForTimeout(150);
+  const edTitle = await card.evaluate((c) => c.shadowRoot.querySelector(".editor .ed-title")?.textContent.trim());
+  const chip = await ed((c) => [...c.shadowRoot.querySelectorAll(".ed-chip")].find((b) => b.textContent.trim() === "20").click());
+  const plus = await ed((c) => { const b = c.shadowRoot.querySelectorAll(".ed-step")[1]; b.click(); b.click(); }, 900);
+  const shown = await card.evaluate((c) => [c.shadowRoot.querySelector(".ed-val").textContent.replace(/\s+/g, " ").trim(), c.shadowRoot.querySelector('.zone[data-zone="1"] .dur').textContent.replace(/\s+/g, " ").trim()]);
+  const minus = await ed((c) => c.shadowRoot.querySelectorAll(".ed-step")[0].click(), 50);
+  const startEd = await ed((c) => c.shadowRoot.querySelector(".ed-start").click(), 400);
+  const closed = await card.evaluate((c) => !c.shadowRoot.querySelector(".editor"));
+  /Laufzeit · Beete/i.test(edTitle ?? "") && chip.join() === "input_number.set_value input_number.beete_dauer 20" && plus.join() === "input_number.set_value input_number.beete_dauer 30"
+    && shown.join() === "30 min,30 min" && minus.length === 0
+    && startEd.join() === "input_number.set_value input_number.beete_dauer 25,timer.start timer.beete 00:25:00,homeassistant.turn_on switch.ventil_beete" && closed
+    ? ok("Bewässerung: Laufzeit direkt in der Karte (Schnellwahl, −/+ gesammelt, Starten mit neuer Laufzeit)")
+    : fail(`Laufzeit: ${JSON.stringify({ edTitle, chip, plus, shown, minus, startEd, closed })}`);
 }
 
 // Moduswechsel: jede Karte, jeder Modus (außer Auto/Heizen-Kühlen, dort zählt die Tätigkeit)

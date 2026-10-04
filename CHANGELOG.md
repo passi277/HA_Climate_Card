@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.18.0 – Laufzeit in der Karte
+- Irrigation Card: Tippen auf die Laufzeit öffnet eine Einstellung direkt in der Karte – große Anzeige mit −/+ (unter 10 min minutenweise, darüber in 5er-Schritten), Schnellwahl (`durations`, Standard 5–60 min) und „Starten · X min“; Werte werden sofort im Helfer gespeichert
+
 ## 1.17.0 – Bewässerung: Verteiler
 - Irrigation Card: Ventile hängen jetzt **parallel an einem Verteiler** unter dem Hauswasserwerk (Wasser fließt animiert in jeden offenen Strang)
 - Neuer Strang **„Sonstiges“**: die Pumpe zieht Strom, aber kein Ventil ist offen (`show_other`, `other_threshold`)

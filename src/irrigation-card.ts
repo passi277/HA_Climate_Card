@@ -44,6 +44,10 @@ export class HaIrrigationCard extends LitElement {
   private _tick?: number;
   private _holdTimer?: number;
   private _held = false;
+  /** Zone, deren Laufzeit gerade eingestellt wird, und der noch nicht gesendete Wert */
+  @state() private _edit?: number;
+  @state() private _pending?: { zone: number; value: number };
+  private _sendTimer?: number;
 
   public static getConfigElement(): HTMLElement {
     return document.createElement("ha-irrigation-card-editor");
@@ -74,6 +78,7 @@ export class HaIrrigationCard extends LitElement {
     clearInterval(this._tick);
     this._tick = undefined;
     clearTimeout(this._holdTimer);
+    clearTimeout(this._sendTimer);
   }
 
   private _t(key: string): string {
@@ -177,9 +182,16 @@ export class HaIrrigationCard extends LitElement {
     if (!this._canStart()) return;
     this._haptic("medium");
     try {
+      // noch nicht gesendete Laufzeit zuerst speichern – Skripte lesen den Helfer
+      const p = this._pending;
+      if (p?.zone === z.idx && z.durationSt) {
+        clearTimeout(this._sendTimer);
+        await this._call(z.durationSt.entity_id.split(".")[0]!, "set_value", { entity_id: z.durationSt.entity_id, value: p.value });
+        this._pending = undefined;
+      }
       if (z.cfg.start_script) return void (await this._script(z.cfg.start_script, z.cfg.script_data));
       if (z.cfg.timer) {
-        const min = z.minutes ?? (z.timer?.duration ? z.timer.duration / 60 : undefined);
+        const min = (p?.zone === z.idx ? p.value : z.minutes) ?? (z.timer?.duration ? z.timer.duration / 60 : undefined);
         await this._call("timer", "start", { entity_id: z.cfg.timer, ...(min ? { duration: secondsToDuration(Math.round(min * 60)) } : {}) });
       }
       await this._valve(z.cfg.valve, true);
@@ -223,6 +235,68 @@ export class HaIrrigationCard extends LitElement {
   }
 
   private _holdEnd = (): void => clearTimeout(this._holdTimer);
+
+  /** Laufzeit-Grenzen der Zone (input_number/number) */
+  private _range(z: Zone): { min: number; max: number; step: number } {
+    const a = z.durationSt?.attributes ?? {};
+    return { min: Number(a.min ?? 1), max: Number(a.max ?? 120), step: Number(a.step) || 1 };
+  }
+
+  private _minutes(z: Zone): number | undefined {
+    return this._pending?.zone === z.idx ? this._pending.value : z.minutes;
+  }
+
+  private _toggleEdit(z: Zone): void {
+    this._haptic("selection");
+    this._edit = this._edit === z.idx ? undefined : z.idx;
+  }
+
+  /** Laufzeit setzen – bei −/+ kurz gesammelt, bei Schnellwahl sofort */
+  private _setMinutes(z: Zone, value: number, now = false): void {
+    const st = z.durationSt;
+    if (!st) return;
+    const r = this._range(z);
+    const v = Math.min(r.max, Math.max(r.min, Math.round(value / r.step) * r.step));
+    this._haptic("selection");
+    this._pending = { zone: z.idx, value: v };
+    clearTimeout(this._sendTimer);
+    const send = () => {
+      this._call(st.entity_id.split(".")[0]!, "set_value", { entity_id: st.entity_id, value: v })
+        .catch(() => undefined).finally(() => { if (this._pending?.zone === z.idx && this._pending.value === v) this._pending = undefined; });
+    };
+    if (now) send();
+    else this._sendTimer = window.setTimeout(send, 600);
+  }
+
+  private _step(z: Zone, dir: number): void {
+    const cur = this._minutes(z) ?? this._range(z).min;
+    const r = this._range(z);
+    // feiner unter 10 min, darüber in 5er-Schritten
+    const step = r.step >= 5 ? r.step : cur + dir * r.step > 10 || (dir < 0 && cur > 10) ? 5 : r.step;
+    const next = dir > 0 ? Math.floor(cur / step) * step + step : Math.ceil(cur / step) * step - step;
+    this._setMinutes(z, next);
+  }
+
+  private _renderEditor(z: Zone, canStart: boolean) {
+    const r = this._range(z);
+    const min = this._minutes(z) ?? r.min;
+    const presets = (this._config!.durations ?? [5, 10, 15, 20, 30, 45, 60]).filter((m) => m >= r.min && m <= r.max);
+    const running = z.open || (!!z.timer && z.timer.state !== "idle");
+    return html`<div class="editor" style="--zc:${z.color}">
+      <div class="ed-head">
+        <span class="ed-title"><ha-icon icon="mdi:timer-cog-outline"></ha-icon>${this._t("duration")} · ${z.name}</span>
+        <button class="ed-close" aria-label=${this._t("close")} @click=${() => this._toggleEdit(z)}><ha-icon icon="mdi:close"></ha-icon></button>
+      </div>
+      <div class="ed-main">
+        <button class="ed-step" aria-label="−" ?disabled=${min <= r.min} @click=${() => this._step(z, -1)}><ha-icon icon="mdi:minus"></ha-icon></button>
+        <span class="ed-val">${Math.round(min)}<small> min</small></span>
+        <button class="ed-step" aria-label="+" ?disabled=${min >= r.max} @click=${() => this._step(z, 1)}><ha-icon icon="mdi:plus"></ha-icon></button>
+      </div>
+      <div class="ed-chips">${presets.map((m) => html`<button class="ed-chip ${Math.round(min) === m ? "sel" : ""}" @click=${() => this._setMinutes(z, m, true)}>${m}</button>`)}</div>
+      ${running ? nothing : html`<button class="ed-start" ?disabled=${!canStart || z.unavailable} @click=${() => { this._edit = undefined; this._start(z); }}>
+        <ha-icon icon="mdi:play"></ha-icon>${canStart ? `${this._t("start")} · ${Math.round(min)} min` : this._t("pump_needed")}</button>`}
+    </div>`;
+  }
 
   private _togglePump(): void {
     const c = this._config!;
@@ -296,7 +370,8 @@ export class HaIrrigationCard extends LitElement {
             <ha-icon .icon=${t.state === "paused" ? "mdi:play" : "mdi:pause"}></ha-icon></button>` : nothing}
           <button class="ctl stop" aria-label=${this._t("stop")} @click=${() => this._stop(z)}><ha-icon icon="mdi:stop"></ha-icon></button>`
         : html`
-          ${z.minutes != null ? html`<button class="dur" title=${this._t("duration")} @click=${() => this._moreInfo(z.durationSt?.entity_id)}>${Math.round(z.minutes)}<small> min</small></button>` : nothing}
+          ${z.minutes != null ? html`<button class="dur ${this._edit === z.idx ? "sel" : ""}" title=${this._t("duration")} aria-expanded=${this._edit === z.idx}
+            @click=${() => this._toggleEdit(z)}>${Math.round(this._minutes(z)!)}<small> min</small></button>` : nothing}
           <button class="ctl play" ?disabled=${z.unavailable || !canStart} aria-label=${this._t("start")} @click=${() => this._start(z)}><ha-icon icon="mdi:play"></ha-icon></button>`}
       </div>
     </div>`;
@@ -378,6 +453,7 @@ export class HaIrrigationCard extends LitElement {
         ${flows.length ? html`<div class="pipes">${this._renderPipes(flows)}</div>
           <div class="cols">${zones.map((z, i) => this._renderZone(z, zoneFlow[i]!, canStart))}${showOther ? this._renderOther(otherFlow, watts) : nothing}</div>` : nothing}
       </div>
+      ${this._edit != null && zones[this._edit]?.durationSt ? this._renderEditor(zones[this._edit]!, canStart) : nothing}
       ${c.pump && !pumpOn && zones.length ? html`<div class="hint"><ha-icon icon="mdi:information-outline"></ha-icon>${this._t("pump_needed")}</div>` : nothing}
       ${modeSt && Array.isArray(modeSt.attributes.options) ? html`<div class="modes" role="radiogroup">
         ${(modeSt.attributes.options as string[]).map((o) => html`<button class="mode ${modeSt.state === o ? "sel" : ""}" role="radio" aria-checked=${modeSt.state === o}
@@ -465,9 +541,37 @@ export class HaIrrigationCard extends LitElement {
     .ctl[disabled] { opacity: 0.3; cursor: not-allowed; }
     .ctl.play[disabled] { background: rgba(127,127,127,0.35); }
     .ctl.stop { color: var(--error-color, #e53935); background: color-mix(in srgb, var(--error-color, #e53935) 14%, transparent); }
-    .dur { height: 34px; padding: 0 9px; border: none; border-radius: 999px; background: rgba(127,127,127,0.12); cursor: pointer; font-size: 13px; font-weight: 700; white-space: nowrap; }
+    .dur { height: 34px; min-width: 34px; padding: 0 9px; border: none; border-radius: 999px; background: rgba(127,127,127,0.12); cursor: pointer; font-size: 13px; font-weight: 700; white-space: nowrap; }
     .dur small { font-size: 10.5px; font-weight: 500; color: var(--secondary-text-color); }
     @container (max-width: 330px) { .dur small { display: none; } .dur { padding: 0 8px; } .z-ctrl { gap: 3px; } .ctl { width: 30px; height: 30px; } }
+    .dur.sel { color: #fff; background: var(--zc); }
+    .dur.sel small { color: inherit; opacity: 0.85; }
+    .editor { display: flex; flex-direction: column; gap: 10px; padding: 10px 12px 12px; border-radius: var(--hcc-inner-radius, 14px);
+      background: color-mix(in srgb, var(--zc) 12%, rgba(127,127,127,0.06)); animation: ed-in 0.3s var(--ease-out) both; }
+    @keyframes ed-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+    ha-card.anim-off .editor { animation: none; }
+    .ed-head { display: flex; align-items: center; gap: 8px; }
+    .ed-title { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; font-size: 12px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.04em; color: var(--secondary-text-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ed-title ha-icon { --mdc-icon-size: 16px; color: var(--zc); flex: none; }
+    .ed-close { width: 28px; height: 28px; border-radius: 50%; border: none; padding: 0; display: grid; place-items: center; cursor: pointer; background: none; color: var(--secondary-text-color); }
+    .ed-close ha-icon { --mdc-icon-size: 18px; }
+    .ed-main { display: flex; align-items: center; justify-content: center; gap: 18px; }
+    .ed-step { width: 44px; height: 44px; border-radius: 50%; border: none; padding: 0; display: grid; place-items: center; cursor: pointer; color: var(--zc);
+      background: var(--card-background-color, var(--ha-card-background, #fff)); transition: transform 0.2s var(--ease-spring), opacity 0.2s; touch-action: manipulation; }
+    .ed-step:active { transform: scale(0.88); }
+    .ed-step[disabled] { opacity: 0.35; cursor: default; }
+    .ed-step ha-icon { --mdc-icon-size: 24px; }
+    .ed-val { min-width: 92px; text-align: center; font-size: 34px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+    .ed-val small { font-size: 15px; font-weight: 500; color: var(--secondary-text-color); }
+    .ed-chips { display: flex; gap: 6px; }
+    .ed-chip { flex: 1; min-width: 0; border: none; border-radius: 999px; padding: 7px 2px; cursor: pointer; font-size: 13px; font-weight: 600;
+      background: var(--card-background-color, var(--ha-card-background, #fff)); transition: background 0.2s, color 0.2s; }
+    .ed-chip.sel { color: #fff; background: var(--zc); }
+    .ed-start { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 9px; border: none; border-radius: 999px; cursor: pointer;
+      font-size: 14px; font-weight: 600; color: #fff; background: var(--zc); }
+    .ed-start[disabled] { color: var(--secondary-text-color); background: rgba(127,127,127,0.15); cursor: not-allowed; }
+    .ed-start ha-icon { --mdc-icon-size: 20px; }
     .hint { display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 12.5px; color: var(--secondary-text-color); margin-top: -4px; }
     .hint ha-icon { --mdc-icon-size: 16px; }
     .modes { display: flex; gap: 4px; padding: 4px; border-radius: 999px; background: rgba(127,127,127,0.1); }
