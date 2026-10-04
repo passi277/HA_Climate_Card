@@ -555,6 +555,7 @@ Tippen auf die Laufzeit öffnet die **Laufzeit-Einstellung direkt in der Karte**
 **Tippen aufs Ventil-Symbol öffnet bzw. schließt nur das Ventil** (ohne Timer/Skript), lange drücken zeigt Details.
 Ist die Pumpe aus, sind Ventile und Stränge zu sehen, lassen sich aber nicht von Hand öffnen (Schließen/Stoppen geht immer).
 Dazu Modus-Auswahl, Startzeit, „Alle nacheinander“, „Alles aus“ und der letzte Lauf.
+Im **Smart-Modus** (`smart_mode`) ist die Laufzeit gesperrt – die Karte zeigt den berechneten Vorschlag (z.B. aus Smart Irrigation, aufgerundet, gekappt bei `smart_max`, unter `smart_min` „wird übersprungen“) und startet mit diesem Wert.
 
 ```yaml
 type: custom:ha-irrigation-card
@@ -569,6 +570,9 @@ stop_all: script.notaus                  # optional, sonst: Timer stoppen, Venti
 last_run: input_text.letzter_lauf
 # show_other: false                     # Strang „Sonstiges“ ausblenden
 # durations: [5, 10, 15, 30, 60]         # Schnellwahl der Laufzeit
+smart_mode: Smart                        # in diesem Modus: Laufzeit gesperrt, Vorschlag aus smart_duration
+smart_max: 30                            # höchstens 30 min
+smart_min: 3                             # unter 3 min wird übersprungen
 zones:
   - valve: switch.ventil_rasen           # switch.* oder valve.*
     name: Rasen
@@ -576,6 +580,7 @@ zones:
     timer: timer.rasen                   # Restzeit / Fortschritt
     duration: input_number.rasen_dauer   # Laufzeit in Minuten
     volume: sensor.ventil_rasen_menge    # optional: Wassermenge
+    smart_duration: sensor.smart_irrigation_rasen   # berechnete Laufzeit (s oder min)
     # flow / battery werden automatisch gefunden (sensor.ventil_rasen_flow / _battery)
     # eigene Skripte statt Timer + Ventil:
     # start_script: script.zone_starten

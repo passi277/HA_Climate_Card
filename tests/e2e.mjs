@@ -899,7 +899,7 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
   const tapClose = await calls((c) => c.shadowRoot.querySelector('.zone[data-zone="2"] .z-badge').click());
   // alle zu, Pumpe zieht Strom → Sonstiges
   const r3 = await read();
-  const mode = await calls((c) => [...c.shadowRoot.querySelectorAll(".mode")].find((b) => b.textContent.trim() === "Automatik").click());
+  const mode = await calls((c) => [...c.shadowRoot.querySelectorAll(".mode")].find((b) => b.textContent.trim() === "Aus").click());
   // Pumpe aus → nichts von Hand startbar
   await setStates({ "switch.hauswasserwerk": "off", "sensor.hauswasserwerk_power": "0" });
   await p.waitForTimeout(150);
@@ -907,13 +907,13 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
   const locked = await calls((c) => { c.shadowRoot.querySelector('.zone[data-zone="0"] .z-badge').click(); c.shadowRoot.querySelector('.zone[data-zone="0"] .ctl.play').click(); });
   await setStates({ "switch.hauswasserwerk": "on", "sensor.hauswasserwerk_power": "642" });
   const okState = /^Pumpt · Rasen$/.test(r0.sub) && r0.v.join() === "true,false,false,false" && r0.trunk && /^Rasen\|\d+:\d\d\|14 L\/min$/.test(r0.cols[0])
-    && r0.cols[1] === "Beete|zu|zuletzt 171 L" && r0.cols[2] === "Hecke|zu|14 %" && r0.cols[3] === "Sonstiges|–|" && r0.mode === "Smart";
+    && r0.cols[1] === "Beete|zu|zuletzt 171 L" && r0.cols[2] === "Hecke|zu|14 %" && r0.cols[3] === "Sonstiges|–|" && r0.mode === "Automatik";
   const okActions = start.join() === "timer.start timer.beete 00:10:00,homeassistant.turn_on switch.ventil_beete" && r1.v.join() === "true,true,false,false"
     && pause.join() === "timer.pause timer.rasen,homeassistant.turn_off switch.ventil_rasen" && /^Rasen\|⏸ /.test(r2.cols[0])
     && stop.join() === "timer.cancel timer.rasen,homeassistant.turn_off switch.ventil_rasen" && stop1.length === 2
     && tapOpen.join() === "homeassistant.turn_on switch.ventil_hecke" && tapClose.join() === "homeassistant.turn_off switch.ventil_hecke"
     && r3.v.join() === "false,false,false,true" && r3.cols[3] === "Sonstiges|läuft|642 W"
-    && mode.join() === "input_select.select_option input_select.bewaesserung_modus Automatik";
+    && mode.join() === "input_select.select_option input_select.bewaesserung_modus Aus";
   const okLock = r4.play.every(Boolean) && r4.hint && !r4.trunk && locked.length === 0;
   okState && okActions && okLock
     ? ok("Bewässerung: Ventile parallel am Verteiler + „Sonstiges“, Tippen schaltet nur das Ventil, Start/Pause/Stopp, ohne Pumpe gesperrt, Modus")
@@ -935,6 +935,22 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
     && startEd.join() === "input_number.set_value input_number.beete_dauer 25,timer.start timer.beete 00:25:00,homeassistant.turn_on switch.ventil_beete" && closed
     ? ok("Bewässerung: Laufzeit direkt in der Karte (Schnellwahl, −/+ gesammelt, Starten mit neuer Laufzeit)")
     : fail(`Laufzeit: ${JSON.stringify({ edTitle, chip, plus, shown, minus, startEd, closed })}`);
+  // Modus Smart: Laufzeit gesperrt, Vorschlag (aufgerundet, max 30, unter 3 min übersprungen), Start mit Vorschlag
+  await card.evaluate((c) => c.shadowRoot.querySelector('.zone[data-zone="1"] .ctl.stop')?.click());
+  await p.waitForTimeout(300);
+  await setStates({ "input_select.bewaesserung_modus": "Smart" });
+  await p.waitForTimeout(150);
+  const chips = await card.evaluate((c) => [1, 2].map((i) => { const d = c.shadowRoot.querySelector(`.zone[data-zone="${i}"] .dur`); return `${d.className.includes("smart")}:${d.className.includes("skip")}:${d.textContent.replace(/\s+/g, " ").trim()}`; }));
+  await card.evaluate((c) => c.shadowRoot.querySelector('.zone[data-zone="1"] .dur').click());
+  await p.waitForTimeout(150);
+  const smartEd = await card.evaluate((c) => { const e = c.shadowRoot.querySelector(".editor"); return { smart: e.classList.contains("smart"), steps: e.querySelectorAll(".ed-step, .ed-chip").length,
+    val: e.querySelector(".ed-val").textContent.replace(/\s+/g, " ").trim(), note: e.querySelector(".ed-note").textContent.trim() }; });
+  const smartStart = await ed((c) => c.shadowRoot.querySelector(".ed-start").click(), 400);
+  await setStates({ "input_select.bewaesserung_modus": "Automatik" });
+  chips.join() === "true:false:30 min,true:true:" && smartEd.smart && smartEd.steps === 0 && smartEd.val === "30 min" && /gekappt – berechnet 35 min/.test(smartEd.note)
+    && smartStart.join() === "timer.start timer.beete 00:30:00,homeassistant.turn_on switch.ventil_beete"
+    ? ok("Bewässerung: im Modus Smart Laufzeit gesperrt, Vorschlag (gekappt / übersprungen), Start mit Vorschlag")
+    : fail(`Smart: ${JSON.stringify({ chips, smartEd, smartStart })}`);
 }
 
 // Moduswechsel: jede Karte, jeder Modus (außer Auto/Heizen-Kühlen, dort zählt die Tätigkeit)

@@ -695,7 +695,13 @@
     "pump_needed": "Pumpe einschalten, um Ventile zu öffnen",
     "open_valve": "Ventil öffnen",
     "close_valve": "Ventil schließen",
-    "close": "Schließen"
+    "close": "Schließen",
+    "smart_title": "Smart-Vorschlag",
+    "smart_calculated": "berechnet {raw} min",
+    "smart_capped": "gekappt – berechnet {raw} min",
+    "smart_skipped": "wird übersprungen – nur {raw} min berechnet",
+    "smart_unavailable": "kein Vorschlag verfügbar",
+    "smart_locked": "Im Modus Smart wird die Laufzeit berechnet"
   },
   "irrigation_editor": {
     "title": "Titel",

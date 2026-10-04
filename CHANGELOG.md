@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.19.0 – Smart-Modus
+- Irrigation Card: im Modus „Smart“ (`smart_mode`) ist die Laufzeit gesperrt; Chip und Einstellung zeigen den berechneten Vorschlag (`smart_duration`, z.B. Smart Irrigation) – aufgerundet, bei `smart_max` gekappt, unter `smart_min` „wird übersprungen“. Start nutzt den Vorschlag (bei Skripten als `dauer_min`)
+
 ## 1.18.0 – Laufzeit in der Karte
 - Irrigation Card: Tippen auf die Laufzeit öffnet eine Einstellung direkt in der Karte – große Anzeige mit −/+ (unter 10 min minutenweise, darüber in 5er-Schritten), Schnellwahl (`durations`, Standard 5–60 min) und „Starten · X min“; Werte werden sofort im Helfer gespeichert
 

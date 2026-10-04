@@ -695,7 +695,13 @@
     "pump_needed": "Turn on the pump to open valves",
     "open_valve": "Open valve",
     "close_valve": "Close valve",
-    "close": "Close"
+    "close": "Close",
+    "smart_title": "Smart suggestion",
+    "smart_calculated": "calculated {raw} min",
+    "smart_capped": "capped – calculated {raw} min",
+    "smart_skipped": "skipped – only {raw} min calculated",
+    "smart_unavailable": "no suggestion available",
+    "smart_locked": "In smart mode the duration is calculated"
   },
   "irrigation_editor": {
     "title": "Title",

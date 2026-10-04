@@ -536,6 +536,8 @@ export interface IrrigationZoneConfig {
   /** Wassermenge (z.B. letzter Lauf / heute) */
   volume?: string;
   battery?: string;
+  /** Berechnete Laufzeit (z.B. Smart Irrigation, in s/min) – gilt im smart_mode */
+  smart_duration?: string;
   /** Eigene Skripte statt Timer + Ventil direkt; script_data wird mitgeschickt (z.B. zone: volleyball) */
   start_script?: string;
   pause_script?: string;
@@ -565,6 +567,11 @@ export interface IrrigationCardConfig {
   run_all_active?: string;
   /** Notaus (Skript) – sonst: alle Timer stoppen, Ventile und Pumpe aus */
   stop_all?: string;
+  /** Modus-Option, in der die Laufzeiten berechnet werden (z.B. "Smart") – dann gesperrt, Vorschlag aus smart_duration */
+  smart_mode?: string;
+  /** Smart: höchstens so viele Minuten (z.B. 30), darunter wird übersprungen (z.B. 3) */
+  smart_max?: number;
+  smart_min?: number;
   /** Schnellwahl der Laufzeit in Minuten (Standard 5, 10, 15, 20, 30, 45, 60) */
   durations?: number[];
   /** Text-Entität mit Infos zum letzten Lauf */
