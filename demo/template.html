@@ -330,9 +330,14 @@
       "input_number.rasen_dauer": { state: "15", attributes: { friendly_name: "Rasen Dauer", min: 1, max: 120, step: 1, unit_of_measurement: "min" } },
       "input_number.beete_dauer": { state: "10", attributes: { friendly_name: "Beete Dauer", min: 1, max: 120, step: 1, unit_of_measurement: "min" } },
       "input_number.hecke_dauer": { state: "5", attributes: { friendly_name: "Hecke Dauer", min: 1, max: 120, step: 1, unit_of_measurement: "min" } },
-      "sensor.smart_irrigation_rasen": { state: "521", attributes: { friendly_name: "Rasen Duration", unit_of_measurement: "s" } },
-      "sensor.smart_irrigation_beete": { state: "2100", attributes: { friendly_name: "Beete Duration", unit_of_measurement: "s" } },
-      "sensor.smart_irrigation_hecke": { state: "100", attributes: { friendly_name: "Hecke Duration", unit_of_measurement: "s" } },
+      "sensor.smart_irrigation_rasen": { state: "521", attributes: { friendly_name: "Rasen Duration", unit_of_measurement: "s", bucket: -1.0, maximum_bucket: 24, size: 80, throughput: 5, multiplier: 1, eto: 1.34, last_calculated: new Date(Date.now() - 3600000).toISOString().slice(0, 19).replace('T', ' '), number_of_data_points: 12 } },
+      "sensor.smart_irrigation_beete": { state: "2100", attributes: { friendly_name: "Beete Duration", unit_of_measurement: "s", bucket: -12.4, maximum_bucket: 24, size: 120, throughput: 17, multiplier: 0.8, eto: 1.34, last_calculated: new Date(Date.now() - 3600000).toISOString().slice(0, 19).replace('T', ' '), number_of_data_points: 12 } },
+      "sensor.smart_irrigation_hecke": { state: "100", attributes: { friendly_name: "Hecke Duration", unit_of_measurement: "s", bucket: 0.6, maximum_bucket: 24, size: 30, throughput: 8, multiplier: 0.5, eto: 1.34, last_calculated: new Date(Date.now() - 3600000).toISOString().slice(0, 19).replace('T', ' '), number_of_data_points: 12 } },
+      "input_select.jahreszeiten": { state: "Sommer", attributes: { friendly_name: "Jahreszeiten", options: ["Sommer", "Winter"] } },
+      "sensor.dwd_warnstufe": { state: "0", attributes: { friendly_name: "DWD Warnstufe" } },
+      "binary_sensor.smart_bewaesserung_faellt_aus": { state: "off", attributes: { friendly_name: "Smart-Bewässerung fällt aus" } },
+      "input_text.bewaesserung_sperre_grund": { state: "Regen angesagt (6 mm)", attributes: { friendly_name: "Sperre Grund" } },
+      "input_text.bewaesserung_durchfluss": { state: "Gemessen 03.10.: Rasen 4.9 l/min; Beete 16.8 l/min; Hecke 7.5 l/min", attributes: { friendly_name: "Gemessener Durchfluss" } },
       "input_select.bewaesserung_modus": { state: "Automatik", attributes: { friendly_name: "Bewässerung Modus", options: ["Aus", "Automatik", "Smart"] } },
       "input_text.bewaesserung_letzter_lauf": { state: "03.10. 11:00: Rasen 13 min/64 l; Beete 10 min/52 l; Hecke 4 min/18 l", attributes: { friendly_name: "Letzter Lauf" } },
       "lock.klingel": { state: "locked", attributes: { friendly_name: "Klingel", supported_features: 1 } },
@@ -565,6 +570,11 @@
           return out;
         }
         const end = Date.now() / 1000, start = end - 24 * 3600;
+        // Wasserkonto der Smart-Zonen: 7 Tage, täglich verändert
+        if (msg.entity_ids.every((id) => id.startsWith("sensor.smart_irrigation"))) {
+          for (const id of msg.entity_ids) out[id] = Array.from({ length: 8 }, (_, i) => ({ s: states[id].state, lu: end - (7 - i) * 86400, a: { bucket: +(Math.sin(i / 1.5) * 4 - i * 0.6).toFixed(1) } }));
+          return out;
+        }
         for (const id of msg.entity_ids) {
           const arr = [];
           for (let t = start, i = 0; t < end - 45 * 60; t += 1800, i++) {
@@ -628,6 +638,8 @@
       ["Bewässerung – Hauswasserwerk mit Ventilen, Timer, Laufzeit, Durchfluss (Wasser fließt animiert zur offenen Zone)", { _irrigation: true,
         title: "Hauswasserwerk", pump: "switch.hauswasserwerk", pump_power: "sensor.hauswasserwerk_power", mode: "input_select.bewaesserung_modus",
         start_time: "input_datetime.bewaesserung_start", last_run: "input_text.bewaesserung_letzter_lauf", smart_mode: "Smart", smart_max: 30, smart_min: 3,
+        smart: { calculate: "script.smart_berechnen", run: "script.smart_durchlauf", reset_buckets: true, skipped: "binary_sensor.smart_bewaesserung_faellt_aus",
+          skipped_reason: "input_text.bewaesserung_sperre_grund", season: "input_select.jahreszeiten", warning: "sensor.dwd_warnstufe", measured_flow: "input_text.bewaesserung_durchfluss" },
         zones: [{ valve: "switch.ventil_rasen", timer: "timer.rasen", duration: "input_number.rasen_dauer", smart_duration: "sensor.smart_irrigation_rasen" },
           { valve: "switch.ventil_beete", timer: "timer.beete", duration: "input_number.beete_dauer", volume: "sensor.ventil_beete_menge", smart_duration: "sensor.smart_irrigation_beete" },
           { valve: "switch.ventil_hecke", timer: "timer.hecke", duration: "input_number.hecke_dauer", smart_duration: "sensor.smart_irrigation_hecke" }] }],

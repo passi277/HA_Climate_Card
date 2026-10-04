@@ -938,15 +938,36 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
   // Modus Smart: Laufzeit gesperrt, Vorschlag (aufgerundet, max 30, unter 3 min übersprungen), Start mit Vorschlag
   await card.evaluate((c) => c.shadowRoot.querySelector('.zone[data-zone="1"] .ctl.stop')?.click());
   await p.waitForTimeout(300);
-  await setStates({ "input_select.bewaesserung_modus": "Smart" });
-  await p.waitForTimeout(150);
+  await card.evaluate((c) => [...c.shadowRoot.querySelectorAll(".mode")].find((b) => b.textContent.trim() === "Smart").click());
+  await p.waitForTimeout(300);
   const chips = await card.evaluate((c) => [1, 2].map((i) => { const d = c.shadowRoot.querySelector(`.zone[data-zone="${i}"] .dur`); return `${d.className.includes("smart")}:${d.className.includes("skip")}:${d.textContent.replace(/\s+/g, " ").trim()}`; }));
   await card.evaluate((c) => c.shadowRoot.querySelector('.zone[data-zone="1"] .dur').click());
   await p.waitForTimeout(150);
   const smartEd = await card.evaluate((c) => { const e = c.shadowRoot.querySelector(".editor"); return { smart: e.classList.contains("smart"), steps: e.querySelectorAll(".ed-step, .ed-chip").length,
     val: e.querySelector(".ed-val").textContent.replace(/\s+/g, " ").trim(), note: e.querySelector(".ed-note").textContent.trim() }; });
   const smartStart = await ed((c) => c.shadowRoot.querySelector(".ed-start").click(), 400);
-  await setStates({ "input_select.bewaesserung_modus": "Automatik" });
+  // Smart-Bereich: Infos, Plan, Wasserkonten, Details mit Verlauf, Aktionen (mit Rückfrage)
+  const panel = await card.evaluate((c) => { const r = c.shadowRoot.querySelector(".smart-panel"); return r && {
+    chips: [...r.querySelectorAll(".sp-chip")].map((x) => x.textContent.replace(/\s+/g, " ").trim()), plan: r.querySelector(".sp-plan-text").textContent.replace(/\s+/g, " ").trim(),
+    buckets: [...r.querySelectorAll(".sz-bucket")].map((x) => x.textContent.trim()), alert: !!r.querySelector(".sp-alert") }; });
+  await card.evaluate((c) => c.shadowRoot.querySelectorAll(".sz-row")[1].click());
+  await p.waitForTimeout(400);
+  const details = await card.evaluate((c) => { const d = c.shadowRoot.querySelector(".sz.open .sz-details"); return d && {
+    facts: [...d.querySelectorAll(".sz-facts b")].map((x) => x.textContent.trim()), spark: !!d.querySelector(".spark path") }; });
+  const calc = await ed((c) => c.shadowRoot.querySelector(".sp-act").click());
+  const run1 = await ed((c) => c.shadowRoot.querySelector(".sp-act.run").click(), 100);
+  const asked = await card.evaluate((c) => c.shadowRoot.querySelector(".sp-act.run").textContent.trim());
+  const run2 = await ed((c) => c.shadowRoot.querySelector(".sp-act.run").click());
+  const reset = await ed((c) => { const b = c.shadowRoot.querySelector(".sp-act.reset"); b.click(); b.click(); });
+  panel && !panel.alert && panel.chips.length === 4 && /^Sommer$/.test(panel.chips[0]) && panel.chips[1] === "DWD ok" && /^ET₀ 1,3 mm$/.test(panel.chips[2]) && /12 Messpunkte/.test(panel.chips[3])
+    && panel.plan === "Rasen 9 min · Beete 30 min — übersprungen: Hecke" && panel.buckets.join() === "-1 mm · fehlt,-12,4 mm · fehlt,+0,6 mm · ok"
+    && details?.facts.join() === "120 m²,8,5 mm/h,× 0,8" && details.spark
+    && calc.join() === "script.turn_on script.smart_berechnen" && run1.length === 0 && /Sicher/.test(asked) && run2.join() === "script.turn_on script.smart_durchlauf"
+    && reset.join() === "smart_irrigation.reset_all_buckets undefined"
+    ? ok("Bewässerung: Smart-Bereich (Jahreszeit, DWD, ET₀, Plan, Wasserkonten + Verlauf, Neu berechnen / Jetzt gießen / Konten auf 0 mit Rückfrage)")
+    : fail(`Smart-Bereich: ${JSON.stringify({ panel, details, calc, run1, asked, run2, reset })}`);
+  await card.evaluate((c) => [...c.shadowRoot.querySelectorAll(".mode")].find((b) => b.textContent.trim() === "Automatik").click());
+  await p.waitForTimeout(300);
   chips.join() === "true:false:30 min,true:true:" && smartEd.smart && smartEd.steps === 0 && smartEd.val === "30 min" && /gekappt – berechnet 35 min/.test(smartEd.note)
     && smartStart.join() === "timer.start timer.beete 00:30:00,homeassistant.turn_on switch.ventil_beete"
     ? ok("Bewässerung: im Modus Smart Laufzeit gesperrt, Vorschlag (gekappt / übersprungen), Start mit Vorschlag")

@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.20.0 – Smart-Bereich
+- Irrigation Card: im Smart-Modus erscheint ein Smart-Bereich (`smart:`) – Ausfall-Hinweis mit Grund, Jahreszeit, DWD-Warnstufe, ET₀, letzte Berechnung + Messpunkte, Plan für den nächsten Lauf, Wasserkonto je Zone (Balken; antippen: Fläche, mm/h, Pflanzenfaktor, 7-Tage-Verlauf), „Neu berechnen“, „Jetzt gießen“ und „Konten auf 0“ (mit Rückfrage), gemessener Durchfluss und Hinweistext
+
 ## 1.19.0 – Smart-Modus
 - Irrigation Card: im Modus „Smart“ (`smart_mode`) ist die Laufzeit gesperrt; Chip und Einstellung zeigen den berechneten Vorschlag (`smart_duration`, z.B. Smart Irrigation) – aufgerundet, bei `smart_max` gekappt, unter `smart_min` „wird übersprungen“. Start nutzt den Vorschlag (bei Skripten als `dauer_min`)
 

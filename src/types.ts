@@ -521,6 +521,26 @@ export interface EnergyCardConfig {
   [key: string]: unknown;
 }
 
+/** Smart-Bereich der Bewässerungskarte */
+export interface IrrigationSmartConfig {
+  /** „Neu berechnen“: automation.* (wird ausgelöst) oder script.* */
+  calculate?: string;
+  /** „Jetzt gießen“ (Skript, mit Rückfrage) */
+  run?: string;
+  /** „Konten auf 0“ – smart_irrigation.reset_all_buckets (mit Rückfrage) */
+  reset_buckets?: boolean;
+  /** Smart-Lauf fällt aus (binary_sensor) und Grund (Text) */
+  skipped?: string;
+  skipped_reason?: string;
+  /** Jahreszeit (input_select), Unwetter-Warnstufe (Zahl, 0 = keine) */
+  season?: string;
+  warning?: string;
+  /** Text mit gemessenem Durchfluss */
+  measured_flow?: string;
+  /** Hinweistext unten */
+  note?: string;
+}
+
 /** Bewässerungs-Zone: ein Ventil, optional mit Timer, Dauer und Sensoren */
 export interface IrrigationZoneConfig {
   valve: string;
@@ -572,6 +592,8 @@ export interface IrrigationCardConfig {
   /** Smart: höchstens so viele Minuten (z.B. 30), darunter wird übersprungen (z.B. 3) */
   smart_max?: number;
   smart_min?: number;
+  /** Zusätzliche Smart-Infos und -Aktionen (nur im smart_mode sichtbar) */
+  smart?: IrrigationSmartConfig;
   /** Schnellwahl der Laufzeit in Minuten (Standard 5, 10, 15, 20, 30, 45, 60) */
   durations?: number[];
   /** Text-Entität mit Infos zum letzten Lauf */

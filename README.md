@@ -556,6 +556,7 @@ Tippen auf die Laufzeit öffnet die **Laufzeit-Einstellung direkt in der Karte**
 Ist die Pumpe aus, sind Ventile und Stränge zu sehen, lassen sich aber nicht von Hand öffnen (Schließen/Stoppen geht immer).
 Dazu Modus-Auswahl, Startzeit, „Alle nacheinander“, „Alles aus“ und der letzte Lauf.
 Im **Smart-Modus** (`smart_mode`) ist die Laufzeit gesperrt – die Karte zeigt den berechneten Vorschlag (z.B. aus Smart Irrigation, aufgerundet, gekappt bei `smart_max`, unter `smart_min` „wird übersprungen“) und startet mit diesem Wert.
+Darunter erscheint im Smart-Modus ein **Smart-Bereich**: Hinweis, wenn der Lauf ausfällt (mit Grund), Jahreszeit, Unwetter-Warnstufe, ET₀, letzte Berechnung, der Plan für den nächsten Lauf, je Zone das **Wasserkonto** (antippen: Fläche, mm/h, Pflanzenfaktor und Verlauf der letzten 7 Tage) sowie „Neu berechnen“, „Jetzt gießen“ und „Konten auf 0“ (beide mit Rückfrage).
 
 ```yaml
 type: custom:ha-irrigation-card
@@ -573,6 +574,16 @@ last_run: input_text.letzter_lauf
 smart_mode: Smart                        # in diesem Modus: Laufzeit gesperrt, Vorschlag aus smart_duration
 smart_max: 30                            # höchstens 30 min
 smart_min: 3                             # unter 3 min wird übersprungen
+smart:                                   # optional: Smart-Bereich (nur im smart_mode)
+  calculate: automation.smart_berechnen  # „Neu berechnen“ (automation oder script)
+  run: script.smart_durchlauf            # „Jetzt gießen“
+  reset_buckets: true                    # „Konten auf 0“ (smart_irrigation.reset_all_buckets)
+  skipped: binary_sensor.smart_faellt_aus
+  skipped_reason: input_text.sperre_grund
+  season: input_select.jahreszeiten
+  warning: sensor.dwd_warnstufe          # 0 = keine Warnung
+  measured_flow: input_text.gemessener_durchfluss
+  # note: Eigener Hinweistext
 zones:
   - valve: switch.ventil_rasen           # switch.* oder valve.*
     name: Rasen

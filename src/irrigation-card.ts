@@ -48,6 +48,11 @@ export class HaIrrigationCard extends LitElement {
   @state() private _edit?: number;
   @state() private _pending?: { zone: number; value: number };
   private _sendTimer?: number;
+  /** Smart-Bereich: aufgeklappte Zone, Wasserkonto-Verlauf, Rückfrage für Aktionen */
+  @state() private _smartOpen?: number;
+  @state() private _bucketHist: Record<string, { t: number; v: number }[]> = {};
+  @state() private _confirm?: string;
+  private _confirmTimer?: number;
 
   public static getConfigElement(): HTMLElement {
     return document.createElement("ha-irrigation-card-editor");
@@ -79,6 +84,7 @@ export class HaIrrigationCard extends LitElement {
     this._tick = undefined;
     clearTimeout(this._holdTimer);
     clearTimeout(this._sendTimer);
+    clearTimeout(this._confirmTimer);
   }
 
   private _t(key: string): string {
@@ -97,7 +103,9 @@ export class HaIrrigationCard extends LitElement {
 
   private _ids(): string[] {
     const c = this._config!;
-    return [c.pump, c.pump_power, c.mode, c.start_time, c.run_all, c.run_all_active, c.last_run, ...c.zones.flatMap((z) => this._zoneIds(z))]
+    const sm = c.smart ?? {};
+    return [c.pump, c.pump_power, c.mode, c.start_time, c.run_all, c.run_all_active, c.last_run, sm.skipped, sm.skipped_reason, sm.season, sm.warning, sm.measured_flow,
+      ...c.zones.flatMap((z) => this._zoneIds(z))]
       .filter(Boolean) as string[];
   }
 
@@ -440,6 +448,163 @@ export class HaIrrigationCard extends LitElement {
       ${smart ? html`<ha-icon icon=${smart.skipped ? "mdi:skip-next" : "mdi:auto-fix"}></ha-icon>` : nothing}${smart?.skipped ? nothing : html`${Math.round(this._minutes(z)!)}<small> min</small>`}</button>`;
   }
 
+  // ---------- Smart-Bereich ----------
+
+  /** Aktion mit Rückfrage: erster Tipp fragt, zweiter führt aus */
+  private _confirmed(key: string): boolean {
+    if (this._confirm === key) { this._confirm = undefined; clearTimeout(this._confirmTimer); return true; }
+    this._haptic("warning");
+    this._confirm = key;
+    clearTimeout(this._confirmTimer);
+    this._confirmTimer = window.setTimeout(() => (this._confirm = undefined), 4000);
+    return false;
+  }
+
+  private _smartAction(kind: "calculate" | "run" | "reset"): void {
+    const sm = this._config!.smart ?? {};
+    if (kind === "calculate" && sm.calculate) {
+      this._haptic("medium");
+      const [domain] = sm.calculate.split(".");
+      (domain === "automation" ? this._call("automation", "trigger", { entity_id: sm.calculate }) : this._script(sm.calculate)).catch(() => undefined);
+    } else if (kind === "run" && sm.run) {
+      if (!this._confirmed("run")) return;
+      this._haptic("medium");
+      this._script(sm.run).catch(() => undefined);
+    } else if (kind === "reset") {
+      if (!this._confirmed("reset")) return;
+      this._haptic("medium");
+      this._call("smart_irrigation", "reset_all_buckets", {}).catch(() => undefined);
+    }
+  }
+
+  private async _toggleSmartZone(z: Zone): Promise<void> {
+    this._haptic("selection");
+    this._smartOpen = this._smartOpen === z.idx ? undefined : z.idx;
+    const id = z.cfg.smart_duration;
+    if (this._smartOpen == null || !id || this._bucketHist[id] || !this.hass?.callWS) return;
+    try {
+      const res = await this.hass.callWS<Record<string, { a?: Record<string, any>; attributes?: Record<string, any>; lu?: number; last_updated?: string }[]>>({
+        type: "history/history_during_period", start_time: new Date(Date.now() - 7 * 86400_000).toISOString(), end_time: new Date().toISOString(),
+        entity_ids: [id], minimal_response: false, no_attributes: false, significant_changes_only: false,
+      });
+      let last: number | undefined;
+      const pts: { t: number; v: number }[] = [];
+      for (const e of res?.[id] ?? []) {
+        const b = Number((e.a ?? e.attributes)?.bucket);
+        const t = e.lu != null ? e.lu * 1000 : new Date(e.last_updated ?? 0).getTime();
+        if (!Number.isFinite(b) || b === last) continue;
+        last = b;
+        pts.push({ t, v: b });
+      }
+      this._bucketHist = { ...this._bucketHist, [id]: pts };
+    } catch { /* Verlauf nicht verfügbar */ }
+  }
+
+  private _fmtNum(v: number, digits = 1): string {
+    return v.toLocaleString(getLanguage(this.hass), { maximumFractionDigits: digits, minimumFractionDigits: 0 });
+  }
+
+  /** Wasserkonto-Verlauf (7 Tage) als kleine Linie mit Null-Linie */
+  private _sparkline(pts: { t: number; v: number }[], now: number, current: number) {
+    const all = [...pts, { t: now, v: current }];
+    if (all.length < 2) return nothing;
+    const t0 = now - 7 * 86400_000;
+    const vs = all.map((p) => p.v);
+    const lo = Math.min(0, ...vs) - 0.5;
+    const hi = Math.max(0, ...vs) + 0.5;
+    const x = (t: number) => ((Math.max(t0, t) - t0) / (now - t0)) * 200;
+    const y = (v: number) => 4 + (1 - (v - lo) / (hi - lo)) * 40;
+    // Treppenlinie: Konto ändert sich sprunghaft
+    let d = `M${x(all[0]!.t).toFixed(1)},${y(all[0]!.v).toFixed(1)}`;
+    for (let i = 1; i < all.length; i++) d += ` H${x(all[i]!.t).toFixed(1)} V${y(all[i]!.v).toFixed(1)}`;
+    return html`<svg class="spark" viewBox="0 0 200 48" preserveAspectRatio="none" aria-hidden="true">
+      <line x1="0" x2="200" y1=${y(0).toFixed(1)} y2=${y(0).toFixed(1)} class="zero"></line>
+      <path d=${d} class=${current < 0 ? "neg" : "pos"}></path></svg>`;
+  }
+
+  private _renderSmartZone(z: Zone) {
+    const st = z.cfg.smart_duration ? this.hass!.states[z.cfg.smart_duration] : undefined;
+    const smart = this._smart(z);
+    if (!st || !smart) return nothing;
+    const a = st.attributes;
+    const bucket = Number(a.bucket);
+    const maxB = Math.max(1, Number(a.maximum_bucket) || 20);
+    const share = Number.isFinite(bucket) ? Math.max(-1, Math.min(1, bucket / maxB)) : 0;
+    const col = !Number.isFinite(bucket) ? "var(--secondary-text-color)" : bucket >= 0 ? WATER : bucket < -10 ? "var(--error-color, #e53935)" : "#fb8c00";
+    const open = this._smartOpen === z.idx;
+    const size = Number(a.size);
+    const tp = Number(a.throughput);
+    const mmh = Number.isFinite(size) && size > 0 && Number.isFinite(tp) ? (tp * 60) / size : undefined;
+    const hist = z.cfg.smart_duration ? this._bucketHist[z.cfg.smart_duration] : undefined;
+    return html`<div class="sz ${open ? "open" : ""}" style="--zc:${z.color};--bc:${col}">
+      <button class="sz-row" aria-expanded=${open} @click=${() => this._toggleSmartZone(z)}>
+        <span class="sz-icon"><ha-icon .icon=${z.icon}></ha-icon></span>
+        <span class="sz-text"><span class="sz-name">${z.name}</span>
+          <span class="sz-bucket">${Number.isFinite(bucket) ? `${bucket >= 0 ? "+" : ""}${this._fmtNum(bucket)} mm · ${this._t(bucket >= 0 ? "bucket_ok" : "bucket_low")}` : this._t("unavailable")}</span>
+          <span class="sz-bar"><span class="sz-fill" style="${share >= 0 ? `left:50%;width:${share * 50}%` : `right:50%;width:${-share * 50}%`}"></span></span></span>
+        <span class="sz-min ${smart.skipped ? "skip" : ""}">${smart.skipped ? html`<ha-icon icon="mdi:skip-next"></ha-icon>${this._t("skip_short")}` : `${smart.minutes} min`}</span>
+        <ha-icon class="sz-chev" icon="mdi:chevron-down"></ha-icon>
+      </button>
+      ${open ? html`<div class="sz-details">
+        <div class="sz-facts">
+          ${Number.isFinite(size) ? html`<span><ha-icon icon="mdi:texture-box"></ha-icon><b>${this._fmtNum(size, 0)} m²</b><small>${this._t("area")}</small></span>` : nothing}
+          ${Number.isFinite(tp) ? html`<span><ha-icon icon="mdi:water-pump"></ha-icon><b>${mmh != null ? `${this._fmtNum(mmh)} mm/h` : `${this._fmtNum(tp, 0)} l/min`}</b><small>${this._fmtNum(tp, 0)} l/min</small></span>` : nothing}
+          ${a.multiplier != null ? html`<span><ha-icon icon="mdi:leaf"></ha-icon><b>× ${this._fmtNum(Number(a.multiplier), 2)}</b><small>${this._t("plant_factor")}</small></span>` : nothing}
+        </div>
+        <div class="sz-graph"><span class="sz-graph-title">${this._t("bucket_7d")}</span>
+          ${hist ? this._sparkline(hist, this._now, Number.isFinite(bucket) ? bucket : 0) : html`<span class="sz-loading">…</span>`}</div>
+      </div>` : nothing}
+    </div>`;
+  }
+
+  private _renderSmartPanel(zones: Zone[]) {
+    const c = this._config!;
+    const sm = c.smart ?? {};
+    const s = this.hass!.states;
+    const smartZones = zones.filter((z) => z.cfg.smart_duration);
+    const ref = smartZones.map((z) => s[z.cfg.smart_duration!]).find((x) => x);
+    const lang = getLanguage(this.hass);
+    const skipped = sm.skipped ? s[sm.skipped]?.state === "on" : false;
+    const reason = sm.skipped_reason ? s[sm.skipped_reason]?.state : undefined;
+    const season = sm.season ? s[sm.season]?.state : undefined;
+    const warnSt = sm.warning ? s[sm.warning] : undefined;
+    const warn = warnSt && !UNAVAILABLE.includes(warnSt.state) ? Number(warnSt.state) : undefined;
+    const eto = Number(ref?.attributes.eto);
+    const lastCalc = ref?.attributes.last_calculated ? new Date(String(ref.attributes.last_calculated).replace(" ", "T")) : undefined;
+    const calcText = lastCalc && !isNaN(lastCalc.getTime())
+      ? (lastCalc.toDateString() === new Date().toDateString() ? lastCalc.toLocaleTimeString(lang, { hour: "2-digit", minute: "2-digit" })
+        : lastCalc.toLocaleString(lang, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })) : undefined;
+    const points = ref?.attributes.number_of_data_points;
+    const measured = sm.measured_flow ? s[sm.measured_flow]?.state : undefined;
+    const plan = smartZones.map((z) => ({ z, sm: this._smart(z)! })).filter((x) => x.sm);
+    const toWater = plan.filter((x) => !x.sm.skipped);
+    const note = sm.note ?? [c.smart_max ? this._t("note_max").replace("{max}", String(c.smart_max)) : "", c.smart_min ? this._t("note_min").replace("{min}", String(c.smart_min)) : ""].filter(Boolean).join(" · ");
+    return html`<div class="smart-panel">
+      <div class="sp-head"><ha-icon icon="mdi:auto-fix"></ha-icon><span>${this._t("smart_section")}</span></div>
+      ${skipped ? html`<div class="sp-alert"><ha-icon icon="mdi:weather-pouring"></ha-icon>
+        <span><b>${this._t("smart_off_title")}</b>${reason && !UNAVAILABLE.includes(reason) ? html`<small>${reason}</small>` : nothing}</span></div>` : nothing}
+      <div class="sp-chips">
+        ${season ? html`<span class="sp-chip"><ha-icon .icon=${/winter/i.test(season) ? "mdi:snowflake" : "mdi:white-balance-sunny"}></ha-icon>${season}</span>` : nothing}
+        ${warn != null ? html`<span class="sp-chip ${warn > 0 ? "bad" : "good"}"><ha-icon icon="mdi:alert-outline"></ha-icon>${warn > 0 ? `${this._t("warning_level")} ${warn}` : this._t("warning_none")}</span>` : nothing}
+        ${Number.isFinite(eto) ? html`<span class="sp-chip"><ha-icon icon="mdi:weather-sunny-alert"></ha-icon>ET₀ ${this._fmtNum(eto)} mm</span>` : nothing}
+        ${calcText ? html`<span class="sp-chip" title=${this._t("last_calculated")}><ha-icon icon="mdi:calculator"></ha-icon>${calcText}${points != null ? html`<small> · ${points} ${this._t("data_points")}</small>` : nothing}</span>` : nothing}
+      </div>
+      ${plan.length ? html`<div class="sp-plan"><span class="sp-plan-title">${this._t("plan")}</span>
+        <span class="sp-plan-text">${toWater.length ? toWater.map((x) => `${x.z.name} ${x.sm.minutes} min`).join(" · ") : this._t("nothing_to_water")}${plan.length > toWater.length
+          ? html`<small> — ${this._t("skipped")}: ${plan.filter((x) => x.sm.skipped).map((x) => x.z.name).join(", ")}</small>` : nothing}</span></div>` : nothing}
+      <div class="sp-zones">${smartZones.map((z) => this._renderSmartZone(z))}</div>
+      ${sm.calculate || sm.run || sm.reset_buckets ? html`<div class="sp-actions">
+        ${sm.calculate ? html`<button class="sp-act" @click=${() => this._smartAction("calculate")}><ha-icon icon="mdi:calculator-variant"></ha-icon>${this._t("recalculate")}</button>` : nothing}
+        ${sm.run ? html`<button class="sp-act run ${this._confirm === "run" ? "ask" : ""}" @click=${() => this._smartAction("run")}>
+          <ha-icon icon="mdi:play-circle"></ha-icon>${this._confirm === "run" ? this._t("confirm") : this._t("water_now")}</button>` : nothing}
+        ${sm.reset_buckets ? html`<button class="sp-act reset ${this._confirm === "reset" ? "ask" : ""}" @click=${() => this._smartAction("reset")}>
+          <ha-icon icon="mdi:backup-restore"></ha-icon>${this._confirm === "reset" ? this._t("confirm") : this._t("reset_buckets")}</button>` : nothing}
+      </div>` : nothing}
+      ${measured && !UNAVAILABLE.includes(measured) ? html`<div class="sp-info"><ha-icon icon="mdi:gauge"></ha-icon><span>${measured}</span></div>` : nothing}
+      ${note ? html`<div class="sp-note">${note}</div>` : nothing}
+    </div>`;
+  }
+
   private _renderOther(flowing: boolean, watts?: number) {
     const c = this._config!;
     return html`<div class="col other ${flowing ? "flowing open" : ""}" style="--zc:${OTHER}" data-zone="other">
@@ -521,6 +686,7 @@ export class HaIrrigationCard extends LitElement {
       ${modeSt && Array.isArray(modeSt.attributes.options) ? html`<div class="modes" role="radiogroup">
         ${(modeSt.attributes.options as string[]).map((o) => html`<button class="mode ${modeSt.state === o ? "sel" : ""}" role="radio" aria-checked=${modeSt.state === o}
           @click=${() => this._selectMode(o)}>${o}</button>`)}</div>` : nothing}
+      ${this._smartActive() && c.zones.some((z) => z.smart_duration) ? this._renderSmartPanel(zones) : nothing}
       ${c.run_all || anyRunning || pumpOn ? html`<div class="actions">
         ${c.run_all ? html`<button class="act run ${runAllActive ? "active" : ""}" ?disabled=${runAllActive} @click=${() => this._runAll()}>
           <ha-icon .icon=${runAllActive ? "mdi:water-sync" : "mdi:play-circle-outline"}></ha-icon>${this._t(runAllActive ? "run_all_active" : "run_all")}</button>` : nothing}
@@ -661,6 +827,69 @@ export class HaIrrigationCard extends LitElement {
     @keyframes spin { to { transform: rotate(360deg); } }
     .act.stop { color: var(--error-color, #e53935); background: color-mix(in srgb, var(--error-color, #e53935) 12%, transparent); }
     .act[disabled] { opacity: 0.4; cursor: default; }
+    .smart-panel { --sc: #ab47bc; display: flex; flex-direction: column; gap: 10px; padding: 12px; border-radius: var(--hcc-inner-radius, 14px);
+      background: color-mix(in srgb, var(--sc) 9%, rgba(127,127,127,0.05)); animation: ed-in 0.35s var(--ease-out) both; }
+    ha-card.anim-off .smart-panel { animation: none; }
+    .sp-head { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--secondary-text-color); }
+    .sp-head ha-icon { --mdc-icon-size: 16px; color: var(--sc); }
+    .sp-alert { display: flex; align-items: flex-start; gap: 10px; padding: 10px; border-radius: 12px; color: #fb8c00; background: color-mix(in srgb, #fb8c00 14%, transparent); }
+    .sp-alert ha-icon { --mdc-icon-size: 22px; flex: none; }
+    .sp-alert span { display: flex; flex-direction: column; gap: 2px; color: var(--primary-text-color); font-size: 14px; }
+    .sp-alert small { font-size: 12.5px; color: var(--secondary-text-color); }
+    .sp-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .sp-chip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px 4px 8px; border-radius: 999px; font-size: 12.5px; font-weight: 600;
+      background: var(--card-background-color, var(--ha-card-background, #fff)); }
+    .sp-chip ha-icon { --mdc-icon-size: 15px; color: var(--secondary-text-color); }
+    .sp-chip small { font-weight: 500; color: var(--secondary-text-color); }
+    .sp-chip.good ha-icon { color: var(--success-color, #43a047); }
+    .sp-chip.bad { color: var(--error-color, #e53935); }
+    .sp-chip.bad ha-icon { color: inherit; }
+    .sp-plan { display: flex; flex-direction: column; gap: 2px; }
+    .sp-plan-title { font-size: 12px; color: var(--secondary-text-color); }
+    .sp-plan-text { font-size: 14.5px; font-weight: 600; }
+    .sp-plan-text small { font-size: 12.5px; font-weight: 500; color: var(--secondary-text-color); }
+    .sp-zones { display: flex; flex-direction: column; gap: 6px; }
+    .sz { border-radius: 12px; background: var(--card-background-color, var(--ha-card-background, #fff)); overflow: hidden; }
+    .sz-row { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; border: none; background: none; cursor: pointer; text-align: left; }
+    .sz-icon { flex: none; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; color: var(--zc); background: color-mix(in srgb, var(--zc) 16%, transparent); }
+    .sz-icon ha-icon { --mdc-icon-size: 19px; }
+    .sz-text { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+    .sz-name { font-size: 14px; font-weight: 600; }
+    .sz-bucket { font-size: 12px; color: var(--bc); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sz-bar { position: relative; height: 4px; border-radius: 2px; background: rgba(127,127,127,0.18); }
+    .sz-bar::after { content: ""; position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1.5px; background: var(--secondary-text-color); opacity: 0.5; }
+    .sz-fill { position: absolute; top: 0; bottom: 0; border-radius: 2px; background: var(--bc); transition: width 0.6s var(--ease-out); }
+    .sz-min { flex: none; display: inline-flex; align-items: center; gap: 2px; padding: 4px 9px; border-radius: 999px; font-size: 13px; font-weight: 700;
+      color: var(--sc); background: color-mix(in srgb, var(--sc) 14%, transparent); white-space: nowrap; }
+    .sz-min.skip { color: var(--secondary-text-color); background: rgba(127,127,127,0.12); font-weight: 600; }
+    .sz-min ha-icon { --mdc-icon-size: 15px; }
+    .sz-chev { flex: none; --mdc-icon-size: 20px; color: var(--secondary-text-color); transition: transform 0.3s var(--ease-out); }
+    .sz.open .sz-chev { transform: rotate(180deg); }
+    .sz-details { display: flex; flex-direction: column; gap: 10px; padding: 2px 12px 12px; animation: ed-in 0.3s var(--ease-out) both; }
+    .sz-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+    .sz-facts span { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 8px 4px; border-radius: 10px; background: rgba(127,127,127,0.08); text-align: center; }
+    .sz-facts ha-icon { --mdc-icon-size: 18px; color: var(--zc); }
+    .sz-facts b { font-size: 13.5px; white-space: nowrap; }
+    .sz-facts small { font-size: 11px; color: var(--secondary-text-color); }
+    .sz-graph { display: flex; flex-direction: column; gap: 4px; }
+    .sz-graph-title { font-size: 11.5px; color: var(--secondary-text-color); }
+    .spark { width: 100%; height: 48px; overflow: visible; }
+    .spark .zero { stroke: var(--secondary-text-color); stroke-width: 1; stroke-dasharray: 3 3; opacity: 0.5; vector-effect: non-scaling-stroke; }
+    .spark path { fill: none; stroke-width: 2.5; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+    .spark path.pos { stroke: #29b6f6; }
+    .spark path.neg { stroke: #fb8c00; }
+    .sz-loading { font-size: 12px; color: var(--secondary-text-color); }
+    .sp-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 6px; }
+    .sp-act { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 4px; border: none; border-radius: 12px; cursor: pointer;
+      font-size: 12.5px; font-weight: 600; background: var(--card-background-color, var(--ha-card-background, #fff)); transition: background 0.3s, color 0.3s; }
+    .sp-act ha-icon { --mdc-icon-size: 22px; color: var(--sc); }
+    .sp-act.run ha-icon { color: var(--success-color, #43a047); }
+    .sp-act.reset ha-icon { color: #fb8c00; }
+    .sp-act.ask { color: #fff; background: var(--sc); }
+    .sp-act.ask ha-icon { color: #fff; }
+    .sp-info { display: flex; align-items: flex-start; gap: 6px; font-size: 12px; color: var(--secondary-text-color); line-height: 1.4; }
+    .sp-info ha-icon { --mdc-icon-size: 15px; flex: none; margin-top: 1px; }
+    .sp-note { font-size: 11.5px; color: var(--secondary-text-color); line-height: 1.4; opacity: 0.85; }
     .last-run { display: flex; align-items: flex-start; gap: 6px; font-size: 12px; color: var(--secondary-text-color); line-height: 1.4; }
     .last-run ha-icon { --mdc-icon-size: 15px; flex: none; margin-top: 1px; }
     ha-card.anim-reduced .pipe.flow, ha-card.anim-off .pipe.flow, ha-card.anim-reduced .pump .ripple, ha-card.anim-off .pump .ripple,
