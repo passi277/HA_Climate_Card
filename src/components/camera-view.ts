@@ -270,7 +270,7 @@ export class CameraView extends LitElement {
     ].filter((x) => x !== nothing);
     return html`<div class="cv">
       ${this._renderImage(st, f, alert)}
-      ${dets.length ? html`<div class="dets">${dets.map((d) => {
+      ${dets.length ? html`<div class="dets" style="--dn:${dets.length}">${dets.map((d) => {
         const ds = s[f[d.key]!];
         const on = isActive(ds);
         const ago = !on && ds?.last_changed ? relTime(ds.last_changed, lang) : "";
@@ -286,7 +286,7 @@ export class CameraView extends LitElement {
   static styles = css`
     :host { display: block; --ease: cubic-bezier(0.22, 1, 0.36, 1); }
     button { font: inherit; color: inherit; }
-    .cv { display: flex; flex-direction: column; gap: 10px; }
+    .cv { display: flex; flex-direction: column; gap: 10px; container-type: inline-size; }
     .frame { position: relative; width: 100%; border-radius: var(--hcc-inner-radius, 14px); overflow: hidden; background: #111; isolation: isolate; touch-action: pan-y; }
     .frame.alert { box-shadow: 0 0 0 2px #e53935; animation: alert 1.6s ease-in-out infinite; }
     @keyframes alert { 50% { box-shadow: 0 0 0 4px rgba(229,57,53,0.35); } }
@@ -322,14 +322,15 @@ export class CameraView extends LitElement {
       backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
     .lens { border: none; border-radius: 999px; padding: 4px 10px; cursor: pointer; font-size: 12px; font-weight: 700; color: rgba(255,255,255,0.8); background: none; }
     .lens.sel { color: #111; background: #fff; }
-    .dets { display: flex; gap: 6px; flex-wrap: wrap; }
-    .det { flex: 1 1 auto; display: inline-flex; align-items: center; justify-content: center; gap: 4px; padding: 7px 6px; border: none; border-radius: 999px;
+    .dets { display: grid; grid-template-columns: repeat(var(--dn, 4), minmax(0, 1fr)); gap: 6px; }
+    @container (max-width: 420px) { .dets { grid-template-columns: repeat(min(var(--dn, 4), 2), minmax(0, 1fr)); } }
+    .det { min-width: 0; display: inline-flex; align-items: center; justify-content: center; gap: 4px; padding: 7px 6px; border: none; border-radius: 999px;
       cursor: pointer; font-size: 12.5px; font-weight: 600; color: var(--secondary-text-color); background: rgba(127,127,127,0.1); transition: background 0.3s, color 0.3s; white-space: nowrap; }
     .det ha-icon { --mdc-icon-size: 16px; }
     .det span { overflow: hidden; text-overflow: ellipsis; }
     .det.on { color: #fff; background: var(--dc); animation: pop 0.4s var(--ease); }
     @keyframes pop { 0% { transform: scale(0.9); } 60% { transform: scale(1.06); } 100% { transform: none; } }
-    .acts { display: grid; grid-template-columns: repeat(auto-fit, minmax(78px, 1fr)); gap: 6px; }
+    .acts { display: grid; grid-template-columns: repeat(auto-fit, minmax(86px, 1fr)); gap: 6px; }
     .act { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 9px 4px; border: none; border-radius: var(--hcc-inner-radius, 14px); cursor: pointer;
       font-size: 12px; font-weight: 600; background: rgba(127,127,127,0.1); transition: background 0.3s, color 0.3s, transform 0.2s; min-width: 0; }
     .act span { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
