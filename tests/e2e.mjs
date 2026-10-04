@@ -913,6 +913,62 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
     : fail(`Pool: ${JSON.stringify({ r0, hist, mode, target, rec, care, backwash, bwState, done1, done2, autoOff, pump })}`);
 }
 
+// Kameras: Einzelkarte (Reolink) und Gruppe (Blink)
+{
+  const cam = await p.evaluateHandle(() => document.querySelector("ha-camera-card"));
+  await cam.evaluate((c) => c.scrollIntoView({ block: "center" }));
+  await p.waitForTimeout(400);
+  const view = await cam.evaluateHandle((c) => c.shadowRoot.querySelector("hcc-camera-view").shadowRoot);
+  const calls = async (fn, wait = 300) => { const n = await p.evaluate(() => window.serviceCalls.length); await view.evaluate(fn); await p.waitForTimeout(wait);
+    return p.evaluate((n) => window.serviceCalls.slice(n).map((c) => `${c.domain}.${c.service} ${c.data.entity_id ?? ""}${c.data.option ? " " + c.data.option : ""}`.trim()), n); };
+  const r0 = await view.evaluate((r) => ({ name: r.querySelector(".cam-name")?.textContent.trim(), alert: r.querySelector(".frame").classList.contains("alert"),
+    badges: [...r.querySelectorAll(".badge")].map((b) => b.textContent.trim()).filter(Boolean), dets: [...r.querySelectorAll(".det")].map((d) => `${d.textContent.trim()}:${d.classList.contains("on")}`),
+    acts: [...r.querySelectorAll(".act span")].map((a) => a.textContent.trim()), presets: r.querySelectorAll(".preset").length, ptz: r.querySelectorAll(".ptz button").length,
+    lenses: [...r.querySelectorAll(".lens")].map((l) => l.textContent.trim()), img: r.querySelector("img.media")?.src.startsWith("data:image/svg") }));
+  const light = await calls((r) => [...r.querySelectorAll(".act")].find((a) => /Licht/.test(a.textContent)).click());
+  const siren1 = await calls((r) => r.querySelector(".act.siren").click(), 100);
+  const asked = await view.evaluate((r) => r.querySelector(".act.siren").textContent.trim());
+  const siren2 = await calls((r) => r.querySelector(".act.siren").click());
+  const preset = await calls((r) => [...r.querySelectorAll(".preset")].find((b) => b.textContent.trim() === "Pool").click());
+  const ptz = await calls((r) => r.querySelector(".ptz .p-left").click());
+  const home = await calls((r) => [...r.querySelectorAll(".act")].find((a) => /Start/.test(a.textContent)).click());
+  await view.evaluate((r) => r.querySelectorAll(".lens")[1].click());
+  await p.waitForTimeout(200);
+  const tele = await view.evaluate((r) => decodeURIComponent(r.querySelector("img.media").src).includes("HAUS TELE"));
+  r0.name === "Haus" && r0.alert && r0.badges.join() === "86 %,12°" && r0.dets.join() === "Person:true,Fahrzeug:false,Tier:false,Bewegung:true"
+    && r0.acts.join() === "Licht,Sirene,Erkennung,Tracking,Start,Patrouille" && r0.presets === 5 && r0.ptz === 5 && r0.lenses.join() === "Weitwinkel,Tele" && r0.img
+    && light.join() === "homeassistant.toggle light.cam_haus_scheinwerfer" && siren1.length === 0 && /Sicher/.test(asked) && siren2.join() === "siren.turn_on siren.cam_haus_sirene"
+    && preset.join() === "select.select_option select.cam_haus_ptz_voreinstellung Pool" && ptz.join() === "button.press button.cam_haus_ptz_links"
+    && home.join() === "button.press button.cam_haus_gehe_zu_startposition" && tele
+    ? ok("Kamera: Funktionen über das Gerät erkannt (Erkennung, Akku, Licht, Sirene mit Rückfrage, Positionen, Schwenken, Start, Tele-Linse)")
+    : fail(`Kamera: ${JSON.stringify({ r0, light, siren1, asked, siren2, preset, ptz, home, tele })}`);
+
+  const grp = await p.evaluateHandle(() => document.querySelector("ha-camera-group-card"));
+  await grp.evaluate((c) => c.scrollIntoView({ block: "center" }));
+  await p.waitForTimeout(300);
+  const gcalls = async (fn, wait = 300) => { const n = await p.evaluate(() => window.serviceCalls.length); await grp.evaluate(fn); await p.waitForTimeout(wait);
+    return p.evaluate((n) => window.serviceCalls.slice(n).map((c) => `${c.domain}.${c.service} ${c.data.entity_id ?? ""}`.trim()), n); };
+  const g0 = await grp.evaluate((c) => { const r = c.shadowRoot; return { sub: r.querySelector(".h-sub").textContent.replace(/\s+/g, " ").trim(),
+    tiles: [...r.querySelectorAll(".tile")].map((t) => `${t.querySelector(".t-name").textContent.trim()}${t.classList.contains("motion") ? "!" : ""}${t.querySelector(".t-warn") ? "B" : ""}${t.querySelector(".t-off") ? "x" : ""}`),
+    chips: [...r.querySelectorAll(".sw-chip")].map((x) => `${x.textContent.trim()}:${x.classList.contains("on")}`) }; });
+  await grp.evaluate((c) => c.shadowRoot.querySelector('.tile[data-cam="camera.blink_tor"]').click());
+  await p.waitForTimeout(300);
+  const opened = await grp.evaluate((c) => c.shadowRoot.querySelector(".open-view .ov-head span")?.textContent.trim());
+  const dis1 = await gcalls((c) => [...c.shadowRoot.querySelectorAll(".arm-btn")][1].click(), 100);
+  const dis2 = await gcalls((c) => [...c.shadowRoot.querySelectorAll(".arm-btn")][1].click());
+  const arm = await gcalls((c) => [...c.shadowRoot.querySelectorAll(".arm-btn")][0].click());
+  const sw = await gcalls((c) => [...c.shadowRoot.querySelectorAll(".sw-chip")].find((x) => /Pool/.test(x.textContent)).click());
+  await grp.evaluate((c) => c.shadowRoot.querySelector(".health .sec-head").click());
+  await p.waitForTimeout(150);
+  const health = await grp.evaluate((c) => [...c.shadowRoot.querySelectorAll(".h-row")].map((r) => r.textContent.replace(/\s+/g, " ").trim()));
+  g0.sub === "4 Kameras · scharf · 1× Bewegung · 1× Akku schwach · Carport" && g0.tiles.join() === "Carport!,Tor,Poolx,SchuppenB"
+    && g0.chips.join() === "Carport:true,Tor:true,Pool:false,Schuppen:true" && opened === "Tor"
+    && dis1.length === 0 && dis2.join() === "alarm_control_panel.alarm_disarm alarm_control_panel.blink_garten" && arm.join() === "alarm_control_panel.alarm_arm_away alarm_control_panel.blink_garten"
+    && sw.join() === "homeassistant.toggle switch.blink_pool_bewegungserkennung_der_kamera" && health.length === 4 && /schwach/.test(health.join())
+    ? ok("Kameragruppe: Raster (Bewegung zuerst, Akku, Erkennung aus), aufklappen, Scharf/Unscharf mit Rückfrage, Erkennung je Kamera, Zustand")
+    : fail(`Kameragruppe: ${JSON.stringify({ g0, opened, dis1, dis2, arm, sw, health })}`);
+}
+
 // Bewässerung: parallele Stränge, Sonstiges, Ventil direkt schalten, Start/Pause/Stopp, Sperre ohne Pumpe, Modus
 {
   const card = await p.evaluateHandle(() => document.querySelector("ha-irrigation-card"));

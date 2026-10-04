@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { HassEntity } from "../src/types";
 import {
-  batteryHoursLeft, consumerGrid, formatHours, integratePower, statsEnergy, flowLpm, timerInfo, formatRemaining, rangeStatus, phDose, poolRuntimeRecommendation, energyFlows, formatPower, powerWatts, alertActive, batteryShoppingList, clockMinutes, upcomingPickups, wasteStyle, batteryIcon, doorDevices, doorKind, initials, isCharging, phoneSensors, brightnessPct, contactType, calibrationTransform, roomsFromMap, roomIcon, areaBatteries, batteryInfo, presetActive, presetData, DEFAULT_LIGHT_PRESETS, activityIcon, activityLabel, guessControlDevice, guessVolumeDevice, coverIcon, datetimeParts, nextOccurrence, coverPosition, skyPhase, sunPlacement, weatherOverlay, editorOptions, isNoEffect, lightEditorOptions, segmentIds, detectDeviceType, kelvinToRgb, lightColor, relatedScenes, supportsColor, supportsColorTemp, dewPoint, nextSwitch, parseSchedule, scheduleTempAt, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
+  batteryHoursLeft, consumerGrid, formatHours, integratePower, statsEnergy, flowLpm, timerInfo, formatRemaining, rangeStatus, phDose, poolRuntimeRecommendation, cameraFeatures, wifiQuality, energyFlows, formatPower, powerWatts, alertActive, batteryShoppingList, clockMinutes, upcomingPickups, wasteStyle, batteryIcon, doorDevices, doorKind, initials, isCharging, phoneSensors, brightnessPct, contactType, calibrationTransform, roomsFromMap, roomIcon, areaBatteries, batteryInfo, presetActive, presetData, DEFAULT_LIGHT_PRESETS, activityIcon, activityLabel, guessControlDevice, guessVolumeDevice, coverIcon, datetimeParts, nextOccurrence, coverPosition, skyPhase, sunPlacement, weatherOverlay, editorOptions, isNoEffect, lightEditorOptions, segmentIds, detectDeviceType, kelvinToRgb, lightColor, relatedScenes, supportsColor, supportsColorTemp, dewPoint, nextSwitch, parseSchedule, scheduleTempAt, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
   openContactsKey, powerOf, resolveContacts, secondsToDuration, stateIcon, temperatureOf, temperatureTint, trendSlope,
 } from "../src/utils";
 import { formatAttribute, localize } from "../src/localize/localize";
@@ -558,6 +558,32 @@ describe("energy extras", () => {
     expect(phDose(7.1, 7.1, 172, 7.0, 7.2)).toBeUndefined();
     expect(poolRuntimeRecommendation(24.6, true, false)).toEqual({ base: 7, extra: 2, total: 9 });
     expect(poolRuntimeRecommendation(17.2, false, true).total).toBe(7);
+  });
+  it("finds camera features via the device (Reolink and Blink)", () => {
+    const st = (id: string, dc?: string, name = id) => entity(id, "off", { device_class: dc, friendly_name: name });
+    const list = [
+      st("camera.haus"), st("binary_sensor.haus_person", "motion", "Haus Person"), st("binary_sensor.haus_fahrzeug", "motion", "Haus Fahrzeug"),
+      st("binary_sensor.haus_tier", "motion", "Haus Tier"), st("binary_sensor.haus_bewegung_2", "motion", "Haus Bewegung"), st("sensor.haus_batterie", "battery"),
+      st("sensor.haus_batterietemperatur", "temperature"), st("light.haus_status_led", undefined, "Haus Status-LED"), st("light.haus_scheinwerfer", undefined, "Haus Flutlicht"),
+      st("siren.haus_sirene"), st("switch.haus_automatisches_tracking", undefined, "Haus Automatisches Tracking"), st("select.haus_ptz_voreinstellung", undefined, "Haus PTZ-Voreinstellung"),
+      st("button.haus_setze_aktuelle_position_als_startposition", undefined, "Setze aktuelle Position als Startposition"), st("button.haus_gehe_zu_startposition", undefined, "Gehe zu Startposition"),
+      st("button.haus_ptz_links"), st("button.haus_ptz_ab"), st("button.haus_ptz_auf"), st("camera.tor"), st("binary_sensor.tor_bewegung", "motion", "Tor Bewegung"),
+      st("binary_sensor.tor_batteriestand", "battery"), st("sensor.blink_tor_wlan_signalstarke", "signal_strength"), st("switch.tor_bewegungserkennung_der_kamera"),
+    ];
+    const states = Object.fromEntries(list.map((e) => [e.entity_id, e]));
+    const entities = Object.fromEntries(list.map((e) => [e.entity_id, { entity_id: e.entity_id, device_id: /tor/.test(e.entity_id) ? "tor" : "haus" }]));
+    const r = cameraFeatures(states, entities, "camera.haus");
+    expect([r.person, r.vehicle, r.animal, r.motion]).toEqual(["binary_sensor.haus_person", "binary_sensor.haus_fahrzeug", "binary_sensor.haus_tier", "binary_sensor.haus_bewegung_2"]);
+    expect([r.battery, r.temperature, r.light, r.siren, r.tracking, r.presets, r.home_button]).toEqual(["sensor.haus_batterie", "sensor.haus_batterietemperatur",
+      "light.haus_scheinwerfer", "siren.haus_sirene", "switch.haus_automatisches_tracking", "select.haus_ptz_voreinstellung", "button.haus_gehe_zu_startposition"]);
+    expect([r.ptz_left, r.ptz_up, r.ptz_down]).toEqual(["button.haus_ptz_links", "button.haus_ptz_auf", "button.haus_ptz_ab"]);
+    const b = cameraFeatures(states, entities, "camera.tor");
+    expect([b.motion, b.battery_low, b.wifi, b.motion_switch, b.person, b.light]).toEqual(["binary_sensor.tor_bewegung", "binary_sensor.tor_batteriestand",
+      "sensor.blink_tor_wlan_signalstarke", "switch.tor_bewegungserkennung_der_kamera", undefined, undefined]);
+    expect(wifiQuality(-52)).toBe("very_good");
+    expect(wifiQuality(-71)).toBe("fair");
+    expect(wifiQuality(-80)).toBe("weak");
+    expect(wifiQuality(60, "%")).toBe("good");
   });
   it("computes battery time left / to full", () => {
     expect(batteryHoursLeft(50, 2688, 0, 161)).toBeCloseTo(8.35, 1);

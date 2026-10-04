@@ -1156,3 +1156,48 @@ export const poolRuntimeRecommendation = (temp: number, phBad: boolean, orpLow: 
   const extra = (phBad ? 2 : 0) + (orpLow ? 2 : 0);
   return { base, extra, total: base + extra };
 };
+
+type CameraRegistry = Record<string, { entity_id: string; device_id?: string | null; hidden?: boolean; platform?: string }>;
+
+/** Alles, was zur Kamera gehört, über ihr Gerät finden (Reolink, Blink, …): Erkennung, Akku, WLAN, Licht, Sirene, PTZ … */
+export const cameraFeatures = (states: Record<string, HassEntity>, entities: CameraRegistry | undefined, camera: string): Record<string, string | undefined> => {
+  const reg = entities?.[camera];
+  const device = reg?.device_id;
+  if (!device) return {};
+  const sibs = Object.values(entities!).filter((e) => e.device_id === device && e.entity_id !== camera && states[e.entity_id]);
+  const same = (e: { platform?: string }) => !reg.platform || !e.platform || e.platform === reg.platform;
+  const ids = sibs.sort((a, b) => Number(same(b)) - Number(same(a))).map((e) => e.entity_id);
+  const name = (id: string) => `${id} ${states[id]?.attributes.friendly_name ?? ""}`.toLowerCase();
+  const dc = (id: string) => states[id]?.attributes.device_class;
+  const find = (domain: string, re: RegExp, not?: RegExp) => ids.find((id) => id.startsWith(`${domain}.`) && re.test(name(id)) && !(not && not.test(name(id))));
+  const motionLike = (id: string) => id.startsWith("binary_sensor.") && ["motion", "occupancy", "moving", "presence"].includes(dc(id));
+  return {
+    person: ids.find((id) => motionLike(id) && /person|people|mensch/.test(name(id))) ?? find("binary_sensor", /person/),
+    vehicle: ids.find((id) => motionLike(id) && /fahrzeug|vehicle|\bcar\b|auto\b/.test(name(id))),
+    animal: ids.find((id) => motionLike(id) && /tier|animal|\bpet\b|dog|cat|hund|katze/.test(name(id))),
+    motion: ids.find((id) => motionLike(id) && /bewegung|motion/.test(name(id)) && !/person|fahrzeug|vehicle|tier|animal|pet/.test(name(id))),
+    battery: ids.find((id) => id.startsWith("sensor.") && dc(id) === "battery"),
+    battery_low: ids.find((id) => id.startsWith("binary_sensor.") && dc(id) === "battery"),
+    wifi: ids.find((id) => id.startsWith("sensor.") && (dc(id) === "signal_strength" || /wlan|wifi|wi-fi/.test(name(id)))),
+    temperature: ids.find((id) => id.startsWith("sensor.") && dc(id) === "temperature" && !/batter/.test(name(id)))
+      ?? ids.find((id) => id.startsWith("sensor.") && dc(id) === "temperature"),
+    sleep: find("binary_sensor", /schlaf|sleep/),
+    light: find("light", /scheinwerfer|flutlicht|flood|spot/, /status|led/) ?? find("light", /./, /status|led|infrarot|infrared|\bir\b/),
+    siren: ids.find((id) => id.startsWith("siren.")),
+    motion_switch: find("switch", /bewegungserkennung|motion.?detect|pir.?(aktiv|enabled)|^switch\.\w*pir\b/),
+    tracking: find("switch", /tracking/),
+    presets: find("select", /ptz|preset|voreinstellung|position/),
+    home_button: find("button", /startposition|ptz.?home|go.?to.?home|guard/, /setze|set_current|set current/),
+    ptz_left: find("button", /ptz.?(links|left)/),
+    ptz_right: find("button", /ptz.?(rechts|right)/),
+    ptz_up: find("button", /ptz.?(auf|up)/),
+    ptz_down: find("button", /ptz.?(ab|down)/),
+    ptz_stop: find("button", /ptz.?stop/),
+  };
+};
+
+/** WLAN-Qualität aus dBm (Prozent wird ebenfalls verstanden) */
+export const wifiQuality = (v: number, unit = "dBm"): "very_good" | "good" | "fair" | "weak" => {
+  if (unit === "%") return v >= 75 ? "very_good" : v >= 50 ? "good" : v >= 30 ? "fair" : "weak";
+  return v > -55 ? "very_good" : v > -67 ? "good" : v > -75 ? "fair" : "weak";
+};

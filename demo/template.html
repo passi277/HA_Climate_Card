@@ -106,6 +106,18 @@
     window.serviceCalls = [];
 
     const now = new Date().toISOString();
+    // Kamera-Platzhalterbilder (SVG-Szenen)
+    const camScene = (label, sky1, sky2, ground, extra = "") => "data:image/svg+xml;charset=utf-8," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180">
+      <defs><linearGradient id="s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${sky1}"/><stop offset="1" stop-color="${sky2}"/></linearGradient></defs>
+      <rect width="320" height="180" fill="url(#s)"/><circle cx="262" cy="34" r="16" fill="#fff6c8" opacity=".8"/>
+      <path d="M0 120 Q80 100 160 118 T320 112 V180 H0Z" fill="${ground}"/>${extra}
+      <text x="8" y="172" font-family="monospace" font-size="9" fill="#fff" opacity=".75">${label} · 04.10.2026 14:32:07</text></svg>`);
+    const HOUSE = '<rect x="40" y="70" width="90" height="60" fill="#b0855a"/><path d="M32 72 L85 38 L138 72Z" fill="#7a3b2e"/><rect x="74" y="98" width="20" height="32" fill="#4e342e"/><rect x="48" y="84" width="16" height="14" fill="#cfe8ff"/><rect x="104" y="84" width="16" height="14" fill="#cfe8ff"/>';
+    const PERSON = '<g transform="translate(200 92)"><circle cx="0" cy="0" r="7" fill="#f2c9a0"/><rect x="-7" y="8" width="14" height="24" rx="5" fill="#d84315"/><rect x="-6" y="31" width="5" height="16" fill="#263238"/><rect x="1" y="31" width="5" height="16" fill="#263238"/><rect x="-16" y="-12" width="32" height="64" fill="none" stroke="#ff1744" stroke-width="1.5"/></g>';
+    const TREE = (x) => `<rect x="${x - 3}" y="80" width="6" height="40" fill="#5d4037"/><circle cx="${x}" cy="72" r="20" fill="#2e7d32"/>`;
+    const CAR = '<g transform="translate(150 118)"><rect x="0" y="0" width="70" height="20" rx="6" fill="#1565c0"/><path d="M12 0 L22 -14 H50 L60 0Z" fill="#1976d2"/><circle cx="16" cy="22" r="7" fill="#212121"/><circle cx="54" cy="22" r="7" fill="#212121"/></g>';
+    const POOL = '<ellipse cx="170" cy="140" rx="110" ry="26" fill="#29b6f6"/><ellipse cx="170" cy="138" rx="100" ry="20" fill="#4fc3f7"/>';
+    const SHED = '<rect x="180" y="78" width="80" height="48" fill="#8d6e63"/><path d="M172 80 L220 56 L268 80Z" fill="#5d4037"/><rect x="210" y="96" width="20" height="30" fill="#3e2723"/>';
     const states = {
       "climate.wohnzimmer": { state: "cool", attributes: {
         friendly_name: "Wohnzimmer", supported_features: 1 | 8 | 16 | 32 | 128 | 256 | 512,
@@ -365,6 +377,42 @@
       "button.pool_rueckgespuelt": { state: "unknown", attributes: { friendly_name: "Rückgespült" } },
       "timer.pool_rueckspuelen": { state: "idle", attributes: { friendly_name: "Rückspülen", duration: "0:03:00" } },
       "timer.pool_nachspuelen": { state: "idle", attributes: { friendly_name: "Nachspülen", duration: "0:01:00" } },
+      "camera.cam_haus": { state: "idle", attributes: { friendly_name: "Haus Standardauflösung", supported_features: 2, entity_picture: camScene("HAUS", "#7cb6e8", "#cfe6f7", "#6a9e4f", HOUSE + PERSON + TREE(280)) } },
+      "camera.cam_haus_tele": { state: "idle", attributes: { friendly_name: "Haus Tele", supported_features: 2, entity_picture: camScene("HAUS TELE", "#7cb6e8", "#cfe6f7", "#6a9e4f", '<g transform="translate(-260 -120) scale(2.4)">' + PERSON + '</g>') } },
+      "binary_sensor.cam_haus_person": { state: "on", attributes: { friendly_name: "Haus Person", device_class: "motion" } },
+      "binary_sensor.cam_haus_fahrzeug": { state: "off", attributes: { friendly_name: "Haus Fahrzeug", device_class: "motion" } },
+      "binary_sensor.cam_haus_tier": { state: "off", attributes: { friendly_name: "Haus Tier", device_class: "motion" } },
+      "binary_sensor.cam_haus_bewegung": { state: "on", attributes: { friendly_name: "Haus Bewegung", device_class: "motion" } },
+      "binary_sensor.cam_haus_schlafstatus": { state: "off", attributes: { friendly_name: "Haus Schlafstatus" } },
+      "sensor.cam_haus_batterie": { state: "86", attributes: { friendly_name: "Haus Batterie", unit_of_measurement: "%", device_class: "battery" } },
+      "sensor.cam_haus_batterietemperatur": { state: "12", attributes: { friendly_name: "Haus Batterietemperatur", unit_of_measurement: "°C", device_class: "temperature" } },
+      "sensor.cam_haus_wlan_signal": { state: "-61", attributes: { friendly_name: "Haus WLAN-Signal", unit_of_measurement: "dBm", device_class: "signal_strength" } },
+      "light.cam_haus_scheinwerfer": { state: "off", attributes: { friendly_name: "Haus Flutlicht", supported_color_modes: ["brightness"] } },
+      "light.cam_haus_status_led": { state: "on", attributes: { friendly_name: "Haus Status-LED", supported_color_modes: ["onoff"] } },
+      "siren.cam_haus_sirene": { state: "off", attributes: { friendly_name: "Haus Sirene" } },
+      "switch.cam_haus_pir_aktiviert": { state: "on", attributes: { friendly_name: "Haus PIR aktiviert" } },
+      "switch.cam_haus_automatisches_tracking": { state: "on", attributes: { friendly_name: "Haus Automatisches Tracking" } },
+      "select.cam_haus_ptz_voreinstellung": { state: "Haus", attributes: { friendly_name: "Haus PTZ-Voreinstellung", options: ["Haus", "Outdoor küche", "Zaun", "Pool", "Wachposition"] } },
+      "button.cam_haus_gehe_zu_startposition": { state: "unknown", attributes: { friendly_name: "Haus Gehe zu Startposition" } },
+      "button.cam_haus_setze_aktuelle_position_als_startposition": { state: "unknown", attributes: { friendly_name: "Haus Setze aktuelle Position als Startposition" } },
+      "button.cam_haus_ptz_links": { state: "unknown", attributes: { friendly_name: "Haus PTZ links" } },
+      "button.cam_haus_ptz_rechts": { state: "unknown", attributes: { friendly_name: "Haus PTZ rechts" } },
+      "button.cam_haus_ptz_auf": { state: "unknown", attributes: { friendly_name: "Haus PTZ aufwärts" } },
+      "button.cam_haus_ptz_ab": { state: "unknown", attributes: { friendly_name: "Haus PTZ abwärts" } },
+      "button.cam_haus_ptz_stopp": { state: "unknown", attributes: { friendly_name: "Haus PTZ-Stopp" } },
+      "script.cam_patrouille": { state: "off", attributes: { friendly_name: "Kamera Patrouille" } },
+      "camera.blink_tor": { state: "idle", attributes: { friendly_name: "Tor", supported_features: 0, entity_picture: camScene("TOR", "#90a4ae", "#cfd8dc", "#7a8f62", TREE(60) + TREE(260) + '<rect x="120" y="86" width="80" height="40" fill="none" stroke="#5d4037" stroke-width="5"/>') } },
+      "camera.blink_carport": { state: "idle", attributes: { friendly_name: "Carport", supported_features: 0, entity_picture: camScene("CARPORT", "#ffb74d", "#ffe0b2", "#8d8d8d", CAR + '<rect x="130" y="80" width="110" height="6" fill="#455a64"/>') } },
+      "camera.blink_pool": { state: "idle", attributes: { friendly_name: "Pool", supported_features: 0, entity_picture: camScene("POOL", "#81d4fa", "#e1f5fe", "#9ccc65", POOL + TREE(40)) } },
+      "camera.blink_schuppen": { state: "idle", attributes: { friendly_name: "Schuppen", supported_features: 0, entity_picture: camScene("SCHUPPEN", "#5c6bc0", "#9fa8da", "#558b2f", SHED + TREE(70)) } },
+      ...Object.fromEntries(["tor", "carport", "pool", "schuppen"].flatMap((n, i) => [
+        [`binary_sensor.blink_${n}_bewegung`, { state: n === "carport" ? "on" : "off", attributes: { friendly_name: `${n} Bewegung`, device_class: "motion" } }],
+        [`binary_sensor.blink_${n}_batteriestand`, { state: n === "schuppen" ? "on" : "off", attributes: { friendly_name: `${n} Batteriestand`, device_class: "battery" } }],
+        [`sensor.blink_${n}_wlan_signalstarke`, { state: String([-52, -63, -71, -79][i]), attributes: { friendly_name: `${n} WLAN-Signalstärke`, unit_of_measurement: "dBm", device_class: "signal_strength" } }],
+        [`sensor.blink_${n}_temperatur`, { state: String([9.4, 14.1, 19.4, 11.7][i]), attributes: { friendly_name: `${n} Temperatur`, unit_of_measurement: "°C", device_class: "temperature" } }],
+        [`switch.blink_${n}_bewegungserkennung_der_kamera`, { state: n === "pool" ? "off" : "on", attributes: { friendly_name: `${n} Bewegungserkennung der Kamera` } }],
+      ])),
+      "alarm_control_panel.blink_garten": { state: "armed_away", attributes: { friendly_name: "Blink Garten", status: "online" } },
       "lock.klingel": { state: "locked", attributes: { friendly_name: "Klingel", supported_features: 1 } },
       "binary_sensor.klingel_klingelaktion": { state: "off", attributes: { friendly_name: "Klingel Klingelaktion" } },
       "binary_sensor.klingel_batterie": { state: "on", attributes: { friendly_name: "Klingel Batteriestand", device_class: "battery" } },
@@ -391,8 +439,10 @@
     const entities = Object.fromEntries(Object.keys(states).map((id) => [id, { entity_id: id,
       device_id: /^(lock|binary_sensor)\.klingel/.test(id) ? "dev_opener" : /marcel(s|_s24)/.test(id) ? "dev_phone_m" : /pascal_handy/.test(id) ? "dev_phone_p" : /roborock/.test(id) && !id.startsWith("image.") ? "dev_robo" : id.includes("1ed763d9") ? "dev_gree" : /^(light|switch|button)\.carport_/.test(id) && !id.includes("segment") ? "dev_govee" : null,
       ...(/_mein_zimmer_batter|zimmer_schalter_batter|turkontakt_mein_zimmer_batter/.test(id) ? { device_id: id.replace(/^\w+\.|_battery_plus.*|_batterie$/g, "") } : {}),
+      ...(/^\w+\.(cam_haus|blink_(tor|carport|pool|schuppen))/.test(id) ? { device_id: id.match(/^\w+\.(cam_haus|blink_(tor|carport|pool|schuppen))/)[1], platform: id.includes("blink") ? "blink" : "reolink" } : {}),
       area_id: /heizung_mein_zimmer|etrv_|wandthermostat_mein|_mein_zimmer_batter|zimmer_schalter_batter|turkontakt_mein_zimmer_batter/.test(id) ? "mein_zimmer" : null }]));
-    const devices = { dev_opener: { id: "dev_opener", name: "Klingel", model: "Nuki Opener" }, dev_gree: { id: "dev_gree", name: "Klima Schlafzimmer" }, dev_govee: { id: "dev_govee", name: "Carport" } };
+    const devices = { cam_haus: { id: "cam_haus", name: "Haus" }, blink_tor: { id: "blink_tor", name: "Tor" }, blink_carport: { id: "blink_carport", name: "Carport" },
+      blink_pool: { id: "blink_pool", name: "Pool" }, blink_schuppen: { id: "blink_schuppen", name: "Schuppen" }, dev_opener: { id: "dev_opener", name: "Klingel", model: "Nuki Opener" }, dev_gree: { id: "dev_gree", name: "Klima Schlafzimmer" }, dev_govee: { id: "dev_govee", name: "Carport" } };
     const ymd = (offset) => { const d = new Date(Date.now() + offset * 86400000); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
     const makeHass = () => ({
       async callApi(method, path) {
@@ -404,7 +454,7 @@
         return [];
       },
       states: { ...states }, entities, devices, language: lang, locale: { language: lang },
-      services: { homematicip_local: { enable_away_mode_by_duration: {}, disable_away_mode: {} } },
+      services: { homematicip_local: { enable_away_mode_by_duration: {}, disable_away_mode: {} }, blink: { trigger_camera: {} } },
       config: { unit_system: { temperature: "°C" } },
       async callService(domain, service, data) {
         window.serviceCalls.push({ domain, service, data });
@@ -531,7 +581,12 @@
           setTimeout(() => { const h = makeHass(); cards.forEach((c) => (c.hass = h)); }, 150);
           return;
         }
-        if (domain === "button") return;
+        if (domain === "button" || domain === "blink") return;
+        if (domain === "alarm_control_panel" || domain === "siren") {
+          states[data.entity_id] = { ...s, state: service === "alarm_arm_away" ? "armed_away" : service === "alarm_disarm" ? "disarmed" : service === "turn_on" ? "on" : "off" };
+          setTimeout(() => { const h = makeHass(); cards.forEach((c) => (c.hass = h)); }, 150);
+          return;
+        }
         if (domain === "script" && /pool_(rueck|nach)spuelen/.test(data.entity_id)) {
           const tid = data.entity_id.includes("rueck") ? "timer.pool_rueckspuelen" : "timer.pool_nachspuelen";
           const t = states[tid];
@@ -697,6 +752,11 @@
         backwash: { due: "binary_sensor.pool_rueckspuelen_faellig", hours: "sensor.pool_stunden_seit_rueckspuelen", last: "sensor.pool_letztes_rueckspuelen",
           done_button: "button.pool_rueckgespuelt", script: "script.pool_rueckspuelen_start", timer: "timer.pool_rueckspuelen" },
         rinse: { script: "script.pool_nachspuelen_start", timer: "timer.pool_nachspuelen" } }],
+      ["Kamera – Reolink: Livebild, Erkennung, Licht, Sirene, Schwenken, Positionen, Tele-Linse (alles über das Gerät erkannt)", { _camera: true,
+        entity: "camera.cam_haus", lenses: [{ entity: "camera.cam_haus_tele", name: "Tele" }], patrol: "script.cam_patrouille" }],
+      ["Kamera – Blink: Standbild mit „Neues Bild“, Bewegung, Akku, WLAN", { _camera: true, entity: "camera.blink_pool" }],
+      ["Kameragruppe – Blink mit Scharf/Unscharf, Bewegung, Akku, Erkennung je Kamera", { _cameraGroup: true, title: "Blink Garten", alarm: "alarm_control_panel.blink_garten",
+        cameras: ["camera.blink_tor", "camera.blink_carport", "camera.blink_pool", "camera.blink_schuppen"] }],
       ["Hinweis-Karte – erscheint nur, wenn etwas los ist (Fenster offen, Saugroboter putzt)", { _alert: true,
         contacts: [{ entity: "binary_sensor.buero_fenster", name: "Büro" }, { entity: "binary_sensor.wz_balkontuer", name: "Balkontür" }, "binary_sensor.wz_fenster"],
         alerts: [{ entity: "vacuum.roborock_s8_maxv_ultra", state: ["cleaning", "returning"], severity: "info", title: "Saugroboter putzt", icon: "mdi:robot-vacuum", navigation_path: "#roborock" },
@@ -742,9 +802,9 @@
         grid.appendChild(wrap);
         return;
       }
-      const { _overview, _light, _group, _cover, _coverGroup, _switchTime, _media, _room, _status, _vacuum, _presence, _alert, _energy, _irrigation, _pool, ...rest } = cfg;
+      const { _overview, _light, _group, _cover, _coverGroup, _switchTime, _media, _room, _status, _vacuum, _presence, _alert, _energy, _irrigation, _pool, _camera, _cameraGroup, ...rest } = cfg;
       const tag = _overview ? "ha-climate-overview-card" : _group ? "ha-light-group-card" : _light ? "ha-light-card"
-        : _cover ? "ha-cover-card" : _coverGroup ? "ha-cover-group-card" : _switchTime ? "ha-switch-time-card" : _media ? "ha-media-card" : _room ? "ha-room-card" : _status ? "ha-status-card" : _vacuum ? "ha-vacuum-card" : _presence ? "ha-presence-card" : _alert ? "ha-alert-card" : _energy ? "ha-energy-card" : _irrigation ? "ha-irrigation-card" : _pool ? "ha-pool-card" : "ha-climate-card";
+        : _cover ? "ha-cover-card" : _coverGroup ? "ha-cover-group-card" : _switchTime ? "ha-switch-time-card" : _media ? "ha-media-card" : _room ? "ha-room-card" : _status ? "ha-status-card" : _vacuum ? "ha-vacuum-card" : _presence ? "ha-presence-card" : _alert ? "ha-alert-card" : _energy ? "ha-energy-card" : _irrigation ? "ha-irrigation-card" : _pool ? "ha-pool-card" : _camera ? "ha-camera-card" : _cameraGroup ? "ha-camera-group-card" : "ha-climate-card";
       const card = document.createElement(tag);
       card.id = "card" + i;
       card.setConfig({ type: `custom:${tag}`, ...rest });

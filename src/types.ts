@@ -12,6 +12,7 @@ export interface EntityRegistryEntry {
   area_id?: string | null;
   hidden?: boolean;
   entity_category?: string | null;
+  platform?: string;
 }
 
 export interface DeviceRegistryEntry {
@@ -639,6 +640,64 @@ export interface PoolCardConfig {
   care?: false | { ph_target?: number; ph_dose?: number; chlorine_low?: number; chlorine_critical?: number };
   /** Schnellwahl Ziel-Laufzeit in Stunden */
   runtimes?: number[];
+  animations?: "full" | "reduced" | "off";
+  [key: string]: unknown;
+}
+
+/** Zuordnungen einer Kamera – werden über das Gerät automatisch gefunden und lassen sich überschreiben */
+export interface CameraFeatures {
+  person?: string;
+  vehicle?: string;
+  animal?: string;
+  motion?: string;
+  battery?: string;
+  battery_low?: string;
+  wifi?: string;
+  temperature?: string;
+  sleep?: string;
+  light?: string;
+  siren?: string;
+  motion_switch?: string;
+  tracking?: string;
+  presets?: string;
+  home_button?: string;
+  ptz_left?: string;
+  ptz_right?: string;
+  ptz_up?: string;
+  ptz_down?: string;
+  ptz_stop?: string;
+}
+
+export interface CameraCardConfig extends CameraFeatures {
+  type: string;
+  entity: string;
+  name?: string;
+  /** weitere Linsen/Ansichten (z.B. Tele) – umschaltbar */
+  lenses?: (string | { entity: string; name?: string })[];
+  /** auto = live, wenn die Kamera streamen kann; live; snapshot */
+  camera_view?: "auto" | "live" | "snapshot";
+  /** Skript für eine Patrouille */
+  patrol?: string;
+  /** Automatische Erkennung über das Gerät abschalten */
+  auto_detect?: boolean;
+  /** Standbild alle x Sekunden neu laden (Standard 10) */
+  refresh_interval?: number;
+  aspect_ratio?: string;
+  animations?: "full" | "reduced" | "off";
+  [key: string]: unknown;
+}
+
+export interface CameraGroupCardConfig {
+  type: string;
+  title?: string;
+  cameras: (string | (Partial<CameraCardConfig> & { entity: string }))[];
+  /** Alarmanlage (alarm_control_panel) für Scharf/Unscharf */
+  alarm?: string;
+  columns?: number;
+  /** Kameras mit Bewegung zuerst (Standard an) */
+  sort_motion?: boolean;
+  camera_view?: "auto" | "live" | "snapshot";
+  refresh_interval?: number;
   animations?: "full" | "reduced" | "off";
   [key: string]: unknown;
 }

@@ -20,6 +20,8 @@ weiche Farbübergänge und Animationen. Ein HACS-Download, mehrere Karten:
 | **Modern Energy Card** | `custom:ha-energy-card` | Energiefluss Solar / Batterie / Netz / Haus + einzelne Verbraucher (Konfiguration wie power-flow-card-plus) |
 | **Modern Irrigation Card** | `custom:ha-irrigation-card` | Hauswasserwerk / Pumpe mit parallelen Ventilen am Verteiler, Strang „Sonstiges“, Restzeit, Durchfluss |
 | **Modern Pool Card** | `custom:ha-pool-card` | Pool: animiertes Becken mit Filterpumpe, Temperatur / pH / Redox mit Bereich und 48-h-Verlauf, Filterlaufzeit, Modus, Pflege, Rückspülen |
+| **Modern Camera Card** | `custom:ha-camera-card` | Eine Kamera (Reolink, Blink …): Live-/Standbild, Erkennung, Licht, Sirene, Schwenken, Positionen, Linsen – automatisch über das Gerät erkannt |
+| **Modern Camera Group** | `custom:ha-camera-group-card` | Mehrere Kameras als Raster mit Bewegung, Akku, WLAN, Scharf/Unscharf und Erkennung je Kamera |
 | **Climate Overview** | `custom:ha-climate-overview-card` | alle Klimageräte auf einen Blick |
 
 *Modern Lovelace cards for Home Assistant in one shared design – English summary below.*
@@ -646,6 +648,42 @@ rinse:
 # ranges: { ph: [6.8, 7.0, 7.2, 7.4], orp: [550, 650, 750, 800], temperature: [20, 28] }
 # care: { ph_target: 7.1, ph_dose: 172, chlorine_low: 50, chlorine_critical: 150 }   # care: false blendet die Pflege aus
 # runtimes: [2, 4, 6, 8, 10, 12]
+```
+
+## Modern Camera Card & Camera Group
+
+**Eine Kamera** (`ha-camera-card`): großes Bild – live, wenn die Kamera streamen kann (z.B. Reolink), sonst Standbild mit „Neues Bild“
+(Blink: `blink.trigger_camera`). Darauf Akku, WLAN, Temperatur, „schläft“, Schwenk-Steuerkreuz und Linsen-Umschalter (wischen oder antippen).
+Darunter Erkennung (Person, Fahrzeug, Tier, Bewegung – aktiv = farbig, Bild pulsiert rot), Aktionen (Licht, Sirene mit Rückfrage, Erkennung an/aus,
+Tracking, Startposition, Patrouille) und die Positionen als Chips. **Alles wird automatisch über das Gerät der Kamera gefunden** – nur `entity` ist nötig.
+
+```yaml
+type: custom:ha-camera-card
+entity: camera.haus_standardauflosung
+lenses:                                  # optional: weitere Linsen/Ansichten
+  - entity: camera.haus_tele
+    name: Tele
+patrol: script.kamera_patrouille         # optional
+# camera_view: auto | live | snapshot
+# Zuordnungen überschreiben: person, vehicle, animal, motion, battery, battery_low, wifi, temperature, sleep,
+# light, siren, motion_switch, tracking, presets, home_button, ptz_left/right/up/down/stop
+```
+
+**Mehrere Kameras** (`ha-camera-group-card`): Zusammenfassung („9 Kameras · scharf · 2× Bewegung“), Scharf/Unscharf (Unscharf mit Rückfrage),
+Raster mit Vorschaubildern (Bewegung zuerst und rot markiert, Akku-Warnung, Erkennung aus), antippen öffnet die Kamera groß mit allen Funktionen,
+Erkennung je Kamera als Schalter und ein aufklappbarer Zustand (WLAN, Temperatur, Akku).
+
+```yaml
+type: custom:ha-camera-group-card
+title: Blink Garten
+alarm: alarm_control_panel.blink_garten
+cameras:
+  - camera.tor
+  - camera.carport
+  - entity: camera.pool
+    name: Pool
+# columns: 2
+# sort_motion: false
 ```
 
 ## Heizungen (z.B. Homematic IP)

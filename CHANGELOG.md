@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.22.0 – Kameras
+- Neue **Modern Camera Card**: Livebild (wenn die Kamera streamt) oder Standbild mit „Neues Bild“, Akku/WLAN/Temperatur, Schwenk-Steuerkreuz, Linsen-Umschalter, Erkennung (Person, Fahrzeug, Tier, Bewegung), Licht, Sirene (mit Rückfrage), Erkennung an/aus, Tracking, Startposition, Patrouille, Positionen – alles automatisch über das Gerät erkannt (Reolink, Blink …)
+- Neue **Modern Camera Group**: Raster mehrerer Kameras mit Bewegung, Akku-Warnung, Scharf/Unscharf, aufklappbarer Kamera, Erkennung je Kamera und Zustand (WLAN, Temperatur, Akku)
+
 ## 1.21.0 – Pool
 - Neue **Modern Pool Card**: animiertes Becken (Wellen, Lichtreflexe, Strömung/Bläschen bei laufender Pumpe, Wasserfarbe nach Qualität) mit Temperatur und Pumpenknopf, Temperatur/pH/Redox mit Bereichsbalken und 48-h-Verlauf, Handlungshinweis, Filterlaufzeit-Ring mit Solar/Ersparnis/Energie/Kosten, Betriebsmodus, Ziel-Laufzeit direkt in der Karte, Pflege-Empfehlung (pH-Dosierung, Chlor, Laufzeit) und Wartung (Rückspülen/Nachspülen mit Countdown, „Rückgespült“ mit Rückfrage, Auto-Aus); visueller Editor
 

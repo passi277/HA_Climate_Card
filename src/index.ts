@@ -16,3 +16,5 @@ import "./alert-card";
 import "./energy-card";
 import "./irrigation-card";
 import "./pool-card";
+import "./camera-card";
+import "./camera-group-card";
