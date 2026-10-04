@@ -1199,5 +1199,7 @@ export const cameraFeatures = (states: Record<string, HassEntity>, entities: Cam
 /** WLAN-Qualität aus dBm (Prozent wird ebenfalls verstanden) */
 export const wifiQuality = (v: number, unit = "dBm"): "very_good" | "good" | "fair" | "weak" => {
   if (unit === "%") return v >= 75 ? "very_good" : v >= 50 ? "good" : v >= 30 ? "fair" : "weak";
+  // Balken 0–5 (z.B. Reolink „WLAN-Signal“ ohne Einheit)
+  if (v >= 0 && v <= 5) return v >= 4 ? "very_good" : v >= 3 ? "good" : v >= 2 ? "fair" : "weak";
   return v > -55 ? "very_good" : v > -67 ? "good" : v > -75 ? "fair" : "weak";
 };

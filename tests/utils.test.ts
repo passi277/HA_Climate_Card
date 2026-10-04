@@ -584,6 +584,7 @@ describe("energy extras", () => {
     expect(wifiQuality(-71)).toBe("fair");
     expect(wifiQuality(-80)).toBe("weak");
     expect(wifiQuality(60, "%")).toBe("good");
+    expect(wifiQuality(3, "")).toBe("good");
   });
   it("computes battery time left / to full", () => {
     expect(batteryHoursLeft(50, 2688, 0, 161)).toBeCloseTo(8.35, 1);
