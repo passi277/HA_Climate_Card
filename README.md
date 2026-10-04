@@ -18,6 +18,7 @@ weiche Farbübergänge und Animationen. Ein HACS-Download, mehrere Karten:
 | **Modern Presence Card** | `custom:ha-presence-card` | Personen mit Foto und Handy-Akku plus Haustür (Nuki Opener: Halten zum Öffnen, Ring to Open) |
 | **Modern Alert Card** | `custom:ha-alert-card` | Hinweise, die nur erscheinen, wenn etwas los ist („Fenster offen – Marcel“) |
 | **Modern Energy Card** | `custom:ha-energy-card` | Energiefluss Solar / Batterie / Netz / Haus + einzelne Verbraucher (Konfiguration wie power-flow-card-plus) |
+| **Modern Irrigation Card** | `custom:ha-irrigation-card` | Hauswasserwerk / Pumpe mit Ventilen: Zonen starten, pausieren, stoppen, Restzeit, Durchfluss, animierte Wasserleitung |
 | **Climate Overview** | `custom:ha-climate-overview-card` | alle Klimageräte auf einen Blick |
 
 *Modern Lovelace cards for Home Assistant in one shared design – English summary below.*
@@ -544,6 +545,41 @@ max_flow_rate: 6       # … bei wenig Leistung
 ```
 
 Statt getrennter Sensoren geht auch ein Sensor mit Vorzeichen (`entity: sensor.grid_power`, positiv = Bezug bzw. Entladen; `invert_state: true` dreht es um).
+
+## Modern Irrigation Card (Hauswasserwerk & Ventile)
+
+Pumpe bzw. Hauswasserwerk oben, darunter die **Ventile als Zonen an einer Wasserleitung** – das Wasser fließt animiert bis zur offenen Zone.
+Je Zone: Restzeit mit Fortschrittsring, Durchfluss (L/min), Akku des Ventils, Laufzeit (−/+ bzw. tippen = Regler) und ▶ / ⏸ / ⏹.
+Dazu Modus-Auswahl, Startzeit, „Alle nacheinander“, „Alles aus“ und der letzte Lauf.
+
+```yaml
+type: custom:ha-irrigation-card
+title: Hauswasserwerk
+pump: switch.pumpe                       # Pumpe ein/aus (Tippen aufs Pumpen-Symbol)
+pump_power: sensor.pumpe_power
+mode: input_select.bewasserung_modus     # optional: Modus-Leiste
+start_time: input_datetime.bewasserung_start
+run_all: script.alle_zonen               # optional: „Alle nacheinander“
+run_all_active: input_boolean.durchlauf_aktiv
+stop_all: script.notaus                  # optional, sonst: Timer stoppen, Ventile + Pumpe aus
+last_run: input_text.letzter_lauf
+zones:
+  - valve: switch.ventil_rasen           # switch.* oder valve.*
+    name: Rasen
+    icon: mdi:grass
+    timer: timer.rasen                   # Restzeit / Fortschritt
+    duration: input_number.rasen_dauer   # Laufzeit in Minuten
+    volume: sensor.ventil_rasen_menge    # optional: Wassermenge
+    # flow / battery werden automatisch gefunden (sensor.ventil_rasen_flow / _battery)
+    # eigene Skripte statt Timer + Ventil:
+    # start_script: script.zone_starten
+    # pause_script: script.zone_pause
+    # stop_script: script.zone_stoppen
+    # script_data: { zone: rasen }
+```
+
+Ohne Skripte startet ▶ den Timer mit der eingestellten Laufzeit und öffnet das Ventil (die Pumpe wird bei Bedarf mit eingeschaltet, `pump_on_start: false` verhindert das);
+⏸ pausiert den Timer und schließt das Ventil, ⏹ bricht ab. Das Schließen beim Ablauf des Timers übernimmt wie bisher eine Automation.
 
 ## Heizungen (z.B. Homematic IP)
 

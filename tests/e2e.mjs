@@ -872,6 +872,37 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
     ? ok("Energiefluss: Zusammenfassung Heute → Monat → Jahr → Gesamt per Pfeil und Wischen") : fail(`Zusammenfassung: ${JSON.stringify({ s0, s1, s2, s3 })}`);
 }
 
+// Bewässerung: laufende Zone, Wasserfluss in der Leitung, Start/Pause/Stopp, Modus
+{
+  const card = await p.evaluateHandle(() => document.querySelector("ha-irrigation-card"));
+  await card.evaluate((c) => c.scrollIntoView({ block: "center" }));
+  await p.waitForTimeout(400);
+  const read = () => card.evaluate((c) => {
+    const r = c.shadowRoot;
+    return { sub: r.querySelector(".h-sub")?.textContent.replace(/\s+/g, " ").trim(),
+      zones: [...r.querySelectorAll(".zone")].map((z) => ({ open: z.classList.contains("open"), status: z.querySelector(".z-status").textContent.trim(),
+        top: z.querySelector(".pipe.top").classList.contains("flow"), bot: z.querySelector(".pipe.bot")?.classList.contains("flow") ?? null })),
+      mode: r.querySelector(".mode.sel")?.textContent.trim(), lowBat: !!r.querySelector(".zone:nth-child(3) .z-bat.low") };
+  });
+  const r0 = await read();
+  const calls = async (fn) => { const n = await p.evaluate(() => window.serviceCalls.length); await card.evaluate(fn); await p.waitForTimeout(300);
+    return p.evaluate((n) => window.serviceCalls.slice(n).map((c) => `${c.domain}.${c.service} ${[].concat(c.data.entity_id).join()}${c.data.duration ? " " + c.data.duration : ""}${c.data.option ? " " + c.data.option : ""}`), n); };
+  const start = await calls((c) => c.shadowRoot.querySelector('.zone[data-zone="1"] .ctl.play').click());
+  const r1 = await read();
+  const pause = await calls((c) => c.shadowRoot.querySelector('.zone[data-zone="0"] .ctl:not(.stop)').click());
+  const r2 = await read();
+  const stop = await calls((c) => c.shadowRoot.querySelector('.zone[data-zone="0"] .ctl.stop').click());
+  const mode = await calls((c) => [...c.shadowRoot.querySelectorAll(".mode")].find((b) => b.textContent.trim() === "Automatik").click());
+  const r3 = await read();
+  const okState = /Läuft · 642 W · Rasen/.test(r0.sub) && r0.zones[0].open && /^noch \d+:\d\d · 14 L\/min$/.test(r0.zones[0].status) && r0.zones[0].top && r0.zones[0].bot === false
+    && !r0.zones[1].top && /zuletzt 171 L/.test(r0.zones[1].status) && r0.lowBat && r0.mode === "Smart";
+  okState && start.join() === "timer.start timer.beete 00:10:00,homeassistant.turn_on switch.ventil_beete" && r1.zones[0].bot && r1.zones[1].top
+    && pause.join() === "timer.pause timer.rasen,homeassistant.turn_off switch.ventil_rasen" && /^pausiert · noch/.test(r2.zones[0].status)
+    && stop.join() === "timer.cancel timer.rasen,homeassistant.turn_off switch.ventil_rasen" && mode.join() === "input_select.select_option input_select.bewaesserung_modus Automatik" && r3.mode === "Automatik"
+    ? ok("Bewässerung: Restzeit + Durchfluss, Wasser fließt bis zur offenen Zone, Start/Pause/Stopp über Timer + Ventil, Modus")
+    : fail(`Bewässerung: ${JSON.stringify({ r0, start, r1, pause, r2, stop, mode, r3 })}`);
+}
+
 // Moduswechsel: jede Karte, jeder Modus (außer Auto/Heizen-Kühlen, dort zählt die Tätigkeit)
 const colorFails = await p.evaluate(async () => {
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));

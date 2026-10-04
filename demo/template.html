@@ -312,6 +312,26 @@
       "sensor.starlink_leistung": { state: "53.4", attributes: { friendly_name: "Starlink", unit_of_measurement: "W", device_class: "power" } },
       "switch.pumpe": { state: "off", attributes: { friendly_name: "Stecker Pumpe" } },
       "number.solarbank_kapazitaet": { state: "2688", attributes: { friendly_name: "Akku Kapazität", unit_of_measurement: "Wh" } },
+      "switch.hauswasserwerk": { state: "on", attributes: { friendly_name: "Hauswasserwerk" } },
+      "sensor.hauswasserwerk_power": { state: "642", attributes: { friendly_name: "Hauswasserwerk Leistung", unit_of_measurement: "W", device_class: "power" } },
+      "switch.ventil_rasen": { state: "on", attributes: { friendly_name: "Ventil Rasen" } },
+      "switch.ventil_beete": { state: "off", attributes: { friendly_name: "Ventil Beete" } },
+      "switch.ventil_hecke": { state: "off", attributes: { friendly_name: "Ventil Hecke" } },
+      "sensor.ventil_rasen_flow": { state: "0.84", attributes: { friendly_name: "Ventil Rasen Volumenstrom", unit_of_measurement: "m³/h", device_class: "volume_flow_rate" } },
+      "sensor.ventil_beete_flow": { state: "0", attributes: { friendly_name: "Ventil Beete Volumenstrom", unit_of_measurement: "m³/h", device_class: "volume_flow_rate" } },
+      "sensor.ventil_hecke_flow": { state: "0", attributes: { friendly_name: "Ventil Hecke Volumenstrom", unit_of_measurement: "m³/h", device_class: "volume_flow_rate" } },
+      "sensor.ventil_rasen_battery": { state: "93", attributes: { friendly_name: "Ventil Rasen Batterie", unit_of_measurement: "%", device_class: "battery" } },
+      "sensor.ventil_beete_battery": { state: "89", attributes: { friendly_name: "Ventil Beete Batterie", unit_of_measurement: "%", device_class: "battery" } },
+      "sensor.ventil_hecke_battery": { state: "14", attributes: { friendly_name: "Ventil Hecke Batterie", unit_of_measurement: "%", device_class: "battery" } },
+      "sensor.ventil_beete_menge": { state: "171", attributes: { friendly_name: "Ventil Beete Menge", unit_of_measurement: "L" } },
+      "timer.rasen": { state: "active", attributes: { friendly_name: "Rasen", icon: "mdi:grass", duration: "0:15:00", finishes_at: new Date(Date.now() + 485000).toISOString() } },
+      "timer.beete": { state: "idle", attributes: { friendly_name: "Beete", icon: "mdi:flower", duration: "0:10:00" } },
+      "timer.hecke": { state: "idle", attributes: { friendly_name: "Hecke", icon: "mdi:tree", duration: "0:05:00" } },
+      "input_number.rasen_dauer": { state: "15", attributes: { friendly_name: "Rasen Dauer", min: 1, max: 120, step: 1, unit_of_measurement: "min" } },
+      "input_number.beete_dauer": { state: "10", attributes: { friendly_name: "Beete Dauer", min: 1, max: 120, step: 1, unit_of_measurement: "min" } },
+      "input_number.hecke_dauer": { state: "5", attributes: { friendly_name: "Hecke Dauer", min: 1, max: 120, step: 1, unit_of_measurement: "min" } },
+      "input_select.bewaesserung_modus": { state: "Smart", attributes: { friendly_name: "Bewässerung Modus", options: ["Aus", "Automatik", "Smart"] } },
+      "input_text.bewaesserung_letzter_lauf": { state: "03.10. 11:00: Rasen 13 min/64 l; Beete 10 min/52 l; Hecke 4 min/18 l", attributes: { friendly_name: "Letzter Lauf" } },
       "lock.klingel": { state: "locked", attributes: { friendly_name: "Klingel", supported_features: 1 } },
       "binary_sensor.klingel_klingelaktion": { state: "off", attributes: { friendly_name: "Klingel Klingelaktion" } },
       "binary_sensor.klingel_batterie": { state: "on", attributes: { friendly_name: "Klingel Batteriestand", device_class: "battery" } },
@@ -458,9 +478,12 @@
           return;
         }
         if (domain === "timer") {
-          const secs = data.duration ? data.duration.split(":").reduce((a, v) => a * 60 + Number(v), 0) : 0;
+          const toSecs = (d) => (d ? d.split(":").reduce((a, v) => a * 60 + Number(v), 0) : 0);
+          const secs = s.state === "paused" && !data.duration ? toSecs(s.attributes.remaining) : toSecs(data.duration ?? s.attributes.duration);
           states[data.entity_id] = service === "start"
-            ? { ...s, state: "active", attributes: { ...s.attributes, duration: data.duration, finishes_at: new Date(Date.now() + secs * 1000).toISOString() } }
+            ? { ...s, state: "active", attributes: { ...s.attributes, ...(data.duration ? { duration: data.duration } : {}), finishes_at: new Date(Date.now() + secs * 1000).toISOString() } }
+            : service === "pause"
+            ? { ...s, state: "paused", attributes: { ...s.attributes, remaining: new Date(Math.max(0, new Date(s.attributes.finishes_at) - Date.now())).toISOString().slice(11, 19), finishes_at: undefined } }
             : { ...s, state: "idle", attributes: { ...s.attributes, finishes_at: undefined } };
           setTimeout(() => { const h = makeHass(); cards.forEach((c) => (c.hass = h)); }, 150);
           return;
@@ -472,6 +495,12 @@
         }
         if (domain === "lock") {
           if (service !== "open") states[data.entity_id] = { ...s, state: service === "lock" ? "locked" : "unlocked", last_changed: new Date().toISOString() };
+          setTimeout(() => { const h = makeHass(); cards.forEach((c) => (c.hass = h)); }, 150);
+          return;
+        }
+        if (domain === "input_number" || domain === "input_select" || domain === "script") {
+          if (service === "set_value") states[data.entity_id] = { ...s, state: String(data.value) };
+          if (service === "select_option") states[data.entity_id] = { ...s, state: data.option };
           setTimeout(() => { const h = makeHass(); cards.forEach((c) => (c.hass = h)); }, 150);
           return;
         }
@@ -487,6 +516,8 @@
             st = [date, time].filter(Boolean).join(" ");
           }
           states[data.entity_id] = { ...s, state: st, attributes: attrs };
+          const flowId = data.entity_id.replace(/^switch\.(ventil_\w+)$/, "sensor.$1_flow");
+          if (flowId !== data.entity_id && states[flowId]) states[flowId] = { ...states[flowId], state: st === "on" ? "0.72" : "0" };
           setTimeout(() => { const h = makeHass(); cards.forEach((c) => (c.hass = h)); }, 150);
           return;
         }
@@ -591,6 +622,12 @@
         individual: [{ entity: "sensor.kuehlschrank_power", name: "Kühlschrank", icon: "mdi:fridge" }, { entity: "sensor.aussenstrom_power", name: "Außenstrom", icon: "mdi:power-plug" },
           { entity: "sensor.pumpe_power", name: "Pumpe", icon: "mdi:water-pump", switch: "switch.pumpe", display_zero: true }, { entity: "sensor.pool_power", name: "Pool", icon: "mdi:pool" },
           { entity: "sensor.starlink_leistung", name: "Starlink", icon: "mdi:satellite-variant", color: "#049cdb" }] } }],
+      ["Bewässerung – Hauswasserwerk mit Ventilen, Timer, Laufzeit, Durchfluss (Wasser fließt animiert zur offenen Zone)", { _irrigation: true,
+        title: "Hauswasserwerk", pump: "switch.hauswasserwerk", pump_power: "sensor.hauswasserwerk_power", mode: "input_select.bewaesserung_modus",
+        start_time: "input_datetime.bewaesserung_start", last_run: "input_text.bewaesserung_letzter_lauf",
+        zones: [{ valve: "switch.ventil_rasen", timer: "timer.rasen", duration: "input_number.rasen_dauer" },
+          { valve: "switch.ventil_beete", timer: "timer.beete", duration: "input_number.beete_dauer", volume: "sensor.ventil_beete_menge" },
+          { valve: "switch.ventil_hecke", timer: "timer.hecke", duration: "input_number.hecke_dauer" }] }],
       ["Hinweis-Karte – erscheint nur, wenn etwas los ist (Fenster offen, Saugroboter putzt)", { _alert: true,
         contacts: [{ entity: "binary_sensor.buero_fenster", name: "Büro" }, { entity: "binary_sensor.wz_balkontuer", name: "Balkontür" }, "binary_sensor.wz_fenster"],
         alerts: [{ entity: "vacuum.roborock_s8_maxv_ultra", state: ["cleaning", "returning"], severity: "info", title: "Saugroboter putzt", icon: "mdi:robot-vacuum", navigation_path: "#roborock" },
@@ -636,9 +673,9 @@
         grid.appendChild(wrap);
         return;
       }
-      const { _overview, _light, _group, _cover, _coverGroup, _switchTime, _media, _room, _status, _vacuum, _presence, _alert, _energy, ...rest } = cfg;
+      const { _overview, _light, _group, _cover, _coverGroup, _switchTime, _media, _room, _status, _vacuum, _presence, _alert, _energy, _irrigation, ...rest } = cfg;
       const tag = _overview ? "ha-climate-overview-card" : _group ? "ha-light-group-card" : _light ? "ha-light-card"
-        : _cover ? "ha-cover-card" : _coverGroup ? "ha-cover-group-card" : _switchTime ? "ha-switch-time-card" : _media ? "ha-media-card" : _room ? "ha-room-card" : _status ? "ha-status-card" : _vacuum ? "ha-vacuum-card" : _presence ? "ha-presence-card" : _alert ? "ha-alert-card" : _energy ? "ha-energy-card" : "ha-climate-card";
+        : _cover ? "ha-cover-card" : _coverGroup ? "ha-cover-group-card" : _switchTime ? "ha-switch-time-card" : _media ? "ha-media-card" : _room ? "ha-room-card" : _status ? "ha-status-card" : _vacuum ? "ha-vacuum-card" : _presence ? "ha-presence-card" : _alert ? "ha-alert-card" : _energy ? "ha-energy-card" : _irrigation ? "ha-irrigation-card" : "ha-climate-card";
       const card = document.createElement(tag);
       card.id = "card" + i;
       card.setConfig({ type: `custom:${tag}`, ...rest });

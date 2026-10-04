@@ -1104,3 +1104,37 @@ export const consumerGrid = (n: number, cols = 4): { x: number; row: number }[] 
     return { x: (300 * (col + 0.5)) / inRow, row };
   });
 };
+
+/** Durchfluss in Liter pro Minute (m³/h, l/h, l/min, l/s). */
+export const flowLpm = (st?: HassEntity): number | undefined => {
+  if (!st || UNAVAILABLE.includes(st.state)) return undefined;
+  const v = Number(st.state);
+  if (!Number.isFinite(v)) return undefined;
+  const unit = String(st.attributes.unit_of_measurement ?? "L/min").toLowerCase().replace(/\s/g, "");
+  if (unit === "m³/h" || unit === "m3/h") return (v * 1000) / 60;
+  if (unit === "l/h") return v / 60;
+  if (unit === "l/s") return v * 60;
+  if (unit === "m³/s" || unit === "m3/s") return v * 60_000;
+  if (unit === "gal/min") return v * 3.785;
+  return v;
+};
+
+/** Timer-Helfer: Restzeit (s), Gesamtdauer (s) und Fortschritt 0–1 (läuft ab). */
+export const timerInfo = (st: HassEntity | undefined, now: number): { state: string; remaining: number; duration: number; progress: number } | undefined => {
+  if (!st || UNAVAILABLE.includes(st.state)) return undefined;
+  const duration = durationToSeconds(st.attributes.duration);
+  let remaining = 0;
+  if (st.state === "active" && st.attributes.finishes_at) remaining = Math.max(0, (new Date(st.attributes.finishes_at).getTime() - now) / 1000);
+  else if (st.state !== "idle") remaining = durationToSeconds(st.attributes.remaining);
+  const progress = st.state === "idle" || !duration ? 0 : Math.min(1, Math.max(0, 1 - remaining / duration));
+  return { state: st.state, remaining, duration, progress };
+};
+
+/** Restzeit kompakt: „8:05“ bzw. „1:02:05“ */
+export const formatRemaining = (s: number): string => {
+  const t = Math.max(0, Math.round(s));
+  const h = Math.floor(t / 3600);
+  const m = Math.floor((t % 3600) / 60);
+  const sec = String(t % 60).padStart(2, "0");
+  return h ? `${h}:${String(m).padStart(2, "0")}:${sec}` : `${m}:${sec}`;
+};

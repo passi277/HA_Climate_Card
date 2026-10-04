@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.16.0 – Bewässerung
+- Neue **Modern Irrigation Card** für Hauswasserwerk/Pumpe mit Ventilen: Zonen an einer animierten Wasserleitung (Wasser fließt bis zur offenen Zone), Restzeit mit Fortschrittsring, Durchfluss in L/min, Ventil-Akku, Laufzeit per −/+ bzw. Regler, Start/Pause/Stopp (über Timer + Ventil oder eigene Skripte), Modus-Leiste, Startzeit, „Alle nacheinander“, „Alles aus“, letzter Lauf; visueller Editor
+
 ## 1.15.0 – Zusammenfassung mit Monat, Jahr, Gesamt
 - Energy Card: Die Zusammenfassung unten lässt sich per **Wischen** oder Pfeilen zwischen **Heute → Monat → Jahr → Gesamt** wechseln (Punkte zeigen den Zeitraum). Monat/Jahr/Gesamt kommen aus der Langzeitstatistik von Home Assistant (Tagesmittel der Leistungssensoren, `state_class: measurement`) plus heute – keine Energie-Sensoren nötig; „Gesamt“ zeigt, seit wann Daten vorliegen
 - Werte stehen jetzt unter der Bezeichnung und brechen bei zwei Richtungen um – nichts läuft mehr über den Rand; große Werte in MWh

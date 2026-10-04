@@ -666,5 +666,38 @@
     "layout": "Layout",
     "layout_full": "Diagram",
     "layout_compact": "Compact (one row)"
+  },
+  "irrigation": {
+    "title": "Water pump",
+    "pump": "Pump on/off",
+    "running": "Running",
+    "run_all_active": "Cycle running",
+    "off": "Off",
+    "pump_off_open": "Pump off – valve open",
+    "unavailable": "unavailable",
+    "open": "open",
+    "closed": "closed",
+    "paused": "paused",
+    "left": "remaining",
+    "last": "last",
+    "start": "Start",
+    "pause": "Pause",
+    "resume": "Resume",
+    "stop": "Stop",
+    "run_all": "Run all zones",
+    "stop_all": "All off",
+    "start_time": "Start time",
+    "duration": "Duration"
+  },
+  "irrigation_editor": {
+    "title": "Title",
+    "pump": "Pump",
+    "pump_power": "Pump power",
+    "valves": "Valves (zones)",
+    "mode": "Mode (select)",
+    "start_time": "Start time",
+    "run_all": "Script: run all",
+    "stop_all": "Script: emergency stop",
+    "hint": "Timer, duration, flow, volume and custom start/stop scripts per zone via YAML (code editor). Flow and battery sensors are found automatically when named like the valve (e.g. sensor.valve_lawn_flow)."
   }
 }

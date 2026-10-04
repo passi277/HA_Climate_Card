@@ -520,3 +520,51 @@ export interface EnergyCardConfig {
   animations?: "full" | "reduced" | "off";
   [key: string]: unknown;
 }
+
+/** Bewässerungs-Zone: ein Ventil, optional mit Timer, Dauer und Sensoren */
+export interface IrrigationZoneConfig {
+  valve: string;
+  name?: string;
+  icon?: string;
+  color?: string;
+  /** timer.* – Restzeit und Fortschritt */
+  timer?: string;
+  /** input_number/number.* – Laufzeit in Minuten (mit −/+ einstellbar) */
+  duration?: string;
+  /** Durchfluss (m³/h, l/h, l/min) */
+  flow?: string;
+  /** Wassermenge (z.B. letzter Lauf / heute) */
+  volume?: string;
+  battery?: string;
+  /** Eigene Skripte statt Timer + Ventil direkt; script_data wird mitgeschickt (z.B. zone: volleyball) */
+  start_script?: string;
+  pause_script?: string;
+  stop_script?: string;
+  script_data?: Record<string, unknown>;
+}
+
+export interface IrrigationCardConfig {
+  type: string;
+  title?: string;
+  icon?: string;
+  /** Pumpe / Hauswasserwerk (switch) */
+  pump?: string;
+  pump_power?: string;
+  /** Pumpe beim Zonenstart mit einschalten (Standard an) */
+  pump_on_start?: boolean;
+  /** input_select/select – Modus (z.B. Aus/Automatik/Smart) */
+  mode?: string;
+  /** input_datetime/time – Startzeit der Automatik */
+  start_time?: string;
+  /** Durchlauf aller Zonen (Skript) und dessen Status (input_boolean) */
+  run_all?: string;
+  run_all_active?: string;
+  /** Notaus (Skript) – sonst: alle Timer stoppen, Ventile und Pumpe aus */
+  stop_all?: string;
+  /** Text-Entität mit Infos zum letzten Lauf */
+  last_run?: string;
+  zones: IrrigationZoneConfig[];
+  animations?: "full" | "reduced" | "off";
+  [key: string]: unknown;
+}
+

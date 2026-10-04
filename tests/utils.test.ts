@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { HassEntity } from "../src/types";
 import {
-  batteryHoursLeft, consumerGrid, formatHours, integratePower, statsEnergy, energyFlows, formatPower, powerWatts, alertActive, batteryShoppingList, clockMinutes, upcomingPickups, wasteStyle, batteryIcon, doorDevices, doorKind, initials, isCharging, phoneSensors, brightnessPct, contactType, calibrationTransform, roomsFromMap, roomIcon, areaBatteries, batteryInfo, presetActive, presetData, DEFAULT_LIGHT_PRESETS, activityIcon, activityLabel, guessControlDevice, guessVolumeDevice, coverIcon, datetimeParts, nextOccurrence, coverPosition, skyPhase, sunPlacement, weatherOverlay, editorOptions, isNoEffect, lightEditorOptions, segmentIds, detectDeviceType, kelvinToRgb, lightColor, relatedScenes, supportsColor, supportsColorTemp, dewPoint, nextSwitch, parseSchedule, scheduleTempAt, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
+  batteryHoursLeft, consumerGrid, formatHours, integratePower, statsEnergy, flowLpm, timerInfo, formatRemaining, energyFlows, formatPower, powerWatts, alertActive, batteryShoppingList, clockMinutes, upcomingPickups, wasteStyle, batteryIcon, doorDevices, doorKind, initials, isCharging, phoneSensors, brightnessPct, contactType, calibrationTransform, roomsFromMap, roomIcon, areaBatteries, batteryInfo, presetActive, presetData, DEFAULT_LIGHT_PRESETS, activityIcon, activityLabel, guessControlDevice, guessVolumeDevice, coverIcon, datetimeParts, nextOccurrence, coverPosition, skyPhase, sunPlacement, weatherOverlay, editorOptions, isNoEffect, lightEditorOptions, segmentIds, detectDeviceType, kelvinToRgb, lightColor, relatedScenes, supportsColor, supportsColorTemp, dewPoint, nextSwitch, parseSchedule, scheduleTempAt, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
   openContactsKey, powerOf, resolveContacts, secondsToDuration, stateIcon, temperatureOf, temperatureTint, trendSlope,
 } from "../src/utils";
 import { formatAttribute, localize } from "../src/localize/localize";
@@ -535,6 +535,19 @@ describe("energy extras", () => {
     expect(statsEnergy(rows)).toBeCloseTo(2400 + 1200 + 240);
     expect(statsEnergy(rows, 24 * h)).toBeCloseTo(1200 + 240);
     expect(statsEnergy([{ start: 0, end: h, mean: -50 }])).toBe(0);
+  });
+  it("converts flow to L/min and reads timers", () => {
+    expect(flowLpm(entity("sensor.f", "0.84", { unit_of_measurement: "m³/h" }))).toBeCloseTo(14);
+    expect(flowLpm(entity("sensor.f", "120", { unit_of_measurement: "L/h" }))).toBeCloseTo(2);
+    expect(flowLpm(entity("sensor.f", "unavailable"))).toBeUndefined();
+    const now = Date.parse("2026-10-04T10:00:00Z");
+    const t = timerInfo(entity("timer.a", "active", { duration: "0:10:00", finishes_at: "2026-10-04T10:05:00Z" }), now)!;
+    expect(t.remaining).toBe(300);
+    expect(t.progress).toBeCloseTo(0.5);
+    expect(timerInfo(entity("timer.a", "paused", { duration: "0:10:00", remaining: "0:08:00" }), now)!.remaining).toBe(480);
+    expect(timerInfo(entity("timer.a", "idle", { duration: "0:10:00" }), now)!.progress).toBe(0);
+    expect(formatRemaining(485)).toBe("8:05");
+    expect(formatRemaining(3725)).toBe("1:02:05");
   });
   it("computes battery time left / to full", () => {
     expect(batteryHoursLeft(50, 2688, 0, 161)).toBeCloseTo(8.35, 1);

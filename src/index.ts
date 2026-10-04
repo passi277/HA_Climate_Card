@@ -14,3 +14,4 @@ import "./vacuum-card";
 import "./presence-card";
 import "./alert-card";
 import "./energy-card";
+import "./irrigation-card";
