@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.21.0 – Pool
+- Neue **Modern Pool Card**: animiertes Becken (Wellen, Lichtreflexe, Strömung/Bläschen bei laufender Pumpe, Wasserfarbe nach Qualität) mit Temperatur und Pumpenknopf, Temperatur/pH/Redox mit Bereichsbalken und 48-h-Verlauf, Handlungshinweis, Filterlaufzeit-Ring mit Solar/Ersparnis/Energie/Kosten, Betriebsmodus, Ziel-Laufzeit direkt in der Karte, Pflege-Empfehlung (pH-Dosierung, Chlor, Laufzeit) und Wartung (Rückspülen/Nachspülen mit Countdown, „Rückgespült“ mit Rückfrage, Auto-Aus); visueller Editor
+
 ## 1.20.0 – Smart-Bereich
 - Irrigation Card: im Smart-Modus erscheint ein Smart-Bereich (`smart:`) – Ausfall-Hinweis mit Grund, Jahreszeit, DWD-Warnstufe, ET₀, letzte Berechnung + Messpunkte, Plan für den nächsten Lauf, Wasserkonto je Zone (Balken; antippen: Fläche, mm/h, Pflanzenfaktor, 7-Tage-Verlauf), „Neu berechnen“, „Jetzt gießen“ und „Konten auf 0“ (mit Rückfrage), gemessener Durchfluss und Hinweistext
 

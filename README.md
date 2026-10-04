@@ -19,6 +19,7 @@ weiche Farbübergänge und Animationen. Ein HACS-Download, mehrere Karten:
 | **Modern Alert Card** | `custom:ha-alert-card` | Hinweise, die nur erscheinen, wenn etwas los ist („Fenster offen – Marcel“) |
 | **Modern Energy Card** | `custom:ha-energy-card` | Energiefluss Solar / Batterie / Netz / Haus + einzelne Verbraucher (Konfiguration wie power-flow-card-plus) |
 | **Modern Irrigation Card** | `custom:ha-irrigation-card` | Hauswasserwerk / Pumpe mit parallelen Ventilen am Verteiler, Strang „Sonstiges“, Restzeit, Durchfluss |
+| **Modern Pool Card** | `custom:ha-pool-card` | Pool: animiertes Becken mit Filterpumpe, Temperatur / pH / Redox mit Bereich und 48-h-Verlauf, Filterlaufzeit, Modus, Pflege, Rückspülen |
 | **Climate Overview** | `custom:ha-climate-overview-card` | alle Klimageräte auf einen Blick |
 
 *Modern Lovelace cards for Home Assistant in one shared design – English summary below.*
@@ -602,6 +603,50 @@ zones:
 
 Ohne Skripte startet ▶ den Timer mit der eingestellten Laufzeit und öffnet das Ventil; ⏸ pausiert den Timer und schließt das Ventil, ⏹ bricht ab.
 „Sonstiges“ erscheint, sobald `pump_power` gesetzt ist (`show_other: false` blendet es aus, `other_threshold: 15` = ab wie vielen Watt die Pumpe pumpt). Das Schließen beim Ablauf des Timers übernimmt wie bisher eine Automation.
+
+## Modern Pool Card
+
+Ein **animiertes Becken** (Wellen, Lichtreflexe, bei laufender Pumpe Strömung und Bläschen; die Wasserfarbe folgt der Wasserqualität) mit der Wassertemperatur
+und dem Knopf für die Filterpumpe. Darunter **Temperatur, pH und Redox** mit Bereichsbalken (rot / gelb / grün) – antippen zeigt den **48-h-Verlauf**.
+Dazu der Handlungshinweis (z.B. „pH-Wert zu niedrig“), die **Filterlaufzeit** heute als Ring (Ziel: eingestellt im Automatik-Modus, sonst empfohlen) mit Solar-Anteil,
+Ersparnis, Energie und Kosten, der **Betriebsmodus**, die **Ziel-Laufzeit** direkt in der Karte (−/+, Schnellwahl, „Empfehlung“), eine **Pflege-Empfehlung**
+(pH-Dosierung, Chlor, Pumpen-Laufzeit) und die **Wartung**: Stunden seit dem Rückspülen, Rückspülen/Nachspülen mit Countdown, „Rückgespült“ (mit Rückfrage) und Auto-Aus.
+
+```yaml
+type: custom:ha-pool-card
+pump: switch.poolpumpe
+pump_power: sensor.poolpumpe_power
+mode: input_select.pool_betrieb             # target_mode: Automatik (Modus, in dem target_runtime gilt)
+start_time: input_datetime.pool_startzeit
+target_runtime: input_number.pool_laufzeit  # Stunden
+recommended_runtime: sensor.pool_empfohlene_laufzeit
+runtime_today: sensor.pool_laufzeit_heute
+temperature: sensor.pool_temperatur
+ph: sensor.pool_ph
+orp: sensor.pool_orp
+guidance: sensor.pool_guidance              # Handlungshinweis (Text)
+last_measurement: sensor.pool_last_measurement
+measurement_stale: binary_sensor.pool_messung_veraltet
+quality: sensor.pool_wasserqualitat         # ok / check / critical
+energy_today: sensor.pool_energie_heute
+cost_today: sensor.pool_stromkosten_heute
+solar_power: sensor.pool_solar_power
+solar_savings: sensor.pool_ersparnis
+auto_off: input_boolean.pool_auto_aus
+backwash:
+  due: binary_sensor.pool_ruckspulen_fallig
+  hours: sensor.pool_pumpenstunden_seit_ruckspulen   # interval: 50 (sonst Attribut interval_hours)
+  last: sensor.pool_letztes_ruckspulen
+  done_button: button.pool_ruckgespult
+  script: script.pool_ruckspulen_start
+  timer: timer.pool_ruckspulen
+rinse:
+  script: script.pool_nachspulen_start
+  timer: timer.pool_nachspulen
+# ranges: { ph: [6.8, 7.0, 7.2, 7.4], orp: [550, 650, 750, 800], temperature: [20, 28] }
+# care: { ph_target: 7.1, ph_dose: 172, chlorine_low: 50, chlorine_critical: 150 }   # care: false blendet die Pflege aus
+# runtimes: [2, 4, 6, 8, 10, 12]
+```
 
 ## Heizungen (z.B. Homematic IP)
 

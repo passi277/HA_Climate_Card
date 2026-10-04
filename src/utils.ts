@@ -1138,3 +1138,21 @@ export const formatRemaining = (s: number): string => {
   const sec = String(t % 60).padStart(2, "0");
   return h ? `${h}:${String(m).padStart(2, "0")}:${sec}` : `${m}:${sec}`;
 };
+
+/** Bereich [rot-unten, grün-ab, grün-bis, rot-oben]: optimal (grün), ok (gelb) oder bad (rot) */
+export const rangeStatus = (v: number, r: [number, number, number, number]): "optimal" | "ok" | "bad" =>
+  v >= r[1] && v <= r[2] ? "optimal" : v >= r[0] && v <= r[3] ? "ok" : "bad";
+
+/** pH-Dosierung: Gramm pH-Plus/-Minus, um den Zielwert zu erreichen (außerhalb des grünen Bereichs) */
+export const phDose = (ph: number, target: number, gramsPer01: number, okLow: number, okHigh: number): { kind: "minus" | "plus"; grams: number } | undefined => {
+  if (ph > okHigh) return { kind: "minus", grams: Math.round(((ph - target) / 0.1) * gramsPer01) };
+  if (ph < okLow) return { kind: "plus", grams: Math.round(((target - ph) / 0.1) * gramsPer01) };
+  return undefined;
+};
+
+/** Filterlaufzeit-Empfehlung (h): Basis nach Wassertemperatur + Korrektur bei schlechtem pH/Redox */
+export const poolRuntimeRecommendation = (temp: number, phBad: boolean, orpLow: boolean): { base: number; extra: number; total: number } => {
+  const base = temp < 20 ? 5 : temp <= 26 ? 7 : temp <= 30 ? 9 : 12;
+  const extra = (phBad ? 2 : 0) + (orpLow ? 2 : 0);
+  return { base, extra, total: base + extra };
+};

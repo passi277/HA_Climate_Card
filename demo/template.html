@@ -340,6 +340,31 @@
       "input_text.bewaesserung_durchfluss": { state: "Gemessen 03.10.: Rasen 4.9 l/min; Beete 16.8 l/min; Hecke 7.5 l/min", attributes: { friendly_name: "Gemessener Durchfluss" } },
       "input_select.bewaesserung_modus": { state: "Automatik", attributes: { friendly_name: "Bewässerung Modus", options: ["Aus", "Automatik", "Smart"] } },
       "input_text.bewaesserung_letzter_lauf": { state: "03.10. 11:00: Rasen 13 min/64 l; Beete 10 min/52 l; Hecke 4 min/18 l", attributes: { friendly_name: "Letzter Lauf" } },
+      "switch.poolpumpe": { state: "on", attributes: { friendly_name: "Poolpumpe" } },
+      "sensor.poolpumpe_power": { state: "64", attributes: { friendly_name: "Poolpumpe Leistung", unit_of_measurement: "W", device_class: "power" } },
+      "input_select.pool_modus": { state: "Automatik", attributes: { friendly_name: "Pool Betrieb", options: ["Manuell", "Automatik", "Solar-Automatik", "Smart-Modus", "Neu-Befüllung (48h)", "Algen-Problem", "Aus"] } },
+      "input_datetime.pool_start": { state: "14:30:00", attributes: { friendly_name: "Pool Startzeit", has_time: true, has_date: false, hour: 14, minute: 30 } },
+      "input_number.pool_ziel": { state: "6", attributes: { friendly_name: "Pool Ziel-Laufzeit", min: 0, max: 24, step: 1, unit_of_measurement: "h" } },
+      "sensor.pool_empfehlung": { state: "8.9", attributes: { friendly_name: "Pool empfohlene Laufzeit", unit_of_measurement: "h" } },
+      "sensor.pool_laufzeit": { state: "2.1", attributes: { friendly_name: "Pool Laufzeit heute", unit_of_measurement: "h" } },
+      "sensor.pool_wassertemperatur": { state: "24.6", attributes: { friendly_name: "Pool Temperatur", unit_of_measurement: "°C", device_class: "temperature" } },
+      "sensor.pool_ph_wert": { state: "6.92", attributes: { friendly_name: "Pool pH", unit_of_measurement: "pH" } },
+      "sensor.pool_redox": { state: "688", attributes: { friendly_name: "Pool Redox", unit_of_measurement: "mV" } },
+      "sensor.pool_hinweis": { state: "pH-Wert zu niedrig: 310 g pH+ hinzufügen", attributes: { friendly_name: "Pool Hinweis" } },
+      "sensor.pool_messung": { state: new Date(Date.now() - 95 * 60000).toISOString(), attributes: { friendly_name: "Pool letzte Messung", device_class: "timestamp" } },
+      "binary_sensor.pool_messung_alt": { state: "off", attributes: { friendly_name: "Messung veraltet", device_class: "problem" } },
+      "sensor.pool_qualitaet": { state: "check", attributes: { friendly_name: "Pool Wasserqualität", options: ["ok", "check", "critical"] } },
+      "sensor.pool_energie": { state: "0.14", attributes: { friendly_name: "Pool Energie heute", unit_of_measurement: "kWh" } },
+      "sensor.pool_kosten": { state: "0.04", attributes: { friendly_name: "Pool Kosten heute", unit_of_measurement: "EUR" } },
+      "sensor.pool_solar": { state: "52", attributes: { friendly_name: "Pool Solar", unit_of_measurement: "W" } },
+      "sensor.pool_ersparnis": { state: "0.02", attributes: { friendly_name: "Pool Ersparnis", unit_of_measurement: "€/h" } },
+      "input_boolean.pool_auto_aus": { state: "on", attributes: { friendly_name: "Auto-Aus bei Störung" } },
+      "binary_sensor.pool_rueckspuelen_faellig": { state: "off", attributes: { friendly_name: "Rückspülen fällig", device_class: "problem" } },
+      "sensor.pool_stunden_seit_rueckspuelen": { state: "38.4", attributes: { friendly_name: "Pumpenstunden seit Rückspülen", unit_of_measurement: "h", interval_hours: 50 } },
+      "sensor.pool_letztes_rueckspuelen": { state: new Date(Date.now() - 9 * 86400000).toISOString(), attributes: { friendly_name: "Letztes Rückspülen", device_class: "timestamp" } },
+      "button.pool_rueckgespuelt": { state: "unknown", attributes: { friendly_name: "Rückgespült" } },
+      "timer.pool_rueckspuelen": { state: "idle", attributes: { friendly_name: "Rückspülen", duration: "0:03:00" } },
+      "timer.pool_nachspuelen": { state: "idle", attributes: { friendly_name: "Nachspülen", duration: "0:01:00" } },
       "lock.klingel": { state: "locked", attributes: { friendly_name: "Klingel", supported_features: 1 } },
       "binary_sensor.klingel_klingelaktion": { state: "off", attributes: { friendly_name: "Klingel Klingelaktion" } },
       "binary_sensor.klingel_batterie": { state: "on", attributes: { friendly_name: "Klingel Batteriestand", device_class: "battery" } },
@@ -506,6 +531,15 @@
           setTimeout(() => { const h = makeHass(); cards.forEach((c) => (c.hass = h)); }, 150);
           return;
         }
+        if (domain === "button") return;
+        if (domain === "script" && /pool_(rueck|nach)spuelen/.test(data.entity_id)) {
+          const tid = data.entity_id.includes("rueck") ? "timer.pool_rueckspuelen" : "timer.pool_nachspuelen";
+          const t = states[tid];
+          const secs = t.attributes.duration.split(":").reduce((a, v) => a * 60 + Number(v), 0);
+          states[tid] = { ...t, state: "active", attributes: { ...t.attributes, finishes_at: new Date(Date.now() + secs * 1000).toISOString() } };
+          setTimeout(() => { const h = makeHass(); cards.forEach((c) => (c.hass = h)); }, 150);
+          return;
+        }
         if (domain === "input_number" || domain === "input_select" || domain === "script") {
           if (service === "set_value") states[data.entity_id] = { ...s, state: String(data.value) };
           if (service === "select_option") states[data.entity_id] = { ...s, state: data.option };
@@ -561,6 +595,16 @@
               rows.push({ start: d.getTime(), end: n.getTime(), mean });
             }
             out[id] = rows;
+          }
+          return out;
+        }
+        // Pool-Werte: 48 h Verlauf mit Tagesgang
+        if (msg.no_attributes && msg.entity_ids.every((id) => /^sensor\.pool_(wassertemperatur|ph_wert|redox)$/.test(id))) {
+          const now = Date.now() / 1000;
+          for (const id of msg.entity_ids) {
+            const v = Number(states[id].state);
+            const amp = id.endsWith("redox") ? 40 : id.endsWith("ph_wert") ? 0.12 : 1.4;
+            out[id] = Array.from({ length: 49 }, (_, i) => ({ s: String(+(v + amp * Math.sin((i - 48) / 7.6) - amp * 0.3 * (48 - i) / 48).toFixed(2)), lu: now - (48 - i) * 3600 }));
           }
           return out;
         }
@@ -643,6 +687,16 @@
         zones: [{ valve: "switch.ventil_rasen", timer: "timer.rasen", duration: "input_number.rasen_dauer", smart_duration: "sensor.smart_irrigation_rasen" },
           { valve: "switch.ventil_beete", timer: "timer.beete", duration: "input_number.beete_dauer", volume: "sensor.ventil_beete_menge", smart_duration: "sensor.smart_irrigation_beete" },
           { valve: "switch.ventil_hecke", timer: "timer.hecke", duration: "input_number.hecke_dauer", smart_duration: "sensor.smart_irrigation_hecke" }] }],
+      ["Pool – Filterpumpe, Wasserwerte mit Verlauf, Laufzeit, Modus, Pflege und Rückspülen (animiertes Becken)", { _pool: true,
+        pump: "switch.poolpumpe", pump_power: "sensor.poolpumpe_power", mode: "input_select.pool_modus", start_time: "input_datetime.pool_start",
+        target_runtime: "input_number.pool_ziel", recommended_runtime: "sensor.pool_empfehlung", runtime_today: "sensor.pool_laufzeit",
+        temperature: "sensor.pool_wassertemperatur", ph: "sensor.pool_ph_wert", orp: "sensor.pool_redox", guidance: "sensor.pool_hinweis",
+        last_measurement: "sensor.pool_messung", measurement_stale: "binary_sensor.pool_messung_alt", quality: "sensor.pool_qualitaet",
+        energy_today: "sensor.pool_energie", cost_today: "sensor.pool_kosten", solar_power: "sensor.pool_solar", solar_savings: "sensor.pool_ersparnis",
+        auto_off: "input_boolean.pool_auto_aus",
+        backwash: { due: "binary_sensor.pool_rueckspuelen_faellig", hours: "sensor.pool_stunden_seit_rueckspuelen", last: "sensor.pool_letztes_rueckspuelen",
+          done_button: "button.pool_rueckgespuelt", script: "script.pool_rueckspuelen_start", timer: "timer.pool_rueckspuelen" },
+        rinse: { script: "script.pool_nachspuelen_start", timer: "timer.pool_nachspuelen" } }],
       ["Hinweis-Karte – erscheint nur, wenn etwas los ist (Fenster offen, Saugroboter putzt)", { _alert: true,
         contacts: [{ entity: "binary_sensor.buero_fenster", name: "Büro" }, { entity: "binary_sensor.wz_balkontuer", name: "Balkontür" }, "binary_sensor.wz_fenster"],
         alerts: [{ entity: "vacuum.roborock_s8_maxv_ultra", state: ["cleaning", "returning"], severity: "info", title: "Saugroboter putzt", icon: "mdi:robot-vacuum", navigation_path: "#roborock" },
@@ -688,9 +742,9 @@
         grid.appendChild(wrap);
         return;
       }
-      const { _overview, _light, _group, _cover, _coverGroup, _switchTime, _media, _room, _status, _vacuum, _presence, _alert, _energy, _irrigation, ...rest } = cfg;
+      const { _overview, _light, _group, _cover, _coverGroup, _switchTime, _media, _room, _status, _vacuum, _presence, _alert, _energy, _irrigation, _pool, ...rest } = cfg;
       const tag = _overview ? "ha-climate-overview-card" : _group ? "ha-light-group-card" : _light ? "ha-light-card"
-        : _cover ? "ha-cover-card" : _coverGroup ? "ha-cover-group-card" : _switchTime ? "ha-switch-time-card" : _media ? "ha-media-card" : _room ? "ha-room-card" : _status ? "ha-status-card" : _vacuum ? "ha-vacuum-card" : _presence ? "ha-presence-card" : _alert ? "ha-alert-card" : _energy ? "ha-energy-card" : _irrigation ? "ha-irrigation-card" : "ha-climate-card";
+        : _cover ? "ha-cover-card" : _coverGroup ? "ha-cover-group-card" : _switchTime ? "ha-switch-time-card" : _media ? "ha-media-card" : _room ? "ha-room-card" : _status ? "ha-status-card" : _vacuum ? "ha-vacuum-card" : _presence ? "ha-presence-card" : _alert ? "ha-alert-card" : _energy ? "ha-energy-card" : _irrigation ? "ha-irrigation-card" : _pool ? "ha-pool-card" : "ha-climate-card";
       const card = document.createElement(tag);
       card.id = "card" + i;
       card.setConfig({ type: `custom:${tag}`, ...rest });

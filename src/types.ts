@@ -603,3 +603,43 @@ export interface IrrigationCardConfig {
   [key: string]: unknown;
 }
 
+/** Pool: Filterpumpe, Wasserwerte, Laufzeit, Pflege und Wartung */
+export interface PoolCardConfig {
+  type: string;
+  title?: string;
+  pump?: string;
+  pump_power?: string;
+  /** input_select – Betriebsmodus; target_mode: Modus, in dem target_runtime gilt (Standard „Automatik“) */
+  mode?: string;
+  target_mode?: string;
+  start_time?: string;
+  /** Laufzeiten in Stunden */
+  target_runtime?: string;
+  recommended_runtime?: string;
+  runtime_today?: string;
+  temperature?: string;
+  ph?: string;
+  orp?: string;
+  /** Handlungshinweis (Text), letzte Messung, Messung veraltet, Gesamtbewertung (ok/check/critical) */
+  guidance?: string;
+  last_measurement?: string;
+  measurement_stale?: string;
+  quality?: string;
+  energy_today?: string;
+  cost_today?: string;
+  solar_power?: string;
+  solar_savings?: string;
+  /** Auto-Aus bei Störung (input_boolean) */
+  auto_off?: string;
+  backwash?: { due?: string; hours?: string; interval?: number; last?: string; done_button?: string; script?: string; timer?: string };
+  rinse?: { script?: string; timer?: string };
+  /** Grenzen [rot-unten, grün-ab, grün-bis, rot-oben]; Temperatur [kalt-bis, warm-ab] */
+  ranges?: { ph?: [number, number, number, number]; orp?: [number, number, number, number]; temperature?: [number, number] };
+  /** Pflege: pH-Ziel, Gramm je 0,1 pH, Chlor-Granulat in g (niedrig / kritisch) */
+  care?: false | { ph_target?: number; ph_dose?: number; chlorine_low?: number; chlorine_critical?: number };
+  /** Schnellwahl Ziel-Laufzeit in Stunden */
+  runtimes?: number[];
+  animations?: "full" | "reduced" | "off";
+  [key: string]: unknown;
+}
+

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { HassEntity } from "../src/types";
 import {
-  batteryHoursLeft, consumerGrid, formatHours, integratePower, statsEnergy, flowLpm, timerInfo, formatRemaining, energyFlows, formatPower, powerWatts, alertActive, batteryShoppingList, clockMinutes, upcomingPickups, wasteStyle, batteryIcon, doorDevices, doorKind, initials, isCharging, phoneSensors, brightnessPct, contactType, calibrationTransform, roomsFromMap, roomIcon, areaBatteries, batteryInfo, presetActive, presetData, DEFAULT_LIGHT_PRESETS, activityIcon, activityLabel, guessControlDevice, guessVolumeDevice, coverIcon, datetimeParts, nextOccurrence, coverPosition, skyPhase, sunPlacement, weatherOverlay, editorOptions, isNoEffect, lightEditorOptions, segmentIds, detectDeviceType, kelvinToRgb, lightColor, relatedScenes, supportsColor, supportsColorTemp, dewPoint, nextSwitch, parseSchedule, scheduleTempAt, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
+  batteryHoursLeft, consumerGrid, formatHours, integratePower, statsEnergy, flowLpm, timerInfo, formatRemaining, rangeStatus, phDose, poolRuntimeRecommendation, energyFlows, formatPower, powerWatts, alertActive, batteryShoppingList, clockMinutes, upcomingPickups, wasteStyle, batteryIcon, doorDevices, doorKind, initials, isCharging, phoneSensors, brightnessPct, contactType, calibrationTransform, roomsFromMap, roomIcon, areaBatteries, batteryInfo, presetActive, presetData, DEFAULT_LIGHT_PRESETS, activityIcon, activityLabel, guessControlDevice, guessVolumeDevice, coverIcon, datetimeParts, nextOccurrence, coverPosition, skyPhase, sunPlacement, weatherOverlay, editorOptions, isNoEffect, lightEditorOptions, segmentIds, detectDeviceType, kelvinToRgb, lightColor, relatedScenes, supportsColor, supportsColorTemp, dewPoint, nextSwitch, parseSchedule, scheduleTempAt, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
   openContactsKey, powerOf, resolveContacts, secondsToDuration, stateIcon, temperatureOf, temperatureTint, trendSlope,
 } from "../src/utils";
 import { formatAttribute, localize } from "../src/localize/localize";
@@ -548,6 +548,16 @@ describe("energy extras", () => {
     expect(timerInfo(entity("timer.a", "idle", { duration: "0:10:00" }), now)!.progress).toBe(0);
     expect(formatRemaining(485)).toBe("8:05");
     expect(formatRemaining(3725)).toBe("1:02:05");
+  });
+  it("rates pool values and computes care advice", () => {
+    expect(rangeStatus(7.1, [6.8, 7.0, 7.2, 7.4])).toBe("optimal");
+    expect(rangeStatus(6.9, [6.8, 7.0, 7.2, 7.4])).toBe("ok");
+    expect(rangeStatus(531, [550, 650, 750, 800])).toBe("bad");
+    expect(phDose(6.92, 7.1, 172, 7.0, 7.2)).toEqual({ kind: "plus", grams: 310 });
+    expect(phDose(7.4, 7.1, 172, 7.0, 7.2)).toEqual({ kind: "minus", grams: 516 });
+    expect(phDose(7.1, 7.1, 172, 7.0, 7.2)).toBeUndefined();
+    expect(poolRuntimeRecommendation(24.6, true, false)).toEqual({ base: 7, extra: 2, total: 9 });
+    expect(poolRuntimeRecommendation(17.2, false, true).total).toBe(7);
   });
   it("computes battery time left / to full", () => {
     expect(batteryHoursLeft(50, 2688, 0, 161)).toBeCloseTo(8.35, 1);
