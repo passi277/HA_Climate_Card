@@ -413,6 +413,10 @@
         [`switch.blink_${n}_bewegungserkennung_der_kamera`, { state: n === "pool" ? "off" : "on", attributes: { friendly_name: `${n} Bewegungserkennung der Kamera` } }],
       ])),
       "alarm_control_panel.blink_garten": { state: "armed_away", attributes: { friendly_name: "Blink Garten", status: "online" } },
+      "input_select.jahreszeit": { state: "Sommer", attributes: { friendly_name: "Jahreszeiten", options: ["Sommer", "Winter"], icon: "mdi:sun-snowflake-variant" } },
+      "input_select.pascal_dashboard": { state: "Garten", attributes: { friendly_name: "Pascal Dashboard", options: ["Zuhause", "Garten"] } },
+      "input_select.bewaesserung_rasen_status": { state: "gestoppt", attributes: { friendly_name: "Bewässerung Rasen Status", options: ["gestartet", "pausiert", "gestoppt"] } },
+      "select.defekter_modus": { state: "unavailable", attributes: { friendly_name: "Lüftung Stufe", options: ["Niedrig", "Mittel", "Hoch"] } },
       "lock.klingel": { state: "locked", attributes: { friendly_name: "Klingel", supported_features: 1 } },
       "binary_sensor.klingel_klingelaktion": { state: "off", attributes: { friendly_name: "Klingel Klingelaktion" } },
       "binary_sensor.klingel_batterie": { state: "on", attributes: { friendly_name: "Klingel Batteriestand", device_class: "battery" } },
@@ -757,6 +761,10 @@
       ["Kamera – Blink: Standbild mit „Neues Bild“, Bewegung, Akku, WLAN", { _camera: true, entity: "camera.blink_pool" }],
       ["Kameragruppe – Blink mit Scharf/Unscharf, Bewegung, Akku, Erkennung je Kamera", { _cameraGroup: true, title: "Blink Garten", alarm: "alarm_control_panel.blink_garten",
         cameras: ["camera.blink_tor", "camera.blink_carport", "camera.blink_pool", "camera.blink_schuppen"] }],
+      ["Auswahl – Dropdowns als Leiste, Chips (mit Rückfrage bei „Aus“) und Kacheln, Symbole automatisch", { _select: true, title: "Modi",
+        entities: ["input_select.bewaesserung_modus", { entity: "input_select.pool_modus", confirm: ["Aus"] }, "input_select.jahreszeit",
+          { entity: "input_select.pascal_dashboard", layout: "tiles" }, "select.defekter_modus"] }],
+      ["Auswahl – kompaktes Dropdown", { _select: true, entities: [{ entity: "input_select.bewaesserung_rasen_status", layout: "dropdown" }] }],
       ["Hinweis-Karte – erscheint nur, wenn etwas los ist (Fenster offen, Saugroboter putzt)", { _alert: true,
         contacts: [{ entity: "binary_sensor.buero_fenster", name: "Büro" }, { entity: "binary_sensor.wz_balkontuer", name: "Balkontür" }, "binary_sensor.wz_fenster"],
         alerts: [{ entity: "vacuum.roborock_s8_maxv_ultra", state: ["cleaning", "returning"], severity: "info", title: "Saugroboter putzt", icon: "mdi:robot-vacuum", navigation_path: "#roborock" },
@@ -802,9 +810,9 @@
         grid.appendChild(wrap);
         return;
       }
-      const { _overview, _light, _group, _cover, _coverGroup, _switchTime, _media, _room, _status, _vacuum, _presence, _alert, _energy, _irrigation, _pool, _camera, _cameraGroup, ...rest } = cfg;
+      const { _overview, _light, _group, _cover, _coverGroup, _switchTime, _media, _room, _status, _vacuum, _presence, _alert, _energy, _irrigation, _pool, _camera, _cameraGroup, _select, ...rest } = cfg;
       const tag = _overview ? "ha-climate-overview-card" : _group ? "ha-light-group-card" : _light ? "ha-light-card"
-        : _cover ? "ha-cover-card" : _coverGroup ? "ha-cover-group-card" : _switchTime ? "ha-switch-time-card" : _media ? "ha-media-card" : _room ? "ha-room-card" : _status ? "ha-status-card" : _vacuum ? "ha-vacuum-card" : _presence ? "ha-presence-card" : _alert ? "ha-alert-card" : _energy ? "ha-energy-card" : _irrigation ? "ha-irrigation-card" : _pool ? "ha-pool-card" : _camera ? "ha-camera-card" : _cameraGroup ? "ha-camera-group-card" : "ha-climate-card";
+        : _cover ? "ha-cover-card" : _coverGroup ? "ha-cover-group-card" : _switchTime ? "ha-switch-time-card" : _media ? "ha-media-card" : _room ? "ha-room-card" : _status ? "ha-status-card" : _vacuum ? "ha-vacuum-card" : _presence ? "ha-presence-card" : _alert ? "ha-alert-card" : _energy ? "ha-energy-card" : _irrigation ? "ha-irrigation-card" : _pool ? "ha-pool-card" : _camera ? "ha-camera-card" : _cameraGroup ? "ha-camera-group-card" : _select ? "ha-select-card" : "ha-climate-card";
       const card = document.createElement(tag);
       card.id = "card" + i;
       card.setConfig({ type: `custom:${tag}`, ...rest });

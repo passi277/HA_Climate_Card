@@ -888,5 +888,21 @@
     "columns": "Columns",
     "sort_motion": "Cameras with motion first",
     "hint": "Detection, battery, Wi-Fi, light, siren, presets and PTZ are found automatically via the camera's device – overridable via YAML (e.g. light: light.x)."
+  },
+  "select": {
+    "confirm": "Sure?",
+    "unavailable": "unavailable"
+  },
+  "select_editor": {
+    "title": "Title",
+    "entities": "Selects (dropdowns)",
+    "layout": "Layout",
+    "layout_auto": "Automatic",
+    "layout_segment": "Segmented",
+    "layout_chips": "Chips",
+    "layout_tiles": "Tiles",
+    "layout_list": "List",
+    "layout_dropdown": "Compact dropdown",
+    "hint": "Icons and colors are guessed from the option names. Per option overridable, hideable and with confirmation – via YAML:"
   }
 }

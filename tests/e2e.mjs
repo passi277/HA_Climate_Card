@@ -969,6 +969,39 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
     : fail(`Kameragruppe: ${JSON.stringify({ g0, opened, dis1, dis2, arm, sw, health })}`);
 }
 
+// Auswahl-Karte: Leiste, Chips mit Rückfrage, Kacheln, Dropdown, nicht verfügbar
+{
+  const card = await p.evaluateHandle(() => document.querySelector("ha-select-card"));
+  await card.evaluate((c) => c.scrollIntoView({ block: "center" }));
+  await p.waitForTimeout(300);
+  const calls = async (h, fn, wait = 300) => { const n = await p.evaluate(() => window.serviceCalls.length); await h.evaluate(fn); await p.waitForTimeout(wait);
+    return p.evaluate((n) => window.serviceCalls.slice(n).map((c) => `${c.domain}.${c.service} ${c.data.entity_id} ${c.data.option}`), n); };
+  const row = (id) => `.row[data-entity="${id}"]`;
+  const r0 = await card.evaluate((c, rows) => { const r = c.shadowRoot; return {
+    layouts: [...r.querySelectorAll(".row")].map((x) => [...x.classList].find((k) => k.startsWith("l-"))),
+    segSel: r.querySelector(`${rows[0]} .seg.sel`)?.textContent.trim(), icons: [...r.querySelectorAll(`${rows[0]} .seg ha-icon`)].map((i) => i.icon),
+    disabled: [...r.querySelectorAll(`${rows[1]} button.seg`)].every((b) => b.disabled) }; }, [row("input_select.bewaesserung_modus"), row("select.defekter_modus")]);
+  const seg = await calls(card, (c) => [...c.shadowRoot.querySelectorAll('.row[data-entity="input_select.jahreszeit"] .seg')].find((b) => /Winter/.test(b.textContent)).click());
+  const segAfter = await card.evaluate((c) => c.shadowRoot.querySelector('.row[data-entity="input_select.jahreszeit"] .seg.sel')?.textContent.trim());
+  const ask1 = await calls(card, (c) => [...c.shadowRoot.querySelectorAll('.row[data-entity="input_select.pool_modus"] .chip')].find((b) => /^Aus$/.test(b.textContent.trim())).click(), 100);
+  const asked = await card.evaluate((c) => c.shadowRoot.querySelector('.row[data-entity="input_select.pool_modus"] .chip.ask')?.textContent.trim());
+  const ask2 = await calls(card, (c) => c.shadowRoot.querySelector('.row[data-entity="input_select.pool_modus"] .chip.ask').click());
+  const tile = await calls(card, (c) => [...c.shadowRoot.querySelectorAll(".tile")].find((b) => /Zuhause/.test(b.textContent)).click());
+  const dd = await p.evaluateHandle(() => document.querySelectorAll("ha-select-card")[1]);
+  await dd.evaluate((c) => c.shadowRoot.querySelector(".dd-btn").click());
+  await p.waitForTimeout(150);
+  const opened = await dd.evaluate((c) => c.shadowRoot.querySelectorAll(".dd .li").length);
+  const pick = await calls(dd, (c) => [...c.shadowRoot.querySelectorAll(".dd .li")].find((b) => /gestartet/.test(b.textContent)).click());
+  const closed = await dd.evaluate((c) => ({ list: !!c.shadowRoot.querySelector(".dd .list"), btn: c.shadowRoot.querySelector(".dd-btn").textContent.trim() }));
+  r0.layouts.join() === "l-segment,l-chips,l-segment,l-tiles,l-segment" && r0.segSel === "Automatik" && r0.icons.join() === "mdi:power,mdi:robot,mdi:auto-fix" && r0.disabled
+    && seg.join() === "input_select.select_option input_select.jahreszeit Winter" && segAfter === "Winter"
+    && ask1.length === 0 && asked === "Sicher?" && ask2.join() === "input_select.select_option input_select.pool_modus Aus"
+    && tile.join() === "input_select.select_option input_select.pascal_dashboard Zuhause" && opened === 3
+    && pick.join() === "input_select.select_option input_select.bewaesserung_rasen_status gestartet" && !closed.list && closed.btn === "gestartet"
+    ? ok("Auswahl: Leiste, Chips mit Rückfrage, Kacheln, Dropdown, Symbole automatisch, nicht verfügbar gesperrt")
+    : fail(`Auswahl: ${JSON.stringify({ r0, seg, segAfter, ask1, asked, ask2, tile, opened, pick, closed })}`);
+}
+
 // Bewässerung: parallele Stränge, Sonstiges, Ventil direkt schalten, Start/Pause/Stopp, Sperre ohne Pumpe, Modus
 {
   const card = await p.evaluateHandle(() => document.querySelector("ha-irrigation-card"));

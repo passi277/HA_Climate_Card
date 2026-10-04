@@ -22,6 +22,7 @@ weiche Farbübergänge und Animationen. Ein HACS-Download, mehrere Karten:
 | **Modern Pool Card** | `custom:ha-pool-card` | Pool: animiertes Becken mit Filterpumpe, Temperatur / pH / Redox mit Bereich und 48-h-Verlauf, Filterlaufzeit, Modus, Pflege, Rückspülen |
 | **Modern Camera Card** | `custom:ha-camera-card` | Eine Kamera (Reolink, Blink …): Live-/Standbild, Erkennung, Licht, Sirene, Schwenken, Positionen, Linsen – automatisch über das Gerät erkannt |
 | **Modern Camera Group** | `custom:ha-camera-group-card` | Mehrere Kameras als Raster mit Bewegung, Akku, WLAN, Scharf/Unscharf und Erkennung je Kamera |
+| **Modern Select Card** | `custom:ha-select-card` | Dropdowns (input_select/select) als Leiste, Chips, Kacheln, Liste oder kompaktes Dropdown – mit Symbolen und Farben je Option |
 | **Climate Overview** | `custom:ha-climate-overview-card` | alle Klimageräte auf einen Blick |
 
 *Modern Lovelace cards for Home Assistant in one shared design – English summary below.*
@@ -684,6 +685,29 @@ cameras:
     name: Pool
 # columns: 2
 # sort_motion: false
+```
+
+## Modern Select Card (Dropdown-Auswahl)
+
+Eine oder mehrere Auswahlen (`input_select` / `select`) als moderner Umschalter. **Symbole und Farben werden aus den Optionsnamen erraten**
+(Aus, Automatik, Smart, Manuell, Sommer, Winter, Zuhause, Garten, Eco, Boost, Nacht, Urlaub, gestartet/pausiert/gestoppt …) und lassen sich je Option ändern.
+Darstellung: `segment` (Leiste mit gleitender Markierung, Standard bis 4 Optionen), `chips` (wischbar, ab 5), `tiles` (Kacheln), `list` oder `dropdown`
+(kompakter Knopf, klappt eine Liste in der Karte auf). Mit `confirm` fragen ausgewählte Optionen nach („Sicher?“).
+
+```yaml
+type: custom:ha-select-card
+title: Modi
+entities:
+  - input_select.bewasserung_modus
+  - entity: input_select.pool_betrieb_status
+    confirm: [Aus]                       # Rückfrage
+  - entity: input_select.pascal_dashboard
+    layout: tiles
+    options:
+      Garten: { icon: mdi:tree, color: "#2e7d32" }
+      Zuhause: { name: Daheim }
+# layout: auto | segment | chips | tiles | list | dropdown   (für alle)
+# columns: 3                             # Kacheln je Zeile
 ```
 
 ## Heizungen (z.B. Homematic IP)

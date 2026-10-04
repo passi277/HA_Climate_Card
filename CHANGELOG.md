@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.23.0 – Auswahl
+- Neue **Modern Select Card** für Dropdowns (input_select/select): Leiste mit gleitender Markierung, wischbare Chips, Kacheln, Liste oder kompaktes Dropdown; Symbole/Farben automatisch aus den Optionsnamen (je Option änderbar, ausblendbar, umbenennbar), Rückfrage für ausgewählte Optionen, mehrere Auswahlen in einer Karte; visueller Editor
+
 ## 1.22.0 – Kameras
 - Neue **Modern Camera Card**: Livebild (wenn die Kamera streamt) oder Standbild mit „Neues Bild“, Akku/WLAN/Temperatur, Schwenk-Steuerkreuz, Linsen-Umschalter, Erkennung (Person, Fahrzeug, Tier, Bewegung), Licht, Sirene (mit Rückfrage), Erkennung an/aus, Tracking, Startposition, Patrouille, Positionen – alles automatisch über das Gerät erkannt (Reolink, Blink …)
 - Neue **Modern Camera Group**: Raster mehrerer Kameras mit Bewegung, Akku-Warnung, Scharf/Unscharf, aufklappbarer Kamera, Erkennung je Kamera und Zustand (WLAN, Temperatur, Akku)

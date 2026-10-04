@@ -888,5 +888,21 @@
     "columns": "Spalten",
     "sort_motion": "Kameras mit Bewegung zuerst",
     "hint": "Erkennung, Akku, WLAN, Licht, Sirene, Positionen und Schwenken werden automatisch über das Gerät der Kamera gefunden – einzeln per YAML überschreibbar (z.B. light: light.x)."
+  },
+  "select": {
+    "confirm": "Sicher?",
+    "unavailable": "nicht verfügbar"
+  },
+  "select_editor": {
+    "title": "Titel",
+    "entities": "Auswahlen (Dropdowns)",
+    "layout": "Darstellung",
+    "layout_auto": "Automatisch",
+    "layout_segment": "Leiste",
+    "layout_chips": "Chips",
+    "layout_tiles": "Kacheln",
+    "layout_list": "Liste",
+    "layout_dropdown": "Kompaktes Dropdown",
+    "hint": "Symbole und Farben werden aus den Optionsnamen erraten. Je Option änderbar, ausblendbar, und mit Rückfrage – per YAML:"
   }
 }

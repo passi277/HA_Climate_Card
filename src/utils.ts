@@ -1203,3 +1203,36 @@ export const wifiQuality = (v: number, unit = "dBm"): "very_good" | "good" | "fa
   if (v >= 0 && v <= 5) return v >= 4 ? "very_good" : v >= 3 ? "good" : v >= 2 ? "fair" : "weak";
   return v > -55 ? "very_good" : v > -67 ? "good" : v > -75 ? "fair" : "weak";
 };
+
+/** Symbol und Farbe einer Auswahl-Option aus dem Namen erraten (deutsch/englisch) */
+const OPTION_STYLES: [RegExp, string, string][] = [
+  [/^(aus|off|deaktiv|disabled|keine?|none)$/i, "mdi:power", "#9e9e9e"],
+  [/smart|intelligen|\bki\b|\bai\b/i, "mdi:auto-fix", "#ab47bc"],
+  [/solar|sonne(n)?-?auto/i, "mdi:solar-power-variant", "#ffa000"],
+  [/auto/i, "mdi:robot", "#1e88e5"],
+  [/manu|hand/i, "mdi:hand-back-right", "#8d6e63"],
+  [/sommer|summer/i, "mdi:white-balance-sunny", "#fbc02d"],
+  [/winter/i, "mdi:snowflake", "#4fc3f7"],
+  [/fr(ü|ue)hling|spring/i, "mdi:flower-tulip", "#66bb6a"],
+  [/herbst|autumn|fall/i, "mdi:leaf-maple", "#ef6c00"],
+  [/zuhause|daheim|\bhome\b|haus/i, "mdi:home", "#26a69a"],
+  [/garten|garden/i, "mdi:flower", "#43a047"],
+  [/(ab|weg)wesend|away|urlaub|vacation|holiday/i, "mdi:airplane", "#7e57c2"],
+  [/nacht|night|schlaf|sleep/i, "mdi:weather-night", "#5c6bc0"],
+  [/\beco\b|spar|energy.?sav/i, "mdi:leaf", "#43a047"],
+  [/boost|turbo|max|power/i, "mdi:rocket-launch", "#e53935"],
+  [/komfort|comfort/i, "mdi:sofa", "#ff7043"],
+  [/gestartet|l(ä|ae)uft|running|start|aktiv|^on$/i, "mdi:play-circle", "#43a047"],
+  [/pausiert|pause/i, "mdi:pause-circle", "#fb8c00"],
+  [/gestoppt|stop/i, "mdi:stop-circle", "#9e9e9e"],
+  [/alg/i, "mdi:bacteria", "#7cb342"],
+  [/bef(ü|ue)ll|fill/i, "mdi:water-plus", "#29b6f6"],
+  [/niedrig|low|leise|quiet/i, "mdi:speedometer-slow", "#26c6da"],
+  [/mittel|medium|normal/i, "mdi:speedometer-medium", "#1e88e5"],
+  [/hoch|high|laut/i, "mdi:speedometer", "#e53935"],
+];
+
+export const optionStyle = (option: string): { icon: string; color: string } => {
+  const hit = OPTION_STYLES.find(([re]) => re.test(option.trim()));
+  return hit ? { icon: hit[1], color: hit[2] } : { icon: "mdi:checkbox-blank-circle-outline", color: "var(--primary-color)" };
+};

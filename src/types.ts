@@ -702,3 +702,34 @@ export interface CameraGroupCardConfig {
   [key: string]: unknown;
 }
 
+/** Darstellung einer Option */
+export interface SelectOptionConfig { name?: string; icon?: string; color?: string; hide?: boolean }
+
+export type SelectLayout = "auto" | "segment" | "chips" | "tiles" | "list" | "dropdown";
+
+export interface SelectEntityConfig {
+  entity: string;
+  name?: string;
+  icon?: string;
+  layout?: SelectLayout;
+  options?: Record<string, SelectOptionConfig>;
+  /** Optionen mit Rückfrage („Sicher?“) */
+  confirm?: string[];
+}
+
+export interface SelectCardConfig {
+  type: string;
+  title?: string;
+  entity?: string;
+  entities?: (string | SelectEntityConfig)[];
+  name?: string;
+  icon?: string;
+  layout?: SelectLayout;
+  options?: Record<string, SelectOptionConfig>;
+  confirm?: string[];
+  /** Kacheln je Zeile (Standard: automatisch bis 4) */
+  columns?: number;
+  animations?: "full" | "reduced" | "off";
+  [key: string]: unknown;
+}
+

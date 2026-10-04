@@ -18,3 +18,4 @@ import "./irrigation-card";
 import "./pool-card";
 import "./camera-card";
 import "./camera-group-card";
+import "./select-card";
