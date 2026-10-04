@@ -232,7 +232,26 @@
     "presets": "Presets",
     "preset_bright": "Hell",
     "preset_warm": "Warm",
-    "preset_cozy": "Gemütlich"
+    "preset_cozy": "Gemütlich",
+    "music": "Musik",
+    "music_off": "Aus",
+    "music_modes": {
+      "energic": "Energisch",
+      "energetic": "Energisch",
+      "rhythm": "Rhythmus",
+      "spectrum": "Spektrum",
+      "rolling": "Rollen",
+      "separation": "Trennung",
+      "hopping": "Hüpfen",
+      "pianokeys": "Klavier",
+      "fountain": "Fontäne",
+      "shiny": "Funkeln",
+      "sprouting": "Sprießen",
+      "dayandnight": "Tag & Nacht",
+      "dynamic": "Dynamisch",
+      "calm": "Ruhig",
+      "soft": "Sanft"
+    }
   },
   "light_editor": {
     "entity": "Licht (Lampe oder Gruppe)",
@@ -267,7 +286,8 @@
     "default_presets": "Presets Hell / Warm / Gemütlich",
     "lights_layout": "Darstellung der Lampen",
     "lights_rows": "Einzeln steuerbar (Regler)",
-    "lights_tiles": "Kompakt (nur Ein/Aus)"
+    "lights_tiles": "Kompakt (nur Ein/Aus)",
+    "music": "Musik (z.B. Govee)"
   },
   "light_group": {
     "title": "Lichter",

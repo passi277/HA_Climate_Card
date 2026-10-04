@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.24.0 – Musik für Govee
+- Licht-Karte: neuer, optionaler Bereich **Musik** für Lampen mit Musik-Effekten (z.B. Govee „Music: …“): Chips je Modus mit deutschem Namen und Symbol, „Aus“, Equalizer-Anzeige und Musik-Pill, solange ein Modus läuft; die Modi erscheinen nicht mehr doppelt in der Effektliste; abschaltbar per `show.music` bzw. im Editor
+
 ## 1.23.0 – Auswahl
 - Neue **Modern Select Card** für Dropdowns (input_select/select): Leiste mit gleitender Markierung, wischbare Chips, Kacheln, Liste oder kompaktes Dropdown; Symbole/Farben automatisch aus den Optionsnamen (je Option änderbar, ausblendbar, umbenennbar), Rückfrage für ausgewählte Optionen, mehrere Auswahlen in einer Karte; visueller Editor
 

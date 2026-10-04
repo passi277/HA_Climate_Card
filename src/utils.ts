@@ -455,7 +455,7 @@ export const lightEditorOptions = (
   entityId: string | undefined,
   config: { entities?: unknown[]; segments?: unknown[] } = {},
 ): { show: string[]; segments: boolean } => {
-  const all = ["lights", "scenes", "color", "temperature", "effects", "segments", "shortcuts"];
+  const all = ["lights", "scenes", "color", "temperature", "effects", "music", "segments", "shortcuts"];
   const st = entityId ? states[entityId] : undefined;
   if (!st) return { show: all, segments: true };
   const memberIds = Array.isArray(st.attributes.entity_id) ? (st.attributes.entity_id as string[]) : [];
@@ -466,6 +466,7 @@ export const lightEditorOptions = (
     color: lamps.some(supportsColor),
     temperature: lamps.some(supportsColorTemp),
     effects: lamps.some((l) => ((l.attributes.effect_list ?? []) as unknown[]).some((e) => !isNoEffect(e))),
+    music: lamps.some((l) => musicModes(l.attributes.effect_list as unknown[]).length > 0),
     segments,
   };
   return { show: all.filter((k) => ok[k] ?? true), segments };
@@ -1236,3 +1237,23 @@ export const optionStyle = (option: string): { icon: string; color: string } => 
   const hit = OPTION_STYLES.find(([re]) => re.test(option.trim()));
   return hit ? { icon: hit[1], color: hit[2] } : { icon: "mdi:checkbox-blank-circle-outline", color: "var(--primary-color)" };
 };
+
+// ---------- Musik-Modi (z.B. Govee „Music: …“-Effekte) ----------
+
+const MUSIC_RE = /^(music|musik)\s*[:\-]\s*/i;
+const MUSIC_ICONS: Record<string, string> = {
+  energic: "mdi:lightning-bolt", energetic: "mdi:lightning-bolt", rhythm: "mdi:metronome", spectrum: "mdi:equalizer", rolling: "mdi:waves",
+  separation: "mdi:arrow-split-vertical", hopping: "mdi:debug-step-over", pianokeys: "mdi:piano", fountain: "mdi:fountain", shiny: "mdi:shimmer",
+  sprouting: "mdi:sprout", dayandnight: "mdi:theme-light-dark", dynamic: "mdi:pulse", calm: "mdi:weather-night", soft: "mdi:feather",
+};
+
+export const isMusicEffect = (e?: unknown): boolean => typeof e === "string" && MUSIC_RE.test(e);
+
+/** Musik-Modi aus der Effektliste: Effektname, Schlüssel (für Übersetzung/Symbol) und lesbarer Name */
+export const musicModes = (effects: unknown[] | undefined): { effect: string; key: string; label: string; icon: string }[] =>
+  [...new Set((effects ?? []).map(String).filter(isMusicEffect))].map((effect) => {
+    const raw = effect.replace(MUSIC_RE, "").trim();
+    const key = raw.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const label = raw.replace(/([a-z])[aA]nd([A-Z])/g, "$1 & $2").replace(/([a-z])([A-Z])/g, "$1 $2");
+    return { effect, key, label, icon: MUSIC_ICONS[key] ?? "mdi:music-note" };
+  });

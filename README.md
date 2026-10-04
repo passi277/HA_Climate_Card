@@ -234,6 +234,10 @@ entity: light.carport_2
 # shortcuts: [switch.carport_gradient_toggle]
 ```
 
+**Musik-Modi:** Hat die Lampe Musik-Effekte (bei govee2mqtt „Music: Energic“, „Music: Rhythm“ …), zeigt die Karte einen eigenen Bereich **Musik**
+mit einem Chip je Modus (deutsche Namen, eigene Symbole), einem „Aus“-Chip und einem kleinen Equalizer, solange ein Musikmodus läuft. Die Modi stehen
+dann nicht mehr doppelt in der Effektliste. Abschaltbar im Editor unter „Sichtbare Bereiche“ bzw. mit `show: { music: false }`.
+
 ## Modern Light Group
 
 Beliebige Lampen zu einer Karte zusammenstellen – auch ohne Lichtgruppe in Home Assistant und gemischt

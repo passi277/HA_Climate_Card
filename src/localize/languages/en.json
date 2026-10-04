@@ -232,7 +232,9 @@
     "presets": "Presets",
     "preset_bright": "Bright",
     "preset_warm": "Warm",
-    "preset_cozy": "Cozy"
+    "preset_cozy": "Cozy",
+    "music": "Music",
+    "music_off": "Off"
   },
   "light_editor": {
     "entity": "Light (lamp or group)",
@@ -267,7 +269,8 @@
     "default_presets": "Presets bright / warm / cozy",
     "lights_layout": "Lights display",
     "lights_rows": "Individually controllable (sliders)",
-    "lights_tiles": "Compact (on/off only)"
+    "lights_tiles": "Compact (on/off only)",
+    "music": "Music (e.g. Govee)"
   },
   "light_group": {
     "title": "Lights",

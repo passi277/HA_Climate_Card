@@ -137,6 +137,8 @@ export interface LightShowConfig {
   color?: boolean;
   temperature?: boolean;
   effects?: boolean;
+  /** Musik-Modi (z.B. Govee „Music: …“) als eigener Bereich */
+  music?: boolean;
   segments?: boolean;
   shortcuts?: boolean;
 }

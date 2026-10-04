@@ -211,6 +211,30 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
     ? ok("Szene per Klick gewählt, „Kein Effekt“ setzt die Farbe erneut") : fail(`Effekt: ${JSON.stringify(res.calls)}`);
 }
 
+// Govee: Musik-Modi als eigener Bereich (nicht doppelt in der Effektliste), Modus wählen, „Aus“, abschaltbar
+{
+  const card = await p.evaluateHandle(() => [...document.querySelectorAll("ha-light-card")].find((c) => c._config?.entity === "light.carport_2"));
+  await card.evaluate((c) => c.scrollIntoView({ block: "center" }));
+  await p.waitForTimeout(300);
+  const calls = async (fn, wait = 350) => { const n = await p.evaluate(() => window.serviceCalls.length); await card.evaluate(fn); await p.waitForTimeout(wait);
+    return p.evaluate((n) => window.serviceCalls.slice(n).map((c) => c.data), n); };
+  const m0 = await card.evaluate((c) => { const r = c.shadowRoot; const sel = [...r.querySelectorAll("hcc-attribute-select")].find((x) => x.icon === "mdi:auto-fix");
+    return { chips: [...r.querySelectorAll(".mchip")].map((x) => x.textContent.trim()), inEffects: (sel?.options ?? []).some((o) => /^Music/.test(o.value)) }; });
+  const pick = await calls((c) => [...c.shadowRoot.querySelectorAll(".mchip")].find((x) => /Energisch/.test(x.textContent)).click());
+  const m1 = await card.evaluate((c) => { const r = c.shadowRoot; return { now: r.querySelector(".music-now")?.textContent.trim(), eq: !!r.querySelector(".music .eq"),
+    sel: r.querySelector(".mchip.sel")?.textContent.trim(), pill: [...r.querySelectorAll(".pill")].map((x) => x.textContent.trim()).join("|") }; });
+  const off = await calls((c) => c.shadowRoot.querySelector(".mchip.off").click());
+  const hidden = await card.evaluate(async (c) => { c.setConfig({ ...c._config, show: { music: false } }); await new Promise((r) => setTimeout(r, 100));
+    const sel = [...c.shadowRoot.querySelectorAll("hcc-attribute-select")].find((x) => x.icon === "mdi:auto-fix");
+    const res = { section: !!c.shadowRoot.querySelector(".music"), inEffects: (sel?.options ?? []).some((o) => /^Music/.test(o.value)) };
+    c.setConfig({ ...c._config, show: undefined }); return res; });
+  m0.chips.join() === "Tag & Nacht,Energisch,Klavier,Rhythmus,Spektrum" && !m0.inEffects && pick[0]?.effect === "Music: Energic"
+    && m1.now === "Energisch" && m1.eq && m1.sel === "Energisch" && /Energisch/.test(m1.pill)
+    && off[0] && !("effect" in off[0]) && !hidden.section && hidden.inEffects
+    ? ok("Govee-Musik: eigener Bereich mit Modi, Auswahl, läuft-Anzeige, „Aus“, per show.music abschaltbar")
+    : fail(`Musik: ${JSON.stringify({ m0, pick, m1, off, hidden })}`);
+}
+
 // Licht-Gruppe: jede Lampe zeigt nur, was sie kann; Gruppenregler steuert nur dimmbare Lampen
 {
   const res = await p.evaluate(async () => {

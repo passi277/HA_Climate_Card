@@ -193,7 +193,7 @@
         brightness: 180, rgb_color: [255, 120, 30], hs_color: [24, 88], min_color_temp_kelvin: 2000, max_color_temp_kelvin: 9009, effect: null,
         effect_list: ["", ...["Aurora", "Autumn", "Breathe", "Candlelight", "Christmas", "Cocktail", "Fire", "Fireworks", "Firefly", "Forest", "Halloween",
           "Lightning", "Meteor", "Ocean", "Party", "Rainbow", "Romantic", "Sakura", "Snowflake", "Sunrise", "Sunset", "Twinkle"]
-          .flatMap((n) => [n, `${n}-A`, `${n}-B`])], supported_features: 44 } },
+          .flatMap((n) => [n, `${n}-A`, `${n}-B`]), "Music: DayAndNight", "Music: Energic", "Music: PianoKeys", "Music: Rhythm", "Music: Spectrum"], supported_features: 44 } },
       ...Object.fromEntries([[255, 60, 0], [255, 120, 30], [255, 190, 60], null, [180, 60, 255]].map((c, i) => [`light.carport_segment_00${i + 1}`,
         { state: c ? "on" : "off", attributes: { friendly_name: `Carport Segment 00${i + 1}`, supported_color_modes: ["rgb"], color_mode: "rgb",
           brightness: 200, ...(c ? { rgb_color: c } : {}) } }])),

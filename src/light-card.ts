@@ -13,7 +13,7 @@ import {
 import "./components/climate-dial";
 import "./components/lamp-row";
 import { presetStyles, renderPresetChips, resolvePresets } from "./components/preset-chips";
-import { presetData } from "./utils";
+import { isMusicEffect, musicModes, presetData } from "./utils";
 import "./components/gradient-slider";
 import "./components/attribute-select";
 import "./components/shortcut-row";
@@ -21,7 +21,7 @@ import "./components/segment-strip";
 import "./light-editor";
 
 const DEFAULT_LIGHT_SHOW: Required<LightShowConfig> = {
-  lights: true, scenes: true, color: true, temperature: true, effects: true, segments: true, shortcuts: true,
+  lights: true, scenes: true, color: true, temperature: true, effects: true, music: true, segments: true, shortcuts: true,
 };
 /** Technische Geräte-Entitäten, die nicht als Schalter angeboten werden (govee2mqtt). */
 const SHORTCUT_EXCLUDE = /power.?switch|request|platform.?api|refresh|identify/i;
@@ -312,7 +312,8 @@ export class HaLightCard extends LitElement {
     const hass = this.hass!;
     const pills: { icon: string; text: string; warn?: boolean }[] = [];
     if (st.state === "on" && !isNoEffect(st.attributes.effect)) {
-      pills.push({ icon: "mdi:auto-fix", text: String(st.attributes.effect) });
+      const music = isMusicEffect(st.attributes.effect) ? musicModes([st.attributes.effect])[0] : undefined;
+      pills.push(music ? { icon: "mdi:music", text: this._musicLabel(music) } : { icon: "mdi:auto-fix", text: String(st.attributes.effect) });
     }
     const motion = c.motion_sensor ? hass.states[c.motion_sensor] : undefined;
     if (motion) {
@@ -430,10 +431,12 @@ export class HaLightCard extends LitElement {
       </div>`);
     }
     const effects = ((a.effect_list ?? []) as unknown[]).map(String);
-    const real = [...new Set(effects.filter((e) => !isNoEffect(e)))];
+    // Musik-Modi stehen im eigenen Bereich, nicht doppelt in der Effektliste
+    const hideMusic = show.music && musicModes(effects).length > 0;
+    const real = [...new Set(effects.filter((e) => !isNoEffect(e) && !(hideMusic && isMusicEffect(e))))];
     if (show.effects && real.length) {
       parts.push(html`<hcc-attribute-select .label=${this._t("light.effect")} .icon=${"mdi:auto-fix"}
-        .selected=${isNoEffect(a.effect) ? NO_EFFECT : String(a.effect)} .dropdownThreshold=${5}
+        .selected=${isNoEffect(a.effect) || (hideMusic && isMusicEffect(a.effect)) ? NO_EFFECT : String(a.effect)} .dropdownThreshold=${5}
         .options=${[{ value: NO_EFFECT, label: this._t("light.no_effect") },
           ...real.map((e) => ({ value: e, label: e.charAt(0).toUpperCase() + e.slice(1) }))]}
         @option-selected=${(e: CustomEvent) => this._setEffect(e.detail.value, effects)}></hcc-attribute-select>`);
@@ -457,6 +460,27 @@ export class HaLightCard extends LitElement {
     this._turnOn({ brightness_pct: brightnessPct(this._st) || 100 });
   }
 
+  private _musicLabel(m: { key: string; label: string }): string {
+    const t = this._t(`light.music_modes.${m.key}`);
+    return t === `light.music_modes.${m.key}` ? m.label : t;
+  }
+
+  /** Musik-Modi (z.B. Govee) als Chips mit „Aus“ */
+  private _renderMusic(st: HassEntity, modes: ReturnType<typeof musicModes>) {
+    const effects = ((st.attributes.effect_list ?? []) as unknown[]).map(String);
+    const on = st.state === "on";
+    const active = on && isMusicEffect(st.attributes.effect) ? modes.find((m) => m.effect === st.attributes.effect) : undefined;
+    return html`<div class="music ${active ? "playing" : ""}">
+      <div class="music-head"><ha-icon icon="mdi:music"></ha-icon><span>${this._t("light.music")}</span>
+        ${active ? html`<span class="eq" aria-hidden="true"><i></i><i></i><i></i></span><span class="music-now">${this._musicLabel(active)}</span>` : nothing}</div>
+      <div class="music-chips">
+        ${active ? html`<button class="mchip off" @click=${() => this._setEffect(NO_EFFECT, effects)}><ha-icon icon="mdi:music-off"></ha-icon>${this._t("light.music_off")}</button>` : nothing}
+        ${modes.map((m) => html`<button class="mchip ${active?.effect === m.effect ? "sel" : ""}" aria-pressed=${active?.effect === m.effect}
+          @click=${() => this._setEffect(m.effect, effects)}><ha-icon .icon=${m.icon}></ha-icon>${this._musicLabel(m)}</button>`)}
+      </div>
+    </div>`;
+  }
+
   private _renderExpand() {
     return html`<button class="expand" @click=${() => { this._expanded = !this._expanded; }} aria-expanded=${this._expanded}>
       <span>${this._t(this._expanded ? "card.less" : "card.more")}</span>
@@ -475,6 +499,7 @@ export class HaLightCard extends LitElement {
     const scenes = this._show.scenes ? this._scenes() : [];
     const segments = this._show.segments ? this._segments() : [];
     const shortcuts = this._show.shortcuts ? this._shortcuts() : [];
+    const music = musicModes(st.attributes.effect_list as unknown[]);
     const colorParts = on ? this._renderColor(st) : [];
     const compact = this._config.layout === "compact";
     const primary = [
@@ -483,6 +508,7 @@ export class HaLightCard extends LitElement {
       renderPresetChips(this.hass, resolvePresets(this._config.presets, supportsColorTemp(st)), st,
         (p) => { this._haptic("selection"); this._turnOn(presetData(p)); }),
       scenes.length ? this._renderScenes(scenes, st) : nothing,
+      this._show.music && music.length ? this._renderMusic(st, music) : nothing,
       shortcuts.length ? html`<hcc-shortcut-row .hass=${this.hass} .items=${shortcuts}></hcc-shortcut-row>` : nothing,
     ];
     const details = colorParts.length
@@ -547,5 +573,26 @@ export class HaLightCard extends LitElement {
     .swatch.white { background: radial-gradient(circle at 35% 35%, #fff, rgb(255, 214, 160)); }
     ha-card.compact hcc-gradient-slider { margin-top: 2px; }
     hcc-shortcut-row, hcc-segment-strip { --hcc-accent: var(--accent); }
+    .music { display: flex; flex-direction: column; gap: 8px; }
+    .music-head { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--secondary-text-color); }
+    .music-head ha-icon { --mdc-icon-size: 16px; }
+    .music.playing .music-head ha-icon { color: var(--accent); }
+    .music-now { text-transform: none; letter-spacing: 0; color: var(--primary-text-color); font-weight: 700; }
+    .eq { display: inline-flex; align-items: flex-end; gap: 2px; height: 12px; margin-left: 2px; }
+    .eq i { width: 3px; height: 100%; border-radius: 1.5px; background: var(--accent); animation: eq 0.9s ease-in-out infinite; transform-origin: bottom; }
+    .eq i:nth-child(2) { animation-delay: -0.3s; }
+    .eq i:nth-child(3) { animation-delay: -0.6s; }
+    @keyframes eq { 0%, 100% { transform: scaleY(0.3); } 50% { transform: scaleY(1); } }
+    ha-card.anim-reduced .eq i, ha-card.anim-off .eq i { animation: none; transform: scaleY(0.7); }
+    .music-chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+    .music-chips::-webkit-scrollbar { display: none; }
+    .mchip { flex: none; display: inline-flex; align-items: center; gap: 5px; border: none; border-radius: 999px; padding: 7px 13px 7px 10px; font: inherit; font-size: 13px;
+      cursor: pointer; background: rgba(127,127,127,0.12); color: var(--primary-text-color); transition: background 0.25s, color 0.25s, transform 0.2s; }
+    .mchip ha-icon { --mdc-icon-size: 17px; color: var(--accent); }
+    .mchip:active { transform: scale(0.95); }
+    .mchip.sel { background: var(--accent); color: #000; font-weight: 600; }
+    .mchip.sel ha-icon { color: #000; }
+    .mchip.off { color: var(--secondary-text-color); }
+    .mchip.off ha-icon { color: var(--secondary-text-color); }
   `];
 }

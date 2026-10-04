@@ -103,7 +103,7 @@ export class HaLightCardEditor extends LitElement {
       ...this._config,
       entities: this._config.entities?.map((e) => (typeof e === "string" ? e : e.entity)),
       shortcuts: this._config.shortcuts?.map((e) => (typeof e === "string" ? e : e.entity)),
-      show: { lights: true, scenes: true, color: true, temperature: true, effects: true, segments: true, shortcuts: true, ...(this._config.show ?? {}) },
+      show: { lights: true, scenes: true, color: true, temperature: true, effects: true, music: true, segments: true, shortcuts: true, ...(this._config.show ?? {}) },
     };
     return html`<ha-form .hass=${this.hass} .data=${data} .schema=${this._schema()}
       .computeLabel=${this._computeLabel} @value-changed=${this._valueChanged}></ha-form>
