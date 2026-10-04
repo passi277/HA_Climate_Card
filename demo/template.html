@@ -575,7 +575,7 @@
         solar: { entity: "sensor.solarbank_solar" }, home: { entity: "sensor.garten_hausbedarf" },
         grid: { entity: { consumption: "sensor.smart_meter_bezug", production: "sensor.smart_meter_einspeisung" } },
         individual: [{ entity: "sensor.kuehlschrank_power", name: "Kühlschrank", icon: "mdi:fridge" }, { entity: "sensor.aussenstrom_power", name: "Außenstrom", icon: "mdi:power-plug" },
-          { entity: "sensor.pumpe_power", name: "Pumpe", icon: "mdi:water-pump", switch: "switch.pumpe" }, { entity: "sensor.pool_power", name: "Pool", icon: "mdi:pool" },
+          { entity: "sensor.pumpe_power", name: "Pumpe", icon: "mdi:water-pump", switch: "switch.pumpe", display_zero: true }, { entity: "sensor.pool_power", name: "Pool", icon: "mdi:pool" },
           { entity: "sensor.starlink_leistung", name: "Starlink", icon: "mdi:satellite-variant", color: "#049cdb" }] } }],
       ["Hinweis-Karte – erscheint nur, wenn etwas los ist (Fenster offen, Saugroboter putzt)", { _alert: true,
         contacts: [{ entity: "binary_sensor.buero_fenster", name: "Büro" }, { entity: "binary_sensor.wz_balkontuer", name: "Balkontür" }, "binary_sensor.wz_fenster"],

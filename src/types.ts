@@ -474,7 +474,7 @@ export interface EnergyIndividualConfig {
   name?: string;
   icon?: string;
   color?: string;
-  /** Auch bei 0 W als Kreis im Diagramm zeigen (Standard: alle werden gezeigt) */
+  /** Auch bei 0 W / nicht verfügbar als Kreis zeigen (sonst ausgeblendet, siehe hide_inactive_consumers) */
   display_zero?: boolean;
   /** Schalter/Stecker: lange drücken schaltet ihn */
   switch?: string;
@@ -505,6 +505,8 @@ export interface EnergyCardConfig {
   max_expected_power?: number;
   /** Verbraucher-Kreise pro Zeile (Standard 4) */
   consumer_columns?: number;
+  /** Verbraucher mit 0 W oder „nicht verfügbar“ ausblenden, bis sie wieder etwas verbrauchen (Standard an) */
+  hide_inactive_consumers?: boolean;
   /** „Sonstiges“ = Haus minus alle Verbraucher (Standard an) */
   show_other?: boolean;
   /** Tageswerte aus dem Verlauf (Standard an) */

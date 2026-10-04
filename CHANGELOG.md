@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.14.1 – Inaktive Verbraucher ausblenden
+- Energy Card: Verbraucher mit 0 W oder „nicht verfügbar“ werden ausgeblendet, bis sie wieder etwas verbrauchen (`hide_inactive_consumers: false` zeigt immer alle, `display_zero: true` je Verbraucher hält einzelne sichtbar – z.B. zum Einschalten per langem Drücken)
+
 ## 1.14.0 – Energiefluss ausgebaut
 - Energy Card: **beliebig viele Verbraucher-Kreise** – hängen an einer Sammelleitung unter dem Haus, je Verbraucher eine animierte Linie, mehrere Reihen (`consumer_columns`, Standard 4)
 - **„Sonstiges“** = Hausverbrauch minus alle Verbraucher (`show_other: false` blendet es aus)

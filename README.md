@@ -498,7 +498,7 @@ alerts:
 Animierter Energiefluss zwischen **Solar, Netz, Batterie und Haus** – Punkte laufen schneller, je mehr Leistung fließt.
 Der Hausring zeigt, woher der Strom gerade kommt (Solar/Batterie/Netz), die Batterie ihren Ladestand als Ring.
 Oben „Autarkie“ in Prozent. **Alle Einzelverbraucher** hängen als Kreise an einer Leitung unter dem Haus (mehrere Reihen),
-dazu „Sonstiges“ (Haus minus Verbraucher). Unten die **Tageswerte** (aus dem Verlauf berechnet), am Akku die Restzeit.
+dazu „Sonstiges“ (Haus minus Verbraucher). Verbraucher mit 0 W oder „nicht verfügbar“ sind ausgeblendet, bis sie wieder etwas verbrauchen. Unten die **Tageswerte** (aus dem Verlauf berechnet), am Akku die Restzeit.
 Lange drücken auf einen Verbraucher mit `switch:` schaltet dessen Stecker. `layout: compact` zeigt nur eine Zeile.
 
 Die Konfiguration entspricht **power-flow-card-plus** – meist reicht es, `type` zu tauschen:
@@ -525,6 +525,7 @@ entities:
       name: Kühlschrank
       icon: mdi:fridge
       switch: switch.kuhlschrank                      # lange drücken schaltet
+      display_zero: true                              # auch bei 0 W zeigen (sonst ausgeblendet)
     - entity: sensor.starlink_leistung
       name: Starlink
       icon: mdi:satellite-variant
@@ -536,6 +537,7 @@ min_flow_rate: 0.75    # Sekunden je Durchlauf bei viel Leistung
 max_flow_rate: 6       # … bei wenig Leistung
 # max_expected_power: 2000   # ab dieser Leistung laufen die Punkte am schnellsten
 # consumer_columns: 4        # Verbraucher-Kreise pro Zeile
+# hide_inactive_consumers: false  # auch Verbraucher mit 0 W / nicht verfügbar zeigen
 # show_other: false          # „Sonstiges“ ausblenden
 # show_daily: false          # Tageswerte ausblenden
 # layout: compact            # nur eine Zeile

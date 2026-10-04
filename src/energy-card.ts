@@ -212,11 +212,12 @@ export class HaEnergyCard extends LitElement {
 
   private _consumers(home: number): Consumer[] {
     const list = (this._config!.entities.individual ?? []) as EnergyIndividualConfig[];
+    const hide = this._config!.hide_inactive_consumers !== false;
     const out: Consumer[] = list.map((i, idx) => {
       const st = this.hass!.states[i.entity];
       return { key: `c${idx}`, entity: i.entity, name: i.name ?? st?.attributes.friendly_name ?? i.entity, icon: i.icon ?? st?.attributes.icon ?? "mdi:flash",
         color: i.color ?? IND_COLORS[idx % IND_COLORS.length]!, w: powerWatts(st), switchId: i.switch };
-    });
+    }).filter((c, idx) => !hide || list[idx]!.display_zero === true || (c.w ?? 0) > 0.5);
     if (list.length && this._config!.show_other !== false && this._config!.entities.home) {
       const rest = home - out.reduce((s, c) => s + (c.w ?? 0), 0);
       if (rest > 5) out.push({ key: "other", name: this._t("other"), icon: "mdi:dots-horizontal-circle-outline", color: COLORS.other, w: rest, other: true });

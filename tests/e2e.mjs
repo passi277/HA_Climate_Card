@@ -812,6 +812,13 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
     card.addEventListener("hass-more-info", (e) => (info = e.detail.entityId), { once: true });
     root.querySelector(".n-battery").click();
     const h = card.hass;
+    // Pool (0 W) ist ausgeblendet, erscheint bei Verbrauch und verschwindet bei „nicht verfügbar“ wieder
+    const pool = (v) => { card.hass = { ...h, states: { ...h.states, "sensor.pool_power": { ...h.states["sensor.pool_power"], state: v } } }; };
+    const poolHidden0 = !root.querySelector(".n-c3");
+    pool("450"); await wait(100);
+    const poolShown = !!root.querySelector(".n-c3");
+    pool("unavailable"); await wait(100);
+    const poolHidden = poolHidden0 && poolShown && !root.querySelector(".n-c3");
     const st = { ...h.states };
     const set = (id, v) => (st[id] = { ...st[id], state: v });
     set("sensor.solarbank_solar", "0"); set("sensor.solarbank_laden", "0"); set("sensor.solarbank_entladen", "161");
@@ -822,13 +829,13 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
     const nightTime = root.querySelector(".n-battery .sub2")?.textContent.trim();
     card.hass = h;
     await wait(100);
-    return { ...day, active, consumers, durs, daily, sw: sw?.className, autarky, info, night, nightTime };
+    return { ...day, active, consumers, durs, daily, sw: sw?.className, autarky, info, night, nightTime, poolHidden };
   });
   res.solar === "1,2 kW" && res.home === "410 W" && res.grid === "310 W" && res.battery === "81 %"
-    && res.active.join() === "c0,c1,c4,other,sb,sg,sh" && res.consumers.length === 6 && res.consumers[0] === "Kühlschrank:88 W"
+    && res.active.join() === "c0,c1,c4,other,sb,sg,sh" && res.consumers.length === 5 && res.consumers[0] === "Kühlschrank:88 W" && res.poolHidden
     && res.consumers.at(-1).startsWith("Sonstiges:") && Math.min(...res.durs) > 2.5 && /Autarkie 100/.test(res.autarky)
     && res.info === "sensor.solarbank_ladestand" && res.night.join() === "bh"
-    ? ok("Energiefluss: alle Verbraucher als Kreise (+ Sonstiges), ruhiges Tempo, abends Batterie → Haus") : fail(`Energiefluss: ${JSON.stringify(res)}`);
+    ? ok("Energiefluss: aktive Verbraucher als Kreise (+ Sonstiges), 0 W / nicht verfügbar ausgeblendet, ruhiges Tempo, abends Batterie → Haus") : fail(`Energiefluss: ${JSON.stringify(res)}`);
   /voll \d/.test(res.batTime ?? "") && /noch/.test(res.nightTime ?? "") && res.daily.some((d) => /Solar.*kWh/.test(d)) && res.sw?.trim() === "sw"
     ? ok("Energiefluss: Akku „voll in …“ / „noch …“, Tageswerte, Schalter-Symbol am Verbraucher") : fail(`Energiefluss Extras: ${JSON.stringify(res)}`);
   // Lange drücken auf „Pumpe“ schaltet den Stecker
