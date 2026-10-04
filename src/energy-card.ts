@@ -1,11 +1,12 @@
 import { LitElement, css, html, nothing, svg, type PropertyValues } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
+import { keyed } from "lit/directives/keyed.js";
 import type { EnergyCardConfig, EnergyEntity, EnergyIndividualConfig, HomeAssistant } from "./types";
 import { getLanguage, localize } from "./localize/localize";
 import { cardStyles } from "./styles";
 import { DOCS_URL } from "./shared";
 import {
-  batteryHoursLeft, batteryIcon, consumerGrid, energyFlows, formatHours, formatPower, integratePower, powerWatts, UNAVAILABLE, type EnergyFlows,
+  batteryHoursLeft, batteryIcon, consumerGrid, energyFlows, formatHours, formatPower, integratePower, powerWatts, statsEnergy, UNAVAILABLE, type EnergyFlows, type StatRow,
 } from "./utils";
 import "./energy-editor";
 
@@ -47,6 +48,8 @@ const CR = 24;
 const HOLD_MS = 500;
 
 type LabelPos = "above" | "below" | "none";
+/** Zeiträume der Zusammenfassung unten (wischen / Pfeile) */
+const PERIODS = ["day", "month", "year", "total"] as const;
 interface Flow { key: string; path: string; value: number; color: string; reverse?: boolean; }
 interface Consumer { key: string; entity?: string; name: string; icon: string; color: string; w?: number; switchId?: string; other?: boolean; }
 
@@ -60,6 +63,14 @@ export class HaEnergyCard extends LitElement {
   private _dailyTimer?: number;
   private _holdTimer?: number;
   private _held = false;
+  /** Gewählter Zeitraum der Zusammenfassung (Index in PERIODS) */
+  @state() private _period = 0;
+  /** Tagesstatistik (Mittelwert in W) je Entität bis heute 0 Uhr – für Monat, Jahr, Gesamt */
+  @state() private _stats?: Record<string, StatRow[]>;
+  @state() private _statsState: "idle" | "loading" | "error" = "idle";
+  private _statsAt = 0;
+  private _slide = "";
+  private _swipe?: { x: number; y: number };
 
   public static getConfigElement(): HTMLElement {
     return document.createElement("ha-energy-card-editor");
@@ -77,6 +88,7 @@ export class HaEnergyCard extends LitElement {
     }
     this._config = { ...config };
     this._dailyAt = 0;
+    this._statsAt = 0;
   }
 
   public getCardSize(): number {
@@ -128,6 +140,7 @@ export class HaEnergyCard extends LitElement {
 
   protected updated(): void {
     if (this._config && this.hass && Date.now() - this._dailyAt > 5 * 60_000) this._loadDaily();
+    if (this._period > 0 && this.hass) this._loadStats();
   }
 
   /** Tageswerte: Leistungsverlauf seit Mitternacht integrieren (keine Energie-Sensoren nötig). */
@@ -161,6 +174,88 @@ export class HaEnergyCard extends LitElement {
     }
   }
 
+  /** Langzeitstatistik (Tagesmittel) seit Beginn bis heute 0 Uhr – nur geladen, wenn Monat/Jahr/Gesamt gewählt wird. */
+  private async _loadStats(): Promise<void> {
+    if (!this.hass?.callWS || this._statsState === "loading") return;
+    if (this._statsState === "error" && Date.now() - this._statsAt < 5 * 60_000) return;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (this._stats && Date.now() - this._statsAt < 3600_000 && this._statsAt >= today.getTime()) return;
+    const ids = [...new Set(this._powerIds())];
+    if (!ids.length) return;
+    this._statsState = "loading";
+    try {
+      const res = await this.hass.callWS<Record<string, StatRow[]>>({
+        type: "recorder/statistics_during_period", start_time: new Date(2000, 0, 1).toISOString(), end_time: today.toISOString(),
+        statistic_ids: ids, period: "day", types: ["mean"], units: { power: "W" },
+      });
+      this._stats = res ?? {};
+      this._statsAt = Date.now();
+      this._statsState = "idle";
+    } catch {
+      this._statsAt = Date.now();
+      this._statsState = "error";
+    }
+  }
+
+  /** Beginn des Zeitraums (ms) – Monat/Jahr ab dem 1., Gesamt ab Anfang */
+  private _periodStart(p: (typeof PERIODS)[number]): number {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    if (p === "month") d.setDate(1);
+    else if (p === "year") d.setMonth(0, 1);
+    else if (p === "total") return 0;
+    return d.getTime();
+  }
+
+  /** Energie (Wh) je Entität im gewählten Zeitraum: Statistik bis gestern + heute aus dem Verlauf */
+  private _periodValues(p: (typeof PERIODS)[number]): Record<string, number> {
+    if (p === "day") return this._daily;
+    const out: Record<string, number> = {};
+    if (!this._stats) return out;
+    const from = this._periodStart(p);
+    for (const id of this._powerIds()) {
+      const rows = this._stats[id];
+      if (!rows?.length) continue;
+      out[id] = statsEnergy(rows, from) + (this._daily[id] ?? 0);
+    }
+    return out;
+  }
+
+  private _periodTitle(p: (typeof PERIODS)[number]): string {
+    const lang = getLanguage(this.hass);
+    if (p === "month") return new Date().toLocaleDateString(lang, { month: "long" });
+    if (p === "year") return String(new Date().getFullYear());
+    return this._t(p === "day" ? "today" : "total");
+  }
+
+  /** „seit Feb. 2025“ für die Gesamtansicht */
+  private _since(): string | undefined {
+    const starts = Object.values(this._stats ?? {}).map((r) => r[0]?.start).filter((t) => t != null)
+      .map((t) => (typeof t === "number" ? t : Date.parse(t!)));
+    if (!starts.length) return undefined;
+    const d = new Date(Math.min(...starts));
+    return `${this._t("since")} ${d.toLocaleDateString(getLanguage(this.hass), { month: "short", year: "numeric" })}`;
+  }
+
+  private _step(dir: number): void {
+    const next = Math.max(0, Math.min(PERIODS.length - 1, this._period + dir));
+    if (next === this._period) return;
+    this._slide = dir > 0 ? "next" : "prev";
+    this._period = next;
+    if (next > 0) this._loadStats();
+  }
+
+  private _swipeStart = (e: PointerEvent): void => { this._swipe = { x: e.clientX, y: e.clientY }; };
+
+  private _swipeEnd = (e: PointerEvent): void => {
+    const s = this._swipe;
+    this._swipe = undefined;
+    if (!s) return;
+    const dx = e.clientX - s.x;
+    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(e.clientY - s.y) * 1.5) this._step(dx < 0 ? 1 : -1);
+  };
+
   private _w(id?: string): number | undefined {
     return id ? powerWatts(this.hass!.states[id]) : undefined;
   }
@@ -186,7 +281,9 @@ export class HaEnergyCard extends LitElement {
   private _kwh(wh?: number): string {
     if (wh == null) return "";
     const lang = getLanguage(this.hass);
-    return wh < 1000 ? `${Math.round(wh).toLocaleString(lang)} Wh` : `${(wh / 1000).toLocaleString(lang, { maximumFractionDigits: wh < 10000 ? 2 : 1 })} kWh`;
+    if (wh < 1000) return `${Math.round(wh).toLocaleString(lang)} Wh`;
+    if (wh >= 1_000_000) return `${(wh / 1_000_000).toLocaleString(lang, { maximumFractionDigits: 2 })} MWh`;
+    return `${(wh / 1000).toLocaleString(lang, { maximumFractionDigits: wh < 10000 ? 2 : wh < 100_000 ? 1 : 0 })} kWh`;
   }
 
   private _moreInfo(id?: string): void {
@@ -298,26 +395,40 @@ export class HaEnergyCard extends LitElement {
 
   private _renderDaily() {
     const c = this._config!;
-    if (c.show_daily === false || !Object.keys(this._daily).length) return nothing;
+    if (c.show_daily === false || (!this._period && !Object.keys(this._daily).length)) return nothing;
+    const p = PERIODS[this._period]!;
+    const vals = this._periodValues(p);
     const e = c.entities;
-    const d = (id?: string) => (id ? this._daily[id] : undefined);
+    const d = (id?: string) => (id ? vals[id] : undefined);
     const grid = e.grid?.entity;
     const bat = e.battery?.entity;
     const [gIn, gOut] = typeof grid === "string" ? [d(grid), undefined] : [d(grid?.consumption), d(grid?.production)];
     const [bOut, bIn] = typeof bat === "string" ? [d(bat), undefined] : [d(bat?.consumption), d(bat?.production)];
+    // Zwei Richtungen: beide zeigen, die Gegenrichtung nur, wenn sie etwas hat
+    const pair = (a: number | undefined, b: number | undefined, pa: string, pb: string) =>
+      [a != null && (a >= 1 || !(b && b >= 1)) ? `${pa}${this._kwh(a)}` : "", b != null && b >= 1 ? `${pb}${this._kwh(b)}` : ""].filter(Boolean);
     const items = [
-      e.solar ? { icon: "mdi:solar-power-variant", color: COLORS.solar, label: this._t("solar"), value: this._kwh(d(e.solar.entity)) } : undefined,
-      e.home?.entity ? { icon: "mdi:home-lightning-bolt-outline", color: "var(--primary-color)", label: this._t("home"), value: this._kwh(d(e.home.entity)) } : undefined,
-      grid ? { icon: "mdi:transmission-tower", color: COLORS.grid, label: this._t("grid"),
-        value: [gIn != null && (gIn >= 1 || !(gOut && gOut >= 1)) ? `↓ ${this._kwh(gIn)}` : "", gOut != null && gOut >= 1 ? `↑ ${this._kwh(gOut)}` : ""].filter(Boolean).join(" · ") } : undefined,
-      bat ? { icon: "mdi:home-battery-outline", color: COLORS.battery, label: this._t("battery"),
-        value: [bIn != null && (bIn >= 1 || !(bOut && bOut >= 1)) ? `+${this._kwh(bIn)}` : "", bOut != null && bOut >= 1 ? `−${this._kwh(bOut)}` : ""].filter(Boolean).join(" · ") } : undefined,
-    ].filter((x): x is { icon: string; color: string; label: string; value: string } => !!x && !!x.value);
-    if (!items.length) return nothing;
-    return html`<div class="daily">
-      <span class="daily-title"><ha-icon icon="mdi:calendar-today"></ha-icon>${this._t("today")}</span>
-      <div class="daily-items">${items.map((i) => html`<span class="day-item" style="--ic:${i.color}">
-        <ha-icon .icon=${i.icon}></ha-icon><span class="day-label">${i.label}</span><span class="day-val">${i.value}</span></span>`)}</div>
+      e.solar ? { icon: "mdi:solar-power-variant", color: COLORS.solar, label: this._t("solar"), values: [this._kwh(d(e.solar.entity))] } : undefined,
+      e.home?.entity ? { icon: "mdi:home-lightning-bolt-outline", color: "var(--primary-color)", label: this._t("home"), values: [this._kwh(d(e.home.entity))] } : undefined,
+      grid ? { icon: "mdi:transmission-tower", color: COLORS.grid, label: this._t("grid"), values: pair(gIn, gOut, "↓ ", "↑ ") } : undefined,
+      bat ? { icon: "mdi:home-battery-outline", color: COLORS.battery, label: this._t("battery"), values: pair(bIn, bOut, "+", "−") } : undefined,
+    ].filter((x): x is { icon: string; color: string; label: string; values: string[] } => !!x && x.values.some(Boolean));
+    const loading = p !== "day" && !this._stats && this._statsState !== "error";
+    const since = p === "total" ? this._since() : undefined;
+    return html`<div class="daily" @pointerdown=${this._swipeStart} @pointerup=${this._swipeEnd} @pointercancel=${() => (this._swipe = undefined)}>
+      <div class="daily-head">
+        <button class="nav" aria-label=${this._t("prev")} ?disabled=${this._period === 0} @click=${() => this._step(-1)}><ha-icon icon="mdi:chevron-left"></ha-icon></button>
+        <span class="daily-title"><ha-icon .icon=${p === "day" ? "mdi:calendar-today" : p === "month" ? "mdi:calendar-month" : p === "year" ? "mdi:calendar-blank-multiple" : "mdi:sigma"}></ha-icon>${this._periodTitle(p)}
+          ${since ? html`<span class="since">${since}</span>` : nothing}</span>
+        <span class="dots">${PERIODS.map((_, i) => html`<span class="dot-i ${i === this._period ? "on" : ""}"></span>`)}</span>
+        <button class="nav" aria-label=${this._t("next")} ?disabled=${this._period === PERIODS.length - 1} @click=${() => this._step(1)}><ha-icon icon="mdi:chevron-right"></ha-icon></button>
+      </div>
+      ${keyed(this._period, html`<div class="daily-items ${this._slide ? `slide-${this._slide}` : ""}">
+        ${items.length ? items.map((i) => html`<span class="day-item" style="--ic:${i.color}">
+          <ha-icon .icon=${i.icon}></ha-icon><span class="day-text"><span class="day-label">${i.label}</span>
+          <span class="day-vals">${i.values.map((v) => html`<span class="day-val">${v}</span>`)}</span></span></span>`)
+        : html`<span class="day-empty">${loading ? "…" : this._t("no_stats")}</span>`}
+      </div>`)}
     </div>`;
   }
 
@@ -472,14 +583,34 @@ export class HaEnergyCard extends LitElement {
     .label.above { transform: translate(-50%, calc(-100% - 10cqi - 4px)); }
     .label.below { transform: translate(-50%, calc(10cqi + 4px)); }
     .label.small.below { transform: translate(-50%, calc(8cqi + 3px)); }
-    .daily { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: var(--hcc-inner-radius, 14px); background: rgba(127,127,127,0.07); }
-    .daily-title { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--secondary-text-color); }
-    .daily-title ha-icon { --mdc-icon-size: 15px; }
-    .daily-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 6px 12px; }
-    .day-item { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 13px; }
-    .day-item ha-icon { --mdc-icon-size: 17px; color: var(--ic); flex: none; }
-    .day-label { color: var(--secondary-text-color); }
-    .day-val { margin-left: auto; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .daily { display: flex; flex-direction: column; gap: 8px; padding: 8px 8px 12px; border-radius: var(--hcc-inner-radius, 14px); background: rgba(127,127,127,0.07);
+      touch-action: pan-y; user-select: none; -webkit-user-select: none; overflow: hidden; }
+    .daily-head { display: flex; align-items: center; gap: 4px; }
+    .nav { flex: none; width: 30px; height: 30px; border-radius: 50%; border: none; padding: 0; display: grid; place-items: center; cursor: pointer;
+      background: transparent; color: var(--secondary-text-color); transition: background 0.2s, opacity 0.2s; }
+    .nav:hover:not([disabled]) { background: rgba(127,127,127,0.14); }
+    .nav[disabled] { opacity: 0.25; cursor: default; }
+    .nav ha-icon { --mdc-icon-size: 22px; }
+    .daily-title { display: flex; align-items: center; gap: 6px; min-width: 0; flex: 1; font-size: 12px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.04em; color: var(--secondary-text-color); white-space: nowrap; }
+    .daily-title ha-icon { --mdc-icon-size: 15px; flex: none; }
+    .since { font-weight: 500; text-transform: none; letter-spacing: 0; opacity: 0.8; overflow: hidden; text-overflow: ellipsis; }
+    .dots { display: flex; gap: 4px; flex: none; }
+    .dot-i { width: 6px; height: 6px; border-radius: 3px; background: color-mix(in srgb, var(--secondary-text-color) 35%, transparent); transition: width 0.3s, background 0.3s; }
+    .dot-i.on { width: 14px; background: var(--primary-color); }
+    .daily-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px 12px; padding: 0 6px; }
+    .daily-items.slide-next { animation: slide-next 0.35s var(--ease-out, ease-out) both; }
+    .daily-items.slide-prev { animation: slide-prev 0.35s var(--ease-out, ease-out) both; }
+    @keyframes slide-next { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: none; } }
+    @keyframes slide-prev { from { opacity: 0; transform: translateX(-24px); } to { opacity: 1; transform: none; } }
+    ha-card.anim-off .daily-items { animation: none; }
+    .day-item { display: flex; align-items: flex-start; gap: 8px; min-width: 0; }
+    .day-item ha-icon { --mdc-icon-size: 20px; color: var(--ic); flex: none; margin-top: 1px; }
+    .day-text { display: flex; flex-direction: column; min-width: 0; }
+    .day-label { font-size: 12.5px; color: var(--secondary-text-color); line-height: 1.3; }
+    .day-vals { display: flex; flex-wrap: wrap; column-gap: 10px; }
+    .day-val { font-size: 15px; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; line-height: 1.3; }
+    .day-empty { grid-column: 1 / -1; font-size: 13px; color: var(--secondary-text-color); padding: 2px 0; }
     .compact-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(70px, 1fr)); gap: 8px; }
     .ctile { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 10px 6px; border: none; border-radius: var(--hcc-inner-radius, 14px);
       background: rgba(127,127,127,0.08); cursor: pointer; font: inherit; color: inherit; transition: background 0.3s; }

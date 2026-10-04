@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.15.0 – Zusammenfassung mit Monat, Jahr, Gesamt
+- Energy Card: Die Zusammenfassung unten lässt sich per **Wischen** oder Pfeilen zwischen **Heute → Monat → Jahr → Gesamt** wechseln (Punkte zeigen den Zeitraum). Monat/Jahr/Gesamt kommen aus der Langzeitstatistik von Home Assistant (Tagesmittel der Leistungssensoren, `state_class: measurement`) plus heute – keine Energie-Sensoren nötig; „Gesamt“ zeigt, seit wann Daten vorliegen
+- Werte stehen jetzt unter der Bezeichnung und brechen bei zwei Richtungen um – nichts läuft mehr über den Rand; große Werte in MWh
+
 ## 1.14.1 – Inaktive Verbraucher ausblenden
 - Energy Card: Verbraucher mit 0 W oder „nicht verfügbar“ werden ausgeblendet, bis sie wieder etwas verbrauchen (`hide_inactive_consumers: false` zeigt immer alle, `display_zero: true` je Verbraucher hält einzelne sichtbar – z.B. zum Einschalten per langem Drücken)
 

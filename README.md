@@ -498,7 +498,7 @@ alerts:
 Animierter Energiefluss zwischen **Solar, Netz, Batterie und Haus** – Punkte laufen schneller, je mehr Leistung fließt.
 Der Hausring zeigt, woher der Strom gerade kommt (Solar/Batterie/Netz), die Batterie ihren Ladestand als Ring.
 Oben „Autarkie“ in Prozent. **Alle Einzelverbraucher** hängen als Kreise an einer Leitung unter dem Haus (mehrere Reihen),
-dazu „Sonstiges“ (Haus minus Verbraucher). Verbraucher mit 0 W oder „nicht verfügbar“ sind ausgeblendet, bis sie wieder etwas verbrauchen. Unten die **Tageswerte** (aus dem Verlauf berechnet), am Akku die Restzeit.
+dazu „Sonstiges“ (Haus minus Verbraucher). Verbraucher mit 0 W oder „nicht verfügbar“ sind ausgeblendet, bis sie wieder etwas verbrauchen. Unten die **Zusammenfassung** – nach links/rechts wischen (oder Pfeile) für **Heute, Monat, Jahr und Gesamt**. Heute kommt aus dem Verlauf, Monat/Jahr/Gesamt aus der Langzeitstatistik (Leistungssensoren mit `state_class: measurement`). Am Akku steht die Restzeit.
 Lange drücken auf einen Verbraucher mit `switch:` schaltet dessen Stecker. `layout: compact` zeigt nur eine Zeile.
 
 Die Konfiguration entspricht **power-flow-card-plus** – meist reicht es, `type` zu tauschen:
@@ -539,7 +539,7 @@ max_flow_rate: 6       # … bei wenig Leistung
 # consumer_columns: 4        # Verbraucher-Kreise pro Zeile
 # hide_inactive_consumers: false  # auch Verbraucher mit 0 W / nicht verfügbar zeigen
 # show_other: false          # „Sonstiges“ ausblenden
-# show_daily: false          # Tageswerte ausblenden
+# show_daily: false          # Zusammenfassung ausblenden
 # layout: compact            # nur eine Zeile
 ```
 

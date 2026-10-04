@@ -644,7 +644,12 @@
     "full_in": "full in",
     "switch_on": "Switch on – long press turns off",
     "switch_off": "Switch off – long press turns on",
-    "full": "full"
+    "full": "full",
+    "total": "Total",
+    "since": "since",
+    "prev": "Previous period",
+    "next": "Next period",
+    "no_stats": "No long-term statistics for these sensors"
   },
   "energy_editor": {
     "title": "Title",

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { HassEntity } from "../src/types";
 import {
-  batteryHoursLeft, consumerGrid, formatHours, integratePower, energyFlows, formatPower, powerWatts, alertActive, batteryShoppingList, clockMinutes, upcomingPickups, wasteStyle, batteryIcon, doorDevices, doorKind, initials, isCharging, phoneSensors, brightnessPct, contactType, calibrationTransform, roomsFromMap, roomIcon, areaBatteries, batteryInfo, presetActive, presetData, DEFAULT_LIGHT_PRESETS, activityIcon, activityLabel, guessControlDevice, guessVolumeDevice, coverIcon, datetimeParts, nextOccurrence, coverPosition, skyPhase, sunPlacement, weatherOverlay, editorOptions, isNoEffect, lightEditorOptions, segmentIds, detectDeviceType, kelvinToRgb, lightColor, relatedScenes, supportsColor, supportsColorTemp, dewPoint, nextSwitch, parseSchedule, scheduleTempAt, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
+  batteryHoursLeft, consumerGrid, formatHours, integratePower, statsEnergy, energyFlows, formatPower, powerWatts, alertActive, batteryShoppingList, clockMinutes, upcomingPickups, wasteStyle, batteryIcon, doorDevices, doorKind, initials, isCharging, phoneSensors, brightnessPct, contactType, calibrationTransform, roomsFromMap, roomIcon, areaBatteries, batteryInfo, presetActive, presetData, DEFAULT_LIGHT_PRESETS, activityIcon, activityLabel, guessControlDevice, guessVolumeDevice, coverIcon, datetimeParts, nextOccurrence, coverPosition, skyPhase, sunPlacement, weatherOverlay, editorOptions, isNoEffect, lightEditorOptions, segmentIds, detectDeviceType, kelvinToRgb, lightColor, relatedScenes, supportsColor, supportsColorTemp, dewPoint, nextSwitch, parseSchedule, scheduleTempAt, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
   openContactsKey, powerOf, resolveContacts, secondsToDuration, stateIcon, temperatureOf, temperatureTint, trendSlope,
 } from "../src/utils";
 import { formatAttribute, localize } from "../src/localize/localize";
@@ -528,6 +528,13 @@ describe("energy extras", () => {
     const h = 3_600_000;
     expect(integratePower([{ t: 0, w: 100 }, { t: h, w: 200 }], 2 * h)).toBeCloseTo(300);
     expect(integratePower([{ t: 0, w: 100 }, { t: h / 2, w: undefined }], h)).toBeCloseTo(50);
+  });
+  it("sums energy from statistics means", () => {
+    const h = 3_600_000;
+    const rows = [{ start: 0, end: 24 * h, mean: 100 }, { start: 24 * h, end: 48 * h, mean: 50 }, { start: new Date(48 * h).toISOString(), mean: 10 }, { start: 72 * h, end: 96 * h, mean: null }];
+    expect(statsEnergy(rows)).toBeCloseTo(2400 + 1200 + 240);
+    expect(statsEnergy(rows, 24 * h)).toBeCloseTo(1200 + 240);
+    expect(statsEnergy([{ start: 0, end: h, mean: -50 }])).toBe(0);
   });
   it("computes battery time left / to full", () => {
     expect(batteryHoursLeft(50, 2688, 0, 161)).toBeCloseTo(8.35, 1);

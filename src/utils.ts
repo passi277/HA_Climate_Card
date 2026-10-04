@@ -1055,6 +1055,28 @@ export const integratePower = (points: { t: number; w?: number }[], until: numbe
   return wh;
 };
 
+/** Zeile aus recorder/statistics_during_period (start/end in ms oder ISO) */
+export interface StatRow { start: number | string; end?: number | string; mean?: number | null }
+
+const statTime = (t: number | string): number => (typeof t === "number" ? t : Date.parse(t));
+
+/** Energie in Wh aus Statistik-Mittelwerten (W): Mittelwert × Dauer je Zeile, nur Zeilen ab `from`. */
+export const statsEnergy = (rows: StatRow[], from = 0): number => {
+  let wh = 0;
+  for (const r of rows) {
+    const start = statTime(r.start);
+    if (!(start >= from) || r.mean == null || !Number.isFinite(r.mean)) continue;
+    let end = r.end != null ? statTime(r.end) : NaN;
+    if (!Number.isFinite(end)) {
+      const d = new Date(start);
+      d.setDate(d.getDate() + 1);
+      end = d.getTime();
+    }
+    if (end > start) wh += (Math.max(0, r.mean) * (end - start)) / 3_600_000;
+  }
+  return wh;
+};
+
 /** Akku-Restzeit in Stunden: bis leer (Entladen) bzw. bis voll (Laden). */
 export const batteryHoursLeft = (soc: number | undefined, capacityWh: number | undefined, chargeW: number, dischargeW: number, minSoc = 0): number | undefined => {
   if (soc == null || !capacityWh || capacityWh <= 0) return undefined;

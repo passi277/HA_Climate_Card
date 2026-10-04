@@ -849,6 +849,27 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
   await p.waitForTimeout(100);
   const calls = await p.evaluate((n) => window.serviceCalls.slice(n).map((c) => `${c.domain}.${c.service} ${c.data.entity_id}`), before);
   calls.join() === "homeassistant.toggle switch.pumpe" ? ok("Energiefluss: lange drücken auf Verbraucher schaltet den Stecker") : fail(`Verbraucher-Schalter: ${JSON.stringify(calls)}`);
+  // Zusammenfassung: Pfeile/Wischen wechseln Heute → Monat → Jahr → Gesamt
+  const summary = async () => card.evaluate((c) => {
+    const r = c.shadowRoot;
+    return { title: r.querySelector(".daily-title")?.textContent.replace(/\s+/g, " ").trim(),
+      solar: [...r.querySelectorAll(".day-item")].find((x) => /Solar/.test(x.textContent))?.querySelector(".day-val")?.textContent.trim() };
+  });
+  const nav = async (i) => { await card.evaluate((c, i) => c.shadowRoot.querySelectorAll(".daily .nav")[i].click(), i); await p.waitForTimeout(250); };
+  const s0 = await summary();
+  await nav(1); const s1 = await summary();
+  await nav(1); await nav(1); const s3 = await summary();
+  const daily = await card.evaluateHandle((c) => c.shadowRoot.querySelector(".daily-items"));
+  const db = await daily.boundingBox();
+  await p.mouse.move(db.x + 20, db.y + db.height / 2); await p.mouse.down();
+  await p.mouse.move(db.x + 140, db.y + db.height / 2, { steps: 5 }); await p.mouse.up();
+  await p.waitForTimeout(250);
+  const s2 = await summary();
+  const kwh = (v) => parseFloat((v ?? "").replace(/\./g, "").replace(",", ".")) * (/MWh/.test(v ?? "") ? 1000 : /kWh/.test(v ?? "") ? 1 : 0.001);
+  const month = new Date().toLocaleDateString("de", { month: "long" }).toUpperCase();
+  /Heute/i.test(s0.title) && s1.title.toUpperCase().includes(month) && /Gesamt.*seit/i.test(s3.title) && s2.title.includes(String(new Date().getFullYear()))
+    && kwh(s3.solar) > kwh(s2.solar) && kwh(s2.solar) >= kwh(s1.solar) && kwh(s1.solar) >= kwh(s0.solar)
+    ? ok("Energiefluss: Zusammenfassung Heute → Monat → Jahr → Gesamt per Pfeil und Wischen") : fail(`Zusammenfassung: ${JSON.stringify({ s0, s1, s2, s3 })}`);
 }
 
 // Moduswechsel: jede Karte, jeder Modus (außer Auto/Heizen-Kühlen, dort zählt die Tätigkeit)

@@ -644,7 +644,12 @@
     "full_in": "voll in",
     "switch_on": "Schalter an – lange drücken schaltet aus",
     "switch_off": "Schalter aus – lange drücken schaltet ein",
-    "full": "voll"
+    "full": "voll",
+    "total": "Gesamt",
+    "since": "seit",
+    "prev": "Vorheriger Zeitraum",
+    "next": "Nächster Zeitraum",
+    "no_stats": "Keine Langzeitstatistik für diese Sensoren"
   },
   "energy_editor": {
     "title": "Titel",

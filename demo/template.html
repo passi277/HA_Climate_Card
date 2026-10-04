@@ -511,6 +511,20 @@
       async callWS(msg) {
         const out = {};
         // Tageswerte der Energiekarte: Leistung seit 6 Uhr konstant auf dem aktuellen Wert
+        // Langzeitstatistik (Tagesmittel) seit 1. Januar des Vorjahres für Monat/Jahr/Gesamt
+        if (msg.type === "recorder/statistics_during_period") {
+          const end = new Date(msg.end_time).getTime();
+          for (const id of msg.statistic_ids) {
+            const rows = [];
+            const mean = Math.abs(Number(states[id]?.state) || 0) * 0.6;
+            for (let d = new Date(new Date().getFullYear() - 1, 0, 1); d.getTime() < end; d.setDate(d.getDate() + 1)) {
+              const n = new Date(d); n.setDate(n.getDate() + 1);
+              rows.push({ start: d.getTime(), end: n.getTime(), mean });
+            }
+            out[id] = rows;
+          }
+          return out;
+        }
         if (msg.no_attributes) {
           const t0 = new Date(); t0.setHours(6, 0, 0, 0);
           for (const id of msg.entity_ids) out[id] = [{ s: states[id]?.state ?? "0", lu: Math.min(t0.getTime(), Date.now() - 3600000) / 1000 }];
