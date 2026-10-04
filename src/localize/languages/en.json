@@ -637,7 +637,14 @@
     "export": "export",
     "autarky": "Self-sufficiency",
     "unavailable": "unavailable",
-    "more_consumers": "More consumers"
+    "more_consumers": "More consumers",
+    "other": "Other",
+    "today": "Today",
+    "left": "left",
+    "full_in": "full in",
+    "switch_on": "Switch on – long press turns off",
+    "switch_off": "Switch off – long press turns on",
+    "full": "full"
   },
   "energy_editor": {
     "title": "Title",
@@ -649,6 +656,10 @@
     "battery_soc": "Battery state of charge",
     "home": "Home consumption (otherwise calculated)",
     "devices": "Individual consumers",
-    "hint": "Same config as power-flow-card-plus (entities: solar/battery/grid/home/individual). Names, icons and colors of consumers via YAML."
+    "hint": "Same config as power-flow-card-plus (entities: solar/battery/grid/home/individual). Names, icons, colors and switches of consumers via YAML.",
+    "battery_capacity": "Battery capacity (entity or kWh)",
+    "layout": "Layout",
+    "layout_full": "Diagram",
+    "layout_compact": "Compact (one row)"
   }
 }

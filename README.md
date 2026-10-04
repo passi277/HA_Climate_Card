@@ -497,8 +497,9 @@ alerts:
 
 Animierter Energiefluss zwischen **Solar, Netz, Batterie und Haus** – Punkte laufen schneller, je mehr Leistung fließt.
 Der Hausring zeigt, woher der Strom gerade kommt (Solar/Batterie/Netz), die Batterie ihren Ladestand als Ring.
-Oben „Autarkie“ in Prozent. **Einzelverbraucher** erscheinen als Kreise über und unter dem Haus (die ersten zwei aktiven),
-alle weiteren darunter als Kacheln mit Balken.
+Oben „Autarkie“ in Prozent. **Alle Einzelverbraucher** hängen als Kreise an einer Leitung unter dem Haus (mehrere Reihen),
+dazu „Sonstiges“ (Haus minus Verbraucher). Unten die **Tageswerte** (aus dem Verlauf berechnet), am Akku die Restzeit.
+Lange drücken auf einen Verbraucher mit `switch:` schaltet dessen Stecker. `layout: compact` zeigt nur eine Zeile.
 
 Die Konfiguration entspricht **power-flow-card-plus** – meist reicht es, `type` zu tauschen:
 
@@ -510,6 +511,7 @@ entities:
       production: sensor.solarbank_aufladeleistung    # in die Batterie (Laden)
       consumption: sensor.solarbank_entladeleistung   # aus der Batterie (Entladen)
     state_of_charge: sensor.solarbank_ladestand
+    capacity: number.solarbank_akku_kapazitat         # oder 2.7 (kWh) – für „noch … h“
   solar:
     entity: sensor.solarbank_solarleistung
   home:
@@ -522,6 +524,7 @@ entities:
     - entity: sensor.kuhlschrank_power
       name: Kühlschrank
       icon: mdi:fridge
+      switch: switch.kuhlschrank                      # lange drücken schaltet
     - entity: sensor.starlink_leistung
       name: Starlink
       icon: mdi:satellite-variant
@@ -532,6 +535,10 @@ kw_decimals: 1
 min_flow_rate: 0.75    # Sekunden je Durchlauf bei viel Leistung
 max_flow_rate: 6       # … bei wenig Leistung
 # max_expected_power: 2000   # ab dieser Leistung laufen die Punkte am schnellsten
+# consumer_columns: 4        # Verbraucher-Kreise pro Zeile
+# show_other: false          # „Sonstiges“ ausblenden
+# show_daily: false          # Tageswerte ausblenden
+# layout: compact            # nur eine Zeile
 ```
 
 Statt getrennter Sensoren geht auch ein Sensor mit Vorzeichen (`entity: sensor.grid_power`, positiv = Bezug bzw. Entladen; `invert_state: true` dreht es um).

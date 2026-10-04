@@ -10,6 +10,8 @@ interface Flat {
   battery_discharge?: string;
   battery_charge?: string;
   battery_soc?: string;
+  battery_capacity?: string;
+  layout?: string;
   grid_import?: string;
   grid_export?: string;
   home?: string;
@@ -41,13 +43,17 @@ export class HaEnergyCardEditor extends LitElement {
     const [bd, bc] = split(e.battery?.entity);
     const [gi, ge] = split(e.grid?.entity);
     return { title: this._config?.title, solar: e.solar?.entity, battery_discharge: bd, battery_charge: bc, battery_soc: e.battery?.state_of_charge,
-      grid_import: gi, grid_export: ge, home: e.home?.entity, devices: e.individual?.map((i) => i.entity) };
+      grid_import: gi, grid_export: ge, home: e.home?.entity, devices: e.individual?.map((i) => i.entity),
+      battery_capacity: typeof e.battery?.capacity === "string" ? e.battery.capacity : undefined, layout: this._config?.layout ?? "full" };
   }
 
   private _schema() {
     const power = { entity: { filter: { domain: "sensor", device_class: "power" } } };
     return [
-      { name: "title", selector: { text: {} } },
+      { type: "grid", name: "", schema: [
+        { name: "title", selector: { text: {} } },
+        { name: "layout", selector: { select: { mode: "dropdown", options: ["full", "compact"].map((v) => ({ value: v, label: this._t(`layout_${v}`) })) } } },
+      ] },
       { name: "solar", selector: power },
       { type: "grid", name: "", schema: [
         { name: "grid_import", selector: power },
@@ -57,7 +63,10 @@ export class HaEnergyCardEditor extends LitElement {
         { name: "battery_discharge", selector: power },
         { name: "battery_charge", selector: power },
       ] },
-      { name: "battery_soc", selector: { entity: { filter: { domain: "sensor", device_class: "battery" } } } },
+      { type: "grid", name: "", schema: [
+        { name: "battery_soc", selector: { entity: { filter: { domain: "sensor", device_class: "battery" } } } },
+        { name: "battery_capacity", selector: { entity: { filter: [{ domain: "number" }, { domain: "sensor" }] } } },
+      ] },
       { name: "home", selector: power },
       { name: "devices", selector: { entity: { multiple: true, filter: { domain: "sensor", device_class: "power" } } } },
     ];
@@ -71,7 +80,8 @@ export class HaEnergyCardEditor extends LitElement {
     const entities: EnergyCardConfig["entities"] = {};
     if (f.solar) entities.solar = { ...prev.solar, entity: f.solar };
     const bat = join(f.battery_discharge, f.battery_charge);
-    if (bat || f.battery_soc) entities.battery = { ...prev.battery, entity: bat, state_of_charge: f.battery_soc };
+    if (bat || f.battery_soc) entities.battery = { ...prev.battery, entity: bat, state_of_charge: f.battery_soc,
+      capacity: f.battery_capacity ?? (typeof prev.battery?.capacity === "number" ? prev.battery.capacity : undefined) };
     const grid = join(f.grid_import, f.grid_export);
     if (grid) entities.grid = { ...prev.grid, entity: grid };
     if (f.home) entities.home = { ...prev.home, entity: f.home };
@@ -82,6 +92,8 @@ export class HaEnergyCardEditor extends LitElement {
     const config: EnergyCardConfig = { ...this._config!, entities };
     if (f.title) config.title = f.title;
     else delete config.title;
+    if (f.layout && f.layout !== "full") config.layout = f.layout as EnergyCardConfig["layout"];
+    else delete config.layout;
     this._config = config;
     this.dispatchEvent(new CustomEvent("config-changed", { detail: { config }, bubbles: true, composed: true }));
   }

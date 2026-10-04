@@ -474,8 +474,10 @@ export interface EnergyIndividualConfig {
   name?: string;
   icon?: string;
   color?: string;
-  /** Auch bei 0 W als Kreis im Diagramm zeigen */
+  /** Auch bei 0 W als Kreis im Diagramm zeigen (Standard: alle werden gezeigt) */
   display_zero?: boolean;
+  /** Schalter/Stecker: lange drücken schaltet ihn */
+  switch?: string;
 }
 
 export interface EnergyCardConfig {
@@ -484,7 +486,9 @@ export interface EnergyCardConfig {
   entities: {
     solar?: { entity: string; name?: string; icon?: string; display_zero_state?: boolean };
     /** consumption = Entladen (zum Haus), production = Laden; Text: positiv = Entladen */
-    battery?: { entity?: EnergyEntity; state_of_charge?: string; name?: string; icon?: string; invert_state?: boolean };
+    battery?: { entity?: EnergyEntity; state_of_charge?: string; name?: string; icon?: string; invert_state?: boolean;
+      /** Kapazität in kWh oder Entität (Wh/kWh) – für „reicht noch … h“ */
+      capacity?: number | string; min_soc?: number };
     /** consumption = Netzbezug, production = Einspeisung; Text: positiv = Bezug */
     grid?: { entity: EnergyEntity; name?: string; icon?: string; invert_state?: boolean };
     home?: { entity?: string; name?: string; icon?: string };
@@ -499,8 +503,14 @@ export interface EnergyCardConfig {
   max_flow_rate?: number;
   /** Bei dieser Leistung laufen die Punkte am schnellsten (Standard 2000 W) */
   max_expected_power?: number;
-  /** Weitere Verbraucher unter dem Diagramm als Liste (Standard an) */
-  show_individual_list?: boolean;
+  /** Verbraucher-Kreise pro Zeile (Standard 4) */
+  consumer_columns?: number;
+  /** „Sonstiges“ = Haus minus alle Verbraucher (Standard an) */
+  show_other?: boolean;
+  /** Tageswerte aus dem Verlauf (Standard an) */
+  show_daily?: boolean;
+  /** full = Diagramm, compact = eine Zeile */
+  layout?: "full" | "compact";
   /** Linien ohne Fluss trotzdem zeigen (Standard an) */
   display_zero_lines?: boolean;
   /** Tippen öffnet Details (Standard an) */

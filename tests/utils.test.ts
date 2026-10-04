@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { HassEntity } from "../src/types";
 import {
-  energyFlows, formatPower, powerWatts, alertActive, batteryShoppingList, clockMinutes, upcomingPickups, wasteStyle, batteryIcon, doorDevices, doorKind, initials, isCharging, phoneSensors, brightnessPct, contactType, calibrationTransform, roomsFromMap, roomIcon, areaBatteries, batteryInfo, presetActive, presetData, DEFAULT_LIGHT_PRESETS, activityIcon, activityLabel, guessControlDevice, guessVolumeDevice, coverIcon, datetimeParts, nextOccurrence, coverPosition, skyPhase, sunPlacement, weatherOverlay, editorOptions, isNoEffect, lightEditorOptions, segmentIds, detectDeviceType, kelvinToRgb, lightColor, relatedScenes, supportsColor, supportsColorTemp, dewPoint, nextSwitch, parseSchedule, scheduleTempAt, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
+  batteryHoursLeft, consumerGrid, formatHours, integratePower, energyFlows, formatPower, powerWatts, alertActive, batteryShoppingList, clockMinutes, upcomingPickups, wasteStyle, batteryIcon, doorDevices, doorKind, initials, isCharging, phoneSensors, brightnessPct, contactType, calibrationTransform, roomsFromMap, roomIcon, areaBatteries, batteryInfo, presetActive, presetData, DEFAULT_LIGHT_PRESETS, activityIcon, activityLabel, guessControlDevice, guessVolumeDevice, coverIcon, datetimeParts, nextOccurrence, coverPosition, skyPhase, sunPlacement, weatherOverlay, editorOptions, isNoEffect, lightEditorOptions, segmentIds, detectDeviceType, kelvinToRgb, lightColor, relatedScenes, supportsColor, supportsColorTemp, dewPoint, nextSwitch, parseSchedule, scheduleTempAt, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
   openContactsKey, powerOf, resolveContacts, secondsToDuration, stateIcon, temperatureOf, temperatureTint, trendSlope,
 } from "../src/utils";
 import { formatAttribute, localize } from "../src/localize/localize";
@@ -520,5 +520,27 @@ describe("energy flows", () => {
     expect(powerWatts({ entity_id: "sensor.p", state: "unavailable", attributes: {}, last_changed: "", last_updated: "" })).toBeUndefined();
     expect(formatPower(161, "de")).toBe("161 W");
     expect(formatPower(1530, "de")).toBe("1,5 kW");
+  });
+});
+
+describe("energy extras", () => {
+  it("integrates power history to Wh", () => {
+    const h = 3_600_000;
+    expect(integratePower([{ t: 0, w: 100 }, { t: h, w: 200 }], 2 * h)).toBeCloseTo(300);
+    expect(integratePower([{ t: 0, w: 100 }, { t: h / 2, w: undefined }], h)).toBeCloseTo(50);
+  });
+  it("computes battery time left / to full", () => {
+    expect(batteryHoursLeft(50, 2688, 0, 161)).toBeCloseTo(8.35, 1);
+    expect(batteryHoursLeft(80, 2000, 400, 0)).toBeCloseTo(1);
+    expect(batteryHoursLeft(80, undefined, 400, 0)).toBeUndefined();
+    expect(formatHours(8.35)).toBe("8:21 h");
+    expect(formatHours(0.5)).toBe("30 min");
+    expect(formatHours(14.2)).toBe("14 h");
+  });
+  it("lays out any number of consumers in rows", () => {
+    expect(consumerGrid(2).map((g) => g.x)).toEqual([75, 225]);
+    const six = consumerGrid(6, 4);
+    expect(six.map((g) => g.row)).toEqual([0, 0, 0, 0, 1, 1]);
+    expect(six[4]!.x).toBe(75);
   });
 });

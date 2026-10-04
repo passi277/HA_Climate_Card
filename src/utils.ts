@@ -1042,3 +1042,43 @@ export const formatPower = (w: number, lang = "de", threshold = 1000, wDecimals 
   if (abs >= threshold) return `${(w / 1000).toLocaleString(lang, { minimumFractionDigits: kwDecimals, maximumFractionDigits: kwDecimals })} kW`;
   return `${w.toLocaleString(lang, { minimumFractionDigits: wDecimals, maximumFractionDigits: wDecimals })} W`;
 };
+
+/** Energie in Wh aus einem Leistungsverlauf (Werte gelten bis zur nächsten Änderung). */
+export const integratePower = (points: { t: number; w?: number }[], until: number): number => {
+  const pts = points.filter((p) => Number.isFinite(p.t)).sort((a, b) => a.t - b.t);
+  let wh = 0;
+  for (let i = 0; i < pts.length; i++) {
+    const end = Math.min(i + 1 < pts.length ? pts[i + 1]!.t : until, until);
+    const w = pts[i]!.w;
+    if (w != null && Number.isFinite(w) && w > 0 && end > pts[i]!.t) wh += (w * (end - pts[i]!.t)) / 3_600_000;
+  }
+  return wh;
+};
+
+/** Akku-Restzeit in Stunden: bis leer (Entladen) bzw. bis voll (Laden). */
+export const batteryHoursLeft = (soc: number | undefined, capacityWh: number | undefined, chargeW: number, dischargeW: number, minSoc = 0): number | undefined => {
+  if (soc == null || !capacityWh || capacityWh <= 0) return undefined;
+  if (dischargeW > 1) return Math.max(0, ((soc - minSoc) / 100) * capacityWh) / dischargeW;
+  if (chargeW > 1) return Math.max(0, ((100 - soc) / 100) * capacityWh) / chargeW;
+  return undefined;
+};
+
+/** „7 h“ / „2:15 h“ / „45 min“ */
+export const formatHours = (h: number): string => {
+  if (h >= 24) return `${Math.round(h / 24)} d`;
+  if (h >= 10) return `${Math.round(h)} h`;
+  const mins = Math.round(h * 60);
+  if (mins < 60) return `${mins} min`;
+  return `${Math.floor(mins / 60)}:${String(mins % 60).padStart(2, "0")} h`;
+};
+
+/** Raster für beliebig viele Verbraucher-Kreise: x je Kreis (0–300) und Zeile */
+export const consumerGrid = (n: number, cols = 4): { x: number; row: number }[] => {
+  const per = Math.max(1, Math.min(cols, n));
+  return Array.from({ length: n }, (_, i) => {
+    const row = Math.floor(i / per);
+    const inRow = Math.min(per, n - row * per);
+    const col = i - row * per;
+    return { x: (300 * (col + 0.5)) / inRow, row };
+  });
+};

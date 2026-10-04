@@ -310,6 +310,8 @@
       "sensor.pumpe_power": { state: "0", attributes: { friendly_name: "Pumpe", unit_of_measurement: "W", device_class: "power" } },
       "sensor.pool_power": { state: "unavailable", attributes: { friendly_name: "Pool", unit_of_measurement: "W", device_class: "power" } },
       "sensor.starlink_leistung": { state: "53.4", attributes: { friendly_name: "Starlink", unit_of_measurement: "W", device_class: "power" } },
+      "switch.pumpe": { state: "off", attributes: { friendly_name: "Stecker Pumpe" } },
+      "number.solarbank_kapazitaet": { state: "2688", attributes: { friendly_name: "Akku Kapazität", unit_of_measurement: "Wh" } },
       "lock.klingel": { state: "locked", attributes: { friendly_name: "Klingel", supported_features: 1 } },
       "binary_sensor.klingel_klingelaktion": { state: "off", attributes: { friendly_name: "Klingel Klingelaktion" } },
       "binary_sensor.klingel_batterie": { state: "on", attributes: { friendly_name: "Klingel Batteriestand", device_class: "battery" } },
@@ -508,6 +510,12 @@
       },
       async callWS(msg) {
         const out = {};
+        // Tageswerte der Energiekarte: Leistung seit 6 Uhr konstant auf dem aktuellen Wert
+        if (msg.no_attributes) {
+          const t0 = new Date(); t0.setHours(6, 0, 0, 0);
+          for (const id of msg.entity_ids) out[id] = [{ s: states[id]?.state ?? "0", lu: Math.min(t0.getTime(), Date.now() - 3600000) / 1000 }];
+          return out;
+        }
         const end = Date.now() / 1000, start = end - 24 * 3600;
         for (const id of msg.entity_ids) {
           const arr = [];
@@ -563,11 +571,11 @@
         contacts: [{ entity: "binary_sensor.fenster_pascal_schreibtisch", name: "Schreibtisch" }, { entity: "binary_sensor.fenster_pascal_tv", name: "TV" }],
         temperature: "climate.heizung_mein_zimmer", humidity: "climate.heizung_mein_zimmer", climate: "climate.1ed763d9", media: "remote.harmony_schlafzimmer", trash: "calendar.abfall" }],
       ["Energiefluss – Solarbank, Netz, Haus + Verbraucher (Konfiguration wie power-flow-card-plus)", { _energy: true, entities: {
-        battery: { entity: { production: "sensor.solarbank_laden", consumption: "sensor.solarbank_entladen" }, state_of_charge: "sensor.solarbank_ladestand" },
+        battery: { entity: { production: "sensor.solarbank_laden", consumption: "sensor.solarbank_entladen" }, state_of_charge: "sensor.solarbank_ladestand", capacity: "number.solarbank_kapazitaet" },
         solar: { entity: "sensor.solarbank_solar" }, home: { entity: "sensor.garten_hausbedarf" },
         grid: { entity: { consumption: "sensor.smart_meter_bezug", production: "sensor.smart_meter_einspeisung" } },
         individual: [{ entity: "sensor.kuehlschrank_power", name: "Kühlschrank", icon: "mdi:fridge" }, { entity: "sensor.aussenstrom_power", name: "Außenstrom", icon: "mdi:power-plug" },
-          { entity: "sensor.pumpe_power", name: "Pumpe", icon: "mdi:water-pump" }, { entity: "sensor.pool_power", name: "Pool", icon: "mdi:pool" },
+          { entity: "sensor.pumpe_power", name: "Pumpe", icon: "mdi:water-pump", switch: "switch.pumpe" }, { entity: "sensor.pool_power", name: "Pool", icon: "mdi:pool" },
           { entity: "sensor.starlink_leistung", name: "Starlink", icon: "mdi:satellite-variant", color: "#049cdb" }] } }],
       ["Hinweis-Karte – erscheint nur, wenn etwas los ist (Fenster offen, Saugroboter putzt)", { _alert: true,
         contacts: [{ entity: "binary_sensor.buero_fenster", name: "Büro" }, { entity: "binary_sensor.wz_balkontuer", name: "Balkontür" }, "binary_sensor.wz_fenster"],

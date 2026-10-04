@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.14.0 – Energiefluss ausgebaut
+- Energy Card: **beliebig viele Verbraucher-Kreise** – hängen an einer Sammelleitung unter dem Haus, je Verbraucher eine animierte Linie, mehrere Reihen (`consumer_columns`, Standard 4)
+- **„Sonstiges“** = Hausverbrauch minus alle Verbraucher (`show_other: false` blendet es aus)
+- **Tageswerte** („Heute“: Solar, Haus, Netz ↓/↑, Batterie +/−, je Verbraucher) – aus dem Leistungsverlauf seit Mitternacht berechnet, keine Energie-Sensoren nötig (`show_daily: false`)
+- **Akku-Restzeit**: „noch 14 h“ / „voll 59 min“ mit `battery.capacity` (kWh oder Entität, z.B. Akku-Kapazität in Wh), optional `min_soc`
+- **Verbraucher schalten**: `switch:` je Verbraucher – lange drücken schaltet den Stecker, kleines Symbol zeigt an/aus
+- Lebendiger: Linien werden mit der Leistung dicker, Punkte mit Leuchtschweif, aktive Kreise pulsieren sanft
+- **Kompakt** (`layout: compact`): eine Zeile mit Solar, Akku, Netz, Haus
+
 ## 1.13.1
 - Energy Card: **Einzelverbraucher als Kreise am Haus** (oben/unten, mit eigener Flusslinie) – die ersten zwei aktiven in Konfigurationsreihenfolge (`display_zero: true` zeigt auch 0 W), weitere darunter als Liste („Weitere Verbraucher“, `show_individual_list: false` blendet sie aus)
 - Energy Card: **ruhigere Animation** – Tempo nach Leistung in Watt (`max_expected_power`, Standard 2000 W) statt relativ zum größten Fluss; ein Punkt je Linie
