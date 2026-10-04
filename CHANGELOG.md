@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.17.0 – Bewässerung: Verteiler
+- Irrigation Card: Ventile hängen jetzt **parallel an einem Verteiler** unter dem Hauswasserwerk (Wasser fließt animiert in jeden offenen Strang)
+- Neuer Strang **„Sonstiges“**: die Pumpe zieht Strom, aber kein Ventil ist offen (`show_other`, `other_threshold`)
+- **Tippen aufs Ventil** öffnet/schließt nur das Ventil (ohne Timer/Skripte), lange drücken = Details
+- Bei ausgeschalteter Pumpe lassen sich Ventile nicht von Hand öffnen oder starten (Schließen/Stoppen geht immer); `pump_on_start` entfällt
+
 ## 1.16.0 – Bewässerung
 - Neue **Modern Irrigation Card** für Hauswasserwerk/Pumpe mit Ventilen: Zonen an einer animierten Wasserleitung (Wasser fließt bis zur offenen Zone), Restzeit mit Fortschrittsring, Durchfluss in L/min, Ventil-Akku, Laufzeit per −/+ bzw. Regler, Start/Pause/Stopp (über Timer + Ventil oder eigene Skripte), Modus-Leiste, Startzeit, „Alle nacheinander“, „Alles aus“, letzter Lauf; visueller Editor
 

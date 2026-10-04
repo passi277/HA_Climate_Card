@@ -11,12 +11,14 @@ import "./irrigation-editor";
 (window as any).customCards.push({
   type: "ha-irrigation-card",
   name: "Modern Irrigation Card",
-  description: "Hauswasserwerk / Pumpe mit Ventilen: Zonen starten, pausieren, stoppen, Laufzeit einstellen, Restzeit und Durchfluss – mit animierter Wasserleitung (HA Modern Home Cards).",
+  description: "Hauswasserwerk / Pumpe mit parallelen Ventilen: Zonen starten, pausieren, stoppen, Ventile direkt schalten, Restzeit und Durchfluss – mit animiertem Verteiler und Strang „Sonstiges“ (HA Modern Home Cards).",
   preview: true,
   documentationURL: DOCS_URL,
 });
 
 const WATER = "#29b6f6";
+const OTHER = "#78909c";
+const HOLD_MS = 500;
 
 interface Zone {
   cfg: IrrigationZoneConfig;
@@ -40,6 +42,8 @@ export class HaIrrigationCard extends LitElement {
   @state() private _config?: IrrigationCardConfig;
   @state() private _now = Date.now();
   private _tick?: number;
+  private _holdTimer?: number;
+  private _held = false;
 
   public static getConfigElement(): HTMLElement {
     return document.createElement("ha-irrigation-card-editor");
@@ -58,7 +62,7 @@ export class HaIrrigationCard extends LitElement {
   }
 
   public getCardSize(): number {
-    return 2 + (this._config?.zones.length ?? 0);
+    return 6;
   }
 
   public getGridOptions() {
@@ -69,6 +73,7 @@ export class HaIrrigationCard extends LitElement {
     super.disconnectedCallback();
     clearInterval(this._tick);
     this._tick = undefined;
+    clearTimeout(this._holdTimer);
   }
 
   private _t(key: string): string {
@@ -162,11 +167,16 @@ export class HaIrrigationCard extends LitElement {
     return this._call("homeassistant", open ? "turn_on" : "turn_off", { entity_id: id });
   }
 
-  private async _start(z: Zone): Promise<void> {
+  /** Ohne laufende Pumpe kann nichts von Hand gestartet werden (Schließen/Stoppen geht immer). */
+  private _canStart(): boolean {
     const c = this._config!;
+    return !c.pump || this._isOn(c.pump);
+  }
+
+  private async _start(z: Zone): Promise<void> {
+    if (!this._canStart()) return;
     this._haptic("medium");
     try {
-      if (c.pump && c.pump_on_start !== false && !this._isOn(c.pump)) await this._call("homeassistant", "turn_on", { entity_id: c.pump });
       if (z.cfg.start_script) return void (await this._script(z.cfg.start_script, z.cfg.script_data));
       if (z.cfg.timer) {
         const min = z.minutes ?? (z.timer?.duration ? z.timer.duration / 60 : undefined);
@@ -177,8 +187,9 @@ export class HaIrrigationCard extends LitElement {
   }
 
   private async _pause(z: Zone): Promise<void> {
-    this._haptic();
     const paused = z.timer?.state === "paused";
+    if (paused && !this._canStart()) return;
+    this._haptic();
     try {
       if (z.cfg.pause_script) return void (await this._script(z.cfg.pause_script, z.cfg.script_data));
       if (z.cfg.timer) await this._call("timer", paused ? "start" : "pause", { entity_id: z.cfg.timer });
@@ -195,17 +206,23 @@ export class HaIrrigationCard extends LitElement {
     } catch { /* gemeldet */ }
   }
 
-  private _setMinutes(z: Zone, dir: number): void {
-    const st = z.durationSt;
-    if (!st || z.minutes == null) return;
-    const a = st.attributes;
-    const step = Number(a.step) || 1;
-    const big = z.minutes + dir * step >= 30 && step < 5 ? 5 : step;
-    const next = Math.min(Number(a.max ?? 120), Math.max(Number(a.min ?? 1), Math.round((z.minutes + dir * big) / big) * big));
-    if (next === z.minutes) return;
-    this._haptic("selection");
-    this._call(st.entity_id.split(".")[0]!, "set_value", { entity_id: st.entity_id, value: next }).catch(() => undefined);
+  /** Tippen aufs Ventil: nur das Ventil auf/zu – ohne Timer oder Skripte */
+  private _toggleValve(z: Zone): void {
+    if (this._held) { this._held = false; return; }
+    if (z.unavailable || (!z.open && !this._canStart())) return;
+    this._haptic("medium");
+    this._valve(z.cfg.valve, !z.open).catch(() => undefined);
   }
+
+  /** Lange drücken: Details */
+  private _holdStart(ev: PointerEvent, id?: string): void {
+    if (ev.button !== 0 || !id) return;
+    this._held = false;
+    clearTimeout(this._holdTimer);
+    this._holdTimer = window.setTimeout(() => { this._held = true; this._haptic("medium"); this._moreInfo(id); }, HOLD_MS);
+  }
+
+  private _holdEnd = (): void => clearTimeout(this._holdTimer);
 
   private _togglePump(): void {
     const c = this._config!;
@@ -243,51 +260,74 @@ export class HaIrrigationCard extends LitElement {
 
   // ---------- Render ----------
 
-  private _zoneStatus(z: Zone): string {
+  private _lines(z: Zone): [string, string] {
     const lang = getLanguage(this.hass);
-    const parts: string[] = [];
     const t = z.timer;
-    if (z.unavailable) parts.push(this._t("unavailable"));
-    else if (t && t.state === "paused") parts.push(`${this._t("paused")} · ${this._t("left")} ${formatRemaining(t.remaining)}`);
-    else if (t && t.state === "active") parts.push(`${this._t("left")} ${formatRemaining(t.remaining)}`);
-    else parts.push(this._t(z.open ? "open" : "closed"));
-    if (z.open && z.flow != null && z.flow > 0) parts.push(`${z.flow.toLocaleString(lang, { maximumFractionDigits: z.flow < 10 ? 1 : 0 })} L/min`);
-    else if (!z.open && z.volume && !(t && t.state !== "idle")) parts.push(`${this._t("last")} ${z.volume}`);
-    return parts.join(" · ");
+    const first = z.unavailable ? this._t("unavailable")
+      : t && t.state === "paused" ? `⏸ ${formatRemaining(t.remaining)}`
+      : t && t.state === "active" ? formatRemaining(t.remaining)
+      : this._t(z.open ? "open" : "closed");
+    const second = z.open && z.flow != null && z.flow > 0 ? `${z.flow.toLocaleString(lang, { maximumFractionDigits: z.flow < 10 ? 1 : 0 })} L/min`
+      : !z.open && z.volume && !(t && t.state !== "idle") ? `${this._t("last")} ${z.volume}` : "";
+    return [first, second];
   }
 
-  private _renderZone(z: Zone, i: number, zones: Zone[]) {
+  private _renderZone(z: Zone, flowing: boolean, canStart: boolean) {
     const t = z.timer;
     const running = z.open || (!!t && t.state !== "idle");
-    // Wasser fließt durch die Leitung bis zur letzten offenen Zone
-    const feed = zones.slice(i).some((x) => x.open);
-    const through = zones.slice(i + 1).some((x) => x.open);
-    const last = i === zones.length - 1;
     const progress = t && t.state !== "idle" ? t.progress : z.open ? 1 : 0;
     const lowBat = z.battery != null && z.battery <= 20;
-    return html`<div class="zone ${z.open ? "open" : ""} ${running ? "running" : ""} ${last ? "last" : ""}" style="--zc:${z.color}" data-zone=${z.idx}>
-      <span class="pipe top ${feed ? "flow" : ""}"></span>${last ? nothing : html`<span class="pipe bot ${through ? "flow" : ""}"></span>`}
-      <button class="z-badge" style="--p:${(progress * 360).toFixed(1)}deg" @click=${() => this._moreInfo(z.cfg.valve)} aria-label=${z.name}>
+    const [l1, l2] = this._lines(z);
+    const locked = !z.open && !canStart;
+    return html`<div class="col zone ${z.open ? "open" : ""} ${running ? "running" : ""} ${flowing ? "flowing" : ""} ${locked ? "locked" : ""}" style="--zc:${z.color}" data-zone=${z.idx}>
+      <button class="z-badge" style="--p:${(progress * 360).toFixed(1)}deg" ?disabled=${z.unavailable} aria-pressed=${z.open}
+        title=${locked ? this._t("pump_needed") : this._t(z.open ? "close_valve" : "open_valve")}
+        @click=${() => this._toggleValve(z)} @pointerdown=${(e: PointerEvent) => this._holdStart(e, z.cfg.valve)}
+        @pointerup=${this._holdEnd} @pointerleave=${this._holdEnd} @pointercancel=${this._holdEnd} @contextmenu=${(e: Event) => e.preventDefault()}>
         <span class="z-ring"></span><ha-icon .icon=${z.icon}></ha-icon>
+        ${lowBat ? html`<span class="z-bat" title="${z.battery} %"><ha-icon .icon=${batteryIcon(z.battery!, false)}></ha-icon></span>` : nothing}
       </button>
-      <div class="z-text">
-        <span class="z-name">${z.name}${z.battery != null ? html`<span class="z-bat ${lowBat ? "low" : ""}" title="${z.battery} %">
-          <ha-icon .icon=${batteryIcon(z.battery, false)}></ha-icon>${lowBat ? html`${z.battery} %` : nothing}</span>` : nothing}</span>
-        <span class="z-status">${this._zoneStatus(z)}</span>
-      </div>
+      <span class="z-name">${z.name}</span>
+      <span class="z-l1">${l1}</span>
+      <span class="z-l2">${lowBat && !l2 ? html`<span class="low">${z.battery} %</span>` : l2 || " "}</span>
       <div class="z-ctrl">
         ${running ? html`
-          ${t ? html`<button class="ctl" aria-label=${this._t(t.state === "paused" ? "resume" : "pause")} @click=${() => this._pause(z)}>
+          ${t ? html`<button class="ctl" ?disabled=${t.state === "paused" && !canStart} aria-label=${this._t(t.state === "paused" ? "resume" : "pause")} @click=${() => this._pause(z)}>
             <ha-icon .icon=${t.state === "paused" ? "mdi:play" : "mdi:pause"}></ha-icon></button>` : nothing}
           <button class="ctl stop" aria-label=${this._t("stop")} @click=${() => this._stop(z)}><ha-icon icon="mdi:stop"></ha-icon></button>`
         : html`
-          ${z.minutes != null ? html`<span class="dur">
-            <button class="st" aria-label="−" @click=${() => this._setMinutes(z, -1)}><ha-icon icon="mdi:minus"></ha-icon></button>
-            <button class="st-val" title=${this._t("duration")} @click=${() => this._moreInfo(z.durationSt?.entity_id)}>${Math.round(z.minutes)}<small> min</small></button>
-            <button class="st" aria-label="+" @click=${() => this._setMinutes(z, 1)}><ha-icon icon="mdi:plus"></ha-icon></button></span>` : nothing}
-          <button class="ctl play" ?disabled=${z.unavailable} aria-label=${this._t("start")} @click=${() => this._start(z)}><ha-icon icon="mdi:play"></ha-icon></button>`}
+          ${z.minutes != null ? html`<button class="dur" title=${this._t("duration")} @click=${() => this._moreInfo(z.durationSt?.entity_id)}>${Math.round(z.minutes)}<small> min</small></button>` : nothing}
+          <button class="ctl play" ?disabled=${z.unavailable || !canStart} aria-label=${this._t("start")} @click=${() => this._start(z)}><ha-icon icon="mdi:play"></ha-icon></button>`}
       </div>
     </div>`;
+  }
+
+  private _renderOther(flowing: boolean, watts?: number) {
+    const c = this._config!;
+    return html`<div class="col other ${flowing ? "flowing open" : ""}" style="--zc:${OTHER}" data-zone="other">
+      <button class="z-badge" style="--p:${flowing ? 360 : 0}deg" @click=${() => this._moreInfo(c.pump_power)}>
+        <span class="z-ring"></span><ha-icon .icon=${c.other_icon ?? "mdi:faucet"}></ha-icon>
+      </button>
+      <span class="z-name">${c.other_name ?? this._t("other")}</span>
+      <span class="z-l1">${flowing ? this._t("in_use") : "–"}</span>
+      <span class="z-l2">${flowing && watts != null ? formatPower(watts, getLanguage(this.hass), 1000, 0, 1) : " "}</span>
+    </div>`;
+  }
+
+  /** Verteiler: Pumpe → Hauptleitung → waagerechte Verteilung → je Strang eine Leitung nach unten (parallel) */
+  private _renderPipes(flows: boolean[]) {
+    const n = flows.length;
+    const xs = flows.map((_, i) => ((i + 0.5) / n) * 100);
+    const any = flows.some(Boolean);
+    const pts = [...new Set([...xs, 50])].sort((a, b) => a - b);
+    const segs = pts.slice(0, -1).map((a, k) => {
+      const b = pts[k + 1]!;
+      const left = b <= 50;
+      const on = left ? xs.some((x, i) => flows[i] && x <= a) : xs.some((x, i) => flows[i] && x >= b);
+      return html`<span class="pipe h ${on ? `flow ${left ? "to-l" : "to-r"}` : ""}" style="left:${a}%;width:${b - a}%"></span>`;
+    });
+    return html`<span class="pipe trunk ${any ? "flow" : ""}"></span>${segs}
+      ${xs.map((x, i) => html`<span class="pipe v ${flows[i] ? "flow" : ""}" style="left:${x}%"></span>`)}`;
   }
 
   protected render() {
@@ -296,25 +336,29 @@ export class HaIrrigationCard extends LitElement {
     const s = this.hass.states;
     const zones = this._zones();
     const pumpOn = this._isOn(c.pump);
+    const canStart = this._canStart();
     const pumpSt = c.pump ? s[c.pump] : undefined;
     const watts = powerWatts(c.pump_power ? s[c.pump_power] : undefined);
+    const pumping = watts != null ? watts > (c.other_threshold ?? 15) : pumpOn;
     const anyOpen = zones.some((z) => z.open);
     const anyRunning = anyOpen || zones.some((z) => z.timer && z.timer.state !== "idle");
+    // Wasser fließt durch ein offenes Ventil, solange die Pumpe läuft (oder der Ventil-Sensor Durchfluss misst)
+    const zoneFlow = zones.map((z) => z.open && (!c.pump || pumpOn || (z.flow ?? 0) > 0));
+    const showOther = c.show_other !== false && !!c.pump_power;
+    const otherFlow = showOther && pumping && !anyOpen;
+    const flows = [...zoneFlow, ...(showOther ? [otherFlow] : [])];
     const runAllActive = this._isOn(c.run_all_active);
     const modeSt = c.mode ? s[c.mode] : undefined;
     const startSt = c.start_time ? s[c.start_time] : undefined;
     const lastRun = c.last_run ? s[c.last_run]?.state : undefined;
     const openNames = zones.filter((z) => z.open).map((z) => z.name);
     const status = !pumpSt && c.pump ? this._t("unavailable")
-      : pumpOn ? [this._t(runAllActive ? "run_all_active" : "running"), watts != null ? formatPower(watts, getLanguage(this.hass), 1000, 0, 1) : ""].filter(Boolean).join(" · ")
+      : pumpOn ? this._t(runAllActive ? "run_all_active" : pumping ? "pumping" : "ready")
       : anyOpen ? this._t("pump_off_open") : this._t("off");
     const anim = c.animations ?? "full";
     return html`<ha-card class="irrigation anim-${anim} ${pumpOn ? "on" : "off"}">
       <div class="glow"><div class="blob b1"></div><div class="blob b2"></div></div>
       <div class="header">
-        <button class="pump ${pumpOn ? "on" : ""}" ?disabled=${!c.pump} @click=${() => this._togglePump()} aria-label=${this._t("pump")}>
-          <span class="ripple"></span><ha-icon .icon=${c.icon ?? "mdi:water-pump"}></ha-icon>
-        </button>
         <button class="head-text" @click=${() => this._moreInfo(c.pump)}>
           <span class="h-title">${c.title ?? this._t("title")}</span>
           <span class="h-sub">${status}${openNames.length ? html` · <span class="h-open">${openNames.join(", ")}</span>` : nothing}</span>
@@ -323,7 +367,18 @@ export class HaIrrigationCard extends LitElement {
           <ha-icon icon="mdi:clock-outline"></ha-icon>${startSt.attributes.hour != null
             ? `${String(startSt.attributes.hour).padStart(2, "0")}:${String(startSt.attributes.minute ?? 0).padStart(2, "0")}` : startSt.state.slice(0, 5)}</button>` : nothing}
       </div>
-      ${zones.length ? html`<div class="zones">${zones.map((z, i) => this._renderZone(z, i, zones))}</div>` : nothing}
+      <div class="net" style="--n:${flows.length || 1}">
+        <div class="pump-wrap">
+          <button class="pump ${pumpOn ? "on" : ""} ${pumping ? "pumping" : ""}" ?disabled=${!c.pump} @click=${() => this._togglePump()}
+            aria-pressed=${pumpOn} aria-label=${this._t("pump")} title=${this._t("pump")}>
+            <span class="ripple"></span><ha-icon .icon=${c.icon ?? "mdi:water-pump"}></ha-icon>
+          </button>
+          <span class="pump-val">${watts != null ? formatPower(watts, getLanguage(this.hass), 1000, 0, 1) : this._t(pumpOn ? "on" : "off")}</span>
+        </div>
+        ${flows.length ? html`<div class="pipes">${this._renderPipes(flows)}</div>
+          <div class="cols">${zones.map((z, i) => this._renderZone(z, zoneFlow[i]!, canStart))}${showOther ? this._renderOther(otherFlow, watts) : nothing}</div>` : nothing}
+      </div>
+      ${c.pump && !pumpOn && zones.length ? html`<div class="hint"><ha-icon icon="mdi:information-outline"></ha-icon>${this._t("pump_needed")}</div>` : nothing}
       ${modeSt && Array.isArray(modeSt.attributes.options) ? html`<div class="modes" role="radiogroup">
         ${(modeSt.attributes.options as string[]).map((o) => html`<button class="mode ${modeSt.state === o ? "sel" : ""}" role="radio" aria-checked=${modeSt.state === o}
           @click=${() => this._selectMode(o)}>${o}</button>`)}</div>` : nothing}
@@ -341,14 +396,6 @@ export class HaIrrigationCard extends LitElement {
     ha-card.irrigation { --accent: #29b6f6; gap: 12px; }
     ha-card.irrigation.off .blob { opacity: 0.3; animation-play-state: paused; }
     .header { display: flex; align-items: center; gap: 12px; }
-    .pump { position: relative; flex: none; width: 46px; height: 46px; border-radius: 50%; border: none; padding: 0; display: grid; place-items: center; cursor: pointer;
-      color: var(--secondary-text-color); background: rgba(127,127,127,0.14); transition: background 0.4s, color 0.4s, transform 0.2s var(--ease-spring); z-index: 1; }
-    .pump:active { transform: scale(0.92); }
-    .pump ha-icon { --mdc-icon-size: 26px; }
-    .pump.on { color: #fff; background: var(--accent); box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 45%, transparent); }
-    .pump .ripple { position: absolute; inset: 0; border-radius: 50%; pointer-events: none; }
-    .pump.on .ripple { border: 2px solid var(--accent); animation: ripple 2.4s ease-out infinite; }
-    @keyframes ripple { 0% { transform: scale(1); opacity: 0.7; } 80%, 100% { transform: scale(1.5); opacity: 0; } }
     .head-text { display: flex; flex-direction: column; min-width: 0; flex: 1; border: none; background: none; padding: 0; text-align: left; cursor: pointer; }
     .h-title { font-size: 17px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .h-sub { font-size: 13px; color: var(--secondary-text-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -356,48 +403,73 @@ export class HaIrrigationCard extends LitElement {
     .chip { flex: none; display: inline-flex; align-items: center; gap: 4px; padding: 5px 10px 5px 8px; border-radius: 999px; border: none; cursor: pointer;
       font-size: 13px; font-weight: 600; background: rgba(127,127,127,0.12); }
     .chip ha-icon { --mdc-icon-size: 16px; color: var(--secondary-text-color); }
-    .zones { display: flex; flex-direction: column; margin-top: -4px; container-type: inline-size; }
-    .zone { position: relative; display: flex; align-items: center; gap: 12px; padding: 7px 0 7px 1px; min-height: 48px; }
-    .pipe { position: absolute; left: 21px; width: 4px; border-radius: 2px; background: rgba(127,127,127,0.2); }
-    .pipe.top { top: 0; bottom: 50%; }
-    .pipe.bot { top: 50%; bottom: 0; }
-    .zone:first-child .pipe.top { top: -12px; }
-    .pipe.flow { background: repeating-linear-gradient(to bottom, var(--accent) 0 7px, color-mix(in srgb, var(--accent) 35%, transparent) 7px 14px);
-      background-size: 100% 14px; animation: water 0.7s linear infinite; }
-    @keyframes water { from { background-position: 0 0; } to { background-position: 0 14px; } }
-    .z-badge { position: relative; flex: none; width: 44px; height: 44px; border-radius: 50%; border: none; padding: 0; display: grid; place-items: center; cursor: pointer;
-      color: var(--secondary-text-color); background: var(--card-background-color, var(--ha-card-background, #fff)); transition: color 0.4s; }
-    .z-badge::before { content: ""; position: absolute; inset: 0; border-radius: 50%; background: rgba(127,127,127,0.12); transition: background 0.4s; }
+
+    /* Verteiler: Pumpe (56) → Hauptleitung bis y=84 → Verteilung → Stränge bis zu den Ventilen (y=104) */
+    .net { position: relative; padding-top: 104px; container-type: inline-size; }
+    .pump-wrap { position: absolute; top: 0; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; z-index: 1; }
+    .pump { position: relative; flex: none; width: 56px; height: 56px; border-radius: 50%; border: none; padding: 0; display: grid; place-items: center; cursor: pointer;
+      color: var(--secondary-text-color); background: var(--card-background-color, var(--ha-card-background, #fff));
+      box-shadow: inset 0 0 0 3px rgba(127,127,127,0.25); transition: background 0.4s, color 0.4s, box-shadow 0.4s, transform 0.2s var(--ease-spring); }
+    .pump:active { transform: scale(0.92); }
+    .pump ha-icon { --mdc-icon-size: 30px; }
+    .pump.on { color: #fff; background: var(--accent); box-shadow: 0 4px 16px color-mix(in srgb, var(--accent) 45%, transparent); }
+    .pump .ripple { position: absolute; inset: 0; border-radius: 50%; pointer-events: none; }
+    .pump.pumping .ripple { border: 2px solid var(--accent); animation: ripple 2.2s ease-out infinite; }
+    @keyframes ripple { 0% { transform: scale(1); opacity: 0.7; } 80%, 100% { transform: scale(1.45); opacity: 0; } }
+    .pump-val { position: absolute; left: calc(100% + 10px); font-size: 13px; font-weight: 700; white-space: nowrap; color: var(--secondary-text-color); }
+    .pump.on + .pump-val { color: var(--primary-text-color); }
+    .pipes { position: absolute; inset: 0; pointer-events: none; }
+    .pipe { position: absolute; background: rgba(127,127,127,0.22); border-radius: 2px; }
+    .pipe.trunk { left: calc(50% - 2px); width: 4px; top: 56px; height: 30px; }
+    .pipe.h { top: 82px; height: 4px; }
+    .pipe.v { width: 4px; top: 82px; height: 24px; transform: translateX(-2px); }
+    .pipe.flow { --wc: var(--accent); }
+    .pipe.trunk.flow, .pipe.v.flow { background: repeating-linear-gradient(to bottom, var(--wc) 0 7px, color-mix(in srgb, var(--wc) 35%, transparent) 7px 14px);
+      background-size: 100% 14px; animation: down 0.7s linear infinite; }
+    .pipe.h.flow { background: repeating-linear-gradient(to right, var(--wc) 0 7px, color-mix(in srgb, var(--wc) 35%, transparent) 7px 14px);
+      background-size: 14px 100%; animation: right 0.7s linear infinite; }
+    .pipe.h.flow.to-l { animation-name: left; }
+    @keyframes down { from { background-position: 0 0; } to { background-position: 0 14px; } }
+    @keyframes right { from { background-position: 0 0; } to { background-position: 14px 0; } }
+    @keyframes left { from { background-position: 0 0; } to { background-position: -14px 0; } }
+    .cols { display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); }
+    .col { position: relative; display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: 0; padding: 0 2px; text-align: center; }
+    .z-badge { position: relative; flex: none; width: 48px; height: 48px; border-radius: 50%; border: none; padding: 0; display: grid; place-items: center; cursor: pointer;
+      color: var(--secondary-text-color); background: var(--card-background-color, var(--ha-card-background, #fff)); transition: color 0.4s, transform 0.2s var(--ease-spring);
+      margin-bottom: 4px; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+    .z-badge:active { transform: scale(0.92); }
+    .z-badge::before { content: ""; position: absolute; inset: 0; border-radius: 50%; background: rgba(127,127,127,0.12); box-shadow: inset 0 0 0 3px rgba(127,127,127,0.2); transition: background 0.4s; }
     .z-ring { position: absolute; inset: 0; border-radius: 50%; padding: 3px; pointer-events: none;
       background: conic-gradient(var(--zc) 0 var(--p), transparent var(--p) 360deg);
       -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; transition: background 0.6s; }
-    .z-badge ha-icon { position: relative; --mdc-icon-size: 22px; }
-    .zone.open .z-badge { color: var(--zc); }
-    .zone.open .z-badge::before { background: color-mix(in srgb, var(--zc) 22%, transparent); }
-    .zone.open .z-badge ha-icon { animation: bob 2.6s ease-in-out infinite; }
+    .z-badge ha-icon { position: relative; --mdc-icon-size: 24px; }
+    .col.open .z-badge { color: var(--zc); }
+    .col.open .z-badge::before { background: color-mix(in srgb, var(--zc) 22%, transparent); }
+    .col.flowing .z-badge ha-icon { animation: bob 2.6s ease-in-out infinite; }
     @keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
-    .z-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
-    .z-name { display: flex; align-items: center; gap: 6px; font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .z-bat { display: inline-flex; align-items: center; gap: 1px; font-size: 11px; font-weight: 600; color: var(--secondary-text-color); opacity: 0.75; }
-    .z-bat ha-icon { --mdc-icon-size: 14px; }
-    .z-bat.low { color: var(--error-color, #e53935); opacity: 1; }
-    .z-status { font-size: 13px; color: var(--secondary-text-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .zone.running .z-status { color: var(--zc); font-weight: 600; }
-    .z-ctrl { flex: none; display: flex; align-items: center; gap: 6px; }
-    .ctl { width: 36px; height: 36px; border-radius: 50%; border: none; padding: 0; display: grid; place-items: center; cursor: pointer;
-      background: rgba(127,127,127,0.14); transition: transform 0.2s var(--ease-spring), background 0.3s; }
+    .col.locked .z-badge { cursor: not-allowed; opacity: 0.7; }
+    .z-bat { position: absolute; right: -4px; top: -4px; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center;
+      background: var(--card-background-color, #fff); color: var(--error-color, #e53935); box-shadow: 0 0 0 1.5px var(--error-color, #e53935); }
+    .z-bat ha-icon { --mdc-icon-size: 13px !important; animation: none !important; }
+    .z-name { max-width: 100%; font-size: 13.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .z-l1 { font-size: 12.5px; color: var(--secondary-text-color); white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .col.running .z-l1, .col.flowing .z-l1 { color: var(--zc); font-weight: 700; }
+    .z-l2 { max-width: 100%; font-size: 11.5px; color: var(--secondary-text-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .z-l2 .low { color: var(--error-color, #e53935); font-weight: 600; }
+    .z-ctrl { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 4px; margin-top: 6px; }
+    .ctl { width: 34px; height: 34px; border-radius: 50%; border: none; padding: 0; display: grid; place-items: center; cursor: pointer;
+      background: rgba(127,127,127,0.14); transition: transform 0.2s var(--ease-spring), background 0.3s, opacity 0.3s; }
     .ctl:active { transform: scale(0.9); }
-    .ctl ha-icon { --mdc-icon-size: 22px; }
+    .ctl ha-icon { --mdc-icon-size: 20px; }
     .ctl.play { color: #fff; background: var(--zc); }
-    .ctl.play[disabled] { opacity: 0.35; cursor: default; }
+    .ctl[disabled] { opacity: 0.3; cursor: not-allowed; }
+    .ctl.play[disabled] { background: rgba(127,127,127,0.35); }
     .ctl.stop { color: var(--error-color, #e53935); background: color-mix(in srgb, var(--error-color, #e53935) 14%, transparent); }
-    .dur { display: inline-flex; align-items: center; border-radius: 999px; background: rgba(127,127,127,0.1); }
-    .st { width: 26px; height: 30px; border: none; background: none; padding: 0; display: grid; place-items: center; cursor: pointer; color: var(--secondary-text-color); }
-    .st ha-icon { --mdc-icon-size: 17px; }
-    .st-val { min-width: 34px; padding: 0 2px; border: none; background: none; cursor: pointer; text-align: center; font-size: 13.5px; font-weight: 700; white-space: nowrap; }
-    /* schmale Karten: nur die Laufzeit (tippen = Regler), ohne −/+ */
-    @container (max-width: 370px) { .st { display: none; } .st-val { padding: 0 10px; height: 30px; } }
-    .st-val small { font-size: 10.5px; font-weight: 500; color: var(--secondary-text-color); }
+    .dur { height: 34px; padding: 0 9px; border: none; border-radius: 999px; background: rgba(127,127,127,0.12); cursor: pointer; font-size: 13px; font-weight: 700; white-space: nowrap; }
+    .dur small { font-size: 10.5px; font-weight: 500; color: var(--secondary-text-color); }
+    @container (max-width: 330px) { .dur small { display: none; } .dur { padding: 0 8px; } .z-ctrl { gap: 3px; } .ctl { width: 30px; height: 30px; } }
+    .hint { display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 12.5px; color: var(--secondary-text-color); margin-top: -4px; }
+    .hint ha-icon { --mdc-icon-size: 16px; }
     .modes { display: flex; gap: 4px; padding: 4px; border-radius: 999px; background: rgba(127,127,127,0.1); }
     .mode { flex: 1; padding: 7px 8px; border: none; border-radius: 999px; background: none; cursor: pointer; font-size: 13px; font-weight: 600;
       color: var(--secondary-text-color); transition: background 0.3s, color 0.3s; white-space: nowrap; }
@@ -413,7 +485,7 @@ export class HaIrrigationCard extends LitElement {
     .act[disabled] { opacity: 0.4; cursor: default; }
     .last-run { display: flex; align-items: flex-start; gap: 6px; font-size: 12px; color: var(--secondary-text-color); line-height: 1.4; }
     .last-run ha-icon { --mdc-icon-size: 15px; flex: none; margin-top: 1px; }
-    ha-card.anim-reduced .pipe.flow, ha-card.anim-off .pipe.flow, ha-card.anim-reduced .pump.on .ripple, ha-card.anim-off .pump.on .ripple,
-    ha-card.anim-reduced .zone.open .z-badge ha-icon, ha-card.anim-off .zone.open .z-badge ha-icon, ha-card.anim-off .act.run.active ha-icon { animation: none; }
+    ha-card.anim-reduced .pipe.flow, ha-card.anim-off .pipe.flow, ha-card.anim-reduced .pump .ripple, ha-card.anim-off .pump .ripple,
+    ha-card.anim-reduced .col .z-badge ha-icon, ha-card.anim-off .col .z-badge ha-icon, ha-card.anim-off .act.run.active ha-icon { animation: none; }
   `];
 }

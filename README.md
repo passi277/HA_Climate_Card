@@ -18,7 +18,7 @@ weiche Farbübergänge und Animationen. Ein HACS-Download, mehrere Karten:
 | **Modern Presence Card** | `custom:ha-presence-card` | Personen mit Foto und Handy-Akku plus Haustür (Nuki Opener: Halten zum Öffnen, Ring to Open) |
 | **Modern Alert Card** | `custom:ha-alert-card` | Hinweise, die nur erscheinen, wenn etwas los ist („Fenster offen – Marcel“) |
 | **Modern Energy Card** | `custom:ha-energy-card` | Energiefluss Solar / Batterie / Netz / Haus + einzelne Verbraucher (Konfiguration wie power-flow-card-plus) |
-| **Modern Irrigation Card** | `custom:ha-irrigation-card` | Hauswasserwerk / Pumpe mit Ventilen: Zonen starten, pausieren, stoppen, Restzeit, Durchfluss, animierte Wasserleitung |
+| **Modern Irrigation Card** | `custom:ha-irrigation-card` | Hauswasserwerk / Pumpe mit parallelen Ventilen am Verteiler, Strang „Sonstiges“, Restzeit, Durchfluss |
 | **Climate Overview** | `custom:ha-climate-overview-card` | alle Klimageräte auf einen Blick |
 
 *Modern Lovelace cards for Home Assistant in one shared design – English summary below.*
@@ -548,8 +548,11 @@ Statt getrennter Sensoren geht auch ein Sensor mit Vorzeichen (`entity: sensor.g
 
 ## Modern Irrigation Card (Hauswasserwerk & Ventile)
 
-Pumpe bzw. Hauswasserwerk oben, darunter die **Ventile als Zonen an einer Wasserleitung** – das Wasser fließt animiert bis zur offenen Zone.
-Je Zone: Restzeit mit Fortschrittsring, Durchfluss (L/min), Akku des Ventils, Laufzeit (−/+ bzw. tippen = Regler) und ▶ / ⏸ / ⏹.
+Oben das Hauswasserwerk (Tippen = Pumpe ein/aus), darunter ein **Verteiler**, von dem die Ventile **parallel** abgehen – das Wasser fließt animiert
+in jeden offenen Strang. Ein weiterer Strang **„Sonstiges“** zeigt, wenn die Pumpe Strom zieht, obwohl kein Ventil offen ist (z.B. Wasserhahn).
+Je Ventil: Restzeit mit Fortschrittsring, Durchfluss (L/min), Akku-Warnung, Laufzeit (tippen = Regler) und ▶ / ⏸ / ⏹.
+**Tippen aufs Ventil-Symbol öffnet bzw. schließt nur das Ventil** (ohne Timer/Skript), lange drücken zeigt Details.
+Ist die Pumpe aus, sind Ventile und Stränge zu sehen, lassen sich aber nicht von Hand öffnen (Schließen/Stoppen geht immer).
 Dazu Modus-Auswahl, Startzeit, „Alle nacheinander“, „Alles aus“ und der letzte Lauf.
 
 ```yaml
@@ -563,6 +566,7 @@ run_all: script.alle_zonen               # optional: „Alle nacheinander“
 run_all_active: input_boolean.durchlauf_aktiv
 stop_all: script.notaus                  # optional, sonst: Timer stoppen, Ventile + Pumpe aus
 last_run: input_text.letzter_lauf
+# show_other: false                     # Strang „Sonstiges“ ausblenden
 zones:
   - valve: switch.ventil_rasen           # switch.* oder valve.*
     name: Rasen
@@ -578,8 +582,8 @@ zones:
     # script_data: { zone: rasen }
 ```
 
-Ohne Skripte startet ▶ den Timer mit der eingestellten Laufzeit und öffnet das Ventil (die Pumpe wird bei Bedarf mit eingeschaltet, `pump_on_start: false` verhindert das);
-⏸ pausiert den Timer und schließt das Ventil, ⏹ bricht ab. Das Schließen beim Ablauf des Timers übernimmt wie bisher eine Automation.
+Ohne Skripte startet ▶ den Timer mit der eingestellten Laufzeit und öffnet das Ventil; ⏸ pausiert den Timer und schließt das Ventil, ⏹ bricht ab.
+„Sonstiges“ erscheint, sobald `pump_power` gesetzt ist (`show_other: false` blendet es aus, `other_threshold: 15` = ab wie vielen Watt die Pumpe pumpt). Das Schließen beim Ablauf des Timers übernimmt wie bisher eine Automation.
 
 ## Heizungen (z.B. Homematic IP)
 

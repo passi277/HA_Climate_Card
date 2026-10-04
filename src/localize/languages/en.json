@@ -670,7 +670,6 @@
   "irrigation": {
     "title": "Water pump",
     "pump": "Pump on/off",
-    "running": "Running",
     "run_all_active": "Cycle running",
     "off": "Off",
     "pump_off_open": "Pump off – valve open",
@@ -687,7 +686,15 @@
     "run_all": "Run all zones",
     "stop_all": "All off",
     "start_time": "Start time",
-    "duration": "Duration"
+    "duration": "Duration",
+    "pumping": "Pumping",
+    "ready": "Ready",
+    "in_use": "in use",
+    "other": "Other",
+    "on": "On",
+    "pump_needed": "Turn on the pump to open valves",
+    "open_valve": "Open valve",
+    "close_valve": "Close valve"
   },
   "irrigation_editor": {
     "title": "Title",

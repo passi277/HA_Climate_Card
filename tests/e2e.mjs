@@ -872,7 +872,7 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
     ? ok("Energiefluss: Zusammenfassung Heute → Monat → Jahr → Gesamt per Pfeil und Wischen") : fail(`Zusammenfassung: ${JSON.stringify({ s0, s1, s2, s3 })}`);
 }
 
-// Bewässerung: laufende Zone, Wasserfluss in der Leitung, Start/Pause/Stopp, Modus
+// Bewässerung: parallele Stränge, Sonstiges, Ventil direkt schalten, Start/Pause/Stopp, Sperre ohne Pumpe, Modus
 {
   const card = await p.evaluateHandle(() => document.querySelector("ha-irrigation-card"));
   await card.evaluate((c) => c.scrollIntoView({ block: "center" }));
@@ -880,27 +880,44 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
   const read = () => card.evaluate((c) => {
     const r = c.shadowRoot;
     return { sub: r.querySelector(".h-sub")?.textContent.replace(/\s+/g, " ").trim(),
-      zones: [...r.querySelectorAll(".zone")].map((z) => ({ open: z.classList.contains("open"), status: z.querySelector(".z-status").textContent.trim(),
-        top: z.querySelector(".pipe.top").classList.contains("flow"), bot: z.querySelector(".pipe.bot")?.classList.contains("flow") ?? null })),
-      mode: r.querySelector(".mode.sel")?.textContent.trim(), lowBat: !!r.querySelector(".zone:nth-child(3) .z-bat.low") };
+      v: [...r.querySelectorAll(".pipe.v")].map((x) => x.classList.contains("flow")), trunk: r.querySelector(".pipe.trunk").classList.contains("flow"),
+      cols: [...r.querySelectorAll(".col")].map((z) => [z.querySelector(".z-name").textContent.trim(), z.querySelector(".z-l1").textContent.trim(), z.querySelector(".z-l2").textContent.trim()].join("|")),
+      play: [...r.querySelectorAll(".ctl.play")].map((b) => b.disabled), mode: r.querySelector(".mode.sel")?.textContent.trim(), hint: !!r.querySelector(".hint") };
   });
-  const r0 = await read();
-  const calls = async (fn) => { const n = await p.evaluate(() => window.serviceCalls.length); await card.evaluate(fn); await p.waitForTimeout(300);
+  const calls = async (fn, arg) => { const n = await p.evaluate(() => window.serviceCalls.length); await card.evaluate(fn, arg); await p.waitForTimeout(300);
     return p.evaluate((n) => window.serviceCalls.slice(n).map((c) => `${c.domain}.${c.service} ${[].concat(c.data.entity_id).join()}${c.data.duration ? " " + c.data.duration : ""}${c.data.option ? " " + c.data.option : ""}`), n); };
+  const setStates = (patch) => card.evaluate((c, patch) => { const st = { ...c.hass.states }; for (const [id, v] of Object.entries(patch)) st[id] = { ...st[id], state: v }; c.hass = { ...c.hass, states: st }; }, patch);
+  const r0 = await read();
   const start = await calls((c) => c.shadowRoot.querySelector('.zone[data-zone="1"] .ctl.play').click());
   const r1 = await read();
   const pause = await calls((c) => c.shadowRoot.querySelector('.zone[data-zone="0"] .ctl:not(.stop)').click());
   const r2 = await read();
   const stop = await calls((c) => c.shadowRoot.querySelector('.zone[data-zone="0"] .ctl.stop').click());
-  const mode = await calls((c) => [...c.shadowRoot.querySelectorAll(".mode")].find((b) => b.textContent.trim() === "Automatik").click());
+  const stop1 = await calls((c) => c.shadowRoot.querySelector('.zone[data-zone="1"] .ctl.stop').click());
+  // Tippen aufs Ventil: nur Ventil auf/zu, kein Timer
+  const tapOpen = await calls((c) => c.shadowRoot.querySelector('.zone[data-zone="2"] .z-badge').click());
+  const tapClose = await calls((c) => c.shadowRoot.querySelector('.zone[data-zone="2"] .z-badge').click());
+  // alle zu, Pumpe zieht Strom → Sonstiges
   const r3 = await read();
-  const okState = /Läuft · 642 W · Rasen/.test(r0.sub) && r0.zones[0].open && /^noch \d+:\d\d · 14 L\/min$/.test(r0.zones[0].status) && r0.zones[0].top && r0.zones[0].bot === false
-    && !r0.zones[1].top && /zuletzt 171 L/.test(r0.zones[1].status) && r0.lowBat && r0.mode === "Smart";
-  okState && start.join() === "timer.start timer.beete 00:10:00,homeassistant.turn_on switch.ventil_beete" && r1.zones[0].bot && r1.zones[1].top
-    && pause.join() === "timer.pause timer.rasen,homeassistant.turn_off switch.ventil_rasen" && /^pausiert · noch/.test(r2.zones[0].status)
-    && stop.join() === "timer.cancel timer.rasen,homeassistant.turn_off switch.ventil_rasen" && mode.join() === "input_select.select_option input_select.bewaesserung_modus Automatik" && r3.mode === "Automatik"
-    ? ok("Bewässerung: Restzeit + Durchfluss, Wasser fließt bis zur offenen Zone, Start/Pause/Stopp über Timer + Ventil, Modus")
-    : fail(`Bewässerung: ${JSON.stringify({ r0, start, r1, pause, r2, stop, mode, r3 })}`);
+  const mode = await calls((c) => [...c.shadowRoot.querySelectorAll(".mode")].find((b) => b.textContent.trim() === "Automatik").click());
+  // Pumpe aus → nichts von Hand startbar
+  await setStates({ "switch.hauswasserwerk": "off", "sensor.hauswasserwerk_power": "0" });
+  await p.waitForTimeout(150);
+  const r4 = await read();
+  const locked = await calls((c) => { c.shadowRoot.querySelector('.zone[data-zone="0"] .z-badge').click(); c.shadowRoot.querySelector('.zone[data-zone="0"] .ctl.play').click(); });
+  await setStates({ "switch.hauswasserwerk": "on", "sensor.hauswasserwerk_power": "642" });
+  const okState = /^Pumpt · Rasen$/.test(r0.sub) && r0.v.join() === "true,false,false,false" && r0.trunk && /^Rasen\|\d+:\d\d\|14 L\/min$/.test(r0.cols[0])
+    && r0.cols[1] === "Beete|zu|zuletzt 171 L" && r0.cols[2] === "Hecke|zu|14 %" && r0.cols[3] === "Sonstiges|–|" && r0.mode === "Smart";
+  const okActions = start.join() === "timer.start timer.beete 00:10:00,homeassistant.turn_on switch.ventil_beete" && r1.v.join() === "true,true,false,false"
+    && pause.join() === "timer.pause timer.rasen,homeassistant.turn_off switch.ventil_rasen" && /^Rasen\|⏸ /.test(r2.cols[0])
+    && stop.join() === "timer.cancel timer.rasen,homeassistant.turn_off switch.ventil_rasen" && stop1.length === 2
+    && tapOpen.join() === "homeassistant.turn_on switch.ventil_hecke" && tapClose.join() === "homeassistant.turn_off switch.ventil_hecke"
+    && r3.v.join() === "false,false,false,true" && r3.cols[3] === "Sonstiges|läuft|642 W"
+    && mode.join() === "input_select.select_option input_select.bewaesserung_modus Automatik";
+  const okLock = r4.play.every(Boolean) && r4.hint && !r4.trunk && locked.length === 0;
+  okState && okActions && okLock
+    ? ok("Bewässerung: Ventile parallel am Verteiler + „Sonstiges“, Tippen schaltet nur das Ventil, Start/Pause/Stopp, ohne Pumpe gesperrt, Modus")
+    : fail(`Bewässerung: ${JSON.stringify({ okState, okActions, okLock, r0, start, r1, pause, r2, stop, stop1, tapOpen, tapClose, r3, mode, r4, locked })}`);
 }
 
 // Moduswechsel: jede Karte, jeder Modus (außer Auto/Heizen-Kühlen, dort zählt die Tätigkeit)

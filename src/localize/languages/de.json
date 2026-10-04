@@ -670,7 +670,6 @@
   "irrigation": {
     "title": "Hauswasserwerk",
     "pump": "Pumpe ein/aus",
-    "running": "Läuft",
     "run_all_active": "Durchlauf läuft",
     "off": "Aus",
     "pump_off_open": "Pumpe aus – Ventil offen",
@@ -687,7 +686,15 @@
     "run_all": "Alle nacheinander",
     "stop_all": "Alles aus",
     "start_time": "Startzeit",
-    "duration": "Laufzeit"
+    "duration": "Laufzeit",
+    "pumping": "Pumpt",
+    "ready": "Bereit",
+    "in_use": "läuft",
+    "other": "Sonstiges",
+    "on": "An",
+    "pump_needed": "Pumpe einschalten, um Ventile zu öffnen",
+    "open_valve": "Ventil öffnen",
+    "close_valve": "Ventil schließen"
   },
   "irrigation_editor": {
     "title": "Titel",

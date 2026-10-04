@@ -550,8 +550,12 @@ export interface IrrigationCardConfig {
   /** Pumpe / Hauswasserwerk (switch) */
   pump?: string;
   pump_power?: string;
-  /** Pumpe beim Zonenstart mit einschalten (Standard an) */
-  pump_on_start?: boolean;
+  /** Strang „Sonstiges“: Pumpe zieht Strom, aber kein Ventil ist offen (Standard an, braucht pump_power) */
+  show_other?: boolean;
+  other_name?: string;
+  other_icon?: string;
+  /** Ab dieser Leistung (W) pumpt das Hauswasserwerk (Standard 15) */
+  other_threshold?: number;
   /** input_select/select – Modus (z.B. Aus/Automatik/Smart) */
   mode?: string;
   /** input_datetime/time – Startzeit der Automatik */
