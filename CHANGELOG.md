@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.26.0 – Mähroboter
+- Neue **Modern Mower Card** für Mähroboter (`lawn_mower`, z.B. Ecovacs GOAT): animierter Rasen (fährt Bahnen beim Mähen, fährt zur Station, lädt in der Station) oder Live-Karte mit Umriss, Spur und Position, Zustand und Akku-Ring, WLAN, Fehlerbanner, Mähen/Weiter, Pause, Station und Stopp (mit Rückfrage), aktueller Lauf (Fortschritt, Fläche, Dauer), Statistik (Fläche gesamt, Stunden, Mähvorgänge), Wartung (Messer/Bürste mit Tausch-Hinweis, Firmware-Update) und Einstellungen (Mähmodus, Hindernisvermeidung, Regensensor, KI-Erkennung, Tierschutz mit Zeitfenster, Randmähen, sicherer Modus, Regenpause) – alles automatisch über das Gerät erkannt; visueller Editor
+
 ## 1.25.0 – Battery Notes am Gerät
 - Status-Karte: Battery Notes wird jetzt auch erkannt, wenn Typ, letzter Wechsel und „Batterie ersetzt“ als **eigene Entitäten am Gerät** angelegt sind (Zuordnung über das Gerät, nicht über den Namen) – Batterietyp, „gewechselt vor …“ und Einkaufsliste erscheinen automatisch
 - Status-Karte: **gedrückt halten** auf eine Batterie und dann tippen trägt den Batteriewechsel ein (Battery-Notes-Button, mit Bestätigung); ein normaler Tipp öffnet weiter die Details

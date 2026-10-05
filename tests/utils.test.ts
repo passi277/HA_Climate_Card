@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { HassEntity } from "../src/types";
 import {
-  batteryHoursLeft, consumerGrid, formatHours, integratePower, statsEnergy, flowLpm, timerInfo, formatRemaining, rangeStatus, phDose, poolRuntimeRecommendation, cameraFeatures, wifiQuality, optionStyle, musicModes, isMusicEffect, energyFlows, formatPower, powerWatts, alertActive, batteryShoppingList, clockMinutes, upcomingPickups, wasteStyle, batteryIcon, doorDevices, doorKind, initials, isCharging, phoneSensors, brightnessPct, contactType, calibrationTransform, roomsFromMap, roomIcon, areaBatteries, batteryInfo, batteryNotesFor, presetActive, presetData, DEFAULT_LIGHT_PRESETS, activityIcon, activityLabel, guessControlDevice, guessVolumeDevice, coverIcon, datetimeParts, nextOccurrence, coverPosition, skyPhase, sunPlacement, weatherOverlay, editorOptions, isNoEffect, lightEditorOptions, segmentIds, detectDeviceType, kelvinToRgb, lightColor, relatedScenes, supportsColor, supportsColorTemp, dewPoint, nextSwitch, parseSchedule, scheduleTempAt, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
+  batteryHoursLeft, consumerGrid, formatHours, integratePower, statsEnergy, flowLpm, timerInfo, formatRemaining, rangeStatus, phDose, poolRuntimeRecommendation, cameraFeatures, wifiQuality, optionStyle, musicModes, isMusicEffect, energyFlows, formatPower, powerWatts, alertActive, batteryShoppingList, clockMinutes, upcomingPickups, wasteStyle, batteryIcon, doorDevices, doorKind, initials, isCharging, phoneSensors, brightnessPct, contactType, calibrationTransform, roomsFromMap, roomIcon, areaBatteries, batteryInfo, batteryNotesFor, mowerFeatures, mowerPhase, mapGeometry, presetActive, presetData, DEFAULT_LIGHT_PRESETS, activityIcon, activityLabel, guessControlDevice, guessVolumeDevice, coverIcon, datetimeParts, nextOccurrence, coverPosition, skyPhase, sunPlacement, weatherOverlay, editorOptions, isNoEffect, lightEditorOptions, segmentIds, detectDeviceType, kelvinToRgb, lightColor, relatedScenes, supportsColor, supportsColorTemp, dewPoint, nextSwitch, parseSchedule, scheduleTempAt, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
   openContactsKey, powerOf, resolveContacts, secondsToDuration, stateIcon, temperatureOf, temperatureTint, trendSlope,
 } from "../src/utils";
 import { formatAttribute, localize } from "../src/localize/localize";
@@ -661,5 +661,54 @@ describe("battery notes entities on the device", () => {
   it("ignores unavailable notes entities", () => {
     const s2 = { ...states, "sensor.wasser_battery_type": st("sensor.wasser_battery_type", "unavailable", { battery_type: "AA" }) };
     expect(batteryInfo(s2, states["sensor.ventil_battery"], 20, [], { type: "sensor.wasser_battery_type" }).type).toBeUndefined();
+  });
+});
+
+describe("mower", () => {
+  const st = (id: string, state: string, attributes: Record<string, unknown> = {}) => ({ entity_id: id, state, attributes, last_changed: "", last_updated: "" });
+  const ids: [string, string, Record<string, unknown>?][] = [
+    ["lawn_mower.goat", "docked"], ["sensor.goat_battery_level", "86", { device_class: "battery" }], ["sensor.goat_error", "0"],
+    ["sensor.goat_mowing_progress", "42"], ["sensor.goat_area_mowed", "10"], ["sensor.goat_mowing_area", "450"], ["sensor.goat_mowing_duration", "38"],
+    ["sensor.goat_total_area_mowed", "1.2"], ["sensor.goat_total_mowing_duration", "65"], ["sensor.goat_total_mowings", "52"],
+    ["sensor.goat_blade_lifespan", "20"], ["sensor.goat_lens_brush_lifespan", "60"], ["sensor.goat_wi_fi_rssi", "71"], ["sensor.goat_wi_fi_ssid", "Net"],
+    ["button.goat_stop_debug_capture", "unknown"], ["button.goat_stop_mowing", "unknown"], ["button.goat_refresh_state", "unknown"],
+    ["select.goat_mowing_efficiency", "Quick"], ["select.goat_obstacle_avoidance", "General"], ["number.goat_rain_delay", "180"],
+    ["number.goat_cut_direction", "270"], ["switch.goat_rain_sensor", "on"], ["switch.goat_ai_recognition", "on", { friendly_name: "GOAT AI Recognition" }],
+    ["switch.goat_animal_protection", "off"], ["switch.goat_border_switch", "on"], ["switch.goat_cross_map_border_warning", "on"], ["switch.goat_safer_mode", "off"],
+    ["time.goat_animal_protection_start", "19:00:00"], ["time.goat_animal_protection_end", "07:00:00"], ["sensor.goat_live_map", "live"],
+    ["update.goat_update", "off"], ["sensor.other_blade_lifespan", "5"],
+  ];
+  const states = Object.fromEntries(ids.map(([id, s, a]) => [id, st(id, s, a)]));
+  const entities = Object.fromEntries(ids.map(([id]) => [id, { entity_id: id, device_id: id.includes("other") ? "x" : "g" }]));
+  it("finds the mower's entities via the device", () => {
+    expect(mowerFeatures(states, entities, "lawn_mower.goat")).toEqual({
+      battery: "sensor.goat_battery_level", error: "sensor.goat_error", progress: "sensor.goat_mowing_progress", area: "sensor.goat_area_mowed",
+      session_area: "sensor.goat_mowing_area", duration: "sensor.goat_mowing_duration", total_area: "sensor.goat_total_area_mowed",
+      total_duration: "sensor.goat_total_mowing_duration", total_count: "sensor.goat_total_mowings", blade: "sensor.goat_blade_lifespan",
+      brush: "sensor.goat_lens_brush_lifespan", wifi: "sensor.goat_wi_fi_rssi", stop: "button.goat_stop_mowing", refresh: "button.goat_refresh_state",
+      efficiency: "select.goat_mowing_efficiency", obstacle: "select.goat_obstacle_avoidance", rain_delay: "number.goat_rain_delay",
+      rain_sensor: "switch.goat_rain_sensor", ai: "switch.goat_ai_recognition", animal: "switch.goat_animal_protection",
+      animal_start: "time.goat_animal_protection_start", animal_end: "time.goat_animal_protection_end", border: "switch.goat_border_switch",
+      safe: "switch.goat_safer_mode", update: "update.goat_update", map: "sensor.goat_live_map",
+    });
+    expect(mowerFeatures(states, undefined, "lawn_mower.goat")).toEqual({});
+  });
+  it("maps states to phases, errors win", () => {
+    expect(mowerPhase("mowing", "0")).toBe("mowing");
+    expect(mowerPhase("docked")).toBe("docked");
+    expect(mowerPhase("returning", "unknown")).toBe("returning");
+    expect(mowerPhase("mowing", "102")).toBe("error");
+    expect(mowerPhase("unavailable")).toBe("unknown");
+  });
+  it("normalizes live map geometry", () => {
+    expect(mapGeometry({ info: { outline: [] }, trace: { path: [] }, current_position: { x: 2, y: 0 } })).toBeNull();
+    const m = mapGeometry({ info: { outline: [[0, 0], [10, 0], [10, 5], [0, 5]] }, trace: { path: [[1, 1], [9, 1]] },
+      current_position: { x: 9, y: 1, invalid: 0 }, charge_positions: [{ x: 0, y: 0 }] })!;
+    expect(m.outline[0]).toHaveLength(4);
+    expect(m.path).toEqual([{ x: 1, y: 1 }, { x: 9, y: 1 }]);
+    expect(m.position).toEqual({ x: 9, y: 1 });
+    expect(m.dock).toEqual({ x: 0, y: 0 });
+    expect(m.box.w).toBeGreaterThan(10);
+    expect(mapGeometry({ current_position: { x: 1, y: 1, invalid: 1 }, path: [[0, 0], [1, 1]] })!.position).toBeUndefined();
   });
 });

@@ -854,6 +854,70 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
     ? ok("Status: gedrückt halten + Tippen trägt Batteriewechsel ein (button.press)") : fail(`Status Wechsel: ${JSON.stringify({ afterTap, afterHold, asking, calls, small })}`);
 }
 
+// Mähroboter: Zustand, Live-Karte, Steuerung, Stopp mit Bestätigung, Wartung, Einstellungen
+{
+  const get = (name) => p.evaluateHandle((n) => [...document.querySelectorAll("ha-mower-card")].find((c) => c._config.name === n), name);
+  const mowing = await get("GOAT Wiese");
+  await mowing.evaluate((c) => c.scrollIntoView({ block: "center" }));
+  await p.waitForTimeout(300);
+  const a = await mowing.evaluate((c) => {
+    const r = c.shadowRoot;
+    return { sub: r.querySelector(".h-sub").textContent.trim(), map: !!r.querySelector(".map .m-path") && !!r.querySelector(".map .m-area"),
+      ctl: [...r.querySelectorAll(".ctl")].map((b) => `${b.textContent.trim()}:${b.disabled ? 0 : 1}`), progress: r.querySelector(".s-head b")?.textContent.trim(),
+      session: r.querySelector(".s-stats")?.textContent.replace(/\s+/g, " ").trim(), stats: [...r.querySelectorAll(".stat b")].map((x) => x.textContent.trim()) };
+  });
+  a.sub === "Mäht · 42 %" && a.map && a.ctl.join() === "Mähen:0,Pause:1,Station:1,Stopp:1" && a.progress === "42 %"
+    && /186 m² von 450 m²/.test(a.session) && /38 min/.test(a.session) && a.stats.join() === "1,84 ha,66 h,52"
+    ? ok("Mähroboter (mäht): Zustand, Live-Karte, Fortschritt, Statistik, Tasten") : fail(`Mähroboter mäht: ${JSON.stringify(a)}`);
+
+  const before = await p.evaluate(() => window.serviceCalls.length);
+  await mowing.evaluate(async (c) => {
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const btn = (t) => [...c.shadowRoot.querySelectorAll(".ctl")].find((b) => b.textContent.trim() === t);
+    btn("Stopp").click(); await wait(100);
+  });
+  const askText = await mowing.evaluate((c) => c.shadowRoot.querySelector(".ctl.stop").textContent.trim());
+  const afterAsk = await p.evaluate((n) => window.serviceCalls.length - n, before);
+  await mowing.evaluate(async (c) => { c.shadowRoot.querySelector(".ctl.stop").click(); await new Promise((r) => setTimeout(r, 100));
+    [...c.shadowRoot.querySelectorAll(".ctl")].find((b) => b.textContent.trim() === "Pause").click(); await new Promise((r) => setTimeout(r, 400)); });
+  const calls = await p.evaluate((n) => window.serviceCalls.slice(n).map((c) => `${c.domain}.${c.service}:${c.data.entity_id}`), before);
+  const after = await mowing.evaluate((c) => ({ sub: c.shadowRoot.querySelector(".h-sub").textContent.trim(),
+    ctl: [...c.shadowRoot.querySelectorAll(".ctl")].map((b) => `${b.textContent.trim()}:${b.disabled ? 0 : 1}`) }));
+  askText === "Sicher?" && afterAsk === 0 && calls.join() === "button.press:button.goat_wiese_stop_mowing,lawn_mower.pause:lawn_mower.goat_wiese"
+    && after.sub === "Pausiert" && after.ctl[0] === "Weiter:1" && after.ctl[1] === "Pause:0"
+    ? ok("Mähroboter: Stopp mit Rückfrage, Pause → „Weiter“") : fail(`Mähroboter Steuerung: ${JSON.stringify({ askText, afterAsk, calls, after })}`);
+
+  const docked = await get("GOAT G1");
+  await docked.evaluate((c) => c.scrollIntoView({ block: "center" }));
+  await p.waitForTimeout(300);
+  const before2 = await p.evaluate(() => window.serviceCalls.length);
+  const d = await docked.evaluate(async (c) => {
+    const r = c.shadowRoot;
+    const wait = (ms) => new Promise((res) => setTimeout(res, ms));
+    const res = { sub: r.querySelector(".h-sub").textContent.trim(), bot: !!r.querySelector(".scene .bot"), charging: !!r.querySelector(".station.charging"),
+      ctl: [...r.querySelectorAll(".ctl")].map((b) => `${b.textContent.trim()}:${b.disabled ? 0 : 1}`),
+      blade: r.querySelector(".wear.warn .w-text small")?.textContent.trim(), update: !!r.querySelector(".update"),
+      segs: [...r.querySelectorAll(".seg")].map((b) => (b.classList.contains("sel") ? "*" : "") + b.textContent.trim()),
+      switches: [...r.querySelectorAll(".toggle-row")].map((b) => b.dataset.key + (b.classList.contains("on") ? "+" : "-")),
+      animal: r.querySelector('.toggle-row[data-key="animal"] small')?.textContent.trim(), delay: r.querySelector(".d-val")?.textContent.trim() };
+    [...r.querySelectorAll(".seg")].find((b) => b.textContent.trim() === "Gründlich").click();
+    r.querySelector('.toggle-row[data-key="animal"]').click();
+    r.querySelectorAll(".delay .step")[1].click();
+    await wait(900);
+    res.delayAfter = r.querySelector(".d-val")?.textContent.trim();
+    r.querySelector(".ctl.start").click();
+    await wait(400);
+    res.subAfter = r.querySelector(".h-sub").textContent.trim();
+    return res;
+  });
+  const calls2 = await p.evaluate((n) => window.serviceCalls.slice(n).map((c) => `${c.domain}.${c.service}:${c.data.entity_id}:${c.data.option ?? c.data.value ?? ""}`), before2);
+  d.sub === "In der Station · lädt" && d.bot && d.charging && d.ctl.join() === "Mähen:1,Pause:0,Station:0,Stopp:0" && d.blade === "Messer bald tauschen" && d.update
+    && d.segs.join() === "Schnell,Gründlich,Kurzes Gras,*Standard,Uneben & hohes Gras" && d.switches.join() === "rain_sensor+,ai+,animal-,border+,safe-"
+    && d.animal === "19:00–07:00" && d.delay === "3 h" && d.delayAfter === "3,5 h" && d.subAfter.startsWith("Mäht")
+    && calls2.join() === "select.select_option:select.goat_g1_mowing_efficiency:Delicate,homeassistant.toggle:switch.goat_g1_animal_protection:,number.set_value:number.goat_g1_rain_delay:210,lawn_mower.start_mowing:lawn_mower.goat_g1:"
+    ? ok("Mähroboter (Station): Laden, Messer-Warnung, Update, Einstellungen, Start") : fail(`Mähroboter Station: ${JSON.stringify({ d, calls2 })}`);
+}
+
 // Energiefluss: Werte, aktive Linien, Verbraucher-Kreise, Tageswerte, Akku-Restzeit, Schalter
 {
   const card = await p.evaluateHandle(() => document.querySelector("ha-energy-card"));

@@ -335,6 +335,68 @@
       "sensor.ventil_rasen_battery": { state: "93", attributes: { friendly_name: "Ventil Rasen Batterie", unit_of_measurement: "%", device_class: "battery" } },
       "sensor.ventil_beete_battery": { state: "89", attributes: { friendly_name: "Ventil Beete Batterie", unit_of_measurement: "%", device_class: "battery" } },
       "sensor.ventil_hecke_battery": { state: "14", attributes: { friendly_name: "Ventil Hecke Batterie", unit_of_measurement: "%", device_class: "battery" } },
+      // Mähroboter (Ecovacs GOAT): Entitäten am Gerät, Karte erkennt sie automatisch
+      "lawn_mower.goat_g1": { state: "docked", attributes: { friendly_name: "GOAT G1", supported_features: 7 } },
+      "sensor.goat_g1_battery_level": { state: "86", attributes: { friendly_name: "Batterie", unit_of_measurement: "%", device_class: "battery" } },
+      "sensor.goat_g1_error": { state: "0", attributes: { friendly_name: "Error", description: "NoError: Robot is operational" } },
+      "sensor.goat_g1_mowing_progress": { state: "unknown", attributes: { friendly_name: "Mowing progress", unit_of_measurement: "%" } },
+      "sensor.goat_g1_area_mowed": { state: "0.0", attributes: { friendly_name: "Area mowed", unit_of_measurement: "m²", device_class: "area" } },
+      "sensor.goat_g1_mowing_area": { state: "0.0", attributes: { friendly_name: "Mowing area", unit_of_measurement: "m²", device_class: "area" } },
+      "sensor.goat_g1_mowing_duration": { state: "0.0", attributes: { friendly_name: "Mowing duration", unit_of_measurement: "min", device_class: "duration" } },
+      "sensor.goat_g1_total_area_mowed": { state: "18420", attributes: { friendly_name: "Total area mowed", unit_of_measurement: "m²", device_class: "area", state_class: "total_increasing" } },
+      "sensor.goat_g1_total_mowing_duration": { state: "65.63", attributes: { friendly_name: "Total mowing duration", unit_of_measurement: "h", device_class: "duration" } },
+      "sensor.goat_g1_total_mowings": { state: "52", attributes: { friendly_name: "Total mowings" } },
+      "sensor.goat_g1_blade_lifespan": { state: "8.5", attributes: { friendly_name: "Blade lifespan", unit_of_measurement: "%" } },
+      "sensor.goat_g1_lens_brush_lifespan": { state: "64", attributes: { friendly_name: "Lens brush lifespan", unit_of_measurement: "%" } },
+      "sensor.goat_g1_wi_fi_rssi": { state: "71", attributes: { friendly_name: "Wi-Fi RSSI" } },
+      "sensor.goat_g1_wi_fi_ssid": { state: "Garten", attributes: { friendly_name: "Wi-Fi SSID" } },
+      "button.goat_g1_stop_mowing": { state: "unknown", attributes: { friendly_name: "Stop mowing" } },
+      "button.goat_g1_stop_debug_capture": { state: "unknown", attributes: { friendly_name: "Stop debug capture" } },
+      "button.goat_g1_refresh_state": { state: "unknown", attributes: { friendly_name: "Refresh state" } },
+      "select.goat_g1_mowing_efficiency": { state: "unknown", attributes: { friendly_name: "Mowing efficiency", options: ["Quick", "Delicate"] } },
+      "select.goat_g1_obstacle_avoidance": { state: "General", attributes: { friendly_name: "Obstacle avoidance", options: ["Short grass", "General", "Bumpy ground with tall grass"] } },
+      "number.goat_g1_rain_delay": { state: "180", attributes: { friendly_name: "Rain delay", min: 0, max: 1440, step: 1, unit_of_measurement: "min" } },
+      "switch.goat_g1_rain_sensor": { state: "on", attributes: { friendly_name: "Rain sensor" } },
+      "switch.goat_g1_ai_recognition": { state: "on", attributes: { friendly_name: "AI Recognition" } },
+      "switch.goat_g1_animal_protection": { state: "off", attributes: { friendly_name: "Animal protection" } },
+      "switch.goat_g1_border_switch": { state: "on", attributes: { friendly_name: "Border switch" } },
+      "switch.goat_g1_cross_map_border_warning": { state: "on", attributes: { friendly_name: "Cross map border warning" } },
+      "switch.goat_g1_safer_mode": { state: "off", attributes: { friendly_name: "Safer Mode" } },
+      "time.goat_g1_animal_protection_start": { state: "19:00:00", attributes: { friendly_name: "Animal protection start" } },
+      "time.goat_g1_animal_protection_end": { state: "07:00:00", attributes: { friendly_name: "Animal protection end" } },
+      "sensor.goat_g1_live_map": { state: "live", attributes: { friendly_name: "Live map", current_position: { x: 2, y: 0, a: 0, invalid: 0 }, info: { outline: [] }, trace: { path: [] } } },
+      "update.goat_g1_update": { state: "on", attributes: { friendly_name: "GOAT G1 Update", installed_version: "1.2.0", latest_version: "1.3.1" } },
+      "lawn_mower.goat_wiese": { state: "mowing", attributes: { friendly_name: "GOAT Wiese", supported_features: 7 } },
+      "sensor.goat_wiese_battery_level": { state: "64", attributes: { friendly_name: "Batterie", unit_of_measurement: "%", device_class: "battery" } },
+      "sensor.goat_wiese_error": { state: "0", attributes: { friendly_name: "Error", description: "NoError: Robot is operational" } },
+      "sensor.goat_wiese_mowing_progress": { state: "42", attributes: { friendly_name: "Mowing progress", unit_of_measurement: "%" } },
+      "sensor.goat_wiese_area_mowed": { state: "186.4", attributes: { friendly_name: "Area mowed", unit_of_measurement: "m²", device_class: "area" } },
+      "sensor.goat_wiese_mowing_area": { state: "450", attributes: { friendly_name: "Mowing area", unit_of_measurement: "m²", device_class: "area" } },
+      "sensor.goat_wiese_mowing_duration": { state: "38", attributes: { friendly_name: "Mowing duration", unit_of_measurement: "min", device_class: "duration" } },
+      "sensor.goat_wiese_total_area_mowed": { state: "18420", attributes: { friendly_name: "Total area mowed", unit_of_measurement: "m²", device_class: "area", state_class: "total_increasing" } },
+      "sensor.goat_wiese_total_mowing_duration": { state: "65.63", attributes: { friendly_name: "Total mowing duration", unit_of_measurement: "h", device_class: "duration" } },
+      "sensor.goat_wiese_total_mowings": { state: "52", attributes: { friendly_name: "Total mowings" } },
+      "sensor.goat_wiese_blade_lifespan": { state: "72", attributes: { friendly_name: "Blade lifespan", unit_of_measurement: "%" } },
+      "sensor.goat_wiese_lens_brush_lifespan": { state: "64", attributes: { friendly_name: "Lens brush lifespan", unit_of_measurement: "%" } },
+      "sensor.goat_wiese_wi_fi_rssi": { state: "71", attributes: { friendly_name: "Wi-Fi RSSI" } },
+      "sensor.goat_wiese_wi_fi_ssid": { state: "Garten", attributes: { friendly_name: "Wi-Fi SSID" } },
+      "button.goat_wiese_stop_mowing": { state: "unknown", attributes: { friendly_name: "Stop mowing" } },
+      "button.goat_wiese_stop_debug_capture": { state: "unknown", attributes: { friendly_name: "Stop debug capture" } },
+      "button.goat_wiese_refresh_state": { state: "unknown", attributes: { friendly_name: "Refresh state" } },
+      "select.goat_wiese_mowing_efficiency": { state: "Delicate", attributes: { friendly_name: "Mowing efficiency", options: ["Quick", "Delicate"] } },
+      "select.goat_wiese_obstacle_avoidance": { state: "General", attributes: { friendly_name: "Obstacle avoidance", options: ["Short grass", "General", "Bumpy ground with tall grass"] } },
+      "number.goat_wiese_rain_delay": { state: "180", attributes: { friendly_name: "Rain delay", min: 0, max: 1440, step: 1, unit_of_measurement: "min" } },
+      "switch.goat_wiese_rain_sensor": { state: "on", attributes: { friendly_name: "Rain sensor" } },
+      "switch.goat_wiese_ai_recognition": { state: "on", attributes: { friendly_name: "AI Recognition" } },
+      "switch.goat_wiese_animal_protection": { state: "off", attributes: { friendly_name: "Animal protection" } },
+      "switch.goat_wiese_border_switch": { state: "on", attributes: { friendly_name: "Border switch" } },
+      "switch.goat_wiese_cross_map_border_warning": { state: "on", attributes: { friendly_name: "Cross map border warning" } },
+      "switch.goat_wiese_safer_mode": { state: "off", attributes: { friendly_name: "Safer Mode" } },
+      "time.goat_wiese_animal_protection_start": { state: "19:00:00", attributes: { friendly_name: "Animal protection start" } },
+      "time.goat_wiese_animal_protection_end": { state: "07:00:00", attributes: { friendly_name: "Animal protection end" } },
+      "sensor.goat_wiese_live_map": { state: "live", attributes: { friendly_name: "Live map", current_position: { x: 13.2, y: 7.4, a: 90, invalid: 0 }, charge_positions: [{ x: 1, y: 1 }],
+        info: { outline: [[0, 0], [24, 0], [26, 6], [22, 14], [8, 15], [0, 10]] },
+        trace: { path: [[1, 1], [2, 2], [22, 2], [23, 4], [3, 4], [3, 6], [23, 6], [22, 8], [3, 8], [5, 10], [20, 10], [16, 12], [9, 12], [13.2, 7.4]] } } },
       // Battery Notes: eigene Entitäten am Gerät, benannt nach dem Gerät („Wasser Hecke“), nicht nach dem Batteriesensor
       "sensor.wasser_hecke_battery_type": { state: "4× AA", attributes: { friendly_name: "Wasser Hecke Batterie-Typ", battery_type: "AA", battery_quantity: 4 } },
       "sensor.wasser_hecke_battery_last_replaced": { state: new Date(Date.now() - 190 * 86400000).toISOString(), attributes: { friendly_name: "Wasser Hecke Letzter Batteriewechsel", device_class: "timestamp" } },
@@ -452,6 +514,7 @@
       ...(/_mein_zimmer_batter|zimmer_schalter_batter|turkontakt_mein_zimmer_batter/.test(id) ? { device_id: id.replace(/^\w+\.|_battery_plus.*|_batterie$/g, "") } : {}),
       ...(/^\w+\.(cam_haus|blink_(tor|carport|pool|schuppen))/.test(id) ? { device_id: id.match(/^\w+\.(cam_haus|blink_(tor|carport|pool|schuppen))/)[1], platform: id.includes("blink") ? "blink" : "reolink" } : {}),
       ...(/^(sensor|button)\.(ventil|wasser)_(hecke|rasen)_batter/.test(id) ? { device_id: "dev_ventil_" + id.match(/_(hecke|rasen)_/)[1], ...(id.includes("wasser_") ? { platform: "battery_notes" } : {}) } : {}),
+      ...(/^\w+\.goat_(g1|wiese)/.test(id) ? { device_id: "dev_" + id.match(/goat_(g1|wiese)/)[0] } : {}),
       area_id: /heizung_mein_zimmer|etrv_|wandthermostat_mein|_mein_zimmer_batter|zimmer_schalter_batter|turkontakt_mein_zimmer_batter/.test(id) ? "mein_zimmer" : null }]));
     const devices = { cam_haus: { id: "cam_haus", name: "Haus" }, blink_tor: { id: "blink_tor", name: "Tor" }, blink_carport: { id: "blink_carport", name: "Carport" },
       blink_pool: { id: "blink_pool", name: "Pool" }, blink_schuppen: { id: "blink_schuppen", name: "Schuppen" }, dev_opener: { id: "dev_opener", name: "Klingel", model: "Nuki Opener" }, dev_gree: { id: "dev_gree", name: "Klima Schlafzimmer" }, dev_govee: { id: "dev_govee", name: "Carport" },
@@ -594,6 +657,12 @@
           setTimeout(() => { const h = makeHass(); cards.forEach((c) => (c.hass = h)); }, 150);
           return;
         }
+        if (domain === "lawn_mower") {
+          const next = { start_mowing: "mowing", pause: "paused", dock: "returning" }[service];
+          if (next) states[data.entity_id] = { ...states[data.entity_id], state: next };
+          setTimeout(() => { const h = makeHass(); cards.forEach((c) => (c.hass = h)); }, 150);
+          return;
+        }
         if (domain === "button" && /_battery_replaced$/.test(data.entity_id)) {
           const last = data.entity_id.replace(/^button\./, "sensor.").replace(/_replaced$/, "_last_replaced");
           if (states[last]) states[last] = { ...states[last], state: new Date().toISOString() };
@@ -614,7 +683,7 @@
           setTimeout(() => { const h = makeHass(); cards.forEach((c) => (c.hass = h)); }, 150);
           return;
         }
-        if (domain === "input_number" || domain === "input_select" || domain === "script") {
+        if (domain === "input_number" || domain === "number" || domain === "input_select" || domain === "script") {
           if (service === "set_value") states[data.entity_id] = { ...s, state: String(data.value) };
           if (service === "select_option") states[data.entity_id] = { ...s, state: data.option };
           setTimeout(() => { const h = makeHass(); cards.forEach((c) => (c.hass = h)); }, 150);
@@ -794,6 +863,8 @@
       ] }],
       ["Status – Batterien aus Bereich + Türkontakt + Einkaufsliste", { _status: true, areas: ["mein_zimmer"], shopping_list: true, expanded: true, contacts: [{ entity: "binary_sensor.tuerkontakt_pascal", name: "Tür" }] }],
       ["Status – Battery Notes am Gerät (Typ, „gewechselt vor“, gedrückt halten = Wechsel eintragen)", { _status: true, title: "Ventile", batteries: ["sensor.ventil_hecke_battery", "sensor.ventil_rasen_battery", "sensor.ventil_beete_battery"], shopping_list: true, expanded: true }],
+      ["Mähroboter – mäht gerade (Live-Karte, Fortschritt, Statistik, Wartung, Einstellungen)", { _mower: true, entity: "lawn_mower.goat_wiese", name: "GOAT Wiese" }],
+      ["Mähroboter – in der Station (animierter Rasen, Messer fast verbraucht, Update)", { _mower: true, entity: "lawn_mower.goat_g1", name: "GOAT G1", settings_open: true }],
       ["Licht – Gruppe mit Presets Hell / Warm / Gemütlich", { _light: true, entity: "light.licht_mein_zimmer", name: "Licht Zimmer", presets: "default", layout: "compact" }],
       ["Schalter als Button – Monitore (nur Symbol + Text)", { _switchTime: true, switch_entity: "input_boolean.wecker", name: "Monitore", icon: "mdi:monitor-multiple", color: "#42a5f5", switch_style: "button" }],
       ["Schalter + time-Entität – Saugroboter „Bitte nicht stören“ ab", { _switchTime: true, switch_entity: "switch.robo_nicht_stoeren", time_entity: "time.robo_ruhezeit_beginn", name: "Ruhezeit ab", icon: "mdi:sleep", color: "#5c6bc0" }],
@@ -826,9 +897,9 @@
         grid.appendChild(wrap);
         return;
       }
-      const { _overview, _light, _group, _cover, _coverGroup, _switchTime, _media, _room, _status, _vacuum, _presence, _alert, _energy, _irrigation, _pool, _camera, _cameraGroup, _select, ...rest } = cfg;
+      const { _overview, _light, _group, _cover, _coverGroup, _switchTime, _media, _room, _status, _vacuum, _presence, _alert, _energy, _irrigation, _pool, _camera, _cameraGroup, _select, _mower, ...rest } = cfg;
       const tag = _overview ? "ha-climate-overview-card" : _group ? "ha-light-group-card" : _light ? "ha-light-card"
-        : _cover ? "ha-cover-card" : _coverGroup ? "ha-cover-group-card" : _switchTime ? "ha-switch-time-card" : _media ? "ha-media-card" : _room ? "ha-room-card" : _status ? "ha-status-card" : _vacuum ? "ha-vacuum-card" : _presence ? "ha-presence-card" : _alert ? "ha-alert-card" : _energy ? "ha-energy-card" : _irrigation ? "ha-irrigation-card" : _pool ? "ha-pool-card" : _camera ? "ha-camera-card" : _cameraGroup ? "ha-camera-group-card" : _select ? "ha-select-card" : "ha-climate-card";
+        : _cover ? "ha-cover-card" : _coverGroup ? "ha-cover-group-card" : _switchTime ? "ha-switch-time-card" : _media ? "ha-media-card" : _room ? "ha-room-card" : _status ? "ha-status-card" : _vacuum ? "ha-vacuum-card" : _presence ? "ha-presence-card" : _alert ? "ha-alert-card" : _energy ? "ha-energy-card" : _irrigation ? "ha-irrigation-card" : _pool ? "ha-pool-card" : _camera ? "ha-camera-card" : _cameraGroup ? "ha-camera-group-card" : _select ? "ha-select-card" : _mower ? "ha-mower-card" : "ha-climate-card";
       const card = document.createElement(tag);
       card.id = "card" + i;
       card.setConfig({ type: `custom:${tag}`, ...rest });

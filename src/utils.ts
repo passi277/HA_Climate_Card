@@ -1295,3 +1295,93 @@ export const musicModes = (effects: unknown[] | undefined): { effect: string; ke
     const label = raw.replace(/([a-z])[aA]nd([A-Z])/g, "$1 & $2").replace(/([a-z])([A-Z])/g, "$1 $2");
     return { effect, key, label, icon: MUSIC_ICONS[key] ?? "mdi:music-note" };
   });
+
+/** Mähroboter: Zusatz-Entitäten über das Gerät finden (Ecovacs GOAT, Husqvarna, Worx …) */
+export const mowerFeatures = (states: Record<string, HassEntity>, entities: Record<string, EntityRegistryEntry> | undefined,
+  mower: string): Record<string, string | undefined> => {
+  const device = entities?.[mower]?.device_id;
+  if (!device) return {};
+  const ids = Object.values(entities!).filter((e) => e.device_id === device && e.entity_id !== mower && states[e.entity_id]).map((e) => e.entity_id).sort();
+  const name = (id: string) => `${id} ${states[id]?.attributes.friendly_name ?? ""}`.toLowerCase();
+  const dc = (id: string) => states[id]?.attributes.device_class;
+  const find = (domain: string, re: RegExp, not?: RegExp) => ids.find((id) => id.startsWith(`${domain}.`) && re.test(name(id)) && !(not && not.test(name(id))));
+  const TOTAL = /total|gesamt|insgesamt/;
+  return {
+    battery: ids.find((id) => id.startsWith("sensor.") && dc(id) === "battery") ?? find("sensor", /batter|akku/, /voltage|spannung|temp/),
+    error: find("sensor", /error|fehler/),
+    progress: find("sensor", /progress|fortschritt/),
+    area: find("sensor", /area.?mowed|gemäht|gemaeht|mowed.?area/, TOTAL),
+    session_area: find("sensor", /mowing.?area|mähfläche|maehflaeche|zielfläche|task.?area/, TOTAL),
+    duration: find("sensor", /mowing.?(duration|time)|mähdauer|maehdauer|laufzeit/, TOTAL),
+    total_area: find("sensor", /(total|gesamt).*(area|fläche|flaeche)/),
+    total_duration: find("sensor", /(total|gesamt).*(duration|time|dauer|zeit|stunden)/),
+    total_count: find("sensor", /(total|gesamt|anzahl).*(mowings|mähvorg|maehvorg|einsätze|cycles|count)/),
+    blade: find("sensor", /blade|messer|klinge/),
+    brush: find("sensor", /brush|bürste|buerste/),
+    wifi: ids.find((id) => id.startsWith("sensor.") && (dc(id) === "signal_strength" || /rssi|wlan|wifi|wi-fi/.test(name(id))) && !/ssid/.test(name(id))),
+    stop: find("button", /stop/, /debug|capture/),
+    refresh: find("button", /refresh|aktualisier/),
+    efficiency: find("select", /efficien|effizienz|mähmodus|maehmodus|cutting.?mode/),
+    obstacle: find("select", /obstacle|hindernis/),
+    rain_delay: find("number", /rain|regen/),
+    rain_sensor: find("switch", /rain|regen/),
+    ai: find("switch", /\bai\b|ki.?erkennung|recognition/),
+    animal: find("switch", /animal|tier/),
+    animal_start: find("time", /(animal|tier).*(start|beginn)/),
+    animal_end: find("time", /(animal|tier).*(end|ende)/),
+    border: find("switch", /border.?switch|randm|edge/, /warning|warnung/),
+    safe: find("switch", /safe|sicher/),
+    update: ids.find((id) => id.startsWith("update.")),
+    map: find("sensor", /live.?map|karte/) ?? (ids.find((id) => id.startsWith("image.")) ?? undefined),
+  };
+};
+
+export type MowerPhase = "mowing" | "paused" | "returning" | "docked" | "error" | "unknown";
+
+/** Zustand eines lawn_mower in eine Phase übersetzen */
+export const mowerPhase = (state?: string, errorCode?: string): MowerPhase => {
+  if (errorCode && !["0", "", "none", "no_error", "unknown", "unavailable"].includes(errorCode.toLowerCase())) return "error";
+  switch (state) {
+    case "mowing": return "mowing";
+    case "paused": return "paused";
+    case "returning": return "returning";
+    case "docked": return "docked";
+    case "error": return "error";
+    default: return "unknown";
+  }
+};
+
+export interface MapPoint { x: number; y: number }
+export interface MowerMap { outline: MapPoint[][]; path: MapPoint[]; position?: MapPoint; dock?: MapPoint; box: { x: number; y: number; w: number; h: number } }
+
+const toPoint = (p: unknown): MapPoint | undefined => {
+  if (Array.isArray(p) && p.length >= 2 && Number.isFinite(Number(p[0])) && Number.isFinite(Number(p[1]))) return { x: Number(p[0]), y: Number(p[1]) };
+  if (p && typeof p === "object" && "x" in p && "y" in p) {
+    const o = p as { x: unknown; y: unknown; invalid?: unknown };
+    if (o.invalid) return undefined;
+    const x = Number(o.x), y = Number(o.y);
+    return Number.isFinite(x) && Number.isFinite(y) ? { x, y } : undefined;
+  }
+  return undefined;
+};
+
+const toLine = (l: unknown): MapPoint[] => (Array.isArray(l) ? l.map(toPoint).filter((p): p is MapPoint => !!p) : []);
+
+/** Live-Karte (z.B. Ecovacs „Live map“): Umriss, Spur und Position normalisieren – null, wenn nichts zum Zeichnen da ist */
+export const mapGeometry = (attrs?: Record<string, any>): MowerMap | null => {
+  if (!attrs) return null;
+  const rawOutline = attrs.info?.outline ?? attrs.outline ?? attrs.areas ?? [];
+  const outline = (Array.isArray(rawOutline) && rawOutline.length && toPoint(rawOutline[0]) ? [toLine(rawOutline)]
+    : (Array.isArray(rawOutline) ? rawOutline : []).map((a: any) => toLine(a?.points ?? a?.outline ?? a))).filter((l: MapPoint[]) => l.length >= 3);
+  const path = toLine(attrs.trace?.path ?? attrs.path ?? attrs.position_history ?? []);
+  const position = toPoint(attrs.current_position ?? attrs.position);
+  const dock = toPoint(Array.isArray(attrs.charge_positions) ? attrs.charge_positions[0] : attrs.charge_position);
+  const all = [...outline.flat(), ...path];
+  if (!outline.length && path.length < 2) return null;
+  if (position) all.push(position);
+  if (dock) all.push(dock);
+  const xs = all.map((p) => p.x), ys = all.map((p) => p.y);
+  const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
+  const pad = Math.max(maxX - minX, maxY - minY, 1) * 0.06;
+  return { outline, path, position, dock, box: { x: minX - pad, y: minY - pad, w: maxX - minX + 2 * pad, h: maxY - minY + 2 * pad } };
+};

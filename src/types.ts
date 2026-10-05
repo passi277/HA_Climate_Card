@@ -735,3 +735,54 @@ export interface SelectCardConfig {
   [key: string]: unknown;
 }
 
+
+/** Zuordnungen eines Mähroboters – werden über das Gerät automatisch gefunden und lassen sich überschreiben */
+export interface MowerFeatures {
+  battery?: string;
+  error?: string;
+  progress?: string;
+  area?: string;
+  session_area?: string;
+  duration?: string;
+  total_area?: string;
+  total_duration?: string;
+  total_count?: string;
+  blade?: string;
+  brush?: string;
+  wifi?: string;
+  stop?: string;
+  refresh?: string;
+  efficiency?: string;
+  obstacle?: string;
+  rain_delay?: string;
+  rain_sensor?: string;
+  ai?: string;
+  animal?: string;
+  animal_start?: string;
+  animal_end?: string;
+  border?: string;
+  safe?: string;
+  update?: string;
+  map?: string;
+}
+
+export interface MowerShowConfig {
+  scene?: boolean;
+  controls?: boolean;
+  session?: boolean;
+  stats?: boolean;
+  maintenance?: boolean;
+  settings?: boolean;
+}
+
+export interface MowerCardConfig extends MowerFeatures {
+  type: string;
+  /** lawn_mower.* */
+  entity: string;
+  name?: string;
+  show?: MowerShowConfig;
+  /** Einstellungen anfangs aufgeklappt */
+  settings_open?: boolean;
+  animations?: "full" | "reduced" | "off";
+  [key: string]: unknown;
+}

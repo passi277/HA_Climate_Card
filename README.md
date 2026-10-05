@@ -438,6 +438,22 @@ shopping_list: true      # Einkaufsliste nach Batterietyp
 und **Gemütlich** (25 %/2200 K) – das aktive leuchtet. Eigene: `presets: [{ name: Lesen, icon: mdi:book, brightness: 80, kelvin: 3500 }]`
 (auch `rgb: [255, 0, 120]`).
 
+## Modern Mower Card (Mähroboter)
+
+Für `lawn_mower`-Entitäten (z.B. Ecovacs GOAT): animierter Rasen bzw. Live-Karte (Umriss, Spur, Position), Zustand und Akku,
+Mähen/Weiter, Pause, Station, Stopp (mit Rückfrage), aktueller Lauf, Statistik, Messer-/Bürsten-Verschleiß, Firmware-Update und
+Einstellungen (Mähmodus, Hindernisvermeidung, Regensensor, KI-Erkennung, Tierschutz, Randmähen, Regenpause).
+Alle Zusatz-Entitäten werden über das Gerät gefunden – jede lässt sich überschreiben.
+
+```yaml
+type: custom:ha-mower-card
+entity: lawn_mower.ecovacs_goat_1
+name: GOAT G1
+# show: { settings: false }     # scene, controls, session, stats, maintenance, settings
+# settings_open: true
+# blade: sensor.ecovacs_goat_1_blade_lifespan   # Zuordnung überschreiben
+```
+
 ## Modern Vacuum Card (Saugroboter)
 
 - **Live-Karte** aus dem Kartenbild (z.B. Roborock Custom Map, `image.*`) – mit Roboter-Position, automatisch auf die
@@ -815,6 +831,7 @@ glow, smooth color transitions, animations), shipped as a single HACS download:
 - `custom:ha-media-card` – Harmony Hub activities and remote (commands routed to the right device) plus media player (now playing, volume, source)
 - `custom:ha-room-card` – room header with status chips (incl. waste collection from a calendar) and a "window open – A/C running" warning; `layout: tile` = room tile for overview pages (tap navigates, long press toggles the light)
 - `custom:ha-status-card` – batteries (per area, Battery Notes aware) and door/window contacts
+- `custom:ha-mower-card` – lawn mower with animated lawn or live map, controls, current run, statistics, blade wear and settings
 - `custom:ha-vacuum-card` – robot vacuum with live map, tap rooms on the map for room cleaning, controls, modes, maintenance
 - `custom:ha-presence-card` – people as photo tiles (home/away, phone battery and charging found automatically) plus front door: hold to open (Nuki Opener), Ring to Open, doorbell
 - `custom:ha-alert-card` – alerts that only appear when something is going on (window open, vacuum error, low battery …), hidden otherwise
