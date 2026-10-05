@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.30.0 – Neue Live-Karte
+- Mower Card: Live-Karte neu gestaltet – dunkler Hintergrund mit feinem Raster, Rasenflächen mit Mähstreifen-Textur und Schatten, Bereiche farbig mit **Namen auf der Karte** (kleine Bereiche erst, wenn genug Platz ist oder sie ausgewählt sind), Station als Haus-Symbol
+- Hindernisse (`obstacles`), Verbindungswege (`channels`) und die bereits gemähten Streifen (`trace.segments`) werden gezeichnet
+- Laufender Auftrag mit wandernder Strichlinie; „Auswahl löschen“ als kleine ×-Taste
+
 ## 1.29.1 – Karte in Millimetern
 - Mower Card: Live-Karten mit Koordinaten in Millimetern (ECOVACS GOAT A1600) zeigten einen riesigen weißen Rand über der Karte – die Linienbreite des Rasen-Umrisses war in Prozent angegeben und wurde dadurch ~160 px breit
 - Die Kartenszene passt ihre Höhe an die Form des Gartens an (schmale, lange Gärten bis 340 px hoch statt winzig in 150 px)

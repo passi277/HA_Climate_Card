@@ -19,6 +19,9 @@ import "./mower-editor";
 /** Seitenverhältnis der Kartenszene: breite Gärten flach (max. 2,6:1), schmale/hohe Gärten höher (min. 1,1:1) */
 const mapAspect = (map: MowerMap): number => Math.min(2.6, Math.max(1.1, map.box.w / Math.max(map.box.h, 1)));
 
+/** Füllfarben der Mähbereiche (Grüntöne, gut unterscheidbar auf dem Rasen) */
+const ZONE_COLORS = ["#8bc34a", "#26a69a", "#cddc39", "#66bb6a", "#4dd0e1", "#aed581", "#81c784", "#4db6ac"];
+
 /** LawnMowerEntityFeature */
 const START = 1;
 const PAUSE = 2;
@@ -349,21 +352,51 @@ export class HaMowerCard extends LitElement {
   private _renderMap(map: MowerMap, phase: MowerPhase, job: string[]) {
     // Marker in Bildschirm-Pixeln bemessen (Szene ca. 350 px breit, Seitenverhältnis siehe mapAspect) und genug Rand lassen
     const ar = mapAspect(map);
-    const unitsPerPx = Math.max(map.box.w / ar, map.box.h) / Math.min(340, Math.max(150, 350 / ar));
-    const r = unitsPerPx * 6;
+    const px = Math.max(map.box.w / ar, map.box.h) / Math.min(340, Math.max(150, 350 / ar));
+    const r = px * 6;
     const m = r * 4;
     const box = { x: map.box.x - m, y: map.box.y - m, w: map.box.w + 2 * m, h: map.box.h + 2 * m };
-    const P = (p: { x: number; y: number }) => `${(p.x - box.x).toFixed(2)},${(box.h - (p.y - box.y)).toFixed(2)}`;
-    return html`<svg class="map" viewBox="0 0 ${box.w} ${box.h}" preserveAspectRatio="xMidYMid meet" role="img" aria-label=${this._t("map")}>
-      ${map.outline.map((l) => svg`<polygon class="m-area" points=${l.map(P).join(" ")}></polygon>`)}
-      ${this._areaDomain() ? map.areas.map((a) => svg`<polygon class="m-zone ${this._selected.includes(a.id) ? "sel" : ""} ${job.includes(a.id) ? "job" : ""}"
-        data-area=${a.id} points=${a.points.map(P).join(" ")} @click=${() => this._toggleArea(a.id)}><title>${a.name}${a.m2 ? ` · ${this._fmt(a.m2, 0)}\u00a0m²` : ""}</title></polygon>`) : nothing}
-      ${map.path.length > 1 ? svg`<polyline class="m-path" style="stroke-width:${r * 0.55}" points=${map.path.map(P).join(" ")}></polyline>` : nothing}
-      ${map.dock ? svg`<circle class="m-dock" cx=${P(map.dock).split(",")[0]} cy=${P(map.dock).split(",")[1]} r=${r}></circle>` : nothing}
+    const X = (p: MapPoint) => (p.x - box.x).toFixed(1);
+    const Y = (p: MapPoint) => (box.h - (p.y - box.y)).toFixed(1);
+    const P = (p: MapPoint) => `${X(p)},${Y(p)}`;
+    const pts = (l: MapPoint[]) => l.map(P).join(" ");
+    const tappable = !!this._areaDomain();
+    const n = (v: number) => v.toFixed(2);
+    // Beschriftung nur, wenn der Bereich auf dem Bildschirm breit genug ist (ausgewählte immer)
+    const fits = (a: MowerArea) => {
+      const xs = a.points.map((p) => p.x);
+      return (Math.max(...xs) - Math.min(...xs)) / px >= Math.max(34, a.name.length * 5.6);
+    };
+    return html`<svg class="map" viewBox="0 0 ${n(box.w)} ${n(box.h)}" preserveAspectRatio="xMidYMid meet" role="img" aria-label=${this._t("map")}>
+      <defs>
+        <pattern id="mw-grass" patternUnits="userSpaceOnUse" width=${n(px * 7)} height=${n(px * 7)} patternTransform="rotate(35)">
+          <rect width=${n(px * 7)} height=${n(px * 7)} fill="#4f9a3e"></rect>
+          <rect width=${n(px * 3.5)} height=${n(px * 7)} fill="#58a646"></rect>
+        </pattern>
+        <filter id="mw-shadow" x="-10%" y="-10%" width="120%" height="120%">
+          <feDropShadow dx="0" dy=${n(px * 1.5)} stdDeviation=${n(px * 2.5)} flood-color="#000" flood-opacity="0.45"></feDropShadow>
+        </filter>
+      </defs>
+      <g filter="url(#mw-shadow)">${map.outline.map((l) => svg`<polygon class="m-area m-lawn" points=${pts(l)}></polygon>`)}</g>
+      ${map.channels.map((l) => svg`<polyline class="m-channel" points=${pts(l)}></polyline>`)}
+      ${map.areas.map((a, i) => {
+        const sel = this._selected.includes(a.id);
+        return svg`<polygon class="m-zone ${sel ? "sel" : ""} ${job.includes(a.id) ? "job" : ""} ${tappable ? "tap" : ""}" style="--zc:${ZONE_COLORS[i % ZONE_COLORS.length]}"
+          data-area=${a.id} points=${pts(a.points)} @click=${tappable ? () => this._toggleArea(a.id) : nothing}><title>${a.name}${a.m2 ? ` · ${this._fmt(a.m2, 0)}\u00a0m²` : ""}</title></polygon>`;
+      })}
+      ${map.segments.length ? svg`<g class="m-mowed" style="stroke-width:${n(px * 3)}">${map.segments.map((l) => svg`<polyline points=${pts(l)}></polyline>`)}</g>` : nothing}
+      ${map.obstacles.map((l) => svg`<polygon class="m-obstacle" points=${pts(l)}></polygon>`)}
+      ${map.path.length > 1 ? svg`<polyline class="m-path" style="stroke-width:${n(r * 0.45)}" points=${pts(map.path)}></polyline>` : nothing}
+      ${map.areas.filter((a) => this._selected.includes(a.id) || fits(a)).map((a) => svg`<text class="m-label ${this._selected.includes(a.id) ? "sel" : ""}"
+        x=${X(a.label)} y=${Y(a.label)} style="font-size:${n(px * 10.5)}px; stroke-width:${n(px * 3)}px">${a.name}</text>`)}
+      ${map.dock ? svg`<g class="m-dock" transform="translate(${P(map.dock)})">
+        <circle r=${n(r * 1.35)}></circle>
+        <path transform="scale(${n(r * 0.085)}) translate(-12,-12.5)" d="M10,20V14H14V20H19V12H22L12,3L2,12H5V20H10Z"></path>
+      </g>` : nothing}
       ${map.position ? svg`<g class="m-pos ${phase}" transform="translate(${P(map.position)})">
-        <circle class="m-pulse" r=${r * 2.2}></circle>
-        <circle class="m-dot" r=${r * 1.5}></circle>
-        ${map.position.a != null ? svg`<path class="m-arrow" transform="rotate(${(-map.position.a).toFixed(1)}) scale(${r * 0.85})" d="M1.4,0 L-0.9,-1 L-0.4,0 L-0.9,1 Z"></path>` : nothing}
+        <circle class="m-pulse" r=${n(r * 2.2)}></circle>
+        <circle class="m-dot" r=${n(r * 1.5)}></circle>
+        ${map.position.a != null ? svg`<path class="m-arrow" transform="rotate(${(-map.position.a).toFixed(1)}) scale(${n(r * 0.85)})" d="M1.4,0 L-0.9,-1 L-0.4,0 L-0.9,1 Z"></path>` : nothing}
       </g>` : nothing}
     </svg>`;
   }
@@ -412,7 +445,7 @@ export class HaMowerCard extends LitElement {
       <div class="a-head">
         <span class="sec-title"><ha-icon icon="mdi:texture-box"></ha-icon><span>${this._t("areas")}</span></span>
         ${chosen.length ? html`<span class="a-sum">${chosen.length} ${this._t("areas_selected")}${total ? ` · ${this._fmt(total, 0)}\u00a0m²` : ""}</span>
-          <button class="a-clear" @click=${() => { this._selected = []; this._confirm = undefined; }}>${this._t("areas_clear")}</button>` : html`<span class="a-sum">${this._t("areas_hint")}</span>`}
+          <button class="a-clear" aria-label=${this._t("areas_clear")} title=${this._t("areas_clear")} @click=${() => { this._selected = []; this._confirm = undefined; }}><ha-icon icon="mdi:close"></ha-icon></button>` : html`<span class="a-sum">${this._t("areas_hint")}</span>`}
       </div>
       <div class="a-chips" role="group" aria-label=${this._t("areas")}>${areas.map((a) => {
         const sel = this._selected.includes(a.id);
@@ -632,16 +665,28 @@ export class HaMowerCard extends LitElement {
     .live { position: absolute; top: 8px; left: 8px; z-index: 1; display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; border-radius: 999px;
       font-size: 10.5px; font-weight: 800; letter-spacing: 0.06em; color: #fff; background: rgba(0,0,0,0.35); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
     .live-dot { width: 7px; height: 7px; border-radius: 50%; background: #ff5252; animation: blink 1.4s ease-in-out infinite; }
-    .scene.has-map { height: auto; aspect-ratio: var(--ar, 2.6); max-height: 340px; }
-    .m-area { fill: rgba(255,255,255,0.14); stroke: rgba(255,255,255,0.7); stroke-width: 1.5px; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
-    .m-zone { fill: rgba(255,255,255,0.06); stroke: rgba(255,255,255,0.45); stroke-width: 1; vector-effect: non-scaling-stroke; stroke-linejoin: round;
-      cursor: pointer; pointer-events: visiblePainted; transition: fill 0.25s; -webkit-tap-highlight-color: transparent; }
-    .m-zone:hover { fill: rgba(255,255,255,0.16); }
-    .m-zone.job { stroke: #fff; stroke-dasharray: 4 3; stroke-width: 1.5; }
-    .m-zone.sel { fill: color-mix(in srgb, #fdd835 40%, transparent); stroke: #fdd835; stroke-width: 2; }
-    .m-path { fill: none; pointer-events: none; stroke: rgba(255,255,255,0.55); stroke-linecap: round; stroke-linejoin: round; }
-    .m-dock { fill: #fdd835; stroke: #fff; stroke-width: 1.5; vector-effect: non-scaling-stroke; }
-    .m-pos .m-dot { fill: #fff; stroke: var(--success-color, #43a047); stroke-width: 2; vector-effect: non-scaling-stroke; }
+    .scene.has-map { height: auto; aspect-ratio: var(--ar, 2.6); max-height: 340px; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06);
+      background: radial-gradient(120% 90% at 30% 15%, #2f4f34 0%, #1b3022 55%, #122017 100%); }
+    .scene.has-map::before { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0.5;
+      background-image: radial-gradient(rgba(255,255,255,0.09) 1px, transparent 1.2px); background-size: 14px 14px; }
+    .m-lawn { fill: url(#mw-grass); stroke: rgba(220,255,200,0.55); stroke-width: 1.2px; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+    .m-channel { fill: none; stroke: rgba(230,255,220,0.45); stroke-width: 2px; stroke-dasharray: 3 4; vector-effect: non-scaling-stroke; stroke-linecap: round; }
+    .m-zone { fill: color-mix(in srgb, var(--zc) 30%, transparent); stroke: rgba(10,30,10,0.45); stroke-width: 1px; vector-effect: non-scaling-stroke;
+      stroke-linejoin: round; transition: fill 0.25s, stroke 0.25s; -webkit-tap-highlight-color: transparent; }
+    .m-zone.tap { cursor: pointer; pointer-events: visiblePainted; }
+    .m-zone.tap:hover { fill: color-mix(in srgb, var(--zc) 48%, transparent); }
+    .m-zone.job { stroke: #fff; stroke-width: 2px; stroke-dasharray: 6 4; animation: march 1.2s linear infinite; }
+    @keyframes march { to { stroke-dashoffset: -10; } }
+    .m-zone.sel { fill: color-mix(in srgb, #ffca28 50%, transparent); stroke: #ffca28; stroke-width: 2.5px; stroke-dasharray: none; }
+    .m-mowed { fill: none; stroke: rgba(210,255,190,0.28); stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+    .m-obstacle { fill: rgba(20,40,20,0.75); stroke: rgba(255,255,255,0.25); stroke-width: 1px; vector-effect: non-scaling-stroke; pointer-events: none; }
+    .m-label { fill: rgba(255,255,255,0.92); stroke: rgba(10,30,12,0.75); paint-order: stroke; stroke-linejoin: round; font-weight: 700;
+      text-anchor: middle; dominant-baseline: central; pointer-events: none; letter-spacing: 0.01em; }
+    .m-label.sel { fill: #fff8e1; stroke: rgba(90,60,0,0.85); }
+    .m-path { fill: none; pointer-events: none; stroke: rgba(255,255,255,0.7); stroke-linecap: round; stroke-linejoin: round; }
+    .m-dock circle { fill: #ffca28; stroke: #fff; stroke-width: 1.5px; vector-effect: non-scaling-stroke; }
+    .m-dock path { fill: #4e3b00; }
+    .m-pos .m-dot { fill: #fff; stroke: var(--success-color, #43a047); stroke-width: 2px; vector-effect: non-scaling-stroke; }
     .m-arrow { fill: var(--success-color, #43a047); }
     .m-pos .m-pulse { fill: rgba(255,255,255,0.35); transform-box: fill-box; transform-origin: center; animation: pulse 1.8s ease-out infinite; }
     @keyframes pulse { from { transform: scale(0.4); opacity: 1; } to { transform: scale(1.4); opacity: 0; } }
@@ -651,7 +696,10 @@ export class HaMowerCard extends LitElement {
     .a-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
     .a-head .sec-title { flex: none; }
     .a-sum { flex: 1; min-width: 0; font-size: 12px; font-weight: 600; color: var(--secondary-text-color); }
-    .a-clear { flex: none; border: none; background: none; padding: 4px 6px; cursor: pointer; font-size: 12px; font-weight: 600; color: var(--accent); }
+    .a-sum { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .a-clear { flex: none; width: 28px; height: 28px; border-radius: 50%; border: none; padding: 0; display: grid; place-items: center; cursor: pointer;
+      color: var(--secondary-text-color); background: rgba(127,127,127,0.12); }
+    .a-clear ha-icon { --mdc-icon-size: 16px; }
     .a-chips { display: flex; flex-wrap: wrap; gap: 6px; }
     .a-chip { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; padding: 6px 10px 6px 7px; border: none; border-radius: 999px; cursor: pointer;
       font-size: 12.5px; font-weight: 600; background: rgba(127,127,127,0.1); transition: background 0.25s, color 0.25s; }
@@ -773,7 +821,7 @@ export class HaMowerCard extends LitElement {
     }
     ha-card.anim-reduced .blades, ha-card.anim-off .blades, ha-card.anim-reduced .p-mowing .bot-in, ha-card.anim-off .p-mowing .bot-in,
     ha-card.anim-off .p-mowing .bot, ha-card.anim-off .p-returning .bot, ha-card.anim-off .station .bolt, ha-card.anim-off .m-pulse,
-    ha-card.anim-off .p-error .bot-in { animation: none; }
+    ha-card.anim-off .p-error .bot-in, ha-card.anim-off .m-zone.job { animation: none; }
     ha-card.anim-off .p-mowing .bot-in::after { animation: none; display: none; }
   `];
 }

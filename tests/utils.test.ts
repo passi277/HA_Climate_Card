@@ -739,6 +739,11 @@ describe("mower", () => {
     // nur Bereiche, kein Umriss und keine Spur: trotzdem eine Karte
     expect(mapGeometry({ areas: [{ id: "1", name: "A", points: [[0, 0], [5, 0], [5, 5]] }] })!.areas).toHaveLength(1);
     expect(polygonSize([{ x: 0, y: 0 }, { x: 4, y: 0 }, { x: 4, y: 3 }])).toBe(6);
+    expect(areas[1]!.label).toEqual({ x: 55, y: 2 });
+    expect(areas[0]!.label).toEqual({ x: 20, y: 10 });
+    const g = mapGeometry({ ...attrs, obstacles: [{ id: "100", points: [[1, 1], [2, 1], [2, 2]] }], channels: [[[40, 5], [50, 5]]],
+      trace: { path: [], segments: [[[0, 1], [40, 1]], [[0, 2]]] } })!;
+    expect([g.obstacles.length, g.channels.length, g.segments.length]).toEqual([1, 1, 1]);
     expect(mowerAreas(undefined)).toEqual([]);
   });
   it("prefers a longer collected trail and extends it without duplicates", () => {

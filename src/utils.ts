@@ -1353,8 +1353,12 @@ export const mowerPhase = (state?: string, errorCode?: string): MowerPhase => {
 
 export interface MapPoint { x: number; y: number; a?: number }
 /** Mähbereich der Live-Karte (z.B. ECOVACS GOAT `areas`): antippbar fürs Bereichsmähen */
-export interface MowerArea { id: string; name: string; points: MapPoint[]; m2?: number; size: number }
-export interface MowerMap { outline: MapPoint[][]; areas: MowerArea[]; path: MapPoint[]; position?: MapPoint; dock?: MapPoint; box: { x: number; y: number; w: number; h: number } }
+export interface MowerArea { id: string; name: string; points: MapPoint[]; m2?: number; size: number; label: MapPoint }
+export interface MowerMap {
+  outline: MapPoint[][]; areas: MowerArea[]; path: MapPoint[]; position?: MapPoint; dock?: MapPoint; box: { x: number; y: number; w: number; h: number };
+  /** Hindernisse (Bäume …), Verbindungswege, bereits gemähte Streifen */
+  obstacles: MapPoint[][]; channels: MapPoint[][]; segments: MapPoint[][];
+}
 
 const toPoint = (p: unknown): MapPoint | undefined => {
   if (Array.isArray(p) && p.length >= 2 && Number.isFinite(Number(p[0])) && Number.isFinite(Number(p[1]))) return { x: Number(p[0]), y: Number(p[1]) };
@@ -1381,7 +1385,9 @@ export const mowerAreas = (attrs?: Record<string, any>): MowerArea[] =>
     .map((a: any) => {
       const points = toLine(a.points ?? a.outline);
       const m2 = Number(a.area_m2);
-      return { id: String(a.id), name: String(a.name || a.id), points, m2: Number.isFinite(m2) && m2 > 0 ? m2 : undefined, size: polygonSize(points) };
+      const xs = points.map((p) => p.x), ys = points.map((p) => p.y);
+      const label = toPoint(a.label) ?? { x: (Math.min(...xs) + Math.max(...xs)) / 2, y: (Math.min(...ys) + Math.max(...ys)) / 2 };
+      return { id: String(a.id), name: String(a.name || a.id), points, m2: Number.isFinite(m2) && m2 > 0 ? m2 : undefined, size: polygonSize(points), label };
     })
     .filter((a: MowerArea) => a.points.length >= 3)
     .sort((a: MowerArea, b: MowerArea) => b.size - a.size);
@@ -1407,7 +1413,8 @@ export const mapGeometry = (attrs?: Record<string, any>, trail: MapPoint[] = [])
   const xs = all.map((p) => p.x), ys = all.map((p) => p.y);
   const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
   const pad = Math.max(maxX - minX, maxY - minY, 1) * 0.06;
-  return { outline, areas, path, position, dock, box: { x: minX - pad, y: minY - pad, w: maxX - minX + 2 * pad, h: maxY - minY + 2 * pad } };
+  const lines = (l: unknown, min: number) => (Array.isArray(l) ? l : []).map((x: any) => toLine(x?.points ?? x)).filter((x: MapPoint[]) => x.length >= min);
+  return { outline, areas, path, position, dock, obstacles: lines(attrs.obstacles, 3), channels: lines(attrs.channels, 2), segments: lines(attrs.trace?.segments, 2), box: { x: minX - pad, y: minY - pad, w: maxX - minX + 2 * pad, h: maxY - minY + 2 * pad } };
 };
 
 /** Fahrspur fortschreiben: neue Punkte anhängen, Dubletten und Sprünge zurück an den Anfang vermeiden */
