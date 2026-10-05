@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.29.0 – Bereiche antippen
+- Mower Card: **Bereichsmähen** – Bereiche der Live-Karte (`areas` mit Umriss, z.B. ECOVACS GOAT A1600 über `goat_mower`) lassen sich auf der Karte oder in der Liste darunter antippen; Auswahl mit Name und m², Summe, „Auswahl löschen“ und „Ausgewählte Bereiche mähen“ (Rückfrage „Sicher? Mäher fährt los“, nur in der Station oder pausiert) über den Dienst `mow_areas` der Integration
+- Der laufende Auftrag wird auf der Karte gestrichelt markiert (`job_area_ids`); mehrere Rasenflächen (`info.outlines`) werden gezeichnet
+- „Auftrag beenden“ (`end_job`) wird als Stopp-Taste erkannt
+- abschaltbar per `show.areas: false` bzw. im Editor
+
 ## 1.28.0 – Echte Fahrspur
 - Mower Card: Live-Karte nutzt jetzt die erste Quelle mit echten Punkten – beim Ecovacs GOAT `position_history` (bisher wurde nur das dort leere `trace.path` gelesen, deshalb lief die Platzhalter-Animation)
 - Die Fahrspur wird während des Laufs in der Karte gesammelt (die Integration liefert nur die letzten Punkte) und beim Andocken zurückgesetzt

@@ -1319,7 +1319,7 @@ export const mowerFeatures = (states: Record<string, HassEntity>, entities: Reco
     blade: find("sensor", /blade|messer|klinge/),
     brush: find("sensor", /brush|bürste|buerste/),
     wifi: ids.find((id) => id.startsWith("sensor.") && (dc(id) === "signal_strength" || /rssi|wlan|wifi|wi-fi/.test(name(id))) && !/ssid/.test(name(id))),
-    stop: find("button", /stop/, /debug|capture/),
+    stop: find("button", /stop|end.?job|beenden/, /debug|capture/),
     refresh: find("button", /refresh|aktualisier/),
     efficiency: find("select", /efficien|effizienz|mähmodus|maehmodus|cutting.?mode/),
     obstacle: find("select", /obstacle|hindernis/),
@@ -1352,7 +1352,9 @@ export const mowerPhase = (state?: string, errorCode?: string): MowerPhase => {
 };
 
 export interface MapPoint { x: number; y: number; a?: number }
-export interface MowerMap { outline: MapPoint[][]; path: MapPoint[]; position?: MapPoint; dock?: MapPoint; box: { x: number; y: number; w: number; h: number } }
+/** Mähbereich der Live-Karte (z.B. ECOVACS GOAT `areas`): antippbar fürs Bereichsmähen */
+export interface MowerArea { id: string; name: string; points: MapPoint[]; m2?: number; size: number }
+export interface MowerMap { outline: MapPoint[][]; areas: MowerArea[]; path: MapPoint[]; position?: MapPoint; dock?: MapPoint; box: { x: number; y: number; w: number; h: number } }
 
 const toPoint = (p: unknown): MapPoint | undefined => {
   if (Array.isArray(p) && p.length >= 2 && Number.isFinite(Number(p[0])) && Number.isFinite(Number(p[1]))) return { x: Number(p[0]), y: Number(p[1]) };
@@ -1368,10 +1370,29 @@ const toPoint = (p: unknown): MapPoint | undefined => {
 
 const toLine = (l: unknown): MapPoint[] => (Array.isArray(l) ? l.map(toPoint).filter((p): p is MapPoint => !!p) : []);
 
+/** Fläche eines Polygons in Karteneinheiten² (Shoelace) */
+export const polygonSize = (pts: MapPoint[]): number =>
+  Math.abs(pts.reduce((sum, p, i) => { const q = pts[(i + 1) % pts.length]!; return sum + p.x * q.y - q.x * p.y; }, 0)) / 2;
+
+/** Bereiche mit ID und Umriss (`areas: [{id, name, points, area_m2}]`), größte zuerst – kleine liegen beim Zeichnen oben und bleiben antippbar */
+export const mowerAreas = (attrs?: Record<string, any>): MowerArea[] =>
+  (Array.isArray(attrs?.areas) ? attrs!.areas : [])
+    .filter((a: any) => a && typeof a === "object" && !Array.isArray(a) && a.id != null)
+    .map((a: any) => {
+      const points = toLine(a.points ?? a.outline);
+      const m2 = Number(a.area_m2);
+      return { id: String(a.id), name: String(a.name || a.id), points, m2: Number.isFinite(m2) && m2 > 0 ? m2 : undefined, size: polygonSize(points) };
+    })
+    .filter((a: MowerArea) => a.points.length >= 3)
+    .sort((a: MowerArea, b: MowerArea) => b.size - a.size);
+
 /** Live-Karte (z.B. Ecovacs „Live map“): Umriss, Spur und Position normalisieren – null, wenn nichts zum Zeichnen da ist */
 export const mapGeometry = (attrs?: Record<string, any>, trail: MapPoint[] = []): MowerMap | null => {
   if (!attrs) return null;
-  const rawOutline = attrs.info?.outline ?? attrs.outline ?? attrs.areas ?? [];
+  const areas = mowerAreas(attrs);
+  // mehrere Rasenflächen (`info.outlines`) bevorzugen, sonst ein Umriss bzw. die Bereiche
+  const outlines = Array.isArray(attrs.info?.outlines) ? attrs.info.outlines.map(toLine).filter((l: MapPoint[]) => l.length >= 3) : [];
+  const rawOutline = outlines.length ? outlines : attrs.info?.outline ?? attrs.outline ?? attrs.areas ?? [];
   const outline = (Array.isArray(rawOutline) && rawOutline.length && toPoint(rawOutline[0]) ? [toLine(rawOutline)]
     : (Array.isArray(rawOutline) ? rawOutline : []).map((a: any) => toLine(a?.points ?? a?.outline ?? a))).filter((l: MapPoint[]) => l.length >= 3);
   // erste Quelle, die wirklich Punkte enthält (Ecovacs: trace.path oft leer, position_history gefüllt)
@@ -1379,14 +1400,14 @@ export const mapGeometry = (attrs?: Record<string, any>, trail: MapPoint[] = [])
   const path = trail.length > fromAttrs.length ? trail : fromAttrs;
   const position = toPoint(attrs.current_position ?? attrs.position);
   const dock = toPoint(Array.isArray(attrs.charge_positions) ? attrs.charge_positions[0] : attrs.charge_position);
-  const all = [...outline.flat(), ...path];
-  if (!outline.length && path.length < 2) return null;
+  const all = [...outline.flat(), ...areas.flatMap((a) => a.points), ...path];
+  if (!outline.length && !areas.length && path.length < 2) return null;
   if (position) all.push(position);
   if (dock) all.push(dock);
   const xs = all.map((p) => p.x), ys = all.map((p) => p.y);
   const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
   const pad = Math.max(maxX - minX, maxY - minY, 1) * 0.06;
-  return { outline, path, position, dock, box: { x: minX - pad, y: minY - pad, w: maxX - minX + 2 * pad, h: maxY - minY + 2 * pad } };
+  return { outline, areas, path, position, dock, box: { x: minX - pad, y: minY - pad, w: maxX - minX + 2 * pad, h: maxY - minY + 2 * pad } };
 };
 
 /** Fahrspur fortschreiben: neue Punkte anhängen, Dubletten und Sprünge zurück an den Anfang vermeiden */

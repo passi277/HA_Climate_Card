@@ -4,7 +4,7 @@ import type { HomeAssistant, MowerCardConfig, MowerShowConfig } from "./types";
 import { CARD_VERSION } from "./const";
 import { localize } from "./localize/localize";
 
-const SHOW: (keyof MowerShowConfig)[] = ["scene", "controls", "session", "stats", "maintenance", "settings"];
+const SHOW: (keyof MowerShowConfig)[] = ["scene", "areas", "controls", "session", "stats", "maintenance", "settings"];
 
 /** Visueller Editor: Mähroboter, Name, Bereiche; Zusatz-Entitäten werden über das Gerät erkannt (per YAML überschreibbar). */
 @customElement("ha-mower-card-editor")

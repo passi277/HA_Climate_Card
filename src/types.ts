@@ -768,6 +768,8 @@ export interface MowerFeatures {
 
 export interface MowerShowConfig {
   scene?: boolean;
+  /** Bereiche zum Antippen und „Ausgewählte mähen“ (wenn die Integration `mow_areas` anbietet) */
+  areas?: boolean;
   controls?: boolean;
   session?: boolean;
   stats?: boolean;

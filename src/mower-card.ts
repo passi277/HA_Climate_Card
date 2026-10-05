@@ -4,7 +4,7 @@ import type { HassEntity, HomeAssistant, MowerCardConfig, MowerFeatures } from "
 import { getLanguage, localize } from "./localize/localize";
 import { cardStyles } from "./styles";
 import { DOCS_URL } from "./shared";
-import { extendTrail, mapGeometry, mowerFeatures, mowerPhase, UNAVAILABLE, wifiQuality, type MapPoint, type MowerMap, type MowerPhase } from "./utils";
+import { extendTrail, mapGeometry, mowerAreas, mowerFeatures, mowerPhase, UNAVAILABLE, wifiQuality, type MapPoint, type MowerArea, type MowerMap, type MowerPhase } from "./utils";
 import "./mower-editor";
 
 (window as any).customCards = (window as any).customCards || [];
@@ -40,6 +40,8 @@ const FEATURE_KEYS: (keyof MowerFeatures)[] = ["battery", "error", "progress", "
 const STREAM_SERVICE = "request_live_position_stream";
 const STREAM_SECONDS = 120;
 const STREAM_RENEW_MS = 100_000;
+/** Bereichsmähen (z.B. ECOVACS GOAT `goat_mower.mow_areas`, Ziel ist der lawn_mower) */
+const AREA_SERVICE = "mow_areas";
 
 const SWITCHES: (keyof MowerFeatures)[] = ["rain_sensor", "ai", "animal", "border", "safe"];
 const SWITCH_ICON: Record<string, string> = {
@@ -57,6 +59,8 @@ export class HaMowerCard extends LitElement {
   private _sendTimer?: number;
   private _featCache?: { key: unknown; f: Record<string, string | undefined> };
   @state() private _streaming = false;
+  /** Zum Bereichsmähen ausgewählte Bereichs-IDs */
+  @state() private _selected: string[] = [];
   /** Selbst gesammelte Fahrspur des aktuellen Laufs (die Integration liefert oft nur die letzten Punkte) */
   private _trail: MapPoint[] = [];
   private _trailFrom?: unknown;
@@ -166,6 +170,13 @@ export class HaMowerCard extends LitElement {
     const services = this.hass?.services;
     if (!services) return undefined;
     return Object.keys(services).find((d) => services[d]?.[STREAM_SERVICE] != null);
+  }
+
+  /** Domain, die das Bereichsmähen anbietet (z.B. goat_mower) */
+  private _areaDomain(): string | undefined {
+    const services = this.hass?.services;
+    if (!services || this._config?.show?.areas === false) return undefined;
+    return Object.keys(services).find((d) => services[d]?.[AREA_SERVICE] != null);
   }
 
   private _wantStream(): boolean {
@@ -302,6 +313,21 @@ export class HaMowerCard extends LitElement {
     this._call(id.split(".")[0]!, "select_option", { entity_id: id, option });
   }
 
+  private _toggleArea(id: string): void {
+    this._haptic("selection");
+    this._confirm = undefined;
+    this._selected = this._selected.includes(id) ? this._selected.filter((x) => x !== id) : [...this._selected, id];
+  }
+
+  private async _mowAreas(areas: MowerArea[]): Promise<void> {
+    const domain = this._areaDomain();
+    const ids = areas.map((a) => a.id);
+    if (!domain || !ids.length || !this._confirmed("areas")) return;
+    this._haptic("medium");
+    await this._call(domain, AREA_SERVICE, { entity_id: this._config!.entity, area_ids: ids });
+    this._selected = [];
+  }
+
   /** Regenverzögerung: −/+ kurz gesammelt senden */
   private _setDelay(value: number): void {
     const st = this._st(this._f().rain_delay);
@@ -317,7 +343,7 @@ export class HaMowerCard extends LitElement {
 
   // ---------- Darstellung ----------
 
-  private _renderMap(map: MowerMap, phase: MowerPhase) {
+  private _renderMap(map: MowerMap, phase: MowerPhase, job: string[]) {
     // Szene ist ca. 2,6:1 und 150 px hoch – Marker in Bildschirm-Pixeln bemessen und genug Rand lassen
     const unitsPerPx = Math.max(map.box.w / 2.6, map.box.h) / 150;
     const r = unitsPerPx * 6;
@@ -326,6 +352,8 @@ export class HaMowerCard extends LitElement {
     const P = (p: { x: number; y: number }) => `${(p.x - box.x).toFixed(2)},${(box.h - (p.y - box.y)).toFixed(2)}`;
     return html`<svg class="map" viewBox="0 0 ${box.w} ${box.h}" preserveAspectRatio="xMidYMid meet" role="img" aria-label=${this._t("map")}>
       ${map.outline.map((l) => svg`<polygon class="m-area" points=${l.map(P).join(" ")}></polygon>`)}
+      ${this._areaDomain() ? map.areas.map((a) => svg`<polygon class="m-zone ${this._selected.includes(a.id) ? "sel" : ""} ${job.includes(a.id) ? "job" : ""}"
+        data-area=${a.id} points=${a.points.map(P).join(" ")} @click=${() => this._toggleArea(a.id)}><title>${a.name}${a.m2 ? ` · ${this._fmt(a.m2, 0)}\u00a0m²` : ""}</title></polygon>`) : nothing}
       ${map.path.length > 1 ? svg`<polyline class="m-path" style="stroke-width:${r * 0.55}" points=${map.path.map(P).join(" ")}></polyline>` : nothing}
       ${map.dock ? svg`<circle class="m-dock" cx=${P(map.dock).split(",")[0]} cy=${P(map.dock).split(",")[1]} r=${r}></circle>` : nothing}
       ${map.position ? svg`<g class="m-pos ${phase}" transform="translate(${P(map.position)})">
@@ -339,9 +367,10 @@ export class HaMowerCard extends LitElement {
   private _renderScene(phase: MowerPhase, charging: boolean) {
     const f = this._f();
     const map = mapGeometry(this.hass!.states[f.map ?? ""]?.attributes, this._trail);
+    const job = (this.hass!.states[this._config!.entity]?.attributes.job_area_ids as string[] | undefined)?.map(String) ?? [];
     return html`<div class="scene p-${phase}">
       ${this._streaming ? html`<span class="live" title=${this._t("live_hint")}><span class="live-dot"></span>${this._t("live")}</span>` : nothing}
-      ${map ? this._renderMap(map, phase) : html`
+      ${map ? this._renderMap(map, phase, job) : html`
         <div class="lawn"><div class="cut"></div><div class="blades"></div></div>
         <div class="station ${charging ? "charging" : ""}"><ha-icon icon="mdi:home-variant"></ha-icon>${charging ? html`<ha-icon class="bolt" icon="mdi:lightning-bolt"></ha-icon>` : nothing}</div>
         <div class="bot"><span class="bot-in"><ha-icon icon="mdi:robot-mower"></ha-icon></span></div>`}
@@ -360,6 +389,35 @@ export class HaMowerCard extends LitElement {
       ${feat & DOCK ? btn("dock", "mdi:home-import-outline", this._t("dock"), phase !== "docked" && phase !== "returning", () => this._mower("dock")) : nothing}
       ${f.stop ? btn("stop", "mdi:stop", this._confirm === "stop" ? this._t("confirm") : this._t("stop"), phase === "mowing" || phase === "paused" || phase === "returning",
         () => this._press(f.stop, "stop"), `stop ${this._confirm === "stop" ? "ask" : ""}`) : nothing}
+    </div>`;
+  }
+
+  /** Bereiche zum Antippen (auch als Liste, damit kleine Flächen erreichbar sind) und „Ausgewählte mähen“ */
+  private _renderAreas(phase: MowerPhase) {
+    const f = this._f();
+    if (!this._areaDomain()) return nothing;
+    const areas = mowerAreas(this.hass!.states[f.map ?? ""]?.attributes).sort((a, b) => a.name.localeCompare(b.name, getLanguage(this.hass)));
+    if (!areas.length) return nothing;
+    // Reihenfolge des Antippens
+    const chosen = this._selected.map((id) => areas.find((a) => a.id === id)).filter((a): a is MowerArea => !!a);
+    const total = chosen.reduce((sum, a) => sum + (a.m2 ?? 0), 0);
+    const ready = phase === "docked" || phase === "paused";
+    const asking = this._confirm === "areas";
+    const label = asking ? this._t("areas_confirm") : this._t(chosen.length > 1 ? "areas_start_many" : "areas_start");
+    return html`<div class="areas">
+      <div class="a-head">
+        <span class="sec-title"><ha-icon icon="mdi:texture-box"></ha-icon><span>${this._t("areas")}</span></span>
+        ${chosen.length ? html`<span class="a-sum">${chosen.length} ${this._t("areas_selected")}${total ? ` · ${this._fmt(total, 0)}\u00a0m²` : ""}</span>
+          <button class="a-clear" @click=${() => { this._selected = []; this._confirm = undefined; }}>${this._t("areas_clear")}</button>` : html`<span class="a-sum">${this._t("areas_hint")}</span>`}
+      </div>
+      <div class="a-chips" role="group" aria-label=${this._t("areas")}>${areas.map((a) => {
+        const sel = this._selected.includes(a.id);
+        return html`<button class="a-chip ${sel ? "sel" : ""}" aria-pressed=${sel} data-area=${a.id} @click=${() => this._toggleArea(a.id)}>
+          <ha-icon .icon=${sel ? "mdi:check-circle" : "mdi:checkbox-blank-circle-outline"}></ha-icon><span>${a.name}</span>${a.m2 ? html`<small>${this._fmt(a.m2, 0)}\u00a0m²</small>` : nothing}</button>`;
+      })}</div>
+      ${chosen.length ? html`<button class="a-start ${asking ? "ask" : ""}" ?disabled=${!ready} @click=${() => this._mowAreas(chosen)}>
+          <ha-icon icon=${asking ? "mdi:alert" : "mdi:play"}></ha-icon><span>${label}</span></button>
+        ${!ready ? html`<small class="a-note">${this._t("areas_not_ready")}</small>` : chosen.length > 1 ? html`<small class="a-note">${this._t("areas_multi_hint")}</small>` : nothing}` : nothing}
     </div>`;
   }
 
@@ -469,7 +527,7 @@ export class HaMowerCard extends LitElement {
     const st = this.hass.states[c.entity];
     if (!st) return html`<ha-card class="mower"><div class="missing">${this._t("missing")}: ${c.entity}</div></ha-card>`;
     const f = this._f();
-    const show = { scene: true, controls: true, session: true, stats: true, maintenance: true, settings: true, ...c.show };
+    const show = { scene: true, areas: true, controls: true, session: true, stats: true, maintenance: true, settings: true, ...c.show };
     const errSt = this._st(f.error);
     const phase = UNAVAILABLE.includes(st.state) ? "unknown" : mowerPhase(st.state, errSt?.state);
     const battery = this._num(f.battery);
@@ -499,6 +557,7 @@ export class HaMowerCard extends LitElement {
       ${show.scene ? this._renderScene(phase, charging) : nothing}
       ${errText ? html`<button class="error" @click=${() => this._moreInfo(f.error)}><ha-icon icon="mdi:alert-circle"></ha-icon><span>${errText}</span></button>` : nothing}
       ${show.controls ? this._renderControls(phase, st) : nothing}
+      ${show.areas ? this._renderAreas(phase) : nothing}
       ${show.session ? this._renderSession(phase) : nothing}
       ${show.stats ? this._renderStats() : nothing}
       ${show.maintenance ? this._renderMaintenance() : nothing}
@@ -570,12 +629,39 @@ export class HaMowerCard extends LitElement {
       font-size: 10.5px; font-weight: 800; letter-spacing: 0.06em; color: #fff; background: rgba(0,0,0,0.35); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
     .live-dot { width: 7px; height: 7px; border-radius: 50%; background: #ff5252; animation: blink 1.4s ease-in-out infinite; }
     .m-area { fill: rgba(255,255,255,0.14); stroke: rgba(255,255,255,0.7); stroke-width: 0.6%; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
-    .m-path { fill: none; stroke: rgba(255,255,255,0.55); stroke-linecap: round; stroke-linejoin: round; }
+    .m-zone { fill: rgba(255,255,255,0.06); stroke: rgba(255,255,255,0.45); stroke-width: 1; vector-effect: non-scaling-stroke; stroke-linejoin: round;
+      cursor: pointer; pointer-events: visiblePainted; transition: fill 0.25s; -webkit-tap-highlight-color: transparent; }
+    .m-zone:hover { fill: rgba(255,255,255,0.16); }
+    .m-zone.job { stroke: #fff; stroke-dasharray: 4 3; stroke-width: 1.5; }
+    .m-zone.sel { fill: color-mix(in srgb, #fdd835 40%, transparent); stroke: #fdd835; stroke-width: 2; }
+    .m-path { fill: none; pointer-events: none; stroke: rgba(255,255,255,0.55); stroke-linecap: round; stroke-linejoin: round; }
     .m-dock { fill: #fdd835; stroke: #fff; stroke-width: 1.5; vector-effect: non-scaling-stroke; }
     .m-pos .m-dot { fill: #fff; stroke: var(--success-color, #43a047); stroke-width: 2; vector-effect: non-scaling-stroke; }
     .m-arrow { fill: var(--success-color, #43a047); }
     .m-pos .m-pulse { fill: rgba(255,255,255,0.35); transform-box: fill-box; transform-origin: center; animation: pulse 1.8s ease-out infinite; }
     @keyframes pulse { from { transform: scale(0.4); opacity: 1; } to { transform: scale(1.4); opacity: 0; } }
+
+    /* Bereiche */
+    .areas { display: flex; flex-direction: column; gap: 8px; }
+    .a-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+    .a-head .sec-title { flex: none; }
+    .a-sum { flex: 1; min-width: 0; font-size: 12px; font-weight: 600; color: var(--secondary-text-color); }
+    .a-clear { flex: none; border: none; background: none; padding: 4px 6px; cursor: pointer; font-size: 12px; font-weight: 600; color: var(--accent); }
+    .a-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .a-chip { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; padding: 6px 10px 6px 7px; border: none; border-radius: 999px; cursor: pointer;
+      font-size: 12.5px; font-weight: 600; background: rgba(127,127,127,0.1); transition: background 0.25s, color 0.25s; }
+    .a-chip span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .a-chip small { font-weight: 500; color: var(--secondary-text-color); white-space: nowrap; }
+    .a-chip ha-icon { --mdc-icon-size: 17px; color: var(--secondary-text-color); flex: none; }
+    .a-chip.sel { background: color-mix(in srgb, #f9a825 22%, transparent); }
+    .a-chip.sel ha-icon { color: #f9a825; }
+    .a-start { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 11px 12px; border: none; border-radius: var(--hcc-inner-radius, 14px); cursor: pointer;
+      font-size: 14px; font-weight: 700; color: #fff; background: var(--success-color, #43a047); transition: background 0.3s, opacity 0.3s, transform 0.2s var(--ease-spring); }
+    .a-start ha-icon { --mdc-icon-size: 20px; }
+    .a-start:active:not([disabled]) { transform: scale(0.98); }
+    .a-start.ask { background: #f57c00; }
+    .a-start[disabled] { opacity: 0.4; cursor: default; }
+    .a-note { font-size: 11.5px; color: var(--secondary-text-color); text-align: center; }
 
     /* Fehler */
     .error { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: none; border-radius: var(--hcc-inner-radius, 14px); cursor: pointer; text-align: left;

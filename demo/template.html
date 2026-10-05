@@ -398,6 +398,18 @@
         // wie beim echten GOAT: trace.path bleibt leer, die Punkte kommen über position_history
         info: { outline: [[0, 0], [24, 0], [26, 6], [22, 14], [8, 15], [0, 10]] }, trace: { path: [] },
         position_history: [[1, 1], [2, 2], [22, 2], [23, 4], [3, 4], [3, 6], [23, 6], [22, 8], [3, 8], [5, 10], [20, 10], [16, 12], [9, 12], [13.2, 7.4]].map(([x, y]) => ({ x, y, a: 0, invalid: 0 })) } },
+      // ECOVACS GOAT A1600 (goat_mower): Bereiche mit Umriss zum Antippen und goat_mower.mow_areas
+      "lawn_mower.goat_a1600": { state: "docked", attributes: { friendly_name: "GOAT A1600", supported_features: 7, job_area_ids: [], areas: { "1": "Vorgarten", "2": "Zeltplatz", "3": "Beet" } } },
+      "sensor.goat_a1600_battery": { state: "100", attributes: { friendly_name: "Akku", unit_of_measurement: "%", device_class: "battery" } },
+      "button.goat_a1600_end_job": { state: "unknown", attributes: { friendly_name: "Auftrag beenden" } },
+      "sensor.goat_a1600_live_map": { state: "2026-10-05T16:00:00+00:00", attributes: { friendly_name: "Live-Karte", current_position: { x: 500, y: 500, a: 90, invalid: 0 }, charge_positions: [{ x: 0, y: 0 }],
+        info: { outline: [[0, 0], [20000, 0], [20000, 9000], [0, 9000]], outlines: [[[0, 0], [20000, 0], [20000, 9000], [0, 9000]], [[22000, 0], [26000, 0], [26000, 4000], [22000, 4000]]] },
+        trace: { path: [], segments: [] }, position_history: [], no_go_zones: [], obstacles: [], channels: [], map_id: "1", revision: 3,
+        areas: [
+          { id: "1", name: "Vorgarten", points: [[0, 0], [12000, 0], [12000, 9000], [0, 9000]], area_m2: 108, label: [6000, 4500], separate_lawn: false },
+          { id: "3", name: "Beet", points: [[12000, 0], [20000, 0], [20000, 9000], [12000, 9000]], area_m2: 72, label: [16000, 4500], separate_lawn: false },
+          { id: "2", name: "Zeltplatz", points: [[22000, 0], [26000, 0], [26000, 4000], [22000, 4000]], area_m2: 16, label: [24000, 2000], separate_lawn: true },
+        ] } },
       // Battery Notes: eigene Entitäten am Gerät, benannt nach dem Gerät („Wasser Hecke“), nicht nach dem Batteriesensor
       "sensor.wasser_hecke_battery_type": { state: "4× AA", attributes: { friendly_name: "Wasser Hecke Batterie-Typ", battery_type: "AA", battery_quantity: 4 } },
       "sensor.wasser_hecke_battery_last_replaced": { state: new Date(Date.now() - 190 * 86400000).toISOString(), attributes: { friendly_name: "Wasser Hecke Letzter Batteriewechsel", device_class: "timestamp" } },
@@ -515,7 +527,7 @@
       ...(/_mein_zimmer_batter|zimmer_schalter_batter|turkontakt_mein_zimmer_batter/.test(id) ? { device_id: id.replace(/^\w+\.|_battery_plus.*|_batterie$/g, "") } : {}),
       ...(/^\w+\.(cam_haus|blink_(tor|carport|pool|schuppen))/.test(id) ? { device_id: id.match(/^\w+\.(cam_haus|blink_(tor|carport|pool|schuppen))/)[1], platform: id.includes("blink") ? "blink" : "reolink" } : {}),
       ...(/^(sensor|button)\.(ventil|wasser)_(hecke|rasen)_batter/.test(id) ? { device_id: "dev_ventil_" + id.match(/_(hecke|rasen)_/)[1], ...(id.includes("wasser_") ? { platform: "battery_notes" } : {}) } : {}),
-      ...(/^\w+\.goat_(g1|wiese)/.test(id) ? { device_id: "dev_" + id.match(/goat_(g1|wiese)/)[0] } : {}),
+      ...(/^\w+\.goat_(g1|wiese|a1600)/.test(id) ? { device_id: "dev_" + id.match(/goat_(g1|wiese|a1600)/)[0] } : {}),
       area_id: /heizung_mein_zimmer|etrv_|wandthermostat_mein|_mein_zimmer_batter|zimmer_schalter_batter|turkontakt_mein_zimmer_batter/.test(id) ? "mein_zimmer" : null }]));
     const devices = { cam_haus: { id: "cam_haus", name: "Haus" }, blink_tor: { id: "blink_tor", name: "Tor" }, blink_carport: { id: "blink_carport", name: "Carport" },
       blink_pool: { id: "blink_pool", name: "Pool" }, blink_schuppen: { id: "blink_schuppen", name: "Schuppen" }, dev_opener: { id: "dev_opener", name: "Klingel", model: "Nuki Opener" }, dev_gree: { id: "dev_gree", name: "Klima Schlafzimmer" }, dev_govee: { id: "dev_govee", name: "Carport" },
@@ -531,7 +543,7 @@
         return [];
       },
       states: { ...states }, entities, devices, language: lang, locale: { language: lang },
-      services: { homematicip_local: { enable_away_mode_by_duration: {}, disable_away_mode: {} }, blink: { trigger_camera: {} }, ecovacs_goat_g1: { request_live_position_stream: {}, refresh_state: {} } },
+      services: { homematicip_local: { enable_away_mode_by_duration: {}, disable_away_mode: {} }, blink: { trigger_camera: {} }, ecovacs_goat_g1: { request_live_position_stream: {}, refresh_state: {} }, goat_mower: { mow_areas: {} } },
       config: { unit_system: { temperature: "°C" } },
       async callService(domain, service, data) {
         window.serviceCalls.push({ domain, service, data });
@@ -659,6 +671,11 @@
           return;
         }
         if (domain === "ecovacs_goat_g1") return;
+        if (domain === "goat_mower" && service === "mow_areas") {
+          states[data.entity_id] = { ...states[data.entity_id], state: "mowing", attributes: { ...states[data.entity_id].attributes, job_area_ids: data.area_ids } };
+          setTimeout(() => { const h = makeHass(); cards.forEach((c) => (c.hass = h)); }, 150);
+          return;
+        }
         if (domain === "lawn_mower") {
           const next = { start_mowing: "mowing", pause: "paused", dock: "returning" }[service];
           if (next) states[data.entity_id] = { ...states[data.entity_id], state: next };
@@ -867,6 +884,7 @@
       ["Status – Battery Notes am Gerät (Typ, „gewechselt vor“, gedrückt halten = Wechsel eintragen)", { _status: true, title: "Ventile", batteries: ["sensor.ventil_hecke_battery", "sensor.ventil_rasen_battery", "sensor.ventil_beete_battery"], shopping_list: true, expanded: true }],
       ["Mähroboter – mäht gerade (Live-Karte, Fortschritt, Statistik, Wartung, Einstellungen)", { _mower: true, entity: "lawn_mower.goat_wiese", name: "GOAT Wiese" }],
       ["Mähroboter – in der Station (animierter Rasen, Messer fast verbraucht, Update)", { _mower: true, entity: "lawn_mower.goat_g1", name: "GOAT G1", settings_open: true }],
+      ["Mähroboter – GOAT A1600 (Bereiche antippen, „Ausgewählte mähen“)", { _mower: true, entity: "lawn_mower.goat_a1600", name: "GOAT A1600" }],
       ["Licht – Gruppe mit Presets Hell / Warm / Gemütlich", { _light: true, entity: "light.licht_mein_zimmer", name: "Licht Zimmer", presets: "default", layout: "compact" }],
       ["Schalter als Button – Monitore (nur Symbol + Text)", { _switchTime: true, switch_entity: "input_boolean.wecker", name: "Monitore", icon: "mdi:monitor-multiple", color: "#42a5f5", switch_style: "button" }],
       ["Schalter + time-Entität – Saugroboter „Bitte nicht stören“ ab", { _switchTime: true, switch_entity: "switch.robo_nicht_stoeren", time_entity: "time.robo_ruhezeit_beginn", name: "Ruhezeit ab", icon: "mdi:sleep", color: "#5c6bc0" }],

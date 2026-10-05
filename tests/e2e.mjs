@@ -735,7 +735,7 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
   await p.waitForTimeout(650);
   await p.mouse.up();
   await p.waitForTimeout(100);
-  const after = await p.evaluate((n) => [window.serviceCalls.slice(n).map((c) => `${c.domain}.${c.service} ${c.data.entity_id}`), location.hash], before[0]);
+  const after = await p.evaluate((n) => [window.serviceCalls.slice(n).filter((c) => c.domain !== "ecovacs_goat_g1").map((c) => `${c.domain}.${c.service} ${c.data.entity_id}`), location.hash], before[0]);
   after[0].join() === "homeassistant.toggle light.gaste_wc" && after[1] === before[1]
     ? ok("Raumkachel: lange drücken schaltet das Licht (ohne zu navigieren)") : fail(`Raumkachel halten: ${JSON.stringify(after)}`);
 }
@@ -920,6 +920,41 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
     && d.animal === "19:00–07:00" && d.delay === "3 h" && d.delayAfter === "3,5 h" && d.subAfter.startsWith("Mäht")
     && calls2.join() === "select.select_option:select.goat_g1_mowing_efficiency:Delicate,homeassistant.toggle:switch.goat_g1_animal_protection:,number.set_value:number.goat_g1_rain_delay:210,lawn_mower.start_mowing:lawn_mower.goat_g1:,ecovacs_goat_g1.request_live_position_stream:lawn_mower.goat_g1:"
     ? ok("Mähroboter (Station): Laden, Messer-Warnung, Update, Einstellungen, Start") : fail(`Mähroboter Station: ${JSON.stringify({ d, calls2 })}`);
+}
+
+// Mähroboter: Bereiche antippen (Karte + Liste), Rückfrage, goat_mower.mow_areas
+{
+  const card = await p.evaluateHandle(() => [...document.querySelectorAll("ha-mower-card")].find((c) => c._config.name === "GOAT A1600"));
+  await card.evaluate((c) => c.scrollIntoView({ block: "center" }));
+  await p.waitForTimeout(300);
+  const before = await p.evaluate(() => window.serviceCalls.length);
+  const r = await card.evaluate(async (c) => {
+    const root = c.shadowRoot;
+    const wait = (ms) => new Promise((res) => setTimeout(res, ms));
+    const res = { zones: [...root.querySelectorAll(".map .m-zone")].map((z) => z.dataset.area), chips: [...root.querySelectorAll(".a-chip span")].map((x) => x.textContent.trim()),
+      start: !!root.querySelector(".a-start"), stop: !!root.querySelector(".ctl.stop") };
+    root.querySelector('.map .m-zone[data-area="2"]').dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await wait(50);
+    root.querySelector('.a-chip[data-area="3"]').click();
+    await wait(50);
+    res.sel = [...root.querySelectorAll(".map .m-zone.sel")].map((z) => z.dataset.area).sort().join();
+    res.sum = root.querySelector(".a-sum").textContent.trim();
+    res.label = root.querySelector(".a-start").textContent.trim();
+    root.querySelector(".a-start").click();
+    await wait(50);
+    res.ask = root.querySelector(".a-start").textContent.trim();
+    res.callsAfterAsk = window.serviceCalls.filter((x) => x.domain === "goat_mower").length;
+    root.querySelector(".a-start").click();
+    await wait(400);
+    res.after = { sub: root.querySelector(".h-sub").textContent.trim(), job: [...root.querySelectorAll(".map .m-zone.job")].map((z) => z.dataset.area).sort().join(),
+      start: !!root.querySelector(".a-start") };
+    return res;
+  });
+  const calls = await p.evaluate((n) => window.serviceCalls.slice(n).filter((c) => c.domain !== "ecovacs_goat_g1").map((c) => `${c.domain}.${c.service}:${c.data.entity_id}:${c.data.area_ids}`), before);
+  r.zones.join() === "1,3,2" && r.chips.join() === "Beet,Vorgarten,Zeltplatz" && !r.start && r.stop && r.sel === "2,3" && r.sum === "2 gewählt · 88\u00a0m²"
+    && r.label === "Ausgewählte Bereiche mähen" && r.ask === "Sicher? Mäher fährt los" && r.callsAfterAsk === 0
+    && calls.join() === "goat_mower.mow_areas:lawn_mower.goat_a1600:2,3" && r.after.sub.startsWith("Mäht") && r.after.job === "2,3" && !r.after.start
+    ? ok("Mähroboter: Bereiche antippen (Karte + Liste), Rückfrage, goat_mower.mow_areas") : fail(`Mähroboter Bereiche: ${JSON.stringify({ r, calls })}`);
 }
 
 // Energiefluss: Werte, aktive Linien, Verbraucher-Kreise, Tageswerte, Akku-Restzeit, Schalter

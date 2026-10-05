@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { HassEntity } from "../src/types";
 import {
-  batteryHoursLeft, consumerGrid, formatHours, integratePower, statsEnergy, flowLpm, timerInfo, formatRemaining, rangeStatus, phDose, poolRuntimeRecommendation, cameraFeatures, wifiQuality, optionStyle, musicModes, isMusicEffect, energyFlows, formatPower, powerWatts, alertActive, batteryShoppingList, clockMinutes, upcomingPickups, wasteStyle, batteryIcon, doorDevices, doorKind, initials, isCharging, phoneSensors, brightnessPct, contactType, calibrationTransform, roomsFromMap, roomIcon, areaBatteries, batteryInfo, batteryNotesFor, mowerFeatures, mowerPhase, mapGeometry, extendTrail, presetActive, presetData, DEFAULT_LIGHT_PRESETS, activityIcon, activityLabel, guessControlDevice, guessVolumeDevice, coverIcon, datetimeParts, nextOccurrence, coverPosition, skyPhase, sunPlacement, weatherOverlay, editorOptions, isNoEffect, lightEditorOptions, segmentIds, detectDeviceType, kelvinToRgb, lightColor, relatedScenes, supportsColor, supportsColorTemp, dewPoint, nextSwitch, parseSchedule, scheduleTempAt, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
+  batteryHoursLeft, consumerGrid, formatHours, integratePower, statsEnergy, flowLpm, timerInfo, formatRemaining, rangeStatus, phDose, poolRuntimeRecommendation, cameraFeatures, wifiQuality, optionStyle, musicModes, isMusicEffect, energyFlows, formatPower, powerWatts, alertActive, batteryShoppingList, clockMinutes, upcomingPickups, wasteStyle, batteryIcon, doorDevices, doorKind, initials, isCharging, phoneSensors, brightnessPct, contactType, calibrationTransform, roomsFromMap, roomIcon, areaBatteries, batteryInfo, batteryNotesFor, mowerFeatures, mowerPhase, mapGeometry, mowerAreas, polygonSize, extendTrail, presetActive, presetData, DEFAULT_LIGHT_PRESETS, activityIcon, activityLabel, guessControlDevice, guessVolumeDevice, coverIcon, datetimeParts, nextOccurrence, coverPosition, skyPhase, sunPlacement, weatherOverlay, editorOptions, isNoEffect, lightEditorOptions, segmentIds, detectDeviceType, kelvinToRgb, lightColor, relatedScenes, supportsColor, supportsColorTemp, dewPoint, nextSwitch, parseSchedule, scheduleTempAt, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
   openContactsKey, powerOf, resolveContacts, secondsToDuration, stateIcon, temperatureOf, temperatureTint, trendSlope,
 } from "../src/utils";
 import { formatAttribute, localize } from "../src/localize/localize";
@@ -717,6 +717,29 @@ describe("mower", () => {
     expect(m.path).toHaveLength(3);
     expect(m.position).toEqual({ x: -279, y: 6417, a: 91 });
     expect(m.outline).toEqual([]);
+  });
+  it("reads tappable areas (goat_mower live map), largest first, and all lawn outlines", () => {
+    const attrs = {
+      info: { outline: [[0, 0], [40, 0], [40, 20], [0, 20]], outlines: [[[0, 0], [40, 0], [40, 20], [0, 20]], [[50, 0], [60, 0], [60, 5], [50, 5]]] },
+      areas: [
+        { id: "2", name: "Zeltplatz", points: [[50, 0], [60, 0], [60, 5], [50, 5]], area_m2: 16.2, label: [55, 2] },
+        { id: "4", name: "Volleyball", points: [[0, 0], [40, 0], [40, 20], [0, 20]], area_m2: 192 },
+        { id: "9", name: "", points: [[0, 0], [1, 1]] },
+        { name: "ohne ID", points: [[0, 0], [1, 0], [1, 1]] },
+      ],
+      trace: { path: [] },
+    };
+    const areas = mowerAreas(attrs);
+    expect(areas.map((a) => a.id)).toEqual(["4", "2"]);
+    expect(areas[1]).toMatchObject({ name: "Zeltplatz", m2: 16.2, size: 50 });
+    const m = mapGeometry(attrs)!;
+    expect(m.outline).toHaveLength(2);
+    expect(m.areas).toHaveLength(2);
+    expect(m.box.w).toBeGreaterThan(60);
+    // nur Bereiche, kein Umriss und keine Spur: trotzdem eine Karte
+    expect(mapGeometry({ areas: [{ id: "1", name: "A", points: [[0, 0], [5, 0], [5, 5]] }] })!.areas).toHaveLength(1);
+    expect(polygonSize([{ x: 0, y: 0 }, { x: 4, y: 0 }, { x: 4, y: 3 }])).toBe(6);
+    expect(mowerAreas(undefined)).toEqual([]);
   });
   it("prefers a longer collected trail and extends it without duplicates", () => {
     const trail = extendTrail(extendTrail([], [{ x: 0, y: 0 }, { x: 0, y: 10 }]), [{ x: 0, y: 10 }, { x: 0, y: 20 }, { x: 5, y: 20 }]);

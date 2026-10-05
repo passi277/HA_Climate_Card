@@ -975,12 +975,22 @@
     "rain_delay": "Regenpause",
     "rain_delay_hint": "Wartezeit nach Regen",
     "live": "LIVE",
-    "live_hint": "Live-Position wird angefordert, solange die Karte sichtbar ist"
+    "live_hint": "Live-Position wird angefordert, solange die Karte sichtbar ist",
+    "areas": "Bereiche",
+    "areas_hint": "Antippen zum Auswählen",
+    "areas_selected": "gewählt",
+    "areas_clear": "Auswahl löschen",
+    "areas_start": "Bereich mähen",
+    "areas_start_many": "Ausgewählte Bereiche mähen",
+    "areas_confirm": "Sicher? Mäher fährt los",
+    "areas_not_ready": "Starten geht, wenn der Mäher in der Station steht oder pausiert",
+    "areas_multi_hint": "Mehrere Bereiche: in der Integration ggf. noch experimentell"
   },
   "mower_editor": {
     "entity": "Mähroboter",
     "name": "Name",
     "show_scene": "Rasen / Live-Karte",
+    "show_areas": "Bereiche zum Antippen",
     "show_controls": "Steuerung",
     "show_session": "Aktueller Lauf",
     "show_stats": "Statistik",

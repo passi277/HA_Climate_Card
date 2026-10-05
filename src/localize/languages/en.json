@@ -958,12 +958,22 @@
     "rain_delay": "Rain delay",
     "rain_delay_hint": "wait after rain",
     "live": "LIVE",
-    "live_hint": "Live position requested while the card is visible"
+    "live_hint": "Live position requested while the card is visible",
+    "areas": "Areas",
+    "areas_hint": "Tap to select",
+    "areas_selected": "selected",
+    "areas_clear": "Clear",
+    "areas_start": "Mow area",
+    "areas_start_many": "Mow selected areas",
+    "areas_confirm": "Sure? Mower will drive off",
+    "areas_not_ready": "Starting works when the mower is docked or paused",
+    "areas_multi_hint": "Several areas: may still be experimental in the integration"
   },
   "mower_editor": {
     "entity": "Lawn mower",
     "name": "Name",
     "show_scene": "Lawn / live map",
+    "show_areas": "Tappable areas",
     "show_controls": "Controls",
     "show_session": "Current run",
     "show_stats": "Statistics",
