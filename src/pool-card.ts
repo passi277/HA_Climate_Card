@@ -95,7 +95,10 @@ export class HaPoolCard extends LitElement {
   protected updated(): void {
     const c = this._config;
     const active = [c?.backwash?.timer, c?.rinse?.timer].some((id) => id && this.hass?.states[id]?.state === "active");
-    if (active && !this._tick) this._tick = window.setInterval(() => (this._now = Date.now()), 1000);
+    if (active && !this._tick) {
+      this._now = Date.now(); // sonst startet der Countdown mit veralteter Uhrzeit
+      this._tick = window.setInterval(() => (this._now = Date.now()), 1000);
+    }
     if (!active && this._tick) { clearInterval(this._tick); this._tick = undefined; }
   }
 

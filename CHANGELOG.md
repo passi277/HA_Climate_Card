@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.30.1 – Läuft gerade am Fernseher
+- Media Card: „Läuft gerade“ erscheint jetzt auch bei Fernsehern, die beim Schauen nur „an“ melden (z.B. Sony Bravia) – mit Titel, Sender, App oder Quelle und TV-Symbol; Abspieltasten nur, wenn der Player wirklich „spielt“/„pausiert“. Soundbars, die nur „an“ melden, zeigen weiterhin keinen Eintrag
+- Pool Card: Countdown beim Rück-/Nachspülen startet nicht mehr mit veralteter Uhrzeit (zeigte kurz zu viel Restzeit)
+
 ## 1.30.0 – Neue Live-Karte
 - Mower Card: Live-Karte neu gestaltet – dunkler Hintergrund mit feinem Raster, Rasenflächen mit Mähstreifen-Textur und Schatten, Bereiche farbig mit **Namen auf der Karte** (kleine Bereiche erst, wenn genug Platz ist oder sie ausgewählt sind), Station als Haus-Symbol
 - Hindernisse (`obstacles`), Verbindungswege (`channels`) und die bereits gemähten Streifen (`trace.segments`) werden gezeichnet

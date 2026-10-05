@@ -266,20 +266,25 @@ export class HaMediaCard extends LitElement {
 
   private _renderNowPlaying(m: HassEntity) {
     const a = m.attributes;
-    if (!["playing", "paused", "buffering"].includes(m.state) || !(a.media_title || a.app_name)) return nothing;
+    // Viele Fernseher (z.B. Sony Bravia) melden beim normalen Schauen nur „on“ – dann Titel, Sender, App oder Quelle zeigen
+    const active = ["playing", "paused", "buffering"].includes(m.state) || m.state === "on";
+    const title = a.media_title || a.app_name || a.media_channel || (m.state === "on" && a.device_class === "tv" ? a.source : undefined);
+    if (!active || !title) return nothing;
+    const tvLike = m.state === "on" || ["app", "channel", "tvshow", "video"].includes(String(a.media_content_type ?? ""));
     const dur = Number(a.media_duration);
     let pos = Number(a.media_position);
     if (m.state === "playing" && a.media_position_updated_at) pos += (this._now - new Date(a.media_position_updated_at).getTime()) / 1000;
     const pct = dur > 0 && Number.isFinite(pos) ? Math.min(100, (pos / dur) * 100) : undefined;
     const playing = m.state === "playing";
-    const can = (f: number) => mediaSupports(m, f);
+    const can = (f: number) => m.state !== "on" && mediaSupports(m, f);
     return html`<div class="now">
       <div class="art" style=${a.entity_picture ? `background-image:url("${a.entity_picture}")` : ""}>
-        ${a.entity_picture ? nothing : html`<ha-icon icon="mdi:music-note"></ha-icon>`}
+        ${a.entity_picture ? nothing : html`<ha-icon icon=${a.media_channel ? "mdi:television-classic" : tvLike ? "mdi:television-play" : "mdi:music-note"}></ha-icon>`}
       </div>
       <div class="meta">
-        <span class="np-title">${a.media_title ?? a.app_name}</span>
-        <span class="np-artist">${[a.media_artist, a.media_album_name ?? (a.media_title ? a.app_name : undefined)].filter(Boolean).join(" · ")}</span>
+        <span class="np-title">${title}</span>
+        <span class="np-artist">${[a.media_channel && a.media_channel !== title ? a.media_channel : undefined, a.media_artist,
+          a.media_album_name ?? (a.media_title && a.app_name !== title ? a.app_name : undefined), a.source && a.source !== title ? a.source : undefined].filter(Boolean).join(" · ")}</span>
         ${pct != null ? html`<div class="progress"><span style="width:${pct}%"></span></div>
           <span class="times"><span>${formatMediaTime(pos)}</span><span>${formatMediaTime(dur)}</span></span>` : nothing}
       </div>
