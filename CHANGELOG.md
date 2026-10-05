@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.29.1 – Karte in Millimetern
+- Mower Card: Live-Karten mit Koordinaten in Millimetern (ECOVACS GOAT A1600) zeigten einen riesigen weißen Rand über der Karte – die Linienbreite des Rasen-Umrisses war in Prozent angegeben und wurde dadurch ~160 px breit
+- Die Kartenszene passt ihre Höhe an die Form des Gartens an (schmale, lange Gärten bis 340 px hoch statt winzig in 150 px)
+
 ## 1.29.0 – Bereiche antippen
 - Mower Card: **Bereichsmähen** – Bereiche der Live-Karte (`areas` mit Umriss, z.B. ECOVACS GOAT A1600 über `goat_mower`) lassen sich auf der Karte oder in der Liste darunter antippen; Auswahl mit Name und m², Summe, „Auswahl löschen“ und „Ausgewählte Bereiche mähen“ (Rückfrage „Sicher? Mäher fährt los“, nur in der Station oder pausiert) über den Dienst `mow_areas` der Integration
 - Der laufende Auftrag wird auf der Karte gestrichelt markiert (`job_area_ids`); mehrere Rasenflächen (`info.outlines`) werden gezeichnet

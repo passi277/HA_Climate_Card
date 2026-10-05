@@ -16,6 +16,9 @@ import "./mower-editor";
   documentationURL: DOCS_URL,
 });
 
+/** Seitenverhältnis der Kartenszene: breite Gärten flach (max. 2,6:1), schmale/hohe Gärten höher (min. 1,1:1) */
+const mapAspect = (map: MowerMap): number => Math.min(2.6, Math.max(1.1, map.box.w / Math.max(map.box.h, 1)));
+
 /** LawnMowerEntityFeature */
 const START = 1;
 const PAUSE = 2;
@@ -344,8 +347,9 @@ export class HaMowerCard extends LitElement {
   // ---------- Darstellung ----------
 
   private _renderMap(map: MowerMap, phase: MowerPhase, job: string[]) {
-    // Szene ist ca. 2,6:1 und 150 px hoch – Marker in Bildschirm-Pixeln bemessen und genug Rand lassen
-    const unitsPerPx = Math.max(map.box.w / 2.6, map.box.h) / 150;
+    // Marker in Bildschirm-Pixeln bemessen (Szene ca. 350 px breit, Seitenverhältnis siehe mapAspect) und genug Rand lassen
+    const ar = mapAspect(map);
+    const unitsPerPx = Math.max(map.box.w / ar, map.box.h) / Math.min(340, Math.max(150, 350 / ar));
     const r = unitsPerPx * 6;
     const m = r * 4;
     const box = { x: map.box.x - m, y: map.box.y - m, w: map.box.w + 2 * m, h: map.box.h + 2 * m };
@@ -368,7 +372,7 @@ export class HaMowerCard extends LitElement {
     const f = this._f();
     const map = mapGeometry(this.hass!.states[f.map ?? ""]?.attributes, this._trail);
     const job = (this.hass!.states[this._config!.entity]?.attributes.job_area_ids as string[] | undefined)?.map(String) ?? [];
-    return html`<div class="scene p-${phase}">
+    return html`<div class="scene p-${phase} ${map ? "has-map" : ""}" style=${map ? `--ar:${mapAspect(map).toFixed(3)}` : ""}>
       ${this._streaming ? html`<span class="live" title=${this._t("live_hint")}><span class="live-dot"></span>${this._t("live")}</span>` : nothing}
       ${map ? this._renderMap(map, phase, job) : html`
         <div class="lawn"><div class="cut"></div><div class="blades"></div></div>
@@ -628,7 +632,8 @@ export class HaMowerCard extends LitElement {
     .live { position: absolute; top: 8px; left: 8px; z-index: 1; display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; border-radius: 999px;
       font-size: 10.5px; font-weight: 800; letter-spacing: 0.06em; color: #fff; background: rgba(0,0,0,0.35); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
     .live-dot { width: 7px; height: 7px; border-radius: 50%; background: #ff5252; animation: blink 1.4s ease-in-out infinite; }
-    .m-area { fill: rgba(255,255,255,0.14); stroke: rgba(255,255,255,0.7); stroke-width: 0.6%; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+    .scene.has-map { height: auto; aspect-ratio: var(--ar, 2.6); max-height: 340px; }
+    .m-area { fill: rgba(255,255,255,0.14); stroke: rgba(255,255,255,0.7); stroke-width: 1.5px; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
     .m-zone { fill: rgba(255,255,255,0.06); stroke: rgba(255,255,255,0.45); stroke-width: 1; vector-effect: non-scaling-stroke; stroke-linejoin: round;
       cursor: pointer; pointer-events: visiblePainted; transition: fill 0.25s; -webkit-tap-highlight-color: transparent; }
     .m-zone:hover { fill: rgba(255,255,255,0.16); }
@@ -764,7 +769,7 @@ export class HaMowerCard extends LitElement {
       .b-in small { display: none; }
       .ctl span { font-size: 11.5px; }
       .wear { grid-template-columns: auto minmax(0, 1fr) 48px 40px; }
-      .scene { height: 130px; }
+      .scene:not(.has-map) { height: 130px; }
     }
     ha-card.anim-reduced .blades, ha-card.anim-off .blades, ha-card.anim-reduced .p-mowing .bot-in, ha-card.anim-off .p-mowing .bot-in,
     ha-card.anim-off .p-mowing .bot, ha-card.anim-off .p-returning .bot, ha-card.anim-off .station .bolt, ha-card.anim-off .m-pulse,
