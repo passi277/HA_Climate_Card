@@ -335,6 +335,13 @@
       "sensor.ventil_rasen_battery": { state: "93", attributes: { friendly_name: "Ventil Rasen Batterie", unit_of_measurement: "%", device_class: "battery" } },
       "sensor.ventil_beete_battery": { state: "89", attributes: { friendly_name: "Ventil Beete Batterie", unit_of_measurement: "%", device_class: "battery" } },
       "sensor.ventil_hecke_battery": { state: "14", attributes: { friendly_name: "Ventil Hecke Batterie", unit_of_measurement: "%", device_class: "battery" } },
+      // Battery Notes: eigene Entitäten am Gerät, benannt nach dem Gerät („Wasser Hecke“), nicht nach dem Batteriesensor
+      "sensor.wasser_hecke_battery_type": { state: "4× AA", attributes: { friendly_name: "Wasser Hecke Batterie-Typ", battery_type: "AA", battery_quantity: 4 } },
+      "sensor.wasser_hecke_battery_last_replaced": { state: new Date(Date.now() - 190 * 86400000).toISOString(), attributes: { friendly_name: "Wasser Hecke Letzter Batteriewechsel", device_class: "timestamp" } },
+      "button.wasser_hecke_battery_replaced": { state: "unknown", attributes: { friendly_name: "Wasser Hecke Batterie ersetzt" } },
+      "sensor.wasser_rasen_battery_type": { state: "4× AA", attributes: { friendly_name: "Wasser Rasen Batterie-Typ", battery_type: "AA", battery_quantity: 4 } },
+      "sensor.wasser_rasen_battery_last_replaced": { state: new Date(Date.now() - 12 * 86400000).toISOString(), attributes: { friendly_name: "Wasser Rasen Letzter Batteriewechsel", device_class: "timestamp" } },
+      "button.wasser_rasen_battery_replaced": { state: "unknown", attributes: { friendly_name: "Wasser Rasen Batterie ersetzt" } },
       "sensor.ventil_beete_menge": { state: "171", attributes: { friendly_name: "Ventil Beete Menge", unit_of_measurement: "L" } },
       "timer.rasen": { state: "active", attributes: { friendly_name: "Rasen", icon: "mdi:grass", duration: "0:15:00", finishes_at: new Date(Date.now() + 485000).toISOString() } },
       "timer.beete": { state: "idle", attributes: { friendly_name: "Beete", icon: "mdi:flower", duration: "0:10:00" } },
@@ -444,9 +451,11 @@
       device_id: /^(lock|binary_sensor)\.klingel/.test(id) ? "dev_opener" : /marcel(s|_s24)/.test(id) ? "dev_phone_m" : /pascal_handy/.test(id) ? "dev_phone_p" : /roborock/.test(id) && !id.startsWith("image.") ? "dev_robo" : id.includes("1ed763d9") ? "dev_gree" : /^(light|switch|button)\.carport_/.test(id) && !id.includes("segment") ? "dev_govee" : null,
       ...(/_mein_zimmer_batter|zimmer_schalter_batter|turkontakt_mein_zimmer_batter/.test(id) ? { device_id: id.replace(/^\w+\.|_battery_plus.*|_batterie$/g, "") } : {}),
       ...(/^\w+\.(cam_haus|blink_(tor|carport|pool|schuppen))/.test(id) ? { device_id: id.match(/^\w+\.(cam_haus|blink_(tor|carport|pool|schuppen))/)[1], platform: id.includes("blink") ? "blink" : "reolink" } : {}),
+      ...(/^(sensor|button)\.(ventil|wasser)_(hecke|rasen)_batter/.test(id) ? { device_id: "dev_ventil_" + id.match(/_(hecke|rasen)_/)[1], ...(id.includes("wasser_") ? { platform: "battery_notes" } : {}) } : {}),
       area_id: /heizung_mein_zimmer|etrv_|wandthermostat_mein|_mein_zimmer_batter|zimmer_schalter_batter|turkontakt_mein_zimmer_batter/.test(id) ? "mein_zimmer" : null }]));
     const devices = { cam_haus: { id: "cam_haus", name: "Haus" }, blink_tor: { id: "blink_tor", name: "Tor" }, blink_carport: { id: "blink_carport", name: "Carport" },
-      blink_pool: { id: "blink_pool", name: "Pool" }, blink_schuppen: { id: "blink_schuppen", name: "Schuppen" }, dev_opener: { id: "dev_opener", name: "Klingel", model: "Nuki Opener" }, dev_gree: { id: "dev_gree", name: "Klima Schlafzimmer" }, dev_govee: { id: "dev_govee", name: "Carport" } };
+      blink_pool: { id: "blink_pool", name: "Pool" }, blink_schuppen: { id: "blink_schuppen", name: "Schuppen" }, dev_opener: { id: "dev_opener", name: "Klingel", model: "Nuki Opener" }, dev_gree: { id: "dev_gree", name: "Klima Schlafzimmer" }, dev_govee: { id: "dev_govee", name: "Carport" },
+      dev_ventil_hecke: { id: "dev_ventil_hecke", name: "Ventil Hecke" }, dev_ventil_rasen: { id: "dev_ventil_rasen", name: "Ventil Rasen" } };
     const ymd = (offset) => { const d = new Date(Date.now() + offset * 86400000); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
     const makeHass = () => ({
       async callApi(method, path) {
@@ -582,6 +591,12 @@
         }
         if (domain === "lock") {
           if (service !== "open") states[data.entity_id] = { ...s, state: service === "lock" ? "locked" : "unlocked", last_changed: new Date().toISOString() };
+          setTimeout(() => { const h = makeHass(); cards.forEach((c) => (c.hass = h)); }, 150);
+          return;
+        }
+        if (domain === "button" && /_battery_replaced$/.test(data.entity_id)) {
+          const last = data.entity_id.replace(/^button\./, "sensor.").replace(/_replaced$/, "_last_replaced");
+          if (states[last]) states[last] = { ...states[last], state: new Date().toISOString() };
           setTimeout(() => { const h = makeHass(); cards.forEach((c) => (c.hass = h)); }, 150);
           return;
         }
@@ -778,6 +793,7 @@
         { title: "Zuhause", icon: "mdi:home", color: "#78909c", trash: "calendar.abfall", navigation_path: "#zuhause" },
       ] }],
       ["Status – Batterien aus Bereich + Türkontakt + Einkaufsliste", { _status: true, areas: ["mein_zimmer"], shopping_list: true, expanded: true, contacts: [{ entity: "binary_sensor.tuerkontakt_pascal", name: "Tür" }] }],
+      ["Status – Battery Notes am Gerät (Typ, „gewechselt vor“, gedrückt halten = Wechsel eintragen)", { _status: true, title: "Ventile", batteries: ["sensor.ventil_hecke_battery", "sensor.ventil_rasen_battery", "sensor.ventil_beete_battery"], shopping_list: true, expanded: true }],
       ["Licht – Gruppe mit Presets Hell / Warm / Gemütlich", { _light: true, entity: "light.licht_mein_zimmer", name: "Licht Zimmer", presets: "default", layout: "compact" }],
       ["Schalter als Button – Monitore (nur Symbol + Text)", { _switchTime: true, switch_entity: "input_boolean.wecker", name: "Monitore", icon: "mdi:monitor-multiple", color: "#42a5f5", switch_style: "button" }],
       ["Schalter + time-Entität – Saugroboter „Bitte nicht stören“ ab", { _switchTime: true, switch_entity: "switch.robo_nicht_stoeren", time_entity: "time.robo_ruhezeit_beginn", name: "Ruhezeit ab", icon: "mdi:sleep", color: "#5c6bc0" }],

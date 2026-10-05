@@ -4,7 +4,7 @@ import type { HomeAssistant, StatusCardConfig } from "./types";
 import { localize } from "./localize/localize";
 import { cardStyles } from "./styles";
 import { DOCS_URL } from "./shared";
-import { areaBatteries, batteryInfo, batteryShoppingList, resolveContacts, UNAVAILABLE, type BatteryInfo } from "./utils";
+import { areaBatteries, batteryInfo, batteryNotesFor, batteryShoppingList, resolveContacts, UNAVAILABLE, type BatteryInfo, type BatteryNotes } from "./utils";
 import "./status-editor";
 
 (window as any).customCards = (window as any).customCards || [];
@@ -29,7 +29,14 @@ export class HaStatusCard extends LitElement {
   @property({ attribute: false }) hass?: HomeAssistant;
   @state() private _config?: StatusCardConfig;
   @state() private _open = false;
+  /** Batterie, deren Wechsel per Tippen bestätigt werden soll */
+  @state() private _confirm?: string;
+  private _confirmTimer?: number;
+  private _holdTimer?: number;
+  /** Zeitpunkt des letzten Gedrückthaltens – der Klick beim Loslassen zählt nicht als Bestätigung */
+  private _heldAt = 0;
   private _cache?: { key: unknown; areas: string; ids: string[] };
+  private _notesCache?: { key: unknown; map: Map<string, BatteryNotes> };
 
   public static getConfigElement(): HTMLElement {
     return document.createElement("ha-status-card-editor");
@@ -70,11 +77,23 @@ export class HaStatusCard extends LitElement {
     return [...new Set([...manual, ...this._cache.ids])];
   }
 
+  /** Battery-Notes-Entitäten je Batterie – nur neu suchen, wenn sich die Registry ändert */
+  private _notes(id: string): BatteryNotes {
+    const hass = this.hass!;
+    if (!hass.entities) return {};
+    if (this._notesCache?.key !== hass.entities) this._notesCache = { key: hass.entities, map: new Map() };
+    let n = this._notesCache.map.get(id);
+    if (!n) { n = batteryNotesFor(hass.states, hass.entities, id); this._notesCache.map.set(id, n); }
+    return n;
+  }
+
   protected shouldUpdate(changed: PropertyValues): boolean {
     if (!changed.has("hass") || changed.size > 1) return true;
     const old = changed.get("hass") as HomeAssistant | undefined;
     if (!old || !this._config) return true;
-    const ids = [...this._batteryIds(), ...this._batteryIds().map((id) => id.replace(/^sensor\./, "binary_sensor.") + "_low"),
+    const batteries = this._batteryIds();
+    const notes = batteries.flatMap((id) => Object.values(this._notes(id)));
+    const ids = [...batteries, ...batteries.map((id) => id.replace(/^sensor\./, "binary_sensor.") + "_low"), ...notes,
       ...(this._config.contacts ?? []).map((x) => (typeof x === "string" ? x : x.entity))];
     return ids.some((id) => old.states[id] !== this.hass!.states[id]) || old.locale !== this.hass!.locale;
   }
@@ -85,7 +104,8 @@ export class HaStatusCard extends LitElement {
     return this._batteryIds()
       .map((id) => hass.states[id])
       .filter((s) => !!s)
-      .map((s) => batteryInfo(hass.states, s, threshold, (this._config!.areas ?? []).map((a) => hass.areas?.[a]?.name ?? a.replace(/_/g, " "))))
+      .map((s) => batteryInfo(hass.states, s, threshold, (this._config!.areas ?? []).map((a) => hass.areas?.[a]?.name ?? a.replace(/_/g, " ")),
+        this._notes(s.entity_id)))
       .sort((a, b) => Number(b.low) - Number(a.low) || (a.level ?? 101) - (b.level ?? 101) || a.name.localeCompare(b.name));
   }
 
@@ -112,6 +132,57 @@ export class HaStatusCard extends LitElement {
 
   private _moreInfo(entityId: string): void {
     this.dispatchEvent(new CustomEvent("hass-more-info", { detail: { entityId }, bubbles: true, composed: true }));
+  }
+
+  private _haptic(type = "light"): void {
+    window.dispatchEvent(new CustomEvent("haptic", { detail: type }));
+  }
+
+  private async _call(domain: string, service: string, data: Record<string, unknown>): Promise<void> {
+    try {
+      await this.hass!.callService(domain, service, data);
+    } catch (err: any) {
+      this._haptic("failure");
+      this.dispatchEvent(new CustomEvent("hass-notification", {
+        detail: { message: `${localize(this.hass, "card.error")}: ${err?.message ?? err}` }, bubbles: true, composed: true,
+      }));
+    }
+  }
+
+  /** Gedrückt halten: Wechsel-Bestätigung für 4 s anbieten */
+  private _askReplace(b: BatteryInfo): void {
+    if (!b.replacedButton) return;
+    this._heldAt = Date.now();
+    this._haptic("warning");
+    this._confirm = b.entity;
+    clearTimeout(this._confirmTimer);
+    this._confirmTimer = window.setTimeout(() => (this._confirm = undefined), 4000);
+  }
+
+  private _holdStart(ev: PointerEvent, b: BatteryInfo): void {
+    if (ev.button !== 0 || !b.replacedButton) return;
+    clearTimeout(this._holdTimer);
+    this._holdTimer = window.setTimeout(() => this._askReplace(b), 500);
+  }
+
+  private _holdEnd = (): void => clearTimeout(this._holdTimer);
+
+  private _batteryTap(b: BatteryInfo): void {
+    if (Date.now() - this._heldAt < 700) return;
+    if (this._confirm === b.entity && b.replacedButton) {
+      this._confirm = undefined;
+      clearTimeout(this._confirmTimer);
+      this._haptic("success");
+      this._call("button", "press", { entity_id: b.replacedButton });
+      return;
+    }
+    this._moreInfo(b.entity);
+  }
+
+  public disconnectedCallback(): void {
+    super.disconnectedCallback();
+    clearTimeout(this._holdTimer);
+    clearTimeout(this._confirmTimer);
   }
 
   private _headTap(): void {
@@ -159,13 +230,20 @@ export class HaStatusCard extends LitElement {
         <div class="collapsible ${this._open ? "open" : ""}" ?inert=${!this._open}><div class="collapsible-inner"><div class="batteries">
           ${batteries.map((b) => {
             const col = levelColor(b, threshold);
-            return html`<button class="battery ${b.low ? "low" : ""}" style="--bc:${col}" @click=${() => this._moreInfo(b.entity)}>
-              <span class="b-name"><span>${b.name}</span>${b.type || b.replaced ? html`<small>${[b.type, this._replaced(b.replaced)].filter(Boolean).join(" · ")}</small>` : nothing}</span>
+            const ask = this._confirm === b.entity;
+            return html`<button class="battery ${b.low ? "low" : ""} ${ask ? "ask" : ""}" style="--bc:${col}" data-entity=${b.entity}
+              @click=${() => this._batteryTap(b)} @pointerdown=${(e: PointerEvent) => this._holdStart(e, b)}
+              @pointerup=${this._holdEnd} @pointerleave=${this._holdEnd} @pointercancel=${this._holdEnd}
+              @contextmenu=${(e: Event) => { if (!b.replacedButton) return; e.preventDefault(); this._holdEnd(); if (this._confirm !== b.entity) this._askReplace(b); }}>
+              <span class="b-name"><span>${b.name}</span>${ask ? html`<small class="ask-text">${this._t("status.replace_confirm")}</small>`
+                : b.type || b.replaced ? html`<small>${[b.type, this._replaced(b.replaced)].filter(Boolean).join(" · ")}</small>` : nothing}</span>
               <span class="b-bar"><span style="width:${b.level ?? (b.low ? 10 : 100)}%"></span></span>
               <span class="b-value">${b.level != null ? `${b.level} %` : this._t(b.low ? "status.low" : "status.ok")}</span>
             </button>`;
           })}
-        </div></div></div>` : nothing}
+        </div>
+        ${batteries.some((b) => b.replacedButton) ? html`<span class="replace-hint">${this._t("status.replace_hint")}</span>` : nothing}
+        </div></div>` : nothing}
       ${batteries.length ? this._renderShopping(batteries) : nothing}
     </ha-card>`;
   }
@@ -195,6 +273,10 @@ export class HaStatusCard extends LitElement {
     .battery { display: grid; grid-template-columns: minmax(0, 1fr) 72px 48px; align-items: center; gap: 10px; padding: 7px 8px; border: none;
       border-radius: 10px; background: rgba(127,127,127,0.07); cursor: pointer; font: inherit; color: inherit; text-align: left; }
     .battery.low { background: color-mix(in srgb, var(--bc) 12%, transparent); }
+    .battery { -webkit-touch-callout: none; user-select: none; }
+    .battery.ask { box-shadow: inset 0 0 0 1.5px var(--primary-color); background: color-mix(in srgb, var(--primary-color) 14%, transparent); }
+    .b-name small.ask-text { color: var(--primary-color); font-weight: 600; }
+    .replace-hint { display: block; padding: 2px 8px 4px; font-size: 11px; color: var(--secondary-text-color); }
     .b-name { display: flex; flex-direction: column; min-width: 0; font-size: 13px; line-height: 1.25; }
     .b-name > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .b-name small { font-size: 11px; color: var(--secondary-text-color); }

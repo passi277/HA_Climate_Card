@@ -815,6 +815,45 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
     ? ok("Status: Einkaufsliste (2× AA) und „gewechselt vor …“") : fail(`Status Einkaufsliste: ${JSON.stringify(res)}`);
 }
 
+// Status: Battery Notes als eigene Entitäten am Gerät + gedrückt halten = Wechsel eintragen
+{
+  const card = await p.evaluateHandle(() => [...document.querySelectorAll("ha-status-card")].find((c) => c._config.title === "Ventile"));
+  await card.evaluate((c) => c.scrollIntoView({ block: "center" }));
+  await p.waitForTimeout(300);
+  const info = await card.evaluate((c) => {
+    const root = c.shadowRoot;
+    return { small: [...root.querySelectorAll(".battery")].map((b) => b.dataset.entity + "=" + (b.querySelector(".b-name small")?.textContent.trim() ?? "")),
+      shop: [...root.querySelectorAll(".shop-item .shop-qty")].map((x) => x.textContent.trim()), hint: !!root.querySelector(".replace-hint") };
+  });
+  info.small.some((x) => /ventil_hecke_battery=4× AA · gewechselt \d\d\/\d{4}/.test(x)) && info.small.some((x) => /ventil_rasen_battery=4× AA · gewechselt vor 12 Tagen/.test(x))
+    && info.shop.join() === "4× AA" && info.hint
+    ? ok("Status: Battery-Notes-Entitäten am Gerät (Typ, Wechseldatum, Einkaufsliste)") : fail(`Status Battery Notes: ${JSON.stringify(info)}`);
+
+  const before = await p.evaluate(() => window.serviceCalls.length);
+  const row = await card.evaluateHandle((c) => c.shadowRoot.querySelector('.battery[data-entity="sensor.ventil_hecke_battery"]'));
+  // einfacher Tipp: nur Details, kein Eintrag
+  await row.click();
+  await p.waitForTimeout(200);
+  const afterTap = await p.evaluate((n) => window.serviceCalls.length - n, before);
+  // gedrückt halten → Bestätigung → Tippen trägt ein
+  const box = await row.boundingBox();
+  await p.mouse.move(box.x + 20, box.y + box.height / 2);
+  await p.mouse.down();
+  await p.waitForTimeout(650);
+  await p.mouse.up();
+  await p.waitForTimeout(100);
+  const asking = await card.evaluate((c) => c.shadowRoot.querySelector(".battery.ask .ask-text")?.textContent.trim());
+  const afterHold = await p.evaluate((n) => window.serviceCalls.length - n, before);
+  await p.waitForTimeout(700);
+  await row.click();
+  await p.waitForTimeout(400);
+  const calls = await p.evaluate((n) => window.serviceCalls.slice(n).map((c) => `${c.domain}.${c.service}:${c.data.entity_id}`), before);
+  const small = await card.evaluate((c) => c.shadowRoot.querySelector('.battery[data-entity="sensor.ventil_hecke_battery"] .b-name small')?.textContent.trim());
+  afterTap === 0 && afterHold === 0 && asking === "Tippen = Batteriewechsel eintragen" && calls.join() === "button.press:button.wasser_hecke_battery_replaced"
+    && /heute gewechselt/.test(small)
+    ? ok("Status: gedrückt halten + Tippen trägt Batteriewechsel ein (button.press)") : fail(`Status Wechsel: ${JSON.stringify({ afterTap, afterHold, asking, calls, small })}`);
+}
+
 // Energiefluss: Werte, aktive Linien, Verbraucher-Kreise, Tageswerte, Akku-Restzeit, Schalter
 {
   const card = await p.evaluateHandle(() => document.querySelector("ha-energy-card"));

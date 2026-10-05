@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { HassEntity } from "../src/types";
 import {
-  batteryHoursLeft, consumerGrid, formatHours, integratePower, statsEnergy, flowLpm, timerInfo, formatRemaining, rangeStatus, phDose, poolRuntimeRecommendation, cameraFeatures, wifiQuality, optionStyle, musicModes, isMusicEffect, energyFlows, formatPower, powerWatts, alertActive, batteryShoppingList, clockMinutes, upcomingPickups, wasteStyle, batteryIcon, doorDevices, doorKind, initials, isCharging, phoneSensors, brightnessPct, contactType, calibrationTransform, roomsFromMap, roomIcon, areaBatteries, batteryInfo, presetActive, presetData, DEFAULT_LIGHT_PRESETS, activityIcon, activityLabel, guessControlDevice, guessVolumeDevice, coverIcon, datetimeParts, nextOccurrence, coverPosition, skyPhase, sunPlacement, weatherOverlay, editorOptions, isNoEffect, lightEditorOptions, segmentIds, detectDeviceType, kelvinToRgb, lightColor, relatedScenes, supportsColor, supportsColorTemp, dewPoint, nextSwitch, parseSchedule, scheduleTempAt, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
+  batteryHoursLeft, consumerGrid, formatHours, integratePower, statsEnergy, flowLpm, timerInfo, formatRemaining, rangeStatus, phDose, poolRuntimeRecommendation, cameraFeatures, wifiQuality, optionStyle, musicModes, isMusicEffect, energyFlows, formatPower, powerWatts, alertActive, batteryShoppingList, clockMinutes, upcomingPickups, wasteStyle, batteryIcon, doorDevices, doorKind, initials, isCharging, phoneSensors, brightnessPct, contactType, calibrationTransform, roomsFromMap, roomIcon, areaBatteries, batteryInfo, batteryNotesFor, presetActive, presetData, DEFAULT_LIGHT_PRESETS, activityIcon, activityLabel, guessControlDevice, guessVolumeDevice, coverIcon, datetimeParts, nextOccurrence, coverPosition, skyPhase, sunPlacement, weatherOverlay, editorOptions, isNoEffect, lightEditorOptions, segmentIds, detectDeviceType, kelvinToRgb, lightColor, relatedScenes, supportsColor, supportsColorTemp, dewPoint, nextSwitch, parseSchedule, scheduleTempAt, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
   openContactsKey, powerOf, resolveContacts, secondsToDuration, stateIcon, temperatureOf, temperatureTint, trendSlope,
 } from "../src/utils";
 import { formatAttribute, localize } from "../src/localize/localize";
@@ -618,5 +618,48 @@ describe("energy extras", () => {
     const six = consumerGrid(6, 4);
     expect(six.map((g) => g.row)).toEqual([0, 0, 0, 0, 1, 1]);
     expect(six[4]!.x).toBe(75);
+  });
+});
+
+describe("battery notes entities on the device", () => {
+  const st = (id: string, state: string, attributes: Record<string, unknown> = {}) => ({ entity_id: id, state, attributes, last_changed: "", last_updated: "" });
+  const states = {
+    "sensor.ventil_battery": st("sensor.ventil_battery", "12", { device_class: "battery", friendly_name: "Ventil Volleyball Batterie" }),
+    "sensor.wasser_battery_type": st("sensor.wasser_battery_type", "4× AA", { battery_type: "AA", battery_quantity: 4 }),
+    "sensor.wasser_battery_last_replaced": st("sensor.wasser_battery_last_replaced", "2025-03-25T17:09:45+00:00", { device_class: "timestamp" }),
+    "button.wasser_battery_replaced": st("button.wasser_battery_replaced", "unknown"),
+    "sensor.wasser_battery_plus": st("sensor.wasser_battery_plus", "12", { device_class: "battery" }),
+    "button.other_battery_replaced": st("button.other_battery_replaced", "unknown"),
+  };
+  const entities = {
+    "sensor.ventil_battery": { entity_id: "sensor.ventil_battery", device_id: "dv", platform: "mqtt" },
+    "sensor.wasser_battery_type": { entity_id: "sensor.wasser_battery_type", device_id: "dv", platform: "battery_notes" },
+    "sensor.wasser_battery_last_replaced": { entity_id: "sensor.wasser_battery_last_replaced", device_id: "dv", platform: "battery_notes" },
+    "button.wasser_battery_replaced": { entity_id: "button.wasser_battery_replaced", device_id: "dv", platform: "battery_notes" },
+    "sensor.wasser_battery_plus": { entity_id: "sensor.wasser_battery_plus", device_id: "dv", platform: "battery_notes" },
+    "button.other_battery_replaced": { entity_id: "button.other_battery_replaced", device_id: "other", platform: "battery_notes" },
+  };
+  it("finds type, last replaced and button via the device", () => {
+    expect(batteryNotesFor(states, entities, "sensor.ventil_battery")).toEqual({
+      type: "sensor.wasser_battery_type", last: "sensor.wasser_battery_last_replaced", button: "button.wasser_battery_replaced" });
+  });
+  it("returns nothing without registry or device", () => {
+    expect(batteryNotesFor(states, undefined, "sensor.ventil_battery")).toEqual({});
+    expect(batteryNotesFor(states, entities, "sensor.unknown")).toEqual({});
+  });
+  it("fills type, quantity, replaced date and button into the battery info", () => {
+    const b = batteryInfo(states, states["sensor.ventil_battery"], 20, [], batteryNotesFor(states, entities, "sensor.ventil_battery"));
+    expect(b).toMatchObject({ name: "Ventil Volleyball", level: 12, low: true, type: "4× AA", kind: "AA", quantity: 4, replacedButton: "button.wasser_battery_replaced" });
+    expect(b.replaced?.toISOString()).toBe("2025-03-25T17:09:45.000Z");
+    expect(batteryShoppingList([b])).toEqual([{ kind: "AA", count: 4, names: ["Ventil Volleyball"] }]);
+  });
+  it("prefers attributes on the battery sensor itself", () => {
+    const own = st("sensor.ventil_battery", "50", { device_class: "battery", battery_type_and_quantity: "2× AAA", battery_type: "AAA", battery_quantity: 2 });
+    const b = batteryInfo(states, own, 20, [], { type: "sensor.wasser_battery_type" });
+    expect(b).toMatchObject({ type: "2× AAA", kind: "AAA", quantity: 2 });
+  });
+  it("ignores unavailable notes entities", () => {
+    const s2 = { ...states, "sensor.wasser_battery_type": st("sensor.wasser_battery_type", "unavailable", { battery_type: "AA" }) };
+    expect(batteryInfo(s2, states["sensor.ventil_battery"], 20, [], { type: "sensor.wasser_battery_type" }).type).toBeUndefined();
   });
 });

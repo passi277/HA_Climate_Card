@@ -520,7 +520,9 @@
     "shopping_empty": "No batteries needed right now 👍",
     "replaced_today": "replaced today",
     "replaced_days": "replaced {n} days ago",
-    "replaced_month": "replaced {m}"
+    "replaced_month": "replaced {m}",
+    "replace_hint": "Hold = log battery replacement",
+    "replace_confirm": "Tap = log battery replacement"
   },
   "status_editor": {
     "title": "Title",

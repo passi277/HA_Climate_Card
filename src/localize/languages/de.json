@@ -537,7 +537,9 @@
     "shopping_empty": "Aktuell wird keine Batterie benötigt 👍",
     "replaced_today": "heute gewechselt",
     "replaced_days": "gewechselt vor {n} Tagen",
-    "replaced_month": "gewechselt {m}"
+    "replaced_month": "gewechselt {m}",
+    "replace_hint": "Gedrückt halten = Wechsel eintragen",
+    "replace_confirm": "Tippen = Batteriewechsel eintragen"
   },
   "status_editor": {
     "title": "Titel",

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.25.0 – Battery Notes am Gerät
+- Status-Karte: Battery Notes wird jetzt auch erkannt, wenn Typ, letzter Wechsel und „Batterie ersetzt“ als **eigene Entitäten am Gerät** angelegt sind (Zuordnung über das Gerät, nicht über den Namen) – Batterietyp, „gewechselt vor …“ und Einkaufsliste erscheinen automatisch
+- Status-Karte: **gedrückt halten** auf eine Batterie und dann tippen trägt den Batteriewechsel ein (Battery-Notes-Button, mit Bestätigung); ein normaler Tipp öffnet weiter die Details
+
 ## 1.24.0 – Musik für Govee
 - Licht-Karte: neuer, optionaler Bereich **Musik** für Lampen mit Musik-Effekten (z.B. Govee „Music: …“): Chips je Modus mit deutschem Namen und Symbol, „Aus“, Equalizer-Anzeige und Musik-Pill, solange ein Modus läuft; die Modi erscheinen nicht mehr doppelt in der Effektliste; abschaltbar per `show.music` bzw. im Editor
 

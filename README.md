@@ -416,6 +416,10 @@ aufklappbare Liste (schwächste zuerst, Ampelfarben, Batterietyp aus **Battery N
 Mit `areas` werden die Batterien eines Bereichs automatisch gefunden (je Gerät ein Sensor, Raumname wird
 aus den Namen entfernt). Tür-/Fensterkontakte als Zeilen „Offen/Zu“.
 
+Battery Notes wird automatisch über das Gerät gefunden – auch wenn Typ, letzter Wechsel und „Batterie ersetzt“
+eigene Entitäten sind (z.B. `sensor.wasser_battery_type` zu `sensor.ventil_volleyball_battery`). Dann zeigt die
+Liste „4× AA · gewechselt vor 12 Tagen“, und **gedrückt halten + tippen** trägt einen Batteriewechsel ein.
+
 ```yaml
 type: custom:ha-status-card
 areas: [mein_zimmer]

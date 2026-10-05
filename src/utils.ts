@@ -1,4 +1,4 @@
-import type { ContactConfig, ContactType, HassEntity } from "./types";
+import type { ContactConfig, ContactType, EntityRegistryEntry, HassEntity } from "./types";
 import { ACTION_ICONS, ACTION_TO_MODE, ClimateFeature, DEFAULT_SHOW, MODE_COLORS, MODE_ICONS, supports } from "./const";
 
 export const UNAVAILABLE = ["unavailable", "unknown"];
@@ -659,10 +659,40 @@ export interface BatteryInfo {
   quantity?: number;
   /** Letzter Batteriewechsel (Battery Notes) */
   replaced?: Date;
+  /** Battery-Notes-Button „Batterie ersetzt“ */
+  replacedButton?: string;
 }
 
+/** Battery-Notes-Entitäten am selben Gerät wie der Batteriesensor */
+export interface BatteryNotes {
+  type?: string;
+  last?: string;
+  button?: string;
+}
+
+/**
+ * Battery Notes legt Typ, letzten Wechsel und „ersetzt“-Button als eigene Entitäten am Gerät an –
+ * benannt nach dem Gerät, nicht nach dem Batteriesensor. Zuordnung daher über die device_id.
+ */
+export const batteryNotesFor = (states: Record<string, HassEntity>, entities: Record<string, EntityRegistryEntry> | undefined,
+  batteryId: string): BatteryNotes => {
+  const device = entities?.[batteryId]?.device_id;
+  if (!device) return {};
+  const out: BatteryNotes = {};
+  for (const e of Object.values(entities!)) {
+    if (e.device_id !== device || e.platform !== "battery_notes") continue;
+    const domain = e.entity_id.split(".")[0];
+    const st = states[e.entity_id];
+    if (domain === "button") out.button ??= e.entity_id;
+    else if (domain === "sensor" && st?.attributes.battery_type != null) out.type ??= e.entity_id;
+    else if (domain === "sensor" && st?.attributes.device_class === "timestamp") out.last ??= e.entity_id;
+  }
+  return out;
+};
+
 /** Ein Batterie-Sensor → Info. Schwach bei < threshold oder wenn Battery Notes/binary_sensor „low“ meldet. */
-export const batteryInfo = (states: Record<string, HassEntity>, st: HassEntity, threshold = 20, strip: string[] = []): BatteryInfo => {
+export const batteryInfo = (states: Record<string, HassEntity>, st: HassEntity, threshold = 20, strip: string[] = [],
+  notes: BatteryNotes = {}): BatteryInfo => {
   const a = st.attributes;
   const domain = st.entity_id.split(".")[0];
   const raw = Number(st.state);
@@ -677,10 +707,18 @@ export const batteryInfo = (states: Record<string, HassEntity>, st: HassEntity, 
     const short = name.replace(new RegExp(`\\s*${word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*`, "i"), " ").trim();
     if (short) name = short;
   }
-  const replaced = a.battery_last_replaced ? new Date(a.battery_last_replaced) : undefined;
-  return { entity: st.entity_id, name, level, low, type: a.battery_type_and_quantity ?? a.battery_type ?? undefined,
-    kind: a.battery_type ?? undefined, quantity: a.battery_quantity != null ? Number(a.battery_quantity) : undefined,
-    replaced: replaced && !Number.isNaN(replaced.getTime()) ? replaced : undefined };
+  const typeSt = notes.type ? states[notes.type] : undefined;
+  const lastSt = notes.last ? states[notes.last] : undefined;
+  const typeOk = typeSt && !UNAVAILABLE.includes(typeSt.state);
+  const lastRaw = a.battery_last_replaced ?? (lastSt && !UNAVAILABLE.includes(lastSt.state) ? lastSt.state : undefined);
+  const replaced = lastRaw ? new Date(lastRaw) : undefined;
+  const qty = a.battery_quantity ?? (typeOk ? typeSt!.attributes.battery_quantity : undefined);
+  return { entity: st.entity_id, name, level, low,
+    type: a.battery_type_and_quantity ?? a.battery_type ?? (typeOk ? typeSt!.state : undefined),
+    kind: a.battery_type ?? (typeOk ? typeSt!.attributes.battery_type : undefined) ?? undefined,
+    quantity: qty != null ? Number(qty) : undefined,
+    replaced: replaced && !Number.isNaN(replaced.getTime()) ? replaced : undefined,
+    replacedButton: notes.button && states[notes.button] ? notes.button : undefined };
 };
 
 export interface ShoppingItem {
