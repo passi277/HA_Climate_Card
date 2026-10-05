@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.27.0 – Live-Position
+- Mower Card: fordert beim Mähen und Heimfahren den **Live-Positions-Stream** der Integration an (z.B. Ecovacs GOAT `request_live_position_stream`), solange die Karte sichtbar ist – die Live-Karte läuft dadurch flüssig mit; erneuert sich automatisch, stoppt beim Wegscrollen oder in der Station; „LIVE“-Abzeichen; abschaltbar per `live_stream: false` bzw. im Editor
+
 ## 1.26.0 – Mähroboter
 - Neue **Modern Mower Card** für Mähroboter (`lawn_mower`, z.B. Ecovacs GOAT): animierter Rasen (fährt Bahnen beim Mähen, fährt zur Station, lädt in der Station) oder Live-Karte mit Umriss, Spur und Position, Zustand und Akku-Ring, WLAN, Fehlerbanner, Mähen/Weiter, Pause, Station und Stopp (mit Rückfrage), aktueller Lauf (Fortschritt, Fläche, Dauer), Statistik (Fläche gesamt, Stunden, Mähvorgänge), Wartung (Messer/Bürste mit Tausch-Hinweis, Firmware-Update) und Einstellungen (Mähmodus, Hindernisvermeidung, Regensensor, KI-Erkennung, Tierschutz mit Zeitfenster, Randmähen, sicherer Modus, Regenpause) – alles automatisch über das Gerät erkannt; visueller Editor
 

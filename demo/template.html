@@ -530,7 +530,7 @@
         return [];
       },
       states: { ...states }, entities, devices, language: lang, locale: { language: lang },
-      services: { homematicip_local: { enable_away_mode_by_duration: {}, disable_away_mode: {} }, blink: { trigger_camera: {} } },
+      services: { homematicip_local: { enable_away_mode_by_duration: {}, disable_away_mode: {} }, blink: { trigger_camera: {} }, ecovacs_goat_g1: { request_live_position_stream: {}, refresh_state: {} } },
       config: { unit_system: { temperature: "°C" } },
       async callService(domain, service, data) {
         window.serviceCalls.push({ domain, service, data });
@@ -657,6 +657,7 @@
           setTimeout(() => { const h = makeHass(); cards.forEach((c) => (c.hass = h)); }, 150);
           return;
         }
+        if (domain === "ecovacs_goat_g1") return;
         if (domain === "lawn_mower") {
           const next = { start_mowing: "mowing", pause: "paused", dock: "returning" }[service];
           if (next) states[data.entity_id] = { ...states[data.entity_id], state: next };

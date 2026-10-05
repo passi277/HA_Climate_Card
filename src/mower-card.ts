@@ -36,6 +36,11 @@ const PHASE_ICON: Record<MowerPhase, string> = {
 const FEATURE_KEYS: (keyof MowerFeatures)[] = ["battery", "error", "progress", "area", "session_area", "duration", "total_area", "total_duration",
   "total_count", "blade", "brush", "wifi", "stop", "refresh", "efficiency", "obstacle", "rain_delay", "rain_sensor", "ai", "animal",
   "animal_start", "animal_end", "border", "safe", "update", "map"];
+/** Live-Positions-Stream (z.B. Ecovacs GOAT): so lange anfordern, wie die Karte sichtbar ist und der Mäher fährt */
+const STREAM_SERVICE = "request_live_position_stream";
+const STREAM_SECONDS = 120;
+const STREAM_RENEW_MS = 100_000;
+
 const SWITCHES: (keyof MowerFeatures)[] = ["rain_sensor", "ai", "animal", "border", "safe"];
 const SWITCH_ICON: Record<string, string> = {
   rain_sensor: "mdi:weather-rainy", ai: "mdi:eye-outline", animal: "mdi:paw", border: "mdi:vector-square", safe: "mdi:shield-check-outline",
@@ -51,6 +56,11 @@ export class HaMowerCard extends LitElement {
   private _confirmTimer?: number;
   private _sendTimer?: number;
   private _featCache?: { key: unknown; f: Record<string, string | undefined> };
+  @state() private _streaming = false;
+  private _visible = false;
+  private _observer?: IntersectionObserver;
+  private _streamAt = 0;
+  private _streamTimer?: number;
 
   public static getConfigElement(): HTMLElement {
     return document.createElement("ha-mower-card-editor");
@@ -75,8 +85,25 @@ export class HaMowerCard extends LitElement {
     return { columns: 12, min_columns: 6, rows: "auto" };
   }
 
+  connectedCallback(): void {
+    super.connectedCallback();
+    if (typeof IntersectionObserver !== "undefined") {
+      this._observer = new IntersectionObserver((entries) => {
+        this._visible = entries.some((e) => e.isIntersecting);
+        this._syncStream();
+      });
+      this._observer.observe(this);
+    } else {
+      this._visible = true;
+    }
+  }
+
   disconnectedCallback(): void {
     super.disconnectedCallback();
+    this._observer?.disconnect();
+    this._observer = undefined;
+    this._visible = false;
+    this._stopStream();
     clearTimeout(this._confirmTimer);
     clearTimeout(this._sendTimer);
   }
@@ -106,6 +133,50 @@ export class HaMowerCard extends LitElement {
     const old = changed.get("hass") as HomeAssistant | undefined;
     if (!old || !this._config) return true;
     return this._ids().some((id) => old.states[id] !== this.hass!.states[id]) || old.locale !== this.hass!.locale || old.entities !== this.hass!.entities;
+  }
+
+  protected updated(): void {
+    this._syncStream();
+  }
+
+  /** Domain, die den Live-Stream anbietet (z.B. ecovacs_goat_g1) */
+  private _streamDomain(): string | undefined {
+    const services = this.hass?.services;
+    if (!services) return undefined;
+    return Object.keys(services).find((d) => services[d]?.[STREAM_SERVICE] != null);
+  }
+
+  private _wantStream(): boolean {
+    const c = this._config;
+    const st = c && this.hass?.states[c.entity];
+    if (!c || !st || c.live_stream === false || c.show?.scene === false || !this._visible) return false;
+    return (st.state === "mowing" || st.state === "returning") && !!this._streamDomain();
+  }
+
+  private _syncStream(): void {
+    if (!this._wantStream()) { this._stopStream(); return; }
+    if (Date.now() - this._streamAt >= STREAM_RENEW_MS) this._requestStream();
+    if (!this._streamTimer) this._streamTimer = window.setInterval(() => this._syncStream(), 20_000);
+  }
+
+  private async _requestStream(): Promise<void> {
+    const domain = this._streamDomain();
+    if (!domain) return;
+    this._streamAt = Date.now();
+    this._streaming = true;
+    try {
+      await this.hass!.callService(domain, STREAM_SERVICE, { entity_id: this._config!.entity, duration_seconds: STREAM_SECONDS, reason: "ha-mower-card visible" });
+    } catch {
+      // Ohne Stream bleibt die Karte bei den normalen Aktualisierungen – kein Fehler-Hinweis nötig
+      this._streaming = false;
+    }
+  }
+
+  private _stopStream(): void {
+    clearInterval(this._streamTimer);
+    this._streamTimer = undefined;
+    this._streamAt = 0;
+    if (this._streaming) this._streaming = false;
   }
 
   // ---------- Werte ----------
@@ -242,6 +313,7 @@ export class HaMowerCard extends LitElement {
     const f = this._f();
     const map = mapGeometry(this.hass!.states[f.map ?? ""]?.attributes);
     return html`<div class="scene p-${phase}">
+      ${this._streaming ? html`<span class="live" title=${this._t("live_hint")}><span class="live-dot"></span>${this._t("live")}</span>` : nothing}
       ${map ? this._renderMap(map, phase) : html`
         <div class="lawn"><div class="cut"></div><div class="blades"></div></div>
         <div class="station ${charging ? "charging" : ""}"><ha-icon icon="mdi:home-variant"></ha-icon>${charging ? html`<ha-icon class="bolt" icon="mdi:lightning-bolt"></ha-icon>` : nothing}</div>
@@ -470,6 +542,9 @@ export class HaMowerCard extends LitElement {
     @keyframes home { from { left: 30%; top: 20%; } to { left: calc(100% - 104px); top: calc(100% - 60px); } }
     @keyframes shake { 0%, 100% { translate: 0 0; } 25% { translate: -2px 0; } 75% { translate: 2px 0; } }
     .map { width: 100%; height: 100%; display: block; }
+    .live { position: absolute; top: 8px; left: 8px; z-index: 1; display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; border-radius: 999px;
+      font-size: 10.5px; font-weight: 800; letter-spacing: 0.06em; color: #fff; background: rgba(0,0,0,0.35); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+    .live-dot { width: 7px; height: 7px; border-radius: 50%; background: #ff5252; animation: blink 1.4s ease-in-out infinite; }
     .m-area { fill: rgba(255,255,255,0.14); stroke: rgba(255,255,255,0.7); stroke-width: 0.6%; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
     .m-path { fill: none; stroke: rgba(255,255,255,0.55); stroke-linecap: round; stroke-linejoin: round; }
     .m-dock { fill: #fdd835; stroke: #fff; stroke-width: 1.5; vector-effect: non-scaling-stroke; }

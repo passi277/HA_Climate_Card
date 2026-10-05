@@ -451,6 +451,7 @@ entity: lawn_mower.ecovacs_goat_1
 name: GOAT G1
 # show: { settings: false }     # scene, controls, session, stats, maintenance, settings
 # settings_open: true
+# live_stream: false   # Live-Position beim Mähen nicht anfordern (Standard: an, wenn die Integration es anbietet)
 # blade: sensor.ecovacs_goat_1_blade_lifespan   # Zuordnung überschreiben
 ```
 

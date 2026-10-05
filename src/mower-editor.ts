@@ -25,7 +25,10 @@ export class HaMowerCardEditor extends LitElement {
       { name: "entity", required: true, selector: { entity: { filter: { domain: "lawn_mower" } } } },
       { name: "name", selector: { text: {} } },
       { type: "grid", name: "", schema: SHOW.map((k) => ({ name: `show_${k}`, selector: { boolean: {} } })) },
-      { name: "settings_open", selector: { boolean: {} } },
+      { type: "grid", name: "", schema: [
+        { name: "settings_open", selector: { boolean: {} } },
+        { name: "live_stream", selector: { boolean: {} } },
+      ] },
     ];
   }
 
@@ -36,6 +39,7 @@ export class HaMowerCardEditor extends LitElement {
     const config: MowerCardConfig = { ...this._config!, entity: String(v.entity ?? "") };
     if (v.name) config.name = String(v.name); else delete config.name;
     if (v.settings_open) config.settings_open = true; else delete config.settings_open;
+    if (v.live_stream === false) config.live_stream = false; else delete config.live_stream;
     const show: MowerShowConfig = {};
     for (const k of SHOW) if (v[`show_${k}`] === false) show[k] = false;
     if (Object.keys(show).length) config.show = show; else delete config.show;
@@ -45,7 +49,8 @@ export class HaMowerCardEditor extends LitElement {
 
   protected render() {
     if (!this.hass || !this._config) return nothing;
-    const data: Record<string, unknown> = { entity: this._config.entity, name: this._config.name, settings_open: !!this._config.settings_open };
+    const data: Record<string, unknown> = { entity: this._config.entity, name: this._config.name, settings_open: !!this._config.settings_open,
+      live_stream: this._config.live_stream !== false };
     for (const k of SHOW) data[`show_${k}`] = this._config.show?.[k] !== false;
     return html`<ha-form .hass=${this.hass} .data=${data} .schema=${this._schema()}
       .computeLabel=${this._computeLabel} @value-changed=${this._valueChanged}></ha-form>

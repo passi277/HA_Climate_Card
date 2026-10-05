@@ -869,6 +869,10 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
   a.sub === "Mäht · 42 %" && a.map && a.ctl.join() === "Mähen:0,Pause:1,Station:1,Stopp:1" && a.progress === "42 %"
     && /186 m² von 450 m²/.test(a.session) && /38 min/.test(a.session) && a.stats.join() === "1,84 ha,66 h,52"
     ? ok("Mähroboter (mäht): Zustand, Live-Karte, Fortschritt, Statistik, Tasten") : fail(`Mähroboter mäht: ${JSON.stringify(a)}`);
+  const stream = await p.evaluate(() => window.serviceCalls.filter((c) => c.domain === "ecovacs_goat_g1").map((c) => `${c.service}:${c.data.entity_id}:${c.data.duration_seconds}`));
+  const live = await mowing.evaluate((c) => c.shadowRoot.querySelector(".scene .live")?.textContent.trim());
+  stream.length === 1 && stream[0] === "request_live_position_stream:lawn_mower.goat_wiese:120" && live === "LIVE"
+    ? ok("Mähroboter: Live-Positions-Stream nur für den sichtbaren, mähenden Mäher") : fail(`Mähroboter Live-Stream: ${JSON.stringify({ stream, live })}`);
 
   const before = await p.evaluate(() => window.serviceCalls.length);
   await mowing.evaluate(async (c) => {
@@ -914,7 +918,7 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
   d.sub === "In der Station · lädt" && d.bot && d.charging && d.ctl.join() === "Mähen:1,Pause:0,Station:0,Stopp:0" && d.blade === "Messer bald tauschen" && d.update
     && d.segs.join() === "Schnell,Gründlich,Kurzes Gras,*Standard,Uneben & hohes Gras" && d.switches.join() === "rain_sensor+,ai+,animal-,border+,safe-"
     && d.animal === "19:00–07:00" && d.delay === "3 h" && d.delayAfter === "3,5 h" && d.subAfter.startsWith("Mäht")
-    && calls2.join() === "select.select_option:select.goat_g1_mowing_efficiency:Delicate,homeassistant.toggle:switch.goat_g1_animal_protection:,number.set_value:number.goat_g1_rain_delay:210,lawn_mower.start_mowing:lawn_mower.goat_g1:"
+    && calls2.join() === "select.select_option:select.goat_g1_mowing_efficiency:Delicate,homeassistant.toggle:switch.goat_g1_animal_protection:,number.set_value:number.goat_g1_rain_delay:210,lawn_mower.start_mowing:lawn_mower.goat_g1:,ecovacs_goat_g1.request_live_position_stream:lawn_mower.goat_g1:"
     ? ok("Mähroboter (Station): Laden, Messer-Warnung, Update, Einstellungen, Start") : fail(`Mähroboter Station: ${JSON.stringify({ d, calls2 })}`);
 }
 

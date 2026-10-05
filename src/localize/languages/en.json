@@ -956,7 +956,9 @@
     "sw_border": "Edge mowing",
     "sw_safe": "Safer mode",
     "rain_delay": "Rain delay",
-    "rain_delay_hint": "wait after rain"
+    "rain_delay_hint": "wait after rain",
+    "live": "LIVE",
+    "live_hint": "Live position requested while the card is visible"
   },
   "mower_editor": {
     "entity": "Lawn mower",
@@ -968,6 +970,7 @@
     "show_maintenance": "Maintenance",
     "show_settings": "Settings",
     "settings_open": "Settings initially open",
-    "hint": "Battery, error, progress, areas, blades, Wi-Fi, stop button, mowing mode, rain delay and switches are detected via the device and can be overridden in YAML (e.g. blade: sensor.xyz)."
+    "hint": "Battery, error, progress, areas, blades, Wi-Fi, stop button, mowing mode, rain delay and switches are detected via the device and can be overridden in YAML (e.g. blade: sensor.xyz).",
+    "live_stream": "Request live position while mowing"
   }
 }

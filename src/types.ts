@@ -783,6 +783,8 @@ export interface MowerCardConfig extends MowerFeatures {
   show?: MowerShowConfig;
   /** Einstellungen anfangs aufgeklappt */
   settings_open?: boolean;
+  /** Live-Positions-Stream anfordern, solange die Karte sichtbar ist und der Mäher fährt (Standard an, wenn die Integration es anbietet) */
+  live_stream?: boolean;
   animations?: "full" | "reduced" | "off";
   [key: string]: unknown;
 }

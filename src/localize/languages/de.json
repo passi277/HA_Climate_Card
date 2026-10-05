@@ -973,7 +973,9 @@
     "sw_border": "Randmähen",
     "sw_safe": "Sicherer Modus",
     "rain_delay": "Regenpause",
-    "rain_delay_hint": "Wartezeit nach Regen"
+    "rain_delay_hint": "Wartezeit nach Regen",
+    "live": "LIVE",
+    "live_hint": "Live-Position wird angefordert, solange die Karte sichtbar ist"
   },
   "mower_editor": {
     "entity": "Mähroboter",
@@ -985,6 +987,7 @@
     "show_maintenance": "Wartung",
     "show_settings": "Einstellungen",
     "settings_open": "Einstellungen anfangs offen",
-    "hint": "Akku, Fehler, Fortschritt, Flächen, Messer, WLAN, Stopp-Taste, Mähmodus, Regenpause und Schalter werden automatisch über das Gerät erkannt und lassen sich per YAML überschreiben (z.B. blade: sensor.xyz)."
+    "hint": "Akku, Fehler, Fortschritt, Flächen, Messer, WLAN, Stopp-Taste, Mähmodus, Regenpause und Schalter werden automatisch über das Gerät erkannt und lassen sich per YAML überschreiben (z.B. blade: sensor.xyz).",
+    "live_stream": "Live-Position beim Mähen anfordern"
   }
 }
