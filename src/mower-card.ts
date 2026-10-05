@@ -4,7 +4,7 @@ import type { HassEntity, HomeAssistant, MowerCardConfig, MowerFeatures } from "
 import { getLanguage, localize } from "./localize/localize";
 import { cardStyles } from "./styles";
 import { DOCS_URL } from "./shared";
-import { mapGeometry, mowerFeatures, mowerPhase, UNAVAILABLE, wifiQuality, type MowerMap, type MowerPhase } from "./utils";
+import { extendTrail, mapGeometry, mowerFeatures, mowerPhase, UNAVAILABLE, wifiQuality, type MapPoint, type MowerMap, type MowerPhase } from "./utils";
 import "./mower-editor";
 
 (window as any).customCards = (window as any).customCards || [];
@@ -57,6 +57,9 @@ export class HaMowerCard extends LitElement {
   private _sendTimer?: number;
   private _featCache?: { key: unknown; f: Record<string, string | undefined> };
   @state() private _streaming = false;
+  /** Selbst gesammelte Fahrspur des aktuellen Laufs (die Integration liefert oft nur die letzten Punkte) */
+  private _trail: MapPoint[] = [];
+  private _trailFrom?: unknown;
   private _visible = false;
   private _observer?: IntersectionObserver;
   private _streamAt = 0;
@@ -137,6 +140,25 @@ export class HaMowerCard extends LitElement {
 
   protected updated(): void {
     this._syncStream();
+    this._collectTrail();
+  }
+
+  private _collectTrail(): void {
+    const c = this._config;
+    const mapId = c && this._f().map;
+    const st = c && this.hass?.states[c.entity];
+    const mapSt = mapId ? this.hass!.states[mapId] : undefined;
+    if (!st || !mapSt) return;
+    if (st.state === "docked") { this._trail = []; return; }
+    if (mapSt === this._trailFrom || !["mowing", "returning", "paused"].includes(st.state)) return;
+    this._trailFrom = mapSt;
+    const a = mapSt.attributes;
+    const pts = [a.position_history, a.trace?.path].flatMap((l: unknown) => (Array.isArray(l) ? l : []))
+      .concat(a.current_position ? [a.current_position] : [])
+      .map((p: any) => (Array.isArray(p) ? { x: Number(p[0]), y: Number(p[1]) } : p && !p.invalid ? { x: Number(p.x), y: Number(p.y) } : undefined))
+      .filter((p: MapPoint | undefined): p is MapPoint => !!p && Number.isFinite(p.x) && Number.isFinite(p.y));
+    const next = extendTrail(this._trail, pts);
+    if (next.length !== this._trail.length) { this._trail = next; this.requestUpdate(); }
   }
 
   /** Domain, die den Live-Stream anbietet (z.B. ecovacs_goat_g1) */
@@ -296,22 +318,27 @@ export class HaMowerCard extends LitElement {
   // ---------- Darstellung ----------
 
   private _renderMap(map: MowerMap, phase: MowerPhase) {
-    const { box } = map;
+    // Szene ist ca. 2,6:1 und 150 px hoch – Marker in Bildschirm-Pixeln bemessen und genug Rand lassen
+    const unitsPerPx = Math.max(map.box.w / 2.6, map.box.h) / 150;
+    const r = unitsPerPx * 6;
+    const m = r * 4;
+    const box = { x: map.box.x - m, y: map.box.y - m, w: map.box.w + 2 * m, h: map.box.h + 2 * m };
     const P = (p: { x: number; y: number }) => `${(p.x - box.x).toFixed(2)},${(box.h - (p.y - box.y)).toFixed(2)}`;
-    const r = Math.max(box.w, box.h) / 60;
     return html`<svg class="map" viewBox="0 0 ${box.w} ${box.h}" preserveAspectRatio="xMidYMid meet" role="img" aria-label=${this._t("map")}>
       ${map.outline.map((l) => svg`<polygon class="m-area" points=${l.map(P).join(" ")}></polygon>`)}
-      ${map.path.length > 1 ? svg`<polyline class="m-path" style="stroke-width:${r * 0.9}" points=${map.path.map(P).join(" ")}></polyline>` : nothing}
-      ${map.dock ? svg`<circle class="m-dock" cx=${P(map.dock).split(",")[0]} cy=${P(map.dock).split(",")[1]} r=${r * 1.4}></circle>` : nothing}
-      ${map.position ? svg`<g class="m-pos ${phase}">
-        <circle class="m-pulse" cx=${P(map.position).split(",")[0]} cy=${P(map.position).split(",")[1]} r=${r * 2.4}></circle>
-        <circle cx=${P(map.position).split(",")[0]} cy=${P(map.position).split(",")[1]} r=${r * 1.3}></circle></g>` : nothing}
+      ${map.path.length > 1 ? svg`<polyline class="m-path" style="stroke-width:${r * 0.55}" points=${map.path.map(P).join(" ")}></polyline>` : nothing}
+      ${map.dock ? svg`<circle class="m-dock" cx=${P(map.dock).split(",")[0]} cy=${P(map.dock).split(",")[1]} r=${r}></circle>` : nothing}
+      ${map.position ? svg`<g class="m-pos ${phase}" transform="translate(${P(map.position)})">
+        <circle class="m-pulse" r=${r * 2.2}></circle>
+        <circle class="m-dot" r=${r * 1.5}></circle>
+        ${map.position.a != null ? svg`<path class="m-arrow" transform="rotate(${(-map.position.a).toFixed(1)}) scale(${r * 0.85})" d="M1.4,0 L-0.9,-1 L-0.4,0 L-0.9,1 Z"></path>` : nothing}
+      </g>` : nothing}
     </svg>`;
   }
 
   private _renderScene(phase: MowerPhase, charging: boolean) {
     const f = this._f();
-    const map = mapGeometry(this.hass!.states[f.map ?? ""]?.attributes);
+    const map = mapGeometry(this.hass!.states[f.map ?? ""]?.attributes, this._trail);
     return html`<div class="scene p-${phase}">
       ${this._streaming ? html`<span class="live" title=${this._t("live_hint")}><span class="live-dot"></span>${this._t("live")}</span>` : nothing}
       ${map ? this._renderMap(map, phase) : html`
@@ -525,19 +552,16 @@ export class HaMowerCard extends LitElement {
     .bot-in { width: 100%; height: 100%; border-radius: 50%; display: grid; place-items: center; color: #fff; background: rgba(0,0,0,0.3);
       box-shadow: 0 4px 10px rgba(0,0,0,0.25); }
     .bot-in ha-icon { --mdc-icon-size: 26px; }
-    .p-mowing .bot { animation: mow 24s linear infinite; }
-    .p-mowing .bot-in { animation: face 24s linear infinite, hum 0.5s ease-in-out infinite alternate; background: var(--success-color, #43a047); }
+    .p-mowing .bot { left: calc(50% - 20px); top: calc(50% - 26px); }
+    .p-mowing .bot-in { position: relative; animation: hum 0.5s ease-in-out infinite alternate; background: var(--success-color, #43a047); }
+    .p-mowing .bot-in::after { content: ""; position: absolute; inset: -6px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.7); animation: ring 1.8s ease-out infinite; }
+    @keyframes ring { from { transform: scale(0.8); opacity: 1; } to { transform: scale(1.6); opacity: 0; } }
     .p-paused .bot { left: 46%; top: 38%; }
     .p-paused .bot-in { background: #fb8c00; }
     .p-returning .bot { animation: home 6s var(--ease-out) forwards; }
     .p-returning .bot-in { background: #1e88e5; }
     .p-error .bot { left: 30%; top: 45%; }
     .p-error .bot-in { background: var(--error-color, #e53935); animation: shake 0.6s ease-in-out infinite; }
-    @keyframes mow {
-      0% { left: 4%; top: 8%; } 22% { left: calc(100% - 110px); top: 8%; } 25% { left: calc(100% - 110px); top: 38%; }
-      47% { left: 4%; top: 38%; } 50% { left: 4%; top: 64%; } 72% { left: calc(100% - 110px); top: 64%; }
-      75% { left: calc(100% - 110px); top: 38%; } 97% { left: 4%; top: 38%; } 100% { left: 4%; top: 8%; } }
-    @keyframes face { 0%, 24.9% { transform: scaleX(-1); } 25%, 49.9% { transform: scaleX(1); } 50%, 74.9% { transform: scaleX(-1); } 75%, 100% { transform: scaleX(1); } }
     @keyframes hum { from { translate: 0 0; } to { translate: 0 -1.5px; } }
     @keyframes home { from { left: 30%; top: 20%; } to { left: calc(100% - 104px); top: calc(100% - 60px); } }
     @keyframes shake { 0%, 100% { translate: 0 0; } 25% { translate: -2px 0; } 75% { translate: 2px 0; } }
@@ -548,7 +572,8 @@ export class HaMowerCard extends LitElement {
     .m-area { fill: rgba(255,255,255,0.14); stroke: rgba(255,255,255,0.7); stroke-width: 0.6%; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
     .m-path { fill: none; stroke: rgba(255,255,255,0.55); stroke-linecap: round; stroke-linejoin: round; }
     .m-dock { fill: #fdd835; stroke: #fff; stroke-width: 1.5; vector-effect: non-scaling-stroke; }
-    .m-pos circle { fill: #fff; }
+    .m-pos .m-dot { fill: #fff; stroke: var(--success-color, #43a047); stroke-width: 2; vector-effect: non-scaling-stroke; }
+    .m-arrow { fill: var(--success-color, #43a047); }
     .m-pos .m-pulse { fill: rgba(255,255,255,0.35); transform-box: fill-box; transform-origin: center; animation: pulse 1.8s ease-out infinite; }
     @keyframes pulse { from { transform: scale(0.4); opacity: 1; } to { transform: scale(1.4); opacity: 0; } }
 
@@ -658,6 +683,6 @@ export class HaMowerCard extends LitElement {
     ha-card.anim-reduced .blades, ha-card.anim-off .blades, ha-card.anim-reduced .p-mowing .bot-in, ha-card.anim-off .p-mowing .bot-in,
     ha-card.anim-off .p-mowing .bot, ha-card.anim-off .p-returning .bot, ha-card.anim-off .station .bolt, ha-card.anim-off .m-pulse,
     ha-card.anim-off .p-error .bot-in { animation: none; }
-    ha-card.anim-off .p-mowing .bot { left: 46%; top: 38%; }
+    ha-card.anim-off .p-mowing .bot-in::after { animation: none; display: none; }
   `];
 }

@@ -1351,7 +1351,7 @@ export const mowerPhase = (state?: string, errorCode?: string): MowerPhase => {
   }
 };
 
-export interface MapPoint { x: number; y: number }
+export interface MapPoint { x: number; y: number; a?: number }
 export interface MowerMap { outline: MapPoint[][]; path: MapPoint[]; position?: MapPoint; dock?: MapPoint; box: { x: number; y: number; w: number; h: number } }
 
 const toPoint = (p: unknown): MapPoint | undefined => {
@@ -1359,8 +1359,9 @@ const toPoint = (p: unknown): MapPoint | undefined => {
   if (p && typeof p === "object" && "x" in p && "y" in p) {
     const o = p as { x: unknown; y: unknown; invalid?: unknown };
     if (o.invalid) return undefined;
-    const x = Number(o.x), y = Number(o.y);
-    return Number.isFinite(x) && Number.isFinite(y) ? { x, y } : undefined;
+    const x = Number(o.x), y = Number(o.y), a = Number((o as { a?: unknown }).a);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return undefined;
+    return (o as { a?: unknown }).a != null && Number.isFinite(a) ? { x, y, a } : { x, y };
   }
   return undefined;
 };
@@ -1368,12 +1369,14 @@ const toPoint = (p: unknown): MapPoint | undefined => {
 const toLine = (l: unknown): MapPoint[] => (Array.isArray(l) ? l.map(toPoint).filter((p): p is MapPoint => !!p) : []);
 
 /** Live-Karte (z.B. Ecovacs „Live map“): Umriss, Spur und Position normalisieren – null, wenn nichts zum Zeichnen da ist */
-export const mapGeometry = (attrs?: Record<string, any>): MowerMap | null => {
+export const mapGeometry = (attrs?: Record<string, any>, trail: MapPoint[] = []): MowerMap | null => {
   if (!attrs) return null;
   const rawOutline = attrs.info?.outline ?? attrs.outline ?? attrs.areas ?? [];
   const outline = (Array.isArray(rawOutline) && rawOutline.length && toPoint(rawOutline[0]) ? [toLine(rawOutline)]
     : (Array.isArray(rawOutline) ? rawOutline : []).map((a: any) => toLine(a?.points ?? a?.outline ?? a))).filter((l: MapPoint[]) => l.length >= 3);
-  const path = toLine(attrs.trace?.path ?? attrs.path ?? attrs.position_history ?? []);
+  // erste Quelle, die wirklich Punkte enthält (Ecovacs: trace.path oft leer, position_history gefüllt)
+  const fromAttrs = [attrs.trace?.path, attrs.path, attrs.position_history].map(toLine).find((l) => l.length > 1) ?? [];
+  const path = trail.length > fromAttrs.length ? trail : fromAttrs;
   const position = toPoint(attrs.current_position ?? attrs.position);
   const dock = toPoint(Array.isArray(attrs.charge_positions) ? attrs.charge_positions[0] : attrs.charge_position);
   const all = [...outline.flat(), ...path];
@@ -1384,4 +1387,17 @@ export const mapGeometry = (attrs?: Record<string, any>): MowerMap | null => {
   const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
   const pad = Math.max(maxX - minX, maxY - minY, 1) * 0.06;
   return { outline, path, position, dock, box: { x: minX - pad, y: minY - pad, w: maxX - minX + 2 * pad, h: maxY - minY + 2 * pad } };
+};
+
+/** Fahrspur fortschreiben: neue Punkte anhängen, Dubletten und Sprünge zurück an den Anfang vermeiden */
+export const extendTrail = (trail: MapPoint[], points: MapPoint[], max = 3000): MapPoint[] => {
+  const out = [...trail];
+  const key = (p: MapPoint) => `${Math.round(p.x)},${Math.round(p.y)}`;
+  const seen = new Set(out.slice(-200).map(key));
+  for (const p of points) {
+    if (seen.has(key(p))) continue;
+    seen.add(key(p));
+    out.push({ x: p.x, y: p.y });
+  }
+  return out.length > max ? out.slice(out.length - max) : out;
 };

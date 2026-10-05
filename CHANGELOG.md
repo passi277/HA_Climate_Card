@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.28.0 – Echte Fahrspur
+- Mower Card: Live-Karte nutzt jetzt die erste Quelle mit echten Punkten – beim Ecovacs GOAT `position_history` (bisher wurde nur das dort leere `trace.path` gelesen, deshalb lief die Platzhalter-Animation)
+- Die Fahrspur wird während des Laufs in der Karte gesammelt (die Integration liefert nur die letzten Punkte) und beim Andocken zurückgesetzt
+- Position als Pfeil in Fahrtrichtung, Marker in Bildschirmgröße mit genug Rand
+- Ohne Kartendaten fährt der Mäher nicht mehr eine erfundene Bahn, sondern steht mit pulsierendem Ring in der Mitte
+
 ## 1.27.0 – Live-Position
 - Mower Card: fordert beim Mähen und Heimfahren den **Live-Positions-Stream** der Integration an (z.B. Ecovacs GOAT `request_live_position_stream`), solange die Karte sichtbar ist – die Live-Karte läuft dadurch flüssig mit; erneuert sich automatisch, stoppt beim Wegscrollen oder in der Station; „LIVE“-Abzeichen; abschaltbar per `live_stream: false` bzw. im Editor
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { HassEntity } from "../src/types";
 import {
-  batteryHoursLeft, consumerGrid, formatHours, integratePower, statsEnergy, flowLpm, timerInfo, formatRemaining, rangeStatus, phDose, poolRuntimeRecommendation, cameraFeatures, wifiQuality, optionStyle, musicModes, isMusicEffect, energyFlows, formatPower, powerWatts, alertActive, batteryShoppingList, clockMinutes, upcomingPickups, wasteStyle, batteryIcon, doorDevices, doorKind, initials, isCharging, phoneSensors, brightnessPct, contactType, calibrationTransform, roomsFromMap, roomIcon, areaBatteries, batteryInfo, batteryNotesFor, mowerFeatures, mowerPhase, mapGeometry, presetActive, presetData, DEFAULT_LIGHT_PRESETS, activityIcon, activityLabel, guessControlDevice, guessVolumeDevice, coverIcon, datetimeParts, nextOccurrence, coverPosition, skyPhase, sunPlacement, weatherOverlay, editorOptions, isNoEffect, lightEditorOptions, segmentIds, detectDeviceType, kelvinToRgb, lightColor, relatedScenes, supportsColor, supportsColorTemp, dewPoint, nextSwitch, parseSchedule, scheduleTempAt, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
+  batteryHoursLeft, consumerGrid, formatHours, integratePower, statsEnergy, flowLpm, timerInfo, formatRemaining, rangeStatus, phDose, poolRuntimeRecommendation, cameraFeatures, wifiQuality, optionStyle, musicModes, isMusicEffect, energyFlows, formatPower, powerWatts, alertActive, batteryShoppingList, clockMinutes, upcomingPickups, wasteStyle, batteryIcon, doorDevices, doorKind, initials, isCharging, phoneSensors, brightnessPct, contactType, calibrationTransform, roomsFromMap, roomIcon, areaBatteries, batteryInfo, batteryNotesFor, mowerFeatures, mowerPhase, mapGeometry, extendTrail, presetActive, presetData, DEFAULT_LIGHT_PRESETS, activityIcon, activityLabel, guessControlDevice, guessVolumeDevice, coverIcon, datetimeParts, nextOccurrence, coverPosition, skyPhase, sunPlacement, weatherOverlay, editorOptions, isNoEffect, lightEditorOptions, segmentIds, detectDeviceType, kelvinToRgb, lightColor, relatedScenes, supportsColor, supportsColorTemp, dewPoint, nextSwitch, parseSchedule, scheduleTempAt, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
   openContactsKey, powerOf, resolveContacts, secondsToDuration, stateIcon, temperatureOf, temperatureTint, trendSlope,
 } from "../src/utils";
 import { formatAttribute, localize } from "../src/localize/localize";
@@ -710,5 +710,19 @@ describe("mower", () => {
     expect(m.dock).toEqual({ x: 0, y: 0 });
     expect(m.box.w).toBeGreaterThan(10);
     expect(mapGeometry({ current_position: { x: 1, y: 1, invalid: 1 }, path: [[0, 0], [1, 1]] })!.position).toBeUndefined();
+  });
+  it("uses position_history when trace.path is empty (Ecovacs GOAT) and keeps the heading", () => {
+    const m = mapGeometry({ trace: { path: [] }, info: { outline: [] }, current_position: { x: -279, y: 6417, a: 91, invalid: 0 },
+      position_history: [{ x: -291, y: 3751, a: 88, invalid: 0 }, { x: -293, y: 4077, a: 91, invalid: 0 }, { x: -279, y: 6417, a: 91, invalid: 0 }] })!;
+    expect(m.path).toHaveLength(3);
+    expect(m.position).toEqual({ x: -279, y: 6417, a: 91 });
+    expect(m.outline).toEqual([]);
+  });
+  it("prefers a longer collected trail and extends it without duplicates", () => {
+    const trail = extendTrail(extendTrail([], [{ x: 0, y: 0 }, { x: 0, y: 10 }]), [{ x: 0, y: 10 }, { x: 0, y: 20 }, { x: 5, y: 20 }]);
+    expect(trail).toEqual([{ x: 0, y: 0 }, { x: 0, y: 10 }, { x: 0, y: 20 }, { x: 5, y: 20 }]);
+    expect(extendTrail([], Array.from({ length: 10 }, (_, i) => ({ x: i, y: 0 })), 5)).toHaveLength(5);
+    const m = mapGeometry({ position_history: [{ x: 0, y: 20 }, { x: 5, y: 20 }] }, trail)!;
+    expect(m.path).toHaveLength(4);
   });
 });

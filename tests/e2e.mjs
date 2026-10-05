@@ -862,7 +862,7 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
   await p.waitForTimeout(300);
   const a = await mowing.evaluate((c) => {
     const r = c.shadowRoot;
-    return { sub: r.querySelector(".h-sub").textContent.trim(), map: !!r.querySelector(".map .m-path") && !!r.querySelector(".map .m-area"),
+    return { sub: r.querySelector(".h-sub").textContent.trim(), map: !!r.querySelector(".map .m-path") && !!r.querySelector(".map .m-area") && !!r.querySelector(".map .m-arrow"),
       ctl: [...r.querySelectorAll(".ctl")].map((b) => `${b.textContent.trim()}:${b.disabled ? 0 : 1}`), progress: r.querySelector(".s-head b")?.textContent.trim(),
       session: r.querySelector(".s-stats")?.textContent.replace(/\s+/g, " ").trim(), stats: [...r.querySelectorAll(".stat b")].map((x) => x.textContent.trim()) };
   });

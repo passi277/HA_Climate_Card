@@ -395,8 +395,9 @@
       "time.goat_wiese_animal_protection_start": { state: "19:00:00", attributes: { friendly_name: "Animal protection start" } },
       "time.goat_wiese_animal_protection_end": { state: "07:00:00", attributes: { friendly_name: "Animal protection end" } },
       "sensor.goat_wiese_live_map": { state: "live", attributes: { friendly_name: "Live map", current_position: { x: 13.2, y: 7.4, a: 90, invalid: 0 }, charge_positions: [{ x: 1, y: 1 }],
-        info: { outline: [[0, 0], [24, 0], [26, 6], [22, 14], [8, 15], [0, 10]] },
-        trace: { path: [[1, 1], [2, 2], [22, 2], [23, 4], [3, 4], [3, 6], [23, 6], [22, 8], [3, 8], [5, 10], [20, 10], [16, 12], [9, 12], [13.2, 7.4]] } } },
+        // wie beim echten GOAT: trace.path bleibt leer, die Punkte kommen über position_history
+        info: { outline: [[0, 0], [24, 0], [26, 6], [22, 14], [8, 15], [0, 10]] }, trace: { path: [] },
+        position_history: [[1, 1], [2, 2], [22, 2], [23, 4], [3, 4], [3, 6], [23, 6], [22, 8], [3, 8], [5, 10], [20, 10], [16, 12], [9, 12], [13.2, 7.4]].map(([x, y]) => ({ x, y, a: 0, invalid: 0 })) } },
       // Battery Notes: eigene Entitäten am Gerät, benannt nach dem Gerät („Wasser Hecke“), nicht nach dem Batteriesensor
       "sensor.wasser_hecke_battery_type": { state: "4× AA", attributes: { friendly_name: "Wasser Hecke Batterie-Typ", battery_type: "AA", battery_quantity: 4 } },
       "sensor.wasser_hecke_battery_last_replaced": { state: new Date(Date.now() - 190 * 86400000).toISOString(), attributes: { friendly_name: "Wasser Hecke Letzter Batteriewechsel", device_class: "timestamp" } },
