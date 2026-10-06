@@ -1362,6 +1362,38 @@ colorFails.length ? fail(`Farbe folgt nicht dem Modus: ${colorFails.join(", ")}`
   calls.includes("timer.start") ? ok("Schnell-Timer startet timer.start") : fail(`Schnell-Timer: ${calls}`);
 }
 
+// Starlink + Speedtest
+{
+  const txt = async (sel) => p.evaluate((s) => document.querySelector("ha-starlink-card").shadowRoot.querySelector(s)?.textContent?.replace(/\s+/g, " ").trim() ?? "", sel);
+  const head = await txt(".h-sub");
+  /Verbunden · seit 3 T 7 h/.test(head) ? ok(`Starlink-Kopf: ${head}`) : fail(`Starlink-Kopf: ${head}`);
+  const live = await txt(".live");
+  /18\s*Mbit\/s/.test(live) && /28\s*ms/.test(live) ? ok("Starlink-Livewerte (Download, Ping)") : fail(`Starlink-Livewerte: ${live}`);
+  (await p.evaluate(() => !!document.querySelector("ha-starlink-card").shadowRoot.querySelector(".spark path.s-down"))) ? ok("Speedtest-Verlauf gezeichnet") : fail("Speedtest-Verlauf fehlt");
+  const before = await p.evaluate(() => window.serviceCalls.length);
+  await p.evaluate(() => document.querySelector("ha-starlink-card").shadowRoot.querySelector(".run").click());
+  await p.waitForTimeout(300);
+  const calls = await p.evaluate((n) => window.serviceCalls.slice(n), before);
+  const run = calls.find((c) => c.domain === "homeassistant" && c.service === "update_entity");
+  run?.data.entity_id === "sensor.speedtest_download" ? ok("„Jetzt testen“ ruft homeassistant.update_entity") : fail(`Speedtest-Aufruf: ${JSON.stringify(calls)}`);
+  (await p.evaluate(() => document.querySelector("ha-starlink-card").shadowRoot.querySelector(".run").disabled)) ? ok("Speedtest läuft (Knopf gesperrt)") : fail("Speedtest-Status fehlt");
+  await p.waitForTimeout(2200);
+  (await p.evaluate(() => !document.querySelector("ha-starlink-card").shadowRoot.querySelector(".run").disabled)) ? ok("neue Speedtest-Werte beenden den Test") : fail("Speedtest bleibt hängen");
+  // Verstauen braucht eine Bestätigung
+  const n = await p.evaluate(() => window.serviceCalls.length);
+  await p.evaluate(() => document.querySelector("ha-starlink-card").shadowRoot.querySelector('[data-key="stow"]').click());
+  await p.waitForTimeout(150);
+  const asked = await p.evaluate((k) => window.serviceCalls.length === k, n);
+  await p.evaluate(() => document.querySelector("ha-starlink-card").shadowRoot.querySelector('[data-key="stow"]').click());
+  await p.waitForTimeout(400);
+  const stowed = await p.evaluate(() => window.serviceCalls.at(-1));
+  asked && stowed?.service === "toggle" && stowed.data.entity_id === "switch.starlink_verstaut" ? ok("Verstauen erst nach Bestätigung") : fail(`Verstauen: ${JSON.stringify(stowed)}`);
+  const sub = await txt(".h-sub");
+  /Verstaut/.test(sub) ? ok("Kopf zeigt „Verstaut“") : fail(`nach Verstauen: ${sub}`);
+  const camper = await p.evaluate(() => document.querySelectorAll("ha-starlink-card")[1].shadowRoot.querySelector('.alert[data-key="obstructed"]')?.textContent.trim());
+  camper ? ok(`Camper-Warnung: ${camper}`) : fail("Sichtbehinderungs-Warnung fehlt");
+}
+
 // Theme-Umschalter
 await p.click('[data-theme="dark"]');
 (await p.evaluate(() => document.body.classList.contains("dark"))) ? ok("Dunkel-Modus umschaltbar") : fail("Dunkel-Modus");

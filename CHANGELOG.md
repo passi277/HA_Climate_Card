@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.32.0 – Starlink & Speedtest
+- Neue **Modern Starlink Card** (`custom:ha-starlink-card`): Zustand der Schüssel (Verbunden mit Laufzeit, Getrennt, Verstaut, Ruhezustand, Sicht behindert), Leistung, Heizung, Live-Durchsatz, Ping und Paketverlust, Warnungen nur wenn aktiv, Datenmenge und Energie, Verstauen/Ruhezeiten/Neustart (mit Rückfrage)
+- Externer **Speedtest** (`speedtestdotnet`) in derselben Karte: Download, Upload, Ping, Server und Alter der Messung, Verlauf der letzten 7 Tage und „Jetzt testen“ mit Fortschrittsanzeige
+- Entitäten werden über die Geräte erkannt (deutsche und englische Namen), visueller Editor
+
 ## 1.31.1 – Einstellungen folgen der Auswahl
 - Mower Card: Antippen eines Bereichs wählt ihn aus **und** zeigt seine Einstellungen; sie folgen immer dem zuletzt angetippten Bereich (abwählen springt zum vorherigen, × schließt alles). Gedrückt halten öffnet die Einstellungen weiterhin ohne Auswahl
 

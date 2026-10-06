@@ -791,3 +791,62 @@ export interface MowerCardConfig extends MowerFeatures {
   animations?: "full" | "reduced" | "off";
   [key: string]: unknown;
 }
+
+export interface StarlinkFeatures {
+  online?: string;
+  ping?: string;
+  drop?: string;
+  down_rate?: string;
+  up_rate?: string;
+  down_total?: string;
+  up_total?: string;
+  power?: string;
+  energy?: string;
+  boot?: string;
+  azimuth?: string;
+  elevation?: string;
+  obstructed?: string;
+  heating?: string;
+  sleeping?: string;
+  update?: string;
+  roaming?: string;
+  thermal?: string;
+  motors?: string;
+  mast?: string;
+  location?: string;
+  ethernet?: string;
+  stow?: string;
+  sleep_schedule?: string;
+  reboot?: string;
+}
+
+export interface SpeedtestFeatures {
+  download?: string;
+  upload?: string;
+  ping?: string;
+}
+
+export interface StarlinkShowConfig {
+  live?: boolean;
+  speedtest?: boolean;
+  history?: boolean;
+  usage?: boolean;
+  controls?: boolean;
+}
+
+export interface StarlinkCardConfig extends StarlinkFeatures {
+  type: string;
+  /** Beliebige Entität der Starlink-Schüssel (Standard: Konnektivität) – leer = nur Speedtest */
+  entity?: string;
+  /** Beliebiger Speedtest-Sensor (speedtestdotnet) */
+  speedtest?: string;
+  speedtest_download?: string;
+  speedtest_upload?: string;
+  speedtest_ping?: string;
+  name?: string;
+  show?: StarlinkShowConfig;
+  /** Tage im Speedtest-Verlauf (Standard 7) */
+  history_days?: number;
+  animations?: "full" | "reduced" | "off";
+  [key: string]: unknown;
+}

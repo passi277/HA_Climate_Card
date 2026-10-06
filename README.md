@@ -462,6 +462,27 @@ name: GOAT G1
 # blade: sensor.ecovacs_goat_1_blade_lifespan   # Zuordnung überschreiben
 ```
 
+## Modern Starlink Card (Starlink & Speedtest)
+
+Für die Starlink-Integration und den externen Speedtest (`speedtestdotnet`, Ookla): Zustand der Schüssel im Kopf (Verbunden ·
+seit 3 T 7 h, Getrennt, Verstaut, Ruhezustand, Sicht behindert) mit Leistung in W und Heizungs-Hinweis, Live-Kacheln für Download-/
+Upload-Durchsatz, Ping (farbig) und Paketverlust, Warnungen nur wenn aktiv (Sichtbehinderung, thermische Drosselung, Motoren,
+unerwarteter Standort, langsames Ethernet, Update), Speedtest mit Download/Upload/Ping, Server und „vor 25 min“, **Verlauf der
+letzten Tage** (Download + Upload) und **„Jetzt testen“** (`homeassistant.update_entity`, wartet auf die neuen Werte),
+Datenmenge und Energie sowie Verstauen (mit Rückfrage), Ruhezeiten-Zeitplan und Neustart (mit Rückfrage).
+Alle Entitäten werden über die Geräte gefunden (deutsche und englische Namen) – jede lässt sich überschreiben. Die Karte geht auch
+nur mit Starlink oder nur mit dem Speedtest.
+
+```yaml
+type: custom:ha-starlink-card
+entity: binary_sensor.starlink_konnektivitat   # beliebige Entität der Schüssel
+speedtest: sensor.speedtest_download           # beliebiger Speedtest-Sensor
+# name: Starlink
+# history_days: 7
+# show: { usage: false }   # live, speedtest, history, usage, controls
+# ping: sensor.starlink_ping                    # Zuordnung überschreiben (auch speedtest_upload, speedtest_ping …)
+```
+
 ## Modern Vacuum Card (Saugroboter)
 
 - **Live-Karte** aus dem Kartenbild (z.B. Roborock Custom Map, `image.*`) – mit Roboter-Position, automatisch auf die
@@ -840,6 +861,7 @@ glow, smooth color transitions, animations), shipped as a single HACS download:
 - `custom:ha-room-card` – room header with status chips (incl. waste collection from a calendar) and a "window open – A/C running" warning; `layout: tile` = room tile for overview pages (tap navigates, long press toggles the light)
 - `custom:ha-status-card` – batteries (per area, Battery Notes aware) and door/window contacts
 - `custom:ha-mower-card` – lawn mower with animated lawn or live map, controls, current run, statistics, blade wear and settings
+- `custom:ha-starlink-card` – Starlink dish (status, live throughput, ping, packet loss, warnings, stow/reboot) plus external speed test with history and "run test now"
 - `custom:ha-vacuum-card` – robot vacuum with live map, tap rooms on the map for room cleaning, controls, modes, maintenance
 - `custom:ha-presence-card` – people as photo tiles (home/away, phone battery and charging found automatically) plus front door: hold to open (Nuki Opener), Ring to Open, doorbell
 - `custom:ha-alert-card` – alerts that only appear when something is going on (window open, vacuum error, low battery …), hidden otherwise
