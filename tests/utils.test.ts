@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { HassEntity } from "../src/types";
 import {
   batteryHoursLeft, consumerGrid, formatHours, integratePower, statsEnergy, flowLpm, timerInfo, formatRemaining, rangeStatus, phDose, poolRuntimeRecommendation, cameraFeatures, wifiQuality, optionStyle, musicModes, isMusicEffect, energyFlows, formatPower, powerWatts, alertActive, batteryShoppingList, clockMinutes, upcomingPickups, wasteStyle, batteryIcon, doorDevices, doorKind, initials, isCharging, phoneSensors, brightnessPct, contactType, calibrationTransform, roomsFromMap, roomIcon, areaBatteries, batteryInfo, batteryNotesFor, mowerFeatures, mowerPhase, mapGeometry, mowerAreas, polygonSize, extendTrail, presetActive, presetData, DEFAULT_LIGHT_PRESETS, activityIcon, activityLabel, guessControlDevice, guessVolumeDevice, coverIcon, datetimeParts, nextOccurrence, coverPosition, skyPhase, sunPlacement, weatherOverlay, editorOptions, isNoEffect, lightEditorOptions, segmentIds, detectDeviceType, kelvinToRgb, lightColor, relatedScenes, supportsColor, supportsColorTemp, dewPoint, nextSwitch, parseSchedule, scheduleTempAt, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
+  starlinkFeatures, speedtestFeatures, formatRate, formatBytes, formatUptime, toMbit, pingQuality,
   openContactsKey, powerOf, resolveContacts, secondsToDuration, stateIcon, temperatureOf, temperatureTint, trendSlope,
 } from "../src/utils";
 import { formatAttribute, localize } from "../src/localize/localize";
@@ -752,5 +753,83 @@ describe("mower", () => {
     expect(extendTrail([], Array.from({ length: 10 }, (_, i) => ({ x: i, y: 0 })), 5)).toHaveLength(5);
     const m = mapGeometry({ position_history: [{ x: 0, y: 20 }, { x: 5, y: 20 }] }, trail)!;
     expect(m.path).toHaveLength(4);
+  });
+});
+
+describe("starlinkFeatures / speedtestFeatures", () => {
+  const mk = (list: [string, string, Record<string, any>, string?][], platform: string, device: string) => ({
+    states: Object.fromEntries(list.map(([id, s, a]) => [id, entity(id, s, a)])),
+    entities: Object.fromEntries(list.map(([id, , , tk]) => [id, { entity_id: id, device_id: device, platform, ...(tk ? { translation_key: tk } : {}) }])),
+  });
+
+  it("findet Starlink-Entitäten mit deutschen Namen über translation_key und Name", () => {
+    const { states, entities } = mk([
+      ["binary_sensor.starlink_konnektivitat", "on", { device_class: "connectivity" }],
+      ["sensor.starlink_ping", "18", { unit_of_measurement: "ms" }, "ping"],
+      ["sensor.starlink_ping_drop_rate", "0", { unit_of_measurement: "%" }],
+      ["sensor.starlink_downlink_durchsatz", "0.14", { unit_of_measurement: "Mbit/s", device_class: "data_rate" }],
+      ["sensor.starlink_uplink_durchsatz", "0.64", { unit_of_measurement: "Mbit/s", device_class: "data_rate" }],
+      ["sensor.starlink_download", "938", { unit_of_measurement: "GB", device_class: "data_size" }],
+      ["sensor.starlink_upload", "338", { unit_of_measurement: "GB", device_class: "data_size" }],
+      ["sensor.starlink_leistung", "62", { unit_of_measurement: "W", device_class: "power" }],
+      ["sensor.starlink_letzter_neustart", "2026-10-03T01:37:51+00:00", { device_class: "timestamp" }],
+      ["binary_sensor.starlink_beeintrachtigt", "off", { device_class: "problem" }, "currently_obstructed"],
+      ["binary_sensor.starlink_heizung", "off", {}],
+      ["switch.starlink_verstaut", "off", {}],
+      ["switch.starlink_zeitplan_fur_ruhezustand", "off", {}],
+      ["button.starlink_neu_starten", "unknown", { device_class: "restart" }],
+    ], "starlink", "dev1");
+    const f = starlinkFeatures(states, entities, "sensor.starlink_ping");
+    expect(f).toMatchObject({
+      online: "binary_sensor.starlink_konnektivitat", ping: "sensor.starlink_ping", drop: "sensor.starlink_ping_drop_rate",
+      down_rate: "sensor.starlink_downlink_durchsatz", up_rate: "sensor.starlink_uplink_durchsatz",
+      down_total: "sensor.starlink_download", up_total: "sensor.starlink_upload", power: "sensor.starlink_leistung",
+      boot: "sensor.starlink_letzter_neustart", obstructed: "binary_sensor.starlink_beeintrachtigt", heating: "binary_sensor.starlink_heizung",
+      stow: "switch.starlink_verstaut", sleep_schedule: "switch.starlink_zeitplan_fur_ruhezustand", reboot: "button.starlink_neu_starten",
+    });
+    // Ohne Anker: erstes Gerät der Integration
+    expect(starlinkFeatures(states, entities).online).toBe("binary_sensor.starlink_konnektivitat");
+    expect(starlinkFeatures(states, undefined, "sensor.starlink_ping")).toEqual({});
+  });
+
+  it("findet englische Starlink-Namen", () => {
+    const { states, entities } = mk([
+      ["sensor.starlink_downlink_throughput", "12", { unit_of_measurement: "Mbit/s", device_class: "data_rate" }],
+      ["sensor.starlink_ping_drop_rate", "1", { unit_of_measurement: "%" }],
+      ["sensor.starlink_ping", "30", { unit_of_measurement: "ms" }],
+      ["binary_sensor.starlink_obstructed", "on", { device_class: "problem" }],
+      ["switch.starlink_stowed", "off", {}],
+    ], "starlink", "d");
+    expect(starlinkFeatures(states, entities, "sensor.starlink_ping")).toMatchObject({
+      down_rate: "sensor.starlink_downlink_throughput", ping: "sensor.starlink_ping", drop: "sensor.starlink_ping_drop_rate",
+      obstructed: "binary_sensor.starlink_obstructed", stow: "switch.starlink_stowed",
+    });
+  });
+
+  it("findet die Speedtest-Sensoren (Gerät oder Namensendung)", () => {
+    const { states, entities } = mk([
+      ["sensor.speedtest_download", "147", { unit_of_measurement: "Mbit/s" }],
+      ["sensor.speedtest_upload", "50", { unit_of_measurement: "Mbit/s" }],
+      ["sensor.speedtest_ping", "56", { unit_of_measurement: "ms" }],
+    ], "speedtestdotnet", "sp");
+    const want = { download: "sensor.speedtest_download", upload: "sensor.speedtest_upload", ping: "sensor.speedtest_ping" };
+    expect(speedtestFeatures(states, entities, "sensor.speedtest_ping")).toEqual(want);
+    expect(speedtestFeatures(states, undefined, "sensor.speedtest_download")).toEqual(want);
+  });
+
+  it("formatiert Raten, Datenmengen, Laufzeit und Ping", () => {
+    expect(formatRate(0.139, "de")).toEqual({ v: "139", unit: "kbit/s" });
+    expect(formatRate(147.47, "de")).toEqual({ v: "147", unit: "Mbit/s" });
+    expect(formatRate(2.1, "de")).toEqual({ v: "2,1", unit: "Mbit/s" });
+    expect(formatRate(1250, "en")).toEqual({ v: "1.25", unit: "Gbit/s" });
+    expect(toMbit(500, "kbit/s")).toBe(0.5);
+    expect(toMbit(10, "MB/s")).toBe(80);
+    expect(formatBytes(938.33, "de")).toBe("938 GB");
+    expect(formatBytes(1520, "de")).toBe("1,52 TB");
+    expect(formatBytes(0.25, "de")).toBe("250 MB");
+    expect(formatUptime(3 * 86400 + 7 * 3600 + 60)).toBe("3 T 7 h");
+    expect(formatUptime(5 * 3600 + 12 * 60, "d")).toBe("5 h 12 min");
+    expect(formatUptime(-1)).toBe("");
+    expect([pingQuality(20), pingQuality(56), pingQuality(120)]).toEqual(["good", "fair", "bad"]);
   });
 });

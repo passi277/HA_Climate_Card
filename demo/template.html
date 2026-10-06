@@ -401,6 +401,32 @@
         // wie beim echten GOAT: trace.path bleibt leer, die Punkte kommen über position_history
         info: { outline: [[0, 0], [24, 0], [26, 6], [22, 14], [8, 15], [0, 10]] }, trace: { path: [] },
         position_history: [[1, 1], [2, 2], [22, 2], [23, 4], [3, 4], [3, 6], [23, 6], [22, 8], [3, 8], [5, 10], [20, 10], [16, 12], [9, 12], [13.2, 7.4]].map(([x, y]) => ({ x, y, a: 0, invalid: 0 })) } },
+      // Starlink (Integration starlink) + Speedtest.net – deutsche Entitätsnamen wie im Garten
+      ...Object.fromEntries([["starlink", "Starlink", "on", "off", "off"], ["starlink_camper", "Starlink Camper", "on", "on", "on"]].flatMap(([p, n, online, obstructed, heating]) => [
+        [`binary_sensor.${p}_konnektivitat`, { state: online, attributes: { friendly_name: `${n} Konnektivität`, device_class: "connectivity" } }],
+        [`sensor.${p}_ping`, { state: p === "starlink" ? "27.93" : "61.2", attributes: { friendly_name: `${n} Ping`, unit_of_measurement: "ms", state_class: "measurement" } }],
+        [`sensor.${p}_ping_drop_rate`, { state: p === "starlink" ? "0.0" : "3.4", attributes: { friendly_name: `${n} Ping-Drop-Rate`, unit_of_measurement: "%" } }],
+        [`sensor.${p}_downlink_durchsatz`, { state: p === "starlink" ? "18.4391" : "0.139158", attributes: { friendly_name: `${n} Downlink-Durchsatz`, unit_of_measurement: "Mbit/s", device_class: "data_rate" } }],
+        [`sensor.${p}_uplink_durchsatz`, { state: p === "starlink" ? "2.1067" : "0.6438", attributes: { friendly_name: `${n} Uplink-Durchsatz`, unit_of_measurement: "Mbit/s", device_class: "data_rate" } }],
+        [`sensor.${p}_download`, { state: "938.3287", attributes: { friendly_name: `${n} Download`, unit_of_measurement: "GB", device_class: "data_size", state_class: "total_increasing" } }],
+        [`sensor.${p}_upload`, { state: "337.9507", attributes: { friendly_name: `${n} Upload`, unit_of_measurement: "GB", device_class: "data_size", state_class: "total_increasing" } }],
+        [`sensor.${p}_leistung`, { state: p === "starlink" ? "62.19" : "48.7", attributes: { friendly_name: `${n} Leistung`, unit_of_measurement: "W", device_class: "power" } }],
+        [`sensor.${p}_energie`, { state: "117.2746", attributes: { friendly_name: `${n} Energie`, unit_of_measurement: "kWh", device_class: "energy" } }],
+        [`sensor.${p}_letzter_neustart`, { state: new Date(Date.now() - (3 * 86400 + 7 * 3600 + 1200) * 1000).toISOString(), attributes: { friendly_name: `${n} Letzter Neustart`, device_class: "timestamp" } }],
+        [`sensor.${p}_azimut`, { state: "95.22", attributes: { friendly_name: `${n} Azimut`, unit_of_measurement: "°" } }],
+        [`binary_sensor.${p}_beeintrachtigt`, { state: obstructed, attributes: { friendly_name: `${n} Beeinträchtigt`, device_class: "problem" } }],
+        [`binary_sensor.${p}_heizung`, { state: heating, attributes: { friendly_name: `${n} Heizung` } }],
+        [`binary_sensor.${p}_ruhezustand`, { state: "off", attributes: { friendly_name: `${n} Ruhezustand` } }],
+        [`binary_sensor.${p}_update`, { state: "off", attributes: { friendly_name: `${n} Update`, device_class: "update" } }],
+        [`binary_sensor.${p}_thermische_drossel`, { state: "off", attributes: { friendly_name: `${n} Thermische Drossel`, device_class: "problem" } }],
+        [`binary_sensor.${p}_motoren_stecken_fest`, { state: "off", attributes: { friendly_name: `${n} Motoren stecken fest`, device_class: "problem" } }],
+        [`switch.${p}_verstaut`, { state: "off", attributes: { friendly_name: `${n} Verstaut`, device_class: "switch" } }],
+        [`switch.${p}_zeitplan_fur_ruhezustand`, { state: "off", attributes: { friendly_name: `${n} Zeitplan für Ruhezustand`, device_class: "switch" } }],
+        [`button.${p}_neu_starten`, { state: "unknown", attributes: { friendly_name: `${n} Neu starten`, device_class: "restart" } }],
+      ])),
+      ...Object.fromEntries([["download", "147.47", "Mbit/s"], ["upload", "49.74", "Mbit/s"], ["ping", "56", "ms"]].map(([k, v, u]) => [`sensor.speedtest_${k}`, { state: v,
+        last_updated: new Date(Date.now() - 25 * 60000).toISOString(),
+        attributes: { friendly_name: `SpeedTest ${k[0].toUpperCase()}${k.slice(1)}`, unit_of_measurement: u, device_class: k === "ping" ? "duration" : "data_rate", server_name: "Neumünster", server_country: "Germany" } }])),
       // ECOVACS GOAT A1600 (goat_mower): Bereiche mit Umriss zum Antippen und goat_mower.mow_areas
       "lawn_mower.goat_a1600": { state: "docked", attributes: { friendly_name: "GOAT A1600", supported_features: 7, job_area_ids: [], areas: { "1": "Vorgarten", "2": "Zeltplatz", "3": "Beet" } } },
       "sensor.goat_a1600_battery": { state: "100", attributes: { friendly_name: "Akku", unit_of_measurement: "%", device_class: "battery" } },
@@ -535,6 +561,9 @@
       ...(/_mein_zimmer_batter|zimmer_schalter_batter|turkontakt_mein_zimmer_batter/.test(id) ? { device_id: id.replace(/^\w+\.|_battery_plus.*|_batterie$/g, "") } : {}),
       ...(/^\w+\.(cam_haus|blink_(tor|carport|pool|schuppen))/.test(id) ? { device_id: id.match(/^\w+\.(cam_haus|blink_(tor|carport|pool|schuppen))/)[1], platform: id.includes("blink") ? "blink" : "reolink" } : {}),
       ...(/^(sensor|button)\.(ventil|wasser)_(hecke|rasen)_batter/.test(id) ? { device_id: "dev_ventil_" + id.match(/_(hecke|rasen)_/)[1], ...(id.includes("wasser_") ? { platform: "battery_notes" } : {}) } : {}),
+      ...(/^\w+\.starlink_/.test(id) ? { device_id: id.includes("camper") ? "dev_starlink_camper" : "dev_starlink", platform: "starlink",
+        translation_key: { konnektivitat: "connection", ping: "ping", ping_drop_rate: "ping_drop_rate", downlink_durchsatz: "downlink_throughput", uplink_durchsatz: "uplink_throughput", download: "download", upload: "upload", letzter_neustart: "last_boot_time", beeintrachtigt: "currently_obstructed", heizung: "heating", ruhezustand: "power_save_idle", verstaut: "stowed", zeitplan_fur_ruhezustand: "sleep_schedule", neu_starten: "reboot" }[id.replace(/^\w+\.starlink_(camper_)?/, "")] } : {}),
+      ...(/^sensor\.speedtest_/.test(id) ? { device_id: "dev_speedtest", platform: "speedtestdotnet", translation_key: id.replace("sensor.speedtest_", "") } : {}),
       ...(/^\w+\.goat_(g1|wiese|a1600)/.test(id) ? { device_id: "dev_" + id.match(/goat_(g1|wiese|a1600)/)[0] } : {}),
       area_id: /heizung_mein_zimmer|etrv_|wandthermostat_mein|_mein_zimmer_batter|zimmer_schalter_batter|turkontakt_mein_zimmer_batter/.test(id) ? "mein_zimmer" : null }]));
     const devices = { cam_haus: { id: "cam_haus", name: "Haus" }, blink_tor: { id: "blink_tor", name: "Tor" }, blink_carport: { id: "blink_carport", name: "Carport" },
@@ -716,6 +745,15 @@
           setTimeout(() => { const h = makeHass(); cards.forEach((c) => (c.hass = h)); }, 150);
           return;
         }
+        if (domain === "homeassistant" && service === "update_entity" && String(data.entity_id).startsWith("sensor.speedtest_")) {
+          setTimeout(() => {
+            const now = new Date().toISOString();
+            const vals = { download: (120 + Math.random() * 90).toFixed(2), upload: (30 + Math.random() * 25).toFixed(2), ping: String(Math.round(35 + Math.random() * 30)) };
+            for (const [k, v] of Object.entries(vals)) states[`sensor.speedtest_${k}`] = { ...states[`sensor.speedtest_${k}`], state: v, last_changed: now, last_updated: now };
+            const h = makeHass(); cards.forEach((c) => (c.hass = h));
+          }, 1500);
+          return;
+        }
         if (domain === "homeassistant" || domain === "input_datetime") {
           let st = s.state, attrs = s.attributes;
           if (service === "toggle") st = st === "on" ? "off" : "on";
@@ -765,6 +803,15 @@
               rows.push({ start: d.getTime(), end: n.getTime(), mean });
             }
             out[id] = rows;
+          }
+          return out;
+        }
+        // Speedtest: 7 Tage, alle 3 h ein Test
+        if (msg.entity_ids.every((id) => id.startsWith("sensor.speedtest_"))) {
+          const now = Date.now() / 1000;
+          for (const id of msg.entity_ids) {
+            const base = id.endsWith("upload") ? 45 : 150;
+            out[id] = Array.from({ length: 56 }, (_, i) => ({ s: String(+(base * (0.82 + 0.18 * Math.sin(i / 2.6)) + (i % 7 === 3 ? -base * 0.35 : 0)).toFixed(2)), lu: now - (55 - i) * 3 * 3600 }));
           }
           return out;
         }
@@ -891,6 +938,8 @@
       ] }],
       ["Status – Batterien aus Bereich + Türkontakt + Einkaufsliste", { _status: true, areas: ["mein_zimmer"], shopping_list: true, expanded: true, contacts: [{ entity: "binary_sensor.tuerkontakt_pascal", name: "Tür" }] }],
       ["Status – Battery Notes am Gerät (Typ, „gewechselt vor“, gedrückt halten = Wechsel eintragen)", { _status: true, title: "Ventile", batteries: ["sensor.ventil_hecke_battery", "sensor.ventil_rasen_battery", "sensor.ventil_beete_battery"], shopping_list: true, expanded: true }],
+      ["Starlink + Speedtest – Live-Durchsatz, Ping, Speedtest mit Verlauf und „Jetzt testen“, Verstauen/Neustart", { _starlink: true, entity: "binary_sensor.starlink_konnektivitat", speedtest: "sensor.speedtest_download" }],
+      ["Starlink – Camper mit Sichtbehinderung und Heizung (ohne Speedtest)", { _starlink: true, entity: "binary_sensor.starlink_camper_konnektivitat", name: "Camper" }],
       ["Mähroboter – mäht gerade (Live-Karte, Fortschritt, Statistik, Wartung, Einstellungen)", { _mower: true, entity: "lawn_mower.goat_wiese", name: "GOAT Wiese" }],
       ["Mähroboter – in der Station (animierter Rasen, Messer fast verbraucht, Update)", { _mower: true, entity: "lawn_mower.goat_g1", name: "GOAT G1", settings_open: true }],
       ["Mähroboter – GOAT A1600 (Bereiche antippen, „Ausgewählte mähen“)", { _mower: true, entity: "lawn_mower.goat_a1600", name: "GOAT A1600" }],
@@ -926,9 +975,9 @@
         grid.appendChild(wrap);
         return;
       }
-      const { _overview, _light, _group, _cover, _coverGroup, _switchTime, _media, _room, _status, _vacuum, _presence, _alert, _energy, _irrigation, _pool, _camera, _cameraGroup, _select, _mower, ...rest } = cfg;
+      const { _overview, _light, _group, _cover, _coverGroup, _switchTime, _media, _room, _status, _vacuum, _presence, _alert, _energy, _irrigation, _pool, _camera, _cameraGroup, _select, _mower, _starlink, ...rest } = cfg;
       const tag = _overview ? "ha-climate-overview-card" : _group ? "ha-light-group-card" : _light ? "ha-light-card"
-        : _cover ? "ha-cover-card" : _coverGroup ? "ha-cover-group-card" : _switchTime ? "ha-switch-time-card" : _media ? "ha-media-card" : _room ? "ha-room-card" : _status ? "ha-status-card" : _vacuum ? "ha-vacuum-card" : _presence ? "ha-presence-card" : _alert ? "ha-alert-card" : _energy ? "ha-energy-card" : _irrigation ? "ha-irrigation-card" : _pool ? "ha-pool-card" : _camera ? "ha-camera-card" : _cameraGroup ? "ha-camera-group-card" : _select ? "ha-select-card" : _mower ? "ha-mower-card" : "ha-climate-card";
+        : _cover ? "ha-cover-card" : _coverGroup ? "ha-cover-group-card" : _switchTime ? "ha-switch-time-card" : _media ? "ha-media-card" : _room ? "ha-room-card" : _status ? "ha-status-card" : _vacuum ? "ha-vacuum-card" : _presence ? "ha-presence-card" : _alert ? "ha-alert-card" : _energy ? "ha-energy-card" : _irrigation ? "ha-irrigation-card" : _pool ? "ha-pool-card" : _camera ? "ha-camera-card" : _cameraGroup ? "ha-camera-group-card" : _select ? "ha-select-card" : _mower ? "ha-mower-card" : _starlink ? "ha-starlink-card" : "ha-climate-card";
       const card = document.createElement(tag);
       card.id = "card" + i;
       card.setConfig({ type: `custom:${tag}`, ...rest });

@@ -20,3 +20,4 @@ import "./camera-card";
 import "./camera-group-card";
 import "./select-card";
 import "./mower-card";
+import "./starlink-card";

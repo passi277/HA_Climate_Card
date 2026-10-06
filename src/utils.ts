@@ -1429,3 +1429,108 @@ export const extendTrail = (trail: MapPoint[], points: MapPoint[], max = 3000): 
   }
   return out.length > max ? out.slice(out.length - max) : out;
 };
+
+/** Einträge eines Geräts: über die Anker-Entität bzw. die erste Entität der Integration */
+const deviceEntries = (states: Record<string, HassEntity>, entities: Record<string, EntityRegistryEntry> | undefined,
+  anchor: string | undefined, platform: string): EntityRegistryEntry[] => {
+  if (!entities) return [];
+  const all = Object.values(entities);
+  const device = (anchor ? entities[anchor]?.device_id : undefined)
+    ?? all.find((e) => e.platform === platform && e.device_id && states[e.entity_id])?.device_id;
+  if (!device) return [];
+  return all.filter((e) => e.device_id === device && states[e.entity_id]).sort((a, b) => a.entity_id.localeCompare(b.entity_id));
+};
+
+/** Starlink-Schüssel: Entitäten über das Gerät finden (translation_key, sonst Name/Einheit – deutsch und englisch) */
+export const starlinkFeatures = (states: Record<string, HassEntity>, entities: Record<string, EntityRegistryEntry> | undefined,
+  anchor?: string): Record<string, string | undefined> => {
+  const list = deviceEntries(states, entities, anchor, "starlink");
+  if (!list.length) return {};
+  const name = (e: EntityRegistryEntry) => `${e.entity_id} ${states[e.entity_id]?.attributes.friendly_name ?? ""}`.toLowerCase();
+  const attr = (e: EntityRegistryEntry, k: string) => states[e.entity_id]?.attributes[k];
+  const find = (domain: string, key: string | string[], re?: RegExp, test?: (e: EntityRegistryEntry) => boolean) => list.find((e) =>
+    e.entity_id.startsWith(`${domain}.`) && ((Array.isArray(key) ? key : [key]).includes(e.translation_key ?? "") || (!!re && re.test(name(e)) && (!test || test(e)))))?.entity_id;
+  const rate = (e: EntityRegistryEntry) => attr(e, "device_class") === "data_rate" || /bit\/s/i.test(String(attr(e, "unit_of_measurement") ?? ""));
+  const size = (e: EntityRegistryEntry) => attr(e, "device_class") === "data_size" || /^[kmgtp]?b$/i.test(String(attr(e, "unit_of_measurement") ?? ""));
+  return {
+    online: list.find((e) => e.entity_id.startsWith("binary_sensor.") && (attr(e, "device_class") === "connectivity" || e.translation_key === "connection"))?.entity_id,
+    ping: find("sensor", "ping", /ping|latenz|latency/, (e) => attr(e, "unit_of_measurement") === "ms" && !/drop|verlust/.test(name(e))),
+    drop: find("sensor", "ping_drop_rate", /drop|verlust/),
+    down_rate: find("sensor", "downlink_throughput", /downlink|download/, rate),
+    up_rate: find("sensor", "uplink_throughput", /uplink|upload/, rate),
+    down_total: find("sensor", "download", /download/, size),
+    up_total: find("sensor", "upload", /upload/, size),
+    power: list.find((e) => e.entity_id.startsWith("sensor.") && attr(e, "device_class") === "power")?.entity_id,
+    energy: list.find((e) => e.entity_id.startsWith("sensor.") && attr(e, "device_class") === "energy")?.entity_id,
+    boot: find("sensor", "last_boot_time", /boot|neustart|restart/, (e) => attr(e, "device_class") === "timestamp"),
+    azimuth: find("sensor", "azimuth", /azimut/),
+    elevation: find("sensor", "elevation", /elevation|neigung/, (e) => attr(e, "unit_of_measurement") === "°"),
+    obstructed: find("binary_sensor", "currently_obstructed", /obstruct|beeinträchtigt|behindert|blockiert/),
+    heating: find("binary_sensor", "heating", /heat|heizung/),
+    sleeping: find("binary_sensor", "power_save_idle", /idle|ruhezustand|sleep/),
+    update: find("binary_sensor", "update", /update/),
+    roaming: find("binary_sensor", "roaming", /roaming/),
+    thermal: find("binary_sensor", "thermal_throttle", /thermal|thermisch/),
+    motors: find("binary_sensor", "motors_stuck", /motor/),
+    mast: find("binary_sensor", "mast_near_vertical", /mast/),
+    location: find("binary_sensor", "unexpected_location", /location|standort/),
+    ethernet: find("binary_sensor", "slow_ethernet_speeds", /ethernet/),
+    stow: find("switch", "stowed", /stow|verstaut/),
+    sleep_schedule: find("switch", "sleep_schedule", /sleep|ruhezustand/),
+    reboot: list.find((e) => e.entity_id.startsWith("button.") && (e.translation_key === "reboot" || attr(e, "device_class") === "restart" || /reboot|neu.?start|restart/.test(name(e))))?.entity_id,
+  };
+};
+
+/** Speedtest.net (Ookla): Download, Upload, Ping über das Gerät */
+export const speedtestFeatures = (states: Record<string, HassEntity>, entities: Record<string, EntityRegistryEntry> | undefined,
+  anchor?: string): Record<string, string | undefined> => {
+  const list = deviceEntries(states, entities, anchor, "speedtestdotnet").filter((e) => e.entity_id.startsWith("sensor."));
+  const name = (e: EntityRegistryEntry) => `${e.translation_key ?? ""} ${e.entity_id} ${states[e.entity_id]?.attributes.friendly_name ?? ""}`.toLowerCase();
+  const pick = (re: RegExp) => list.find((e) => re.test(name(e)))?.entity_id;
+  const out = { download: pick(/download/), upload: pick(/upload/), ping: pick(/ping|latenz|latency/) };
+  // Ohne Registry: Anker-Entität und Geschwister über die Namensendung
+  if (!list.length && anchor && states[anchor]) {
+    const base = anchor.replace(/_(download|upload|ping)$/, "");
+    for (const k of ["download", "upload", "ping"] as const) if (states[`${base}_${k}`]) out[k] = `${base}_${k}`;
+  }
+  return out;
+};
+
+/** Datenrate aus Mbit/s: kbit/s, Mbit/s oder Gbit/s */
+export const formatRate = (mbit: number, lang = "de"): { v: string; unit: string } => {
+  const f = (v: number, d: number) => v.toLocaleString(lang, { maximumFractionDigits: d });
+  if (mbit >= 1000) return { v: f(mbit / 1000, 2), unit: "Gbit/s" };
+  if (mbit < 1) return { v: f(mbit * 1000, 0), unit: "kbit/s" };
+  return { v: f(mbit, mbit < 10 ? 1 : 0), unit: "Mbit/s" };
+};
+
+/** In Mbit/s umrechnen (Einheit des Sensors) */
+export const toMbit = (v: number, unit?: string): number => {
+  const u = String(unit ?? "Mbit/s");
+  if (/^Gbit/i.test(u)) return v * 1000;
+  if (/^kbit/i.test(u)) return v / 1000;
+  if (/^bit/i.test(u)) return v / 1e6;
+  if (/^MB\/s|MiB\/s/.test(u)) return v * 8;
+  if (/^kB\/s|KiB\/s/.test(u)) return v * 8 / 1000;
+  return v;
+};
+
+/** Datenmenge aus GB: MB, GB oder TB */
+export const formatBytes = (gb: number, lang = "de"): string => {
+  const f = (v: number, d: number) => v.toLocaleString(lang, { maximumFractionDigits: d });
+  if (gb >= 1000) return `${f(gb / 1000, 2)} TB`;
+  if (gb < 1) return `${f(gb * 1000, 0)} MB`;
+  return `${f(gb, gb < 100 ? 1 : 0)} GB`;
+};
+
+/** Laufzeit kompakt: „3 T 7 h“, „5 h 12 min“, „8 min“ */
+export const formatUptime = (sec: number, day = "T"): string => {
+  if (!Number.isFinite(sec) || sec < 0) return "";
+  const d = Math.floor(sec / 86400), h = Math.floor((sec % 86400) / 3600), m = Math.floor((sec % 3600) / 60);
+  if (d) return `${d} ${day} ${h} h`;
+  if (h) return `${h} h ${m} min`;
+  return `${m} min`;
+};
+
+/** Ping-Qualität für Farben */
+export const pingQuality = (ms: number): "good" | "fair" | "bad" => (ms < 40 ? "good" : ms < 80 ? "fair" : "bad");
