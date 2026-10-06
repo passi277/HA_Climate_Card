@@ -985,7 +985,7 @@
     "areas_confirm": "Sicher? Mäher fährt los",
     "areas_not_ready": "Starten geht, wenn der Mäher in der Station steht oder pausiert",
     "areas_multi_hint": "Mehrere Bereiche: in der Integration ggf. noch experimentell",
-    "areas_hint_hold": "Antippen = auswählen · halten = Einstellungen",
+    "areas_hint_hold": "Antippen = auswählen und einstellen",
     "area_height": "Mähhöhe",
     "area_speed": "Geschwindigkeit",
     "area_avoidance": "Vermeidungsmodus",

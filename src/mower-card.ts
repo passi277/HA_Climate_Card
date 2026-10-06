@@ -360,7 +360,13 @@ export class HaMowerCard extends LitElement {
     if (this._held || this._drag?.moved) { this._held = false; return; }
     this._haptic("selection");
     this._confirm = undefined;
-    this._selected = this._selected.includes(id) ? this._selected.filter((x) => x !== id) : [...this._selected, id];
+    const was = this._selected.includes(id);
+    this._selected = was ? this._selected.filter((x) => x !== id) : [...this._selected, id];
+    // Einstellungen folgen dem zuletzt angetippten Bereich
+    if (this._areaSettingIds().length) {
+      if (!was) this._areaPanel = id;
+      else if (this._areaPanel === id) this._areaPanel = this._selected[this._selected.length - 1];
+    }
   }
 
   private async _mowAreas(areas: MowerArea[]): Promise<void> {
@@ -635,7 +641,7 @@ export class HaMowerCard extends LitElement {
       <div class="a-head">
         <span class="sec-title"><ha-icon icon="mdi:texture-box"></ha-icon><span>${this._t("areas")}</span></span>
         ${chosen.length ? html`<span class="a-sum">${chosen.length} ${this._t("areas_selected")}${total ? ` · ${this._fmt(total, 0)}\u00a0m²` : ""}</span>
-          <button class="a-clear" aria-label=${this._t("areas_clear")} title=${this._t("areas_clear")} @click=${() => { this._selected = []; this._confirm = undefined; }}><ha-icon icon="mdi:close"></ha-icon></button>` : html`<span class="a-sum">${this._t(this._areaSettingIds().length ? "areas_hint_hold" : "areas_hint")}</span>`}
+          <button class="a-clear" aria-label=${this._t("areas_clear")} title=${this._t("areas_clear")} @click=${() => { this._selected = []; this._confirm = undefined; this._areaPanel = undefined; }}><ha-icon icon="mdi:close"></ha-icon></button>` : html`<span class="a-sum">${this._t(this._areaSettingIds().length ? "areas_hint_hold" : "areas_hint")}</span>`}
       </div>
       <div class="a-chips" role="group" aria-label=${this._t("areas")}>${areas.map((a) => {
         const sel = this._selected.includes(a.id);

@@ -968,7 +968,7 @@
     "areas_confirm": "Sure? Mower will drive off",
     "areas_not_ready": "Starting works when the mower is docked or paused",
     "areas_multi_hint": "Several areas: may still be experimental in the integration",
-    "areas_hint_hold": "Tap = select · hold = settings",
+    "areas_hint_hold": "Tap = select and adjust",
     "area_height": "Cutting height",
     "area_speed": "Speed",
     "area_avoidance": "Avoidance mode",

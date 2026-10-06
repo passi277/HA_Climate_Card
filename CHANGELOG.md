@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.31.1 – Einstellungen folgen der Auswahl
+- Mower Card: Antippen eines Bereichs wählt ihn aus **und** zeigt seine Einstellungen; sie folgen immer dem zuletzt angetippten Bereich (abwählen springt zum vorherigen, × schließt alles). Gedrückt halten öffnet die Einstellungen weiterhin ohne Auswahl
+
 ## 1.31.0 – Bereiche einstellen, Vollbild
 - Mower Card: **Bereich gedrückt halten** (auf der Karte oder in der Liste) öffnet seine Einstellungen – Mähhöhe und Geschwindigkeit mit −/+, Vermeidungsmodus als Auswahl (Entitäten mit Attribut `area_id`, z.B. `goat_mower`)
 - **Vollbild-Karte** (Taste oben rechts): groß, mit Zoom per Zwei-Finger-Geste, Mausrad oder Lupe, verschieben per Ziehen; Bereiche lassen sich auch dort auswählen und einstellen

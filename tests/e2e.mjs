@@ -1006,6 +1006,7 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
     dlg.querySelector('.map .m-zone[data-area="2"]').dispatchEvent(new MouseEvent("click", { bubbles: true }));
     await wait(100);
     res.selInFull = [...new Set([...root.querySelectorAll(".a-chip.sel")].map((b) => b.dataset.area))].join();
+    res.panelAfterTap = root.querySelector(".f-body .a-panel .p-head b")?.textContent.trim();
     dlg.querySelectorAll(".f-btn")[2].click();
     await wait(200);
     res.closed = !root.querySelector("dialog.full");
@@ -1014,7 +1015,7 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
   const calls = await p.evaluate((n) => window.serviceCalls.slice(n).filter((c) => c.domain !== "ecovacs_goat_g1").map((c) => `${c.domain}.${c.service}:${c.data.entity_id}:${c.data.value ?? c.data.option}`), before);
   r.head === "Vorgarten" && !r.selAfterHold && r.height === "6\u00a0cm" && r.speed === "0,4\u00a0m/s" && r.segs.join() === "flat,*normal,tall_grass" && r.heightPending === "7\u00a0cm"
     && calls.join() === "number.set_value:number.goat_a1600_vorgarten_cutting_height:7,select.select_option:select.goat_a1600_vorgarten_avoidance_mode:flat"
-    && r.open && r.zoomed && r.selInFull === "2" && r.closed
+    && r.open && r.zoomed && r.selInFull === "2" && r.panelAfterTap === "Zeltplatz" && r.closed
     ? ok("Mähroboter: Bereich halten → Mähhöhe/Vermeidung; Vollbild mit Zoom und Auswahl") : fail(`Mähroboter Bereichseinstellungen: ${JSON.stringify({ r, calls })}`);
 }
 
