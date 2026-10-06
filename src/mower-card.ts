@@ -73,6 +73,8 @@ export class HaMowerCard extends LitElement {
   @state() private _full = false;
   @state() private _zoom = { cx: 0, cy: 0, s: 1 };
   @state() private _pendingNum: Record<string, number> = {};
+  /** Ablehnung des letzten Bereichsmähen-Befehls (gut sichtbar statt nur als kurze Meldung) */
+  @state() private _areaError?: string;
   private _numTimers: Record<string, number> = {};
   private _holdTimer?: number;
   private _held = false;
@@ -361,6 +363,7 @@ export class HaMowerCard extends LitElement {
     this._haptic("selection");
     this._confirm = undefined;
     const was = this._selected.includes(id);
+    this._areaError = undefined;
     this._selected = was ? this._selected.filter((x) => x !== id) : [...this._selected, id];
     // Einstellungen folgen dem zuletzt angetippten Bereich
     if (this._areaSettingIds().length) {
@@ -374,8 +377,25 @@ export class HaMowerCard extends LitElement {
     const ids = areas.map((a) => a.id);
     if (!domain || !ids.length || !this._confirmed("areas")) return;
     this._haptic("medium");
-    await this._call(domain, AREA_SERVICE, { entity_id: this._config!.entity, area_ids: ids });
-    this._selected = [];
+    this._areaError = undefined;
+    try {
+      await this.hass!.callService(domain, AREA_SERVICE, { entity_id: this._config!.entity, area_ids: ids });
+      this._selected = [];
+      this._areaPanel = undefined;
+    } catch (err: any) {
+      this._haptic("failure");
+      this._areaError = String(err?.message ?? err);
+    }
+  }
+
+  /** Bereichsmähen: gewählte Bereiche (Reihenfolge des Antippens) und ob gestartet werden darf */
+  private _areaStart(phase: MowerPhase) {
+    const areas = this._areaDomain() ? mowerAreas(this.hass!.states[this._f().map ?? ""]?.attributes) : [];
+    const chosen = this._selected.map((id) => areas.find((a) => a.id === id)).filter((a): a is MowerArea => !!a);
+    const ready = phase === "docked" || phase === "paused";
+    // die Integration meldet vorab, ob mehrere Bereiche angenommen werden (goat_mower: Option „Experimentell“)
+    const multiBlocked = chosen.length > 1 && this.hass!.states[this._config!.entity]?.attributes.multi_area_allowed === false;
+    return { chosen, ready, multiBlocked, enabled: chosen.length > 0 && ready && !multiBlocked, asking: this._confirm === "areas" };
   }
 
   /** Langes Drücken auf einen Bereich (Karte oder Liste) öffnet seine Einstellungen */
@@ -616,8 +636,14 @@ export class HaMowerCard extends LitElement {
     const busy = phase === "mowing" || phase === "returning";
     const btn = (key: string, icon: string, label: string, enabled: boolean, onClick: () => void, cls = "") =>
       html`<button class="ctl ${cls}" ?disabled=${!enabled} @click=${onClick} aria-label=${label}><ha-icon .icon=${icon}></ha-icon><span>${label}</span></button>`;
+    // Sind Bereiche ausgewählt, startet die große Taste das Bereichsmähen statt des ganzen Rasens
+    const area = this._areaStart(phase);
+    const startBtn = area.chosen.length
+      ? btn("start", area.asking ? "mdi:alert" : "mdi:texture-box", this._t(area.asking ? "confirm" : area.chosen.length > 1 ? "start_areas" : "start_area"),
+        area.enabled, () => this._mowAreas(area.chosen), `start area ${area.asking ? "ask" : ""}`)
+      : btn("start", "mdi:play", this._t(phase === "paused" ? "resume" : "start"), phase !== "mowing", () => this._mower("start_mowing"), "start");
     return html`<div class="controls">
-      ${feat & START ? btn("start", "mdi:play", this._t(phase === "paused" ? "resume" : "start"), phase !== "mowing", () => this._mower("start_mowing"), "start") : nothing}
+      ${feat & START ? startBtn : nothing}
       ${feat & PAUSE ? btn("pause", "mdi:pause", this._t("pause"), busy, () => this._mower("pause")) : nothing}
       ${feat & DOCK ? btn("dock", "mdi:home-import-outline", this._t("dock"), phase !== "docked" && phase !== "returning", () => this._mower("dock")) : nothing}
       ${f.stop ? btn("stop", "mdi:stop", this._confirm === "stop" ? this._t("confirm") : this._t("stop"), phase === "mowing" || phase === "paused" || phase === "returning",
@@ -631,12 +657,10 @@ export class HaMowerCard extends LitElement {
     if (!this._areaDomain()) return nothing;
     const areas = mowerAreas(this.hass!.states[f.map ?? ""]?.attributes).sort((a, b) => a.name.localeCompare(b.name, getLanguage(this.hass)));
     if (!areas.length) return nothing;
-    // Reihenfolge des Antippens
-    const chosen = this._selected.map((id) => areas.find((a) => a.id === id)).filter((a): a is MowerArea => !!a);
+    const start = this._areaStart(phase);
+    const chosen = start.chosen;
     const total = chosen.reduce((sum, a) => sum + (a.m2 ?? 0), 0);
-    const ready = phase === "docked" || phase === "paused";
-    const asking = this._confirm === "areas";
-    const label = asking ? this._t("areas_confirm") : this._t(chosen.length > 1 ? "areas_start_many" : "areas_start");
+    const label = start.asking ? this._t("areas_confirm") : this._t(chosen.length > 1 ? "areas_start_many" : "areas_start");
     return html`<div class="areas">
       <div class="a-head">
         <span class="sec-title"><ha-icon icon="mdi:texture-box"></ha-icon><span>${this._t("areas")}</span></span>
@@ -650,9 +674,12 @@ export class HaMowerCard extends LitElement {
           <ha-icon .icon=${sel ? "mdi:check-circle" : "mdi:checkbox-blank-circle-outline"}></ha-icon><span>${a.name}</span>${a.m2 ? html`<small>${this._fmt(a.m2, 0)}\u00a0m²</small>` : nothing}</button>`;
       })}</div>
       ${this._areaPanel ? this._renderAreaPanel(areas.find((a) => a.id === this._areaPanel)) : nothing}
-      ${chosen.length ? html`<button class="a-start ${asking ? "ask" : ""}" ?disabled=${!ready} @click=${() => this._mowAreas(chosen)}>
-          <ha-icon icon=${asking ? "mdi:alert" : "mdi:play"}></ha-icon><span>${label}</span></button>
-        ${!ready ? html`<small class="a-note">${this._t("areas_not_ready")}</small>` : chosen.length > 1 ? html`<small class="a-note">${this._t("areas_multi_hint")}</small>` : nothing}` : nothing}
+      ${this._full && chosen.length ? html`<button class="a-start ${start.asking ? "ask" : ""}" ?disabled=${!start.enabled} @click=${() => this._mowAreas(chosen)}>
+          <ha-icon icon=${start.asking ? "mdi:alert" : "mdi:play"}></ha-icon><span>${label}</span></button>` : nothing}
+      ${this._areaError ? html`<div class="a-error" role="alert"><ha-icon icon="mdi:alert-circle"></ha-icon><span>${this._areaError}</span></div>`
+        : chosen.length && start.multiBlocked ? html`<div class="a-error warn"><ha-icon icon="mdi:lock-outline"></ha-icon><span>${this._t("areas_multi_blocked")}</span></div>`
+        : chosen.length && !start.ready ? html`<small class="a-note">${this._t("areas_not_ready")}</small>`
+        : chosen.length ? html`<small class="a-note">${this._t("areas_start_hint")}</small>` : nothing}
     </div>`;
   }
 
@@ -995,6 +1022,12 @@ export class HaMowerCard extends LitElement {
     .p-row > ha-icon { --mdc-icon-size: 19px; color: var(--secondary-text-color); flex: none; }
     .p-label { flex: 1; min-width: 0; font-size: 13px; font-weight: 600; }
     .p-val { min-width: 70px; text-align: center; font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .a-error { display: flex; align-items: flex-start; gap: 8px; padding: 9px 11px; border-radius: 12px; font-size: 12.5px; font-weight: 600;
+      color: var(--error-color, #e53935); background: color-mix(in srgb, var(--error-color, #e53935) 13%, transparent); }
+    .a-error.warn { color: #ef6c00; background: color-mix(in srgb, #fb8c00 14%, transparent); }
+    .a-error ha-icon { --mdc-icon-size: 18px; flex: none; }
+    .ctl.start.area:not([disabled]) { background: #2e7d32; }
+    .ctl.start.area.ask:not([disabled]) { background: #f57c00; }
     .a-note { font-size: 11.5px; color: var(--secondary-text-color); text-align: center; }
 
     /* Fehler */

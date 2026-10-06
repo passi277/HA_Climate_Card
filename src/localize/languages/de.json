@@ -993,7 +993,11 @@
     "close": "Schließen",
     "fullscreen": "Vollbild",
     "zoom_in": "Vergrößern",
-    "zoom_out": "Verkleinern"
+    "zoom_out": "Verkleinern",
+    "start_area": "Bereich",
+    "start_areas": "Bereiche",
+    "areas_multi_blocked": "Mehrere Bereiche gleichzeitig sind noch nicht freigegeben (Option „Experimentelle Fahrbefehle“ der Integration). Bitte nur einen Bereich wählen.",
+    "areas_start_hint": "„Mähen“ startet jetzt nur die ausgewählten Bereiche"
   },
   "mower_editor": {
     "entity": "Mähroboter",

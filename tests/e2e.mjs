@@ -935,7 +935,7 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
     ? ok("Mähroboter (Station): Laden, Messer-Warnung, Update, Einstellungen, Start") : fail(`Mähroboter Station: ${JSON.stringify({ d, calls2 })}`);
 }
 
-// Mähroboter: Bereiche antippen (Karte + Liste), Rückfrage, goat_mower.mow_areas
+// Mähroboter: Bereiche antippen (Karte + Liste); die große Taste startet dann nur die Bereiche (Rückfrage); Sperre für mehrere Bereiche
 {
   const card = await p.evaluateHandle(() => [...document.querySelectorAll("ha-mower-card")].find((c) => c._config.name === "GOAT A1600"));
   await card.evaluate((c) => c.scrollIntoView({ block: "center" }));
@@ -944,30 +944,44 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
   const r = await card.evaluate(async (c) => {
     const root = c.shadowRoot;
     const wait = (ms) => new Promise((res) => setTimeout(res, ms));
+    const startBtn = () => root.querySelector(".ctl.start");
+    const withMulti = (allowed) => {
+      const id = "lawn_mower.goat_a1600";
+      const st = c.hass.states[id];
+      const attributes = { ...st.attributes };
+      if (allowed == null) delete attributes.multi_area_allowed; else attributes.multi_area_allowed = allowed;
+      c.hass = { ...c.hass, states: { ...c.hass.states, [id]: { ...st, attributes } } };
+    };
     const res = { zones: [...root.querySelectorAll(".map .m-zone")].map((z) => z.dataset.area), chips: [...root.querySelectorAll(".a-chip span")].map((x) => x.textContent.trim()),
-      start: !!root.querySelector(".a-start"), stop: !!root.querySelector(".ctl.stop") };
+      label0: startBtn().textContent.trim(), inlineStart: !!root.querySelector(".a-start") };
     root.querySelector('.map .m-zone[data-area="2"]').dispatchEvent(new MouseEvent("click", { bubbles: true }));
     await wait(50);
     root.querySelector('.a-chip[data-area="3"]').click();
     await wait(50);
     res.sel = [...root.querySelectorAll(".map .m-zone.sel")].map((z) => z.dataset.area).sort().join();
     res.sum = root.querySelector(".a-sum").textContent.trim();
-    res.label = root.querySelector(".a-start").textContent.trim();
-    root.querySelector(".a-start").click();
+    res.label = startBtn().textContent.trim();
+    withMulti(false);
     await wait(50);
-    res.ask = root.querySelector(".a-start").textContent.trim();
-    res.callsAfterAsk = window.serviceCalls.filter((x) => x.domain === "goat_mower").length;
-    root.querySelector(".a-start").click();
+    res.blocked = { disabled: startBtn().disabled, warn: !!root.querySelector(".a-error.warn") };
+    withMulti(null);
+    await wait(50);
+    startBtn().click();
+    await wait(50);
+    res.ask = startBtn().textContent.trim();
+    res.callsAfterAsk = window.serviceCalls.filter((x) => x.domain === "goat_mower" || x.domain === "lawn_mower").length;
+    startBtn().click();
     await wait(400);
     res.after = { sub: root.querySelector(".h-sub").textContent.trim(), job: [...root.querySelectorAll(".map .m-zone.job")].map((z) => z.dataset.area).sort().join(),
-      start: !!root.querySelector(".a-start") };
+      label: startBtn().textContent.trim() };
     return res;
   });
   const calls = await p.evaluate((n) => window.serviceCalls.slice(n).filter((c) => c.domain !== "ecovacs_goat_g1").map((c) => `${c.domain}.${c.service}:${c.data.entity_id}:${c.data.area_ids}`), before);
-  r.zones.join() === "1,3,2" && r.chips.join() === "Beet,Vorgarten,Zeltplatz" && !r.start && r.stop && r.sel === "2,3" && r.sum === "2 gewählt · 88\u00a0m²"
-    && r.label === "Ausgewählte Bereiche mähen" && r.ask === "Sicher? Mäher fährt los" && r.callsAfterAsk === 0
-    && calls.join() === "goat_mower.mow_areas:lawn_mower.goat_a1600:2,3" && r.after.sub.startsWith("Mäht") && r.after.job === "2,3" && !r.after.start
-    ? ok("Mähroboter: Bereiche antippen (Karte + Liste), Rückfrage, goat_mower.mow_areas") : fail(`Mähroboter Bereiche: ${JSON.stringify({ r, calls })}`);
+  const mowerCallsBefore = await p.evaluate((n) => window.serviceCalls.slice(0, n).filter((x) => x.domain === "goat_mower" || x.domain === "lawn_mower").length, before);
+  r.zones.join() === "1,3,2" && r.chips.join() === "Beet,Vorgarten,Zeltplatz" && r.label0 === "Mähen" && !r.inlineStart && r.sel === "2,3" && r.sum === "2 gewählt · 88\u00a0m²"
+    && r.label === "Bereiche" && r.blocked.disabled && r.blocked.warn && r.ask === "Sicher?" && r.callsAfterAsk === mowerCallsBefore
+    && calls.join() === "goat_mower.mow_areas:lawn_mower.goat_a1600:2,3" && r.after.sub.startsWith("Mäht") && r.after.job === "2,3" && r.after.label === "Mähen"
+    ? ok("Mähroboter: Bereiche antippen; „Mähen“ startet dann nur die Bereiche (Rückfrage), Sperre für mehrere Bereiche") : fail(`Mähroboter Bereiche: ${JSON.stringify({ r, calls, mowerCallsBefore })}`);
 }
 
 // Mähroboter: Bereich gedrückt halten → Einstellungen; Vollbild mit Zoom

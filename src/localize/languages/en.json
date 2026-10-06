@@ -976,7 +976,11 @@
     "close": "Close",
     "fullscreen": "Full screen",
     "zoom_in": "Zoom in",
-    "zoom_out": "Zoom out"
+    "zoom_out": "Zoom out",
+    "start_area": "Area",
+    "start_areas": "Areas",
+    "areas_multi_blocked": "Several areas at once are not enabled yet (integration option “experimental drive commands”). Please select one area.",
+    "areas_start_hint": "“Mow” now starts only the selected areas"
   },
   "mower_editor": {
     "entity": "Lawn mower",
