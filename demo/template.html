@@ -221,6 +221,9 @@
         media_position_updated_at: new Date().toISOString(), volume_level: 0.32, is_volume_muted: false,
         source: "Prime Video", source_list: ["Prime Video", "Netflix", "YouTube", "Disney+", "Joyn", "ARD Mediathek"],
         entity_picture: "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0b1a3a"/><stop offset="1" stop-color="#c98a3c"/></linearGradient></defs><rect width="64" height="64" fill="url(#g)"/><circle cx="40" cy="26" r="12" fill="#f6d28b" opacity=".9"/><circle cx="40" cy="26" r="16" fill="none" stroke="#f6d28b" stroke-width="1.5" opacity=".6"/></svg>') } },
+      // Sony Bravia meldet beim Schauen nur „on“ – mit Titel/Sender bzw. „Smart TV“ im App-Modus
+      "media_player.bravia_schlafzimmer": { state: "on", attributes: { friendly_name: "Bravia Schlafzimmer", device_class: "tv", assumed_state: true, supported_features: 155581,
+        media_content_type: "app", media_title: "Smart TV", volume_level: 0.04, is_volume_muted: false, source_list: ["HDMI 1", "HDMI 2", "HDMI 3 (eARC/ARC)", "HDMI 4", "AV"] } },
       "media_player.atmos": { state: "on", attributes: { friendly_name: "ATMOS", supported_features: 154509, volume_level: 0.4, is_volume_muted: false,
         source: "HDMI", source_list: ["HDMI", "TV ARC", "Bluetooth", "Optisch"], sound_mode: "Standard" } },
       "light.licht_mein_zimmer": { state: "on", attributes: { friendly_name: "Licht mein Zimmer", supported_color_modes: ["color_temp", "xy"], color_mode: "color_temp",
@@ -835,6 +838,7 @@
         time_entity: "input_datetime.bewaesserung_start", icon: "mdi:sprinkler-variant", color: "#26a69a", minute_step: 1 }],
       ["Medien – Harmony Hub (Aktivitäten, Fernbedienung) + Fire TV", { _media: true, entity: "remote.harmony_hub_wohnzimmer", media_player: "media_player.fire_tv_wohnzimmer",
         timer_switch: "input_boolean.timer_klima_pascal", timer_time: "input_datetime.timer_klima_pascal" }],
+      ["Medien – Fernseher meldet nur „an“ (Sony Bravia)", { _media: true, entity: "media_player.bravia_schlafzimmer", name: "Bravia" }],
       ["Medien – Soundbar (Media-Player, kompakt)", { _media: true, entity: "media_player.atmos", layout: "compact" }],
       ["Raum-Kopf – Pascal (Chips, Hinweis Fenster offen + Klima läuft)", { _room: true, title: "Pascal", icon: "mdi:account", light: "light.licht_mein_zimmer",
         contacts: [{ entity: "binary_sensor.fenster_pascal_schreibtisch", name: "Schreibtisch" }, { entity: "binary_sensor.fenster_pascal_tv", name: "TV" }],

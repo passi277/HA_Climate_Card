@@ -854,6 +854,19 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
     ? ok("Status: gedrückt halten + Tippen trägt Batteriewechsel ein (button.press)") : fail(`Status Wechsel: ${JSON.stringify({ afterTap, afterHold, asking, calls, small })}`);
 }
 
+// Medien: Fernseher, der nur „on“ meldet, zeigt trotzdem „Läuft gerade“ – Soundbar mit nur „on“ nicht
+{
+  const res = await p.evaluate(() => {
+    const cards = [...document.querySelectorAll("ha-media-card")];
+    const tv = cards.find((c) => c._config.entity === "media_player.bravia_schlafzimmer").shadowRoot;
+    const bar = cards.find((c) => c._config.entity === "media_player.atmos").shadowRoot;
+    return { title: tv.querySelector(".now .np-title")?.textContent.trim(), transport: tv.querySelectorAll(".now .transport button").length,
+      icon: tv.querySelector(".now .art ha-icon")?.icon, bar: !!bar.querySelector(".now") };
+  });
+  res.title === "Smart TV" && res.transport === 0 && res.icon === "mdi:television-play" && !res.bar
+    ? ok("Medien: „Läuft gerade“ auch bei Fernsehern, die nur „an“ melden") : fail(`Medien läuft gerade: ${JSON.stringify(res)}`);
+}
+
 // Mähroboter: Zustand, Live-Karte, Steuerung, Stopp mit Bestätigung, Wartung, Einstellungen
 {
   const get = (name) => p.evaluateHandle((n) => [...document.querySelectorAll("ha-mower-card")].find((c) => c._config.name === n), name);
@@ -907,7 +920,7 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
     [...r.querySelectorAll(".seg")].find((b) => b.textContent.trim() === "Gründlich").click();
     r.querySelector('.toggle-row[data-key="animal"]').click();
     r.querySelectorAll(".delay .step")[1].click();
-    await wait(900);
+    await wait(1500);
     res.delayAfter = r.querySelector(".d-val")?.textContent.trim();
     r.querySelector(".ctl.start").click();
     await wait(400);

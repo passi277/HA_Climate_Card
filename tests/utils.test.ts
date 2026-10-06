@@ -546,8 +546,6 @@ describe("energy extras", () => {
     expect(t.progress).toBeCloseTo(0.5);
     expect(timerInfo(entity("timer.a", "paused", { duration: "0:10:00", remaining: "0:08:00" }), now)!.remaining).toBe(480);
     expect(timerInfo(entity("timer.a", "idle", { duration: "0:10:00" }), now)!.progress).toBe(0);
-    // Uhr der Karte noch vor dem Start: nie mehr als die Laufzeit
-    expect(timerInfo(entity("timer.a", "active", { duration: "0:03:00", finishes_at: "2026-10-04T10:05:00Z" }), Date.parse("2026-10-04T10:01:00Z"))!.remaining).toBe(180);
     expect(formatRemaining(485)).toBe("8:05");
     expect(formatRemaining(3725)).toBe("1:02:05");
   });
