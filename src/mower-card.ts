@@ -67,6 +67,19 @@ export class HaMowerCard extends LitElement {
   @state() private _streaming = false;
   /** Zum Bereichsmähen ausgewählte Bereichs-IDs */
   @state() private _selected: string[] = [];
+  /** Bereich, dessen Einstellungen (Mähhöhe …) offen sind – per langem Drücken */
+  @state() private _areaPanel?: string;
+  /** Karte im Vollbild mit Zoom (Mittelpunkt und Faktor in Karteneinheiten) */
+  @state() private _full = false;
+  @state() private _zoom = { cx: 0, cy: 0, s: 1 };
+  @state() private _pendingNum: Record<string, number> = {};
+  private _numTimers: Record<string, number> = {};
+  private _holdTimer?: number;
+  private _held = false;
+  private _pointers = new Map<number, { x: number; y: number }>();
+  private _drag?: { x: number; y: number; d: number; cx: number; cy: number; s: number; moved: boolean };
+  private _heading?: number;
+  private _areaIdsCache?: { key: unknown; ids: string[] };
   /** Selbst gesammelte Fahrspur des aktuellen Laufs (die Integration liefert oft nur die letzten Punkte) */
   private _trail: MapPoint[] = [];
   private _trailFrom?: unknown;
@@ -138,7 +151,29 @@ export class HaMowerCard extends LitElement {
 
   private _ids(): string[] {
     const f = this._f();
-    return [this._config!.entity, ...FEATURE_KEYS.map((k) => f[k])].filter(Boolean) as string[];
+    return [this._config!.entity, ...FEATURE_KEYS.map((k) => f[k]), ...this._areaSettingIds()].filter(Boolean) as string[];
+  }
+
+  /** Einstellungen pro Bereich am selben Gerät (Attribut `area_id`, z.B. goat_mower) */
+  private _areaSettingIds(): string[] {
+    const hass = this.hass!;
+    if (this._areaIdsCache && this._areaIdsCache.key === hass.entities) return this._areaIdsCache.ids;
+    const device = hass.entities?.[this._config!.entity]?.device_id;
+    const ids = device ? Object.values(hass.entities!).filter((e) => e.device_id === device && /^(number|select)\./.test(e.entity_id)
+      && hass.states[e.entity_id]?.attributes.area_id != null).map((e) => e.entity_id) : [];
+    this._areaIdsCache = { key: hass.entities, ids };
+    return ids;
+  }
+
+  private _areaSettings(areaId: string): { height?: HassEntity; speed?: HassEntity; avoidance?: HassEntity } {
+    const sts = this._areaSettingIds().map((id) => this.hass!.states[id]).filter((st): st is HassEntity => !!st && String(st.attributes.area_id) === areaId);
+    const key = (st: HassEntity) => String(this.hass!.entities?.[st.entity_id]?.translation_key ?? "");
+    const unit = (st: HassEntity) => String(st.attributes.unit_of_measurement ?? "");
+    return {
+      height: sts.find((st) => st.entity_id.startsWith("number.") && (/height/.test(key(st)) || unit(st) === "cm")),
+      speed: sts.find((st) => st.entity_id.startsWith("number.") && (/speed/.test(key(st)) || unit(st) === "m/s")),
+      avoidance: sts.find((st) => st.entity_id.startsWith("select.")),
+    };
   }
 
   protected shouldUpdate(changed: PropertyValues): boolean {
@@ -151,6 +186,8 @@ export class HaMowerCard extends LitElement {
   protected updated(): void {
     this._syncStream();
     this._collectTrail();
+    const dlg = this.shadowRoot?.querySelector("dialog.full") as HTMLDialogElement | null;
+    if (dlg && this._full && !dlg.open) dlg.showModal?.();
   }
 
   private _collectTrail(): void {
@@ -320,6 +357,7 @@ export class HaMowerCard extends LitElement {
   }
 
   private _toggleArea(id: string): void {
+    if (this._held || this._drag?.moved) { this._held = false; return; }
     this._haptic("selection");
     this._confirm = undefined;
     this._selected = this._selected.includes(id) ? this._selected.filter((x) => x !== id) : [...this._selected, id];
@@ -333,6 +371,114 @@ export class HaMowerCard extends LitElement {
     await this._call(domain, AREA_SERVICE, { entity_id: this._config!.entity, area_ids: ids });
     this._selected = [];
   }
+
+  /** Langes Drücken auf einen Bereich (Karte oder Liste) öffnet seine Einstellungen */
+  private _holdStart(id: string, ev: PointerEvent): void {
+    this._held = false;
+    clearTimeout(this._holdTimer);
+    const x = ev.clientX, y = ev.clientY;
+    const cancel = (e: PointerEvent) => { if (Math.hypot(e.clientX - x, e.clientY - y) > 8) clearTimeout(this._holdTimer); };
+    window.addEventListener("pointermove", cancel);
+    window.addEventListener("pointerup", () => { clearTimeout(this._holdTimer); window.removeEventListener("pointermove", cancel); }, { once: true });
+    this._holdTimer = window.setTimeout(() => {
+      this._held = true;
+      this._haptic("medium");
+      this._areaPanel = id;
+    }, 500);
+  }
+
+  /** Zahl −/+ kurz gesammelt senden (Mähhöhe, Geschwindigkeit) */
+  private _stepNumber(st: HassEntity, dir: number): void {
+    const a = st.attributes;
+    const step = Number(a.step) || 1;
+    const cur = this._pendingNum[st.entity_id] ?? Number(st.state);
+    const v = Math.round(Math.min(Number(a.max ?? Infinity), Math.max(Number(a.min ?? -Infinity), cur + dir * step)) / step) * step;
+    const value = Number(v.toFixed(4));
+    this._haptic("selection");
+    this._pendingNum = { ...this._pendingNum, [st.entity_id]: value };
+    clearTimeout(this._numTimers[st.entity_id]);
+    this._numTimers[st.entity_id] = window.setTimeout(() => this._call("number", "set_value", { entity_id: st.entity_id, value })
+      .finally(() => {
+        if (this._pendingNum[st.entity_id] === value) { const { [st.entity_id]: _, ...rest } = this._pendingNum; this._pendingNum = rest; }
+      }), 700);
+  }
+
+  // ---------- Vollbild & Zoom ----------
+
+  private _openFull(): void {
+    this._haptic("selection");
+    this._zoom = { cx: 0, cy: 0, s: 1 };
+    this._full = true;
+  }
+
+  private _closeFull(): void {
+    (this.shadowRoot?.querySelector("dialog.full") as HTMLDialogElement | null)?.close?.();
+    this._full = false;
+  }
+
+  private _zoomBy(f: number, at?: { x: number; y: number }): void {
+    const z = this._zoom;
+    const s = Math.min(8, Math.max(1, z.s * f));
+    // Punkt unter dem Finger/Mauszeiger bleibt stehen
+    const cx = at ? at.x + (z.cx - at.x) * (z.s / s) : z.cx;
+    const cy = at ? at.y + (z.cy - at.y) * (z.s / s) : z.cy;
+    this._zoom = s === 1 ? { cx: 0, cy: 0, s: 1 } : { cx, cy, s };
+  }
+
+  /** Bildschirmpunkt → Kartenkoordinate (Ansicht = viewBox) */
+  private _toMap(svgEl: SVGSVGElement, x: number, y: number): { x: number; y: number } {
+    const ctm = svgEl.getScreenCTM();
+    if (!ctm) return { x: 0, y: 0 };
+    const p = new DOMPoint(x, y).matrixTransform(ctm.inverse());
+    return { x: p.x, y: p.y };
+  }
+
+  private _onPointerDown(ev: PointerEvent): void {
+    this._pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+    const pts = [...this._pointers.values()];
+    const mid = pts.length > 1 ? { x: (pts[0]!.x + pts[1]!.x) / 2, y: (pts[0]!.y + pts[1]!.y) / 2 } : pts[0]!;
+    const d = pts.length > 1 ? Math.hypot(pts[0]!.x - pts[1]!.x, pts[0]!.y - pts[1]!.y) : 0;
+    const z = this._zoom.cx ? this._zoom : { ...this._zoom, cx: this._viewCenter.x, cy: this._viewCenter.y };
+    this._zoom = z;
+    this._drag = { x: mid.x, y: mid.y, d, cx: z.cx, cy: z.cy, s: z.s, moved: pts.length > 1 || !!this._drag?.moved };
+  }
+
+  private _onPointerMove(ev: PointerEvent): void {
+    if (!this._pointers.has(ev.pointerId) || !this._drag) return;
+    const svgEl = ev.currentTarget as SVGSVGElement;
+    this._pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+    const pts = [...this._pointers.values()];
+    const g = this._drag;
+    const mid = pts.length > 1 ? { x: (pts[0]!.x + pts[1]!.x) / 2, y: (pts[0]!.y + pts[1]!.y) / 2 } : pts[0]!;
+    if (!g.moved && pts.length < 2 && Math.hypot(mid.x - g.x, mid.y - g.y) < 8) return;
+    g.moved = true;
+    clearTimeout(this._holdTimer);
+    let s = g.s;
+    if (pts.length > 1 && g.d > 0) s = Math.min(8, Math.max(1, g.s * (Math.hypot(pts[0]!.x - pts[1]!.x, pts[0]!.y - pts[1]!.y) / g.d)));
+    const rect = svgEl.getBoundingClientRect();
+    const upp = Math.max(this._viewSize.w / s / rect.width, this._viewSize.h / s / rect.height);
+    this._zoom = s === 1 && pts.length > 1 ? { cx: 0, cy: 0, s: 1 } : { s, cx: g.cx - (mid.x - g.x) * upp, cy: g.cy - (mid.y - g.y) * upp };
+  }
+
+  private _onPointerUp(ev: PointerEvent): void {
+    this._pointers.delete(ev.pointerId);
+    if (!this._pointers.size) window.setTimeout(() => { this._drag = undefined; }, 0);
+    else if (this._drag) {
+      const p = [...this._pointers.values()][0]!;
+      this._drag = { ...this._drag, x: p.x, y: p.y, d: 0, cx: this._zoom.cx, cy: this._zoom.cy, s: this._zoom.s };
+    }
+  }
+
+  private _onWheel(ev: WheelEvent): void {
+    ev.preventDefault();
+    const at = this._toMap(ev.currentTarget as SVGSVGElement, ev.clientX, ev.clientY);
+    if (!this._zoom.cx) this._zoom = { ...this._zoom, cx: this._viewCenter.x, cy: this._viewCenter.y };
+    this._zoomBy(Math.pow(1.0015, -ev.deltaY), at);
+  }
+
+  /** Mitte und Größe der ungezoomten Ansicht (für Zoom) */
+  private _viewCenter = { x: 0, y: 0 };
+  private _viewSize = { w: 1, h: 1 };
 
   /** Regenverzögerung: −/+ kurz gesammelt senden */
   private _setDelay(value: number): void {
@@ -349,12 +495,15 @@ export class HaMowerCard extends LitElement {
 
   // ---------- Darstellung ----------
 
-  private _renderMap(map: MowerMap, phase: MowerPhase, job: string[]) {
+  private _renderMap(map: MowerMap, phase: MowerPhase, job: string[], zoomable = false) {
     // Marker in Bildschirm-Pixeln bemessen (Szene ca. 350 px breit, Seitenverhältnis siehe mapAspect) und genug Rand lassen
     const ar = mapAspect(map);
-    const px = Math.max(map.box.w / ar, map.box.h) / Math.min(340, Math.max(150, 350 / ar));
+    const base = Math.max(map.box.w / ar, map.box.h) / Math.min(340, Math.max(150, 350 / ar));
+    const z = zoomable ? this._zoom : { cx: 0, cy: 0, s: 1 };
+    // im Vollbild ist die Karte größer und gezoomt – Marker und Schrift bleiben gleich groß auf dem Bildschirm
+    const px = zoomable ? base * 0.55 / z.s : base;
     const r = px * 6;
-    const m = r * 4;
+    const m = base * 24;
     const box = { x: map.box.x - m, y: map.box.y - m, w: map.box.w + 2 * m, h: map.box.h + 2 * m };
     const X = (p: MapPoint) => (p.x - box.x).toFixed(1);
     const Y = (p: MapPoint) => (box.h - (p.y - box.y)).toFixed(1);
@@ -362,43 +511,82 @@ export class HaMowerCard extends LitElement {
     const pts = (l: MapPoint[]) => l.map(P).join(" ");
     const tappable = !!this._areaDomain();
     const n = (v: number) => v.toFixed(2);
-    // Beschriftung nur, wenn der Bereich auf dem Bildschirm breit genug ist (ausgewählte immer)
+    let vb = `0 0 ${n(box.w)} ${n(box.h)}`;
+    if (zoomable) {
+      this._viewCenter = { x: box.w / 2, y: box.h / 2 };
+      this._viewSize = { w: box.w, h: box.h };
+      if (z.s > 1) {
+        const w = box.w / z.s, h = box.h / z.s;
+        const cx = Math.min(box.w - w / 2, Math.max(w / 2, z.cx)), cy = Math.min(box.h - h / 2, Math.max(h / 2, z.cy));
+        vb = `${n(cx - w / 2)} ${n(cy - h / 2)} ${n(w)} ${n(h)}`;
+      }
+    }
+    // Beschriftung nur, wenn der Bereich auf dem Bildschirm breit genug ist (ausgewählte und laufende immer)
     const fits = (a: MowerArea) => {
       const xs = a.points.map((p) => p.x);
       return (Math.max(...xs) - Math.min(...xs)) / px >= Math.max(34, a.name.length * 5.6);
     };
-    return html`<svg class="map" viewBox="0 0 ${n(box.w)} ${n(box.h)}" preserveAspectRatio="xMidYMid meet" role="img" aria-label=${this._t("map")}>
+    const progress = job.length === 1 ? this._num(this._f().progress) : undefined;
+    const order = this._selected.length > 1 ? this._selected : [];
+    const pos = map.position;
+    const heading = pos?.a != null ? this._smoothHeading(pos.a) : undefined;
+    const moving = phase === "mowing" || phase === "returning";
+    const id = zoomable ? "f" : "c";
+    return html`<svg class="map ${zoomable ? "zoomable" : ""}" viewBox=${vb} preserveAspectRatio="xMidYMid meet" role="img" aria-label=${this._t("map")}
+      @pointerdown=${zoomable ? (e: PointerEvent) => this._onPointerDown(e) : nothing}
+      @pointermove=${zoomable ? (e: PointerEvent) => this._onPointerMove(e) : nothing}
+      @pointerup=${zoomable ? (e: PointerEvent) => this._onPointerUp(e) : nothing}
+      @pointercancel=${zoomable ? (e: PointerEvent) => this._onPointerUp(e) : nothing}
+      @wheel=${zoomable ? (e: WheelEvent) => this._onWheel(e) : nothing}>
       <defs>
-        <pattern id="mw-grass" patternUnits="userSpaceOnUse" width=${n(px * 7)} height=${n(px * 7)} patternTransform="rotate(35)">
-          <rect width=${n(px * 7)} height=${n(px * 7)} fill="#4f9a3e"></rect>
-          <rect width=${n(px * 3.5)} height=${n(px * 7)} fill="#58a646"></rect>
+        <pattern id="mw-grass-${id}" patternUnits="userSpaceOnUse" width=${n(base * 7)} height=${n(base * 7)} patternTransform="rotate(35)">
+          <rect width=${n(base * 7)} height=${n(base * 7)} fill="#4f9a3e"></rect>
+          <rect width=${n(base * 3.5)} height=${n(base * 7)} fill="#58a646"></rect>
         </pattern>
-        <filter id="mw-shadow" x="-10%" y="-10%" width="120%" height="120%">
-          <feDropShadow dx="0" dy=${n(px * 1.5)} stdDeviation=${n(px * 2.5)} flood-color="#000" flood-opacity="0.45"></feDropShadow>
+        <filter id="mw-shadow-${id}" x="-10%" y="-10%" width="120%" height="120%">
+          <feDropShadow dx="0" dy=${n(base * 1.5)} stdDeviation=${n(base * 2.5)} flood-color="#000" flood-opacity="0.45"></feDropShadow>
         </filter>
       </defs>
-      <g filter="url(#mw-shadow)">${map.outline.map((l) => svg`<polygon class="m-area m-lawn" points=${pts(l)}></polygon>`)}</g>
+      <g filter="url(#mw-shadow-${id})">${map.outline.map((l) => svg`<polygon class="m-area m-lawn" style="fill:url(#mw-grass-${id})" points=${pts(l)}></polygon>`)}</g>
       ${map.channels.map((l) => svg`<polyline class="m-channel" points=${pts(l)}></polyline>`)}
       ${map.areas.map((a, i) => {
         const sel = this._selected.includes(a.id);
-        return svg`<polygon class="m-zone ${sel ? "sel" : ""} ${job.includes(a.id) ? "job" : ""} ${tappable ? "tap" : ""}" style="--zc:${ZONE_COLORS[i % ZONE_COLORS.length]}"
-          data-area=${a.id} points=${pts(a.points)} @click=${tappable ? () => this._toggleArea(a.id) : nothing}><title>${a.name}${a.m2 ? ` · ${this._fmt(a.m2, 0)}\u00a0m²` : ""}</title></polygon>`;
+        return svg`<polygon class="m-zone ${sel ? "sel" : ""} ${job.includes(a.id) ? "job" : ""} ${tappable ? "tap" : ""} ${this._areaPanel === a.id ? "open" : ""}"
+          style="--zc:${ZONE_COLORS[i % ZONE_COLORS.length]}" data-area=${a.id} points=${pts(a.points)}
+          @click=${tappable ? () => this._toggleArea(a.id) : nothing}
+          @pointerdown=${(e: PointerEvent) => this._holdStart(a.id, e)}
+          @contextmenu=${(e: Event) => e.preventDefault()}><title>${a.name}${a.m2 ? ` · ${this._fmt(a.m2, 0)}\u00a0m²` : ""}</title></polygon>`;
       })}
-      ${map.segments.length ? svg`<g class="m-mowed" style="stroke-width:${n(px * 3)}">${map.segments.map((l) => svg`<polyline points=${pts(l)}></polyline>`)}</g>` : nothing}
+      ${map.segments.length ? svg`<g class="m-mowed" style="stroke-width:${n(base * 3)}">${map.segments.map((l) => svg`<polyline points=${pts(l)}></polyline>`)}</g>` : nothing}
       ${map.obstacles.map((l) => svg`<polygon class="m-obstacle" points=${pts(l)}></polygon>`)}
       ${map.path.length > 1 ? svg`<polyline class="m-path" style="stroke-width:${n(r * 0.45)}" points=${pts(map.path)}></polyline>` : nothing}
-      ${map.areas.filter((a) => this._selected.includes(a.id) || fits(a)).map((a) => svg`<text class="m-label ${this._selected.includes(a.id) ? "sel" : ""}"
-        x=${X(a.label)} y=${Y(a.label)} style="font-size:${n(px * 10.5)}px; stroke-width:${n(px * 3)}px">${a.name}</text>`)}
+      ${map.areas.filter((a) => this._selected.includes(a.id) || job.includes(a.id) || fits(a)).map((a) => {
+        const pct = progress != null && job.includes(a.id) ? ` · ${Math.round(progress)} %` : "";
+        const no = order.indexOf(a.id);
+        return svg`<text class="m-label ${this._selected.includes(a.id) ? "sel" : ""}" x=${X(a.label)} y=${Y(a.label)}
+          style="font-size:${n(px * 10.5)}px; stroke-width:${n(px * 3)}px">${a.name}${pct}</text>
+          ${no >= 0 ? svg`<g class="m-order" transform="translate(${X(a.label)},${(Number(Y(a.label)) - px * 17).toFixed(1)})">
+            <circle r=${n(px * 8)}></circle><text style="font-size:${n(px * 10)}px">${no + 1}</text></g>` : nothing}`;
+      })}
       ${map.dock ? svg`<g class="m-dock" transform="translate(${P(map.dock)})">
         <circle r=${n(r * 1.35)}></circle>
         <path transform="scale(${n(r * 0.085)}) translate(-12,-12.5)" d="M10,20V14H14V20H19V12H22L12,3L2,12H5V20H10Z"></path>
       </g>` : nothing}
-      ${map.position ? svg`<g class="m-pos ${phase}" transform="translate(${P(map.position)})">
+      ${pos ? svg`<g class="m-pos ${phase} ${moving ? "glide" : ""}" style="transform:translate(${X(pos)}px,${Y(pos)}px)">
         <circle class="m-pulse" r=${n(r * 2.2)}></circle>
         <circle class="m-dot" r=${n(r * 1.5)}></circle>
-        ${map.position.a != null ? svg`<path class="m-arrow" transform="rotate(${(-map.position.a).toFixed(1)}) scale(${n(r * 0.85)})" d="M1.4,0 L-0.9,-1 L-0.4,0 L-0.9,1 Z"></path>` : nothing}
+        ${heading != null ? svg`<g class="m-head" style="transform:rotate(${(-heading).toFixed(1)}deg)"><path class="m-arrow" transform="scale(${n(r * 0.85)})" d="M1.4,0 L-0.9,-1 L-0.4,0 L-0.9,1 Z"></path></g>` : nothing}
       </g>` : nothing}
     </svg>`;
+  }
+
+  /** Fahrtrichtung ohne Sprung über 0°/360° (die Drehung wird animiert) */
+  private _smoothHeading(a: number): number {
+    const prev = this._heading;
+    if (prev == null) { this._heading = a; return a; }
+    const next = prev + ((((a - prev) % 360) + 540) % 360) - 180;
+    this._heading = next;
+    return next;
   }
 
   private _renderScene(phase: MowerPhase, charging: boolean) {
@@ -407,7 +595,9 @@ export class HaMowerCard extends LitElement {
     const job = (this.hass!.states[this._config!.entity]?.attributes.job_area_ids as string[] | undefined)?.map(String) ?? [];
     return html`<div class="scene p-${phase} ${map ? "has-map" : ""}" style=${map ? `--ar:${mapAspect(map).toFixed(3)}` : ""}>
       ${this._streaming ? html`<span class="live" title=${this._t("live_hint")}><span class="live-dot"></span>${this._t("live")}</span>` : nothing}
-      ${map ? this._renderMap(map, phase, job) : html`
+      ${map ? html`${this._renderMap(map, phase, job)}
+        <button class="full-btn" aria-label=${this._t("fullscreen")} title=${this._t("fullscreen")} @click=${() => this._openFull()}><ha-icon icon="mdi:arrow-expand"></ha-icon></button>
+        ${this._renderFull(map, phase, job)}` : html`
         <div class="lawn"><div class="cut"></div><div class="blades"></div></div>
         <div class="station ${charging ? "charging" : ""}"><ha-icon icon="mdi:home-variant"></ha-icon>${charging ? html`<ha-icon class="bolt" icon="mdi:lightning-bolt"></ha-icon>` : nothing}</div>
         <div class="bot"><span class="bot-in"><ha-icon icon="mdi:robot-mower"></ha-icon></span></div>`}
@@ -445,17 +635,68 @@ export class HaMowerCard extends LitElement {
       <div class="a-head">
         <span class="sec-title"><ha-icon icon="mdi:texture-box"></ha-icon><span>${this._t("areas")}</span></span>
         ${chosen.length ? html`<span class="a-sum">${chosen.length} ${this._t("areas_selected")}${total ? ` · ${this._fmt(total, 0)}\u00a0m²` : ""}</span>
-          <button class="a-clear" aria-label=${this._t("areas_clear")} title=${this._t("areas_clear")} @click=${() => { this._selected = []; this._confirm = undefined; }}><ha-icon icon="mdi:close"></ha-icon></button>` : html`<span class="a-sum">${this._t("areas_hint")}</span>`}
+          <button class="a-clear" aria-label=${this._t("areas_clear")} title=${this._t("areas_clear")} @click=${() => { this._selected = []; this._confirm = undefined; }}><ha-icon icon="mdi:close"></ha-icon></button>` : html`<span class="a-sum">${this._t(this._areaSettingIds().length ? "areas_hint_hold" : "areas_hint")}</span>`}
       </div>
       <div class="a-chips" role="group" aria-label=${this._t("areas")}>${areas.map((a) => {
         const sel = this._selected.includes(a.id);
-        return html`<button class="a-chip ${sel ? "sel" : ""}" aria-pressed=${sel} data-area=${a.id} @click=${() => this._toggleArea(a.id)}>
+        return html`<button class="a-chip ${sel ? "sel" : ""} ${this._areaPanel === a.id ? "open" : ""}" aria-pressed=${sel} data-area=${a.id}
+          @click=${() => this._toggleArea(a.id)} @pointerdown=${(e: PointerEvent) => this._holdStart(a.id, e)} @contextmenu=${(e: Event) => e.preventDefault()}>
           <ha-icon .icon=${sel ? "mdi:check-circle" : "mdi:checkbox-blank-circle-outline"}></ha-icon><span>${a.name}</span>${a.m2 ? html`<small>${this._fmt(a.m2, 0)}\u00a0m²</small>` : nothing}</button>`;
       })}</div>
+      ${this._areaPanel ? this._renderAreaPanel(areas.find((a) => a.id === this._areaPanel)) : nothing}
       ${chosen.length ? html`<button class="a-start ${asking ? "ask" : ""}" ?disabled=${!ready} @click=${() => this._mowAreas(chosen)}>
           <ha-icon icon=${asking ? "mdi:alert" : "mdi:play"}></ha-icon><span>${label}</span></button>
         ${!ready ? html`<small class="a-note">${this._t("areas_not_ready")}</small>` : chosen.length > 1 ? html`<small class="a-note">${this._t("areas_multi_hint")}</small>` : nothing}` : nothing}
     </div>`;
+  }
+
+  /** Einstellungen eines Bereichs: Mähhöhe, Geschwindigkeit (−/+), Vermeidungsmodus */
+  private _renderAreaPanel(area?: MowerArea) {
+    if (!area) return nothing;
+    const { height, speed, avoidance } = this._areaSettings(area.id);
+    const num = (key: string, icon: string, st?: HassEntity) => {
+      if (!st || UNAVAILABLE.includes(st.state)) return nothing;
+      const a = st.attributes;
+      const v = this._pendingNum[st.entity_id] ?? Number(st.state);
+      const digits = String(a.step ?? "1").split(".")[1]?.length ?? 0;
+      return html`<div class="p-row" data-key=${key}>
+        <ha-icon .icon=${icon}></ha-icon><span class="p-label">${this._t(key)}</span>
+        <button class="step" aria-label="−" ?disabled=${v <= Number(a.min ?? -Infinity)} @click=${() => this._stepNumber(st, -1)}><ha-icon icon="mdi:minus"></ha-icon></button>
+        <span class="p-val">${this._fmt(v, digits)}\u00a0${a.unit_of_measurement ?? ""}</span>
+        <button class="step" aria-label="+" ?disabled=${v >= Number(a.max ?? Infinity)} @click=${() => this._stepNumber(st, 1)}><ha-icon icon="mdi:plus"></ha-icon></button>
+      </div>`;
+    };
+    const opts = (avoidance?.attributes.options as string[] | undefined) ?? [];
+    const label = (o: string) => (this.hass as any).formatEntityState?.(avoidance, o) ?? o;
+    return html`<div class="a-panel">
+      <div class="p-head"><ha-icon icon="mdi:tune-variant"></ha-icon><b>${area.name}</b>${area.m2 ? html`<small>${this._fmt(area.m2, 0)}\u00a0m²</small>` : nothing}
+        <button class="a-clear" aria-label=${this._t("close")} @click=${() => { this._areaPanel = undefined; }}><ha-icon icon="mdi:close"></ha-icon></button></div>
+      ${num("area_height", "mdi:arrow-collapse-vertical", height)}
+      ${num("area_speed", "mdi:speedometer", speed)}
+      ${avoidance && opts.length && !UNAVAILABLE.includes(avoidance.state) ? html`<div class="set-group" data-key="area_avoidance">
+        <span class="set-label">${this._t("area_avoidance")}</span>
+        <div class="segs">${opts.map((o) => html`<button class="seg ${avoidance.state === o ? "sel" : ""}" @click=${() => this._select(avoidance.entity_id, o)}>${label(o)}</button>`)}</div>
+      </div>` : nothing}
+      ${!height && !speed && !avoidance ? html`<small class="a-note">${this._t("area_no_settings")}</small>` : nothing}
+    </div>`;
+  }
+
+  /** Karte im Vollbild: groß, zoom- und verschiebbar, mit Bereichsauswahl */
+  private _renderFull(map: MowerMap | null, phase: MowerPhase, job: string[]) {
+    if (!this._full || !map) return nothing;
+    return html`<dialog class="full" @close=${() => { this._full = false; }} @cancel=${() => { this._full = false; }}>
+      <div class="f-head">
+        <b>${this._config!.name ?? this.hass!.states[this._config!.entity]?.attributes.friendly_name ?? this._t("title")}</b>
+        <button class="f-btn" aria-label=${this._t("zoom_out")} ?disabled=${this._zoom.s <= 1} @click=${() => this._zoomBy(1 / 1.5)}><ha-icon icon="mdi:magnify-minus-outline"></ha-icon></button>
+        <button class="f-btn" aria-label=${this._t("zoom_in")} ?disabled=${this._zoom.s >= 8} @click=${() => {
+          if (!this._zoom.cx) this._zoom = { ...this._zoom, cx: this._viewCenter.x, cy: this._viewCenter.y };
+          this._zoomBy(1.5);
+        }}><ha-icon icon="mdi:magnify-plus-outline"></ha-icon></button>
+        <button class="f-btn" aria-label=${this._t("close")} @click=${() => this._closeFull()}><ha-icon icon="mdi:close"></ha-icon></button>
+      </div>
+      <div class="f-map scene has-map p-${phase}">${this._renderMap(map, phase, job, true)}</div>
+      <div class="f-body">${this._renderAreas(phase)}</div>
+    </dialog>`;
   }
 
   private _renderSession(phase: MowerPhase) {
@@ -686,6 +927,29 @@ export class HaMowerCard extends LitElement {
     .m-path { fill: none; pointer-events: none; stroke: rgba(255,255,255,0.7); stroke-linecap: round; stroke-linejoin: round; }
     .m-dock circle { fill: #ffca28; stroke: #fff; stroke-width: 1.5px; vector-effect: non-scaling-stroke; }
     .m-dock path { fill: #4e3b00; }
+    .m-pos.glide { transition: transform 1.2s linear; }
+    .m-head { transition: transform 0.8s ease-out; }
+    .m-zone.open { stroke: #fff; stroke-width: 2.5px; }
+    .m-order circle { fill: #ffca28; stroke: rgba(60,40,0,0.8); stroke-width: 1px; vector-effect: non-scaling-stroke; }
+    .m-order text { fill: #3e2c00; font-weight: 800; text-anchor: middle; dominant-baseline: central; }
+    .map.zoomable { touch-action: none; cursor: grab; }
+    .full-btn { position: absolute; top: 8px; right: 8px; z-index: 1; width: 32px; height: 32px; border-radius: 50%; border: none; padding: 0;
+      display: grid; place-items: center; cursor: pointer; color: #fff; background: rgba(0,0,0,0.35); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+    .full-btn ha-icon { --mdc-icon-size: 18px; }
+    dialog.full { width: min(100vw, 920px); max-width: 100vw; height: min(100dvh, 980px); max-height: 100dvh; padding: 0; border: none;
+      border-radius: var(--ha-card-border-radius, 16px); overflow: hidden; color: var(--primary-text-color);
+      background: var(--card-background-color, var(--ha-card-background, #1c1c1c)); flex-direction: column; }
+    dialog.full[open] { display: flex; }
+    dialog.full::backdrop { background: rgba(0,0,0,0.6); backdrop-filter: blur(3px); }
+    @media (max-width: 600px) { dialog.full { width: 100vw; height: 100dvh; border-radius: 0; } }
+    .f-head { display: flex; align-items: center; gap: 6px; padding: 10px 12px; }
+    .f-head b { flex: 1; font-size: 16px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .f-btn { width: 38px; height: 38px; border-radius: 50%; border: none; padding: 0; display: grid; place-items: center; cursor: pointer;
+      color: var(--primary-text-color); background: rgba(127,127,127,0.14); }
+    .f-btn[disabled] { opacity: 0.35; cursor: default; }
+    .f-btn ha-icon { --mdc-icon-size: 22px; }
+    .f-map.scene.has-map { flex: 1 1 auto; min-height: 0; height: auto; aspect-ratio: auto; max-height: none; margin: 0 12px; }
+    .f-body { flex: none; max-height: 45%; overflow-y: auto; padding: 12px; }
     .m-pos .m-dot { fill: #fff; stroke: var(--success-color, #43a047); stroke-width: 2px; vector-effect: non-scaling-stroke; }
     .m-arrow { fill: var(--success-color, #43a047); }
     .m-pos .m-pulse { fill: rgba(255,255,255,0.35); transform-box: fill-box; transform-origin: center; animation: pulse 1.8s ease-out infinite; }
@@ -714,6 +978,17 @@ export class HaMowerCard extends LitElement {
     .a-start:active:not([disabled]) { transform: scale(0.98); }
     .a-start.ask { background: #f57c00; }
     .a-start[disabled] { opacity: 0.4; cursor: default; }
+    .a-chip.open { box-shadow: inset 0 0 0 2px var(--primary-text-color); }
+    .a-panel { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border-radius: var(--hcc-inner-radius, 14px); background: rgba(127,127,127,0.08);
+      animation: fade-in 0.25s var(--ease-out) both; }
+    .p-head { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+    .p-head > ha-icon { --mdc-icon-size: 18px; color: var(--accent); }
+    .p-head b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .p-head small { flex: 1; color: var(--secondary-text-color); font-weight: 600; }
+    .p-row { display: flex; align-items: center; gap: 8px; }
+    .p-row > ha-icon { --mdc-icon-size: 19px; color: var(--secondary-text-color); flex: none; }
+    .p-label { flex: 1; min-width: 0; font-size: 13px; font-weight: 600; }
+    .p-val { min-width: 70px; text-align: center; font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
     .a-note { font-size: 11.5px; color: var(--secondary-text-color); text-align: center; }
 
     /* Fehler */

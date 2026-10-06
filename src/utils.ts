@@ -1165,6 +1165,8 @@ export const timerInfo = (st: HassEntity | undefined, now: number): { state: str
   let remaining = 0;
   if (st.state === "active" && st.attributes.finishes_at) remaining = Math.max(0, (new Date(st.attributes.finishes_at).getTime() - now) / 1000);
   else if (st.state !== "idle") remaining = durationToSeconds(st.attributes.remaining);
+  // die Uhr der Karte läuft nur minütlich – direkt nach dem Start nie mehr als die Laufzeit anzeigen
+  if (duration) remaining = Math.min(remaining, duration);
   const progress = st.state === "idle" || !duration ? 0 : Math.min(1, Math.max(0, 1 - remaining / duration));
   return { state: st.state, remaining, duration, progress };
 };

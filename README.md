@@ -448,7 +448,9 @@ Alle Zusatz-Entitäten werden über das Gerät gefunden – jede lässt sich üb
 **Bereichsmähen:** Liefert die Live-Karte Bereiche mit Umriss (`areas: [{id, name, points, area_m2}]`) und bietet die
 Integration den Dienst `mow_areas` an (z.B. `goat_mower` für den ECOVACS GOAT A1600), lassen sich Bereiche **auf der Karte
 oder in der Liste darunter antippen** → „Ausgewählte Bereiche mähen“ (mit Rückfrage, nur in der Station oder pausiert).
-Der laufende Auftrag wird gestrichelt markiert (`job_area_ids` am `lawn_mower`).
+Der laufende Auftrag wird gestrichelt markiert (`job_area_ids` am `lawn_mower`). **Gedrückt halten** öffnet die Einstellungen des
+Bereichs (Mähhöhe, Geschwindigkeit, Vermeidungsmodus – Entitäten mit Attribut `area_id`); die Taste oben rechts öffnet die Karte im
+**Vollbild** mit Zoom.
 
 ```yaml
 type: custom:ha-mower-card

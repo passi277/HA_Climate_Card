@@ -410,6 +410,11 @@
           { id: "3", name: "Beet", points: [[12000, 0], [20000, 0], [20000, 9000], [12000, 9000]], area_m2: 72, label: [16000, 4500], separate_lawn: false },
           { id: "2", name: "Zeltplatz", points: [[22000, 0], [26000, 0], [26000, 4000], [22000, 4000]], area_m2: 16, label: [24000, 2000], separate_lawn: true },
         ] } },
+      ...Object.fromEntries([["1", "Vorgarten", 6, 0.4, "normal"], ["2", "Zeltplatz", 5, 0.5, "flat"], ["3", "Beet", 7, 0.45, "tall_grass"]].flatMap(([id, name, h, v, o]) => [
+        [`number.goat_a1600_${name.toLowerCase()}_cutting_height`, { state: String(h), attributes: { friendly_name: `${name} Mähhöhe`, area_id: id, min: 3, max: 9, step: 1, unit_of_measurement: "cm" } }],
+        [`number.goat_a1600_${name.toLowerCase()}_mowing_speed`, { state: String(v), attributes: { friendly_name: `${name} Geschwindigkeit`, area_id: id, min: 0.4, max: 0.7, step: 0.05, unit_of_measurement: "m/s" } }],
+        [`select.goat_a1600_${name.toLowerCase()}_avoidance_mode`, { state: o, attributes: { friendly_name: `${name} Vermeidungsmodus`, area_id: id, options: ["flat", "normal", "tall_grass"] } }],
+      ])),
       // Battery Notes: eigene Entitäten am Gerät, benannt nach dem Gerät („Wasser Hecke“), nicht nach dem Batteriesensor
       "sensor.wasser_hecke_battery_type": { state: "4× AA", attributes: { friendly_name: "Wasser Hecke Batterie-Typ", battery_type: "AA", battery_quantity: 4 } },
       "sensor.wasser_hecke_battery_last_replaced": { state: new Date(Date.now() - 190 * 86400000).toISOString(), attributes: { friendly_name: "Wasser Hecke Letzter Batteriewechsel", device_class: "timestamp" } },

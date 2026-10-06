@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.31.0 – Bereiche einstellen, Vollbild
+- Mower Card: **Bereich gedrückt halten** (auf der Karte oder in der Liste) öffnet seine Einstellungen – Mähhöhe und Geschwindigkeit mit −/+, Vermeidungsmodus als Auswahl (Entitäten mit Attribut `area_id`, z.B. `goat_mower`)
+- **Vollbild-Karte** (Taste oben rechts): groß, mit Zoom per Zwei-Finger-Geste, Mausrad oder Lupe, verschieben per Ziehen; Bereiche lassen sich auch dort auswählen und einstellen
+- Während des Mähens steht der Fortschritt am laufenden Bereich („Volleyball · 35 %“); bei mehreren ausgewählten Bereichen zeigen Nummern die Reihenfolge
+- Der Mäher gleitet zwischen den Positionen und dreht sich weich, statt zu springen
+- Pool Card: Restzeit direkt nach dem Start eines Timers nie länger als seine Laufzeit
+
 ## 1.30.0 – Neue Live-Karte
 - Mower Card: Live-Karte neu gestaltet – dunkler Hintergrund mit feinem Raster, Rasenflächen mit Mähstreifen-Textur und Schatten, Bereiche farbig mit **Namen auf der Karte** (kleine Bereiche erst, wenn genug Platz ist oder sie ausgewählt sind), Station als Haus-Symbol
 - Hindernisse (`obstacles`), Verbindungswege (`channels`) und die bereits gemähten Streifen (`trace.segments`) werden gezeichnet

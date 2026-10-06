@@ -13,6 +13,7 @@ export interface EntityRegistryEntry {
   hidden?: boolean;
   entity_category?: string | null;
   platform?: string;
+  translation_key?: string;
 }
 
 export interface DeviceRegistryEntry {

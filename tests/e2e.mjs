@@ -957,6 +957,54 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
     ? ok("Mähroboter: Bereiche antippen (Karte + Liste), Rückfrage, goat_mower.mow_areas") : fail(`Mähroboter Bereiche: ${JSON.stringify({ r, calls })}`);
 }
 
+// Mähroboter: Bereich gedrückt halten → Einstellungen; Vollbild mit Zoom
+{
+  const card = await p.evaluateHandle(() => [...document.querySelectorAll("ha-mower-card")].find((c) => c._config.name === "GOAT A1600"));
+  await card.evaluate((c) => c.scrollIntoView({ block: "center" }));
+  await p.waitForTimeout(300);
+  const chip = await card.evaluateHandle((c) => c.shadowRoot.querySelector('.a-chip[data-area="1"]'));
+  const box = await chip.boundingBox();
+  await p.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await p.mouse.down();
+  await p.waitForTimeout(650);
+  await p.mouse.up();
+  await p.waitForTimeout(100);
+  const before = await p.evaluate(() => window.serviceCalls.length);
+  const r = await card.evaluate(async (c) => {
+    const root = c.shadowRoot;
+    const wait = (ms) => new Promise((res) => setTimeout(res, ms));
+    const res = { head: root.querySelector(".a-panel .p-head b")?.textContent.trim(), selAfterHold: root.querySelector('.a-chip[data-area="1"]').classList.contains("sel"),
+      height: root.querySelector('.p-row[data-key="area_height"] .p-val')?.textContent.trim(), speed: root.querySelector('.p-row[data-key="area_speed"] .p-val')?.textContent.trim(),
+      segs: [...root.querySelectorAll('[data-key="area_avoidance"] .seg')].map((b) => (b.classList.contains("sel") ? "*" : "") + b.textContent.trim()) };
+    root.querySelectorAll('.p-row[data-key="area_height"] .step')[1].click();
+    await wait(50);
+    res.heightPending = root.querySelector('.p-row[data-key="area_height"] .p-val').textContent.trim();
+    await wait(900);
+    [...root.querySelectorAll('[data-key="area_avoidance"] .seg')].find((b) => b.textContent.trim() === "flat").click();
+    await wait(300);
+    root.querySelector(".full-btn").click();
+    await wait(300);
+    const dlg = root.querySelector("dialog.full");
+    res.open = !!dlg?.open;
+    const vb0 = dlg.querySelector(".map").getAttribute("viewBox");
+    dlg.querySelectorAll(".f-btn")[1].click();
+    await wait(100);
+    res.zoomed = dlg.querySelector(".map").getAttribute("viewBox") !== vb0;
+    dlg.querySelector('.map .m-zone[data-area="2"]').dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await wait(100);
+    res.selInFull = [...new Set([...root.querySelectorAll(".a-chip.sel")].map((b) => b.dataset.area))].join();
+    dlg.querySelectorAll(".f-btn")[2].click();
+    await wait(200);
+    res.closed = !root.querySelector("dialog.full");
+    return res;
+  });
+  const calls = await p.evaluate((n) => window.serviceCalls.slice(n).filter((c) => c.domain !== "ecovacs_goat_g1").map((c) => `${c.domain}.${c.service}:${c.data.entity_id}:${c.data.value ?? c.data.option}`), before);
+  r.head === "Vorgarten" && !r.selAfterHold && r.height === "6\u00a0cm" && r.speed === "0,4\u00a0m/s" && r.segs.join() === "flat,*normal,tall_grass" && r.heightPending === "7\u00a0cm"
+    && calls.join() === "number.set_value:number.goat_a1600_vorgarten_cutting_height:7,select.select_option:select.goat_a1600_vorgarten_avoidance_mode:flat"
+    && r.open && r.zoomed && r.selInFull === "2" && r.closed
+    ? ok("Mähroboter: Bereich halten → Mähhöhe/Vermeidung; Vollbild mit Zoom und Auswahl") : fail(`Mähroboter Bereichseinstellungen: ${JSON.stringify({ r, calls })}`);
+}
+
 // Energiefluss: Werte, aktive Linien, Verbraucher-Kreise, Tageswerte, Akku-Restzeit, Schalter
 {
   const card = await p.evaluateHandle(() => document.querySelector("ha-energy-card"));

@@ -967,7 +967,16 @@
     "areas_start_many": "Mow selected areas",
     "areas_confirm": "Sure? Mower will drive off",
     "areas_not_ready": "Starting works when the mower is docked or paused",
-    "areas_multi_hint": "Several areas: may still be experimental in the integration"
+    "areas_multi_hint": "Several areas: may still be experimental in the integration",
+    "areas_hint_hold": "Tap = select · hold = settings",
+    "area_height": "Cutting height",
+    "area_speed": "Speed",
+    "area_avoidance": "Avoidance mode",
+    "area_no_settings": "No settings for this area",
+    "close": "Close",
+    "fullscreen": "Full screen",
+    "zoom_in": "Zoom in",
+    "zoom_out": "Zoom out"
   },
   "mower_editor": {
     "entity": "Lawn mower",
