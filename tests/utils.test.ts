@@ -1058,6 +1058,14 @@ describe("Szenen", () => {
     expect(custom.length).toBe(1);
     expect(custom[0]!.scenes.map((s) => s.entity_id)).toEqual(["scene.tv_lesen"]);
   });
+  it("ordnet Hue-Räume exakt zu (Zimmer ≠ Wohnzimmer), „Wohnzimmer_“ = „Wohnzimmer“", () => {
+    const states = Object.fromEntries([
+      sc("scene.zimmer_hell", "Hell", "Zimmer"), sc("scene.wohnzimmer_hell", "Hell", "Wohnzimmer"), sc("scene.wohnzimmer_lesen", "Lesen", "Wohnzimmer_"),
+      sc("scene.gastezimmer_hell", "Hell", "Gästezimmer"), sc("scene.party", "Party Zimmer"),
+    ].map((s) => [s.entity_id, s]));
+    const g = sceneGroups(states, { groups: [{ name: "Pascal", match: "Zimmer" }, { name: "WZ", match: "Wohnzimmer" }, { name: "Party", match: "party" }] });
+    expect(g.map((x) => x.scenes.map((s) => s.entity_id))).toEqual([["scene.zimmer_hell"], ["scene.wohnzimmer_hell", "scene.wohnzimmer_lesen"], ["scene.party"]]);
+  });
 });
 
 describe("Rezepte (Mealie)", () => {

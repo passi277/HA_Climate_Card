@@ -1934,11 +1934,15 @@ export const sceneGroups = (states: Record<string, HassEntity>,
     return [...by.values()].sort((a, b) => sceneLabel(a).localeCompare(sceneLabel(b)));
   };
   if (opts.groups?.length) {
+    // Hue-Raum vergleichen ohne Groß/klein und angehängte „_“ („Wohnzimmer_“ = „Wohnzimmer“)
+    const norm = (v: unknown) => String(v ?? "").toLowerCase().replace(/[\s_]+$/, "").trim();
     return opts.groups.map((g, i) => {
-      const m = g.match?.toLowerCase();
+      const m = norm(g.match);
+      const byRoom = m ? all.filter((s) => norm(s.attributes.group_name) === m) : [];
+      // Textsuche nur, wenn kein Hue-Raum so heißt („Zimmer“ soll nicht „Wohnzimmer …“ finden)
       const list = g.scenes?.length ? g.scenes.map((id) => states[id]).filter((s): s is HassEntity => !!s)
-        : all.filter((s) => m && (String(s.attributes.group_name ?? "").toLowerCase() === m
-          || String(s.attributes.friendly_name ?? "").toLowerCase().includes(m) || s.entity_id.includes(m.replace(/\s+/g, "_"))));
+        : byRoom.length ? byRoom
+        : all.filter((s) => m && (String(s.attributes.friendly_name ?? "").toLowerCase().includes(m) || s.entity_id.includes(m.replace(/\s+/g, "_"))));
       return { key: `g${i}`, name: g.name, icon: g.icon, scenes: dedupe(list.filter(ok)), lights: g.lights ?? [] };
     }).filter((g) => g.scenes.length || g.lights.length);
   }

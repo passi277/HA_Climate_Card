@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.39.1 – Szenen: Räume exakt zuordnen
+- Scene Card: `match` trifft zuerst den Hue-Raum exakt (ohne Groß/klein und angehängtes „_“, „Wohnzimmer_“ = „Wohnzimmer“); die Textsuche greift nur, wenn kein Hue-Raum so heißt – „Zimmer“ zeigt nicht mehr auch Szenen aus Wohn- und Gästezimmer
+
 ## 1.39.0 – Rezepte, Szenen, Schlafen, Klima 2.0, Energie-Woche
 - Neue **Modern Recipe Card** (`custom:ha-recipe-card`) für Mealie: Essensplan der Woche (Mittag/Abend als Spalten), freie Plätze „Zufällig“ füllen oder per Suche, „Woche füllen“/„Lücken füllen“, Rezeptsuche mit Zeit, Tags und Sternen, Rezept mit Portionen-Umrechner, abhakbaren Zutaten und Schritten, „Heute/Morgen Abend einplanen“ und „fehlende Zutaten auf die Einkaufsliste“; Mealie-Integration wird automatisch gefunden
 - Neue **Modern Scene Card** (`custom:ha-scene-card`): Szenen nach Raum (Hue-Räume automatisch oder eigene Gruppen), Symbol und Farbe aus dem Namen, zuletzt aktivierte Szene markiert, Lampen des Raums mit Helligkeit, „Raum aus“ und „Alles aus“
