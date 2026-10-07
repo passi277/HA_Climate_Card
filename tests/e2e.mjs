@@ -1501,6 +1501,33 @@ colorFails.length ? fail(`Farbe folgt nicht dem Modus: ${colorFails.join(", ")}`
   !folded.body && folded.label === "Details & Vorhersage" && folded.saved === "0" && reopened ? ok("Wetter: Details & Vorhersage auf-/zuklappbar (gemerkt)") : fail(`Wetter Klappen: ${JSON.stringify(folded)} ${reopened}`);
 }
 
+// Termine & Abfall
+{
+  const info = await p.evaluate(() => { const r = document.querySelector("ha-agenda-card").shadowRoot;
+    return { bins: [...r.querySelectorAll(".bin .b-name")].map((b) => b.textContent.trim()), days: r.querySelectorAll(".day").length,
+      first: r.querySelector(".ev b")?.textContent.trim(), sub: r.querySelector(".h-sub")?.textContent.trim() }; });
+  info.bins.length >= 3 && info.days >= 4 && info.first === "Zahnarzt" ? ok(`Termine & Abfall: ${info.bins.join(", ")} · ${info.sub}`) : fail(`Agenda: ${JSON.stringify(info)}`);
+}
+
+// Gerätestatus
+{
+  const info = await p.evaluate(() => { const r = document.querySelector("ha-device-status-card").shadowRoot;
+    return { sub: r.querySelector(".h-sub")?.textContent.trim(), first: r.querySelector(".d-text b")?.textContent.trim(), chips: r.querySelectorAll(".chip").length,
+      ipad: [...r.querySelectorAll(".d-text b")].some((b) => b.textContent.includes("iPad")) }; });
+  /Geräte nicht erreichbar/.test(info.sub) && info.first === "MEATER+ Sonde" && info.chips >= 4 && !info.ipad
+    ? ok(`Gerätestatus: ${info.sub}, älteste zuerst, Geräte-Tracker ausgeblendet`) : fail(`Gerätestatus: ${JSON.stringify(info)}`);
+  await p.evaluate(() => document.querySelector("ha-device-status-card").shadowRoot.querySelector('.chip[data-int="hue"]').click());
+  await p.waitForTimeout(150);
+  const hue = await p.evaluate(() => [...document.querySelector("ha-device-status-card").shadowRoot.querySelectorAll(".d-text b")].map((b) => b.textContent.trim()));
+  await p.evaluate(() => document.querySelector("ha-device-status-card").shadowRoot.querySelector(".d-main").click());
+  await p.waitForTimeout(150);
+  const n = await p.evaluate(() => window.serviceCalls.length);
+  await p.evaluate(() => [...document.querySelector("ha-device-status-card").shadowRoot.querySelectorAll(".act")].pop().click());
+  await p.waitForTimeout(150);
+  const call = await p.evaluate((k) => window.serviceCalls.slice(k).find((c) => c.service === "reload_config_entry"), n);
+  hue.length === 1 && hue[0] === "Couch Lightstrip" && call?.data.entity_id === "light.couch_licht" ? ok("Gerätestatus: Filter Philips Hue, Integration neu laden") : fail(`Gerätestatus Filter/Reload: ${hue} ${JSON.stringify(call)}`);
+}
+
 // Theme-Umschalter
 await p.click('[data-theme="dark"]');
 (await p.evaluate(() => document.body.classList.contains("dark"))) ? ok("Dunkel-Modus umschaltbar") : fail("Dunkel-Modus");

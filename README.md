@@ -558,6 +558,40 @@ entity: weather.forecast_home
 # collapsed: true       # Details & Vorhersage anfangs zugeklappt
 ```
 
+## Modern Agenda Card (Termine & Abfall)
+
+Oben die **nächste Abholung je Tonne** (Restmüll, Bio, Papier, Gelber Sack, Glas … am Namen erkannt, farbig) mit „Morgen“, Wochentag
+oder „in 8 Tagen“; am Vortag ab 16 Uhr erscheint **„Heute Abend rausstellen: …“**, am Abholtag morgens „Heute wird abgeholt“.
+Darunter eine **Terminliste** aus beliebig vielen Kalendern (je eine Farbe), gruppiert nach Heute, Morgen und Datum, mit Uhrzeit bzw.
+„Ganztägig“ und Ort.
+
+```yaml
+type: custom:ha-agenda-card
+waste: calendar.abfallkalender_mannheim
+calendars:
+  - calendar.familie
+  - { entity: calendar.arbeit, name: Arbeit, color: "#ab47bc" }
+# days: 14
+# max_events: 12
+# reminder_time: "16:00"
+# waste_in_agenda: true
+```
+
+## Modern Device Status Card (Gerätestatus)
+
+Alle **nicht erreichbaren Geräte** auf einen Blick, nach Gerät gruppiert (älteste zuerst), mit Integration, **„seit …“** und Anzahl
+betroffener Entitäten; Filter-Chips je Integration, Aufklappen zeigt die Entitäten sowie **„Gerät öffnen“** und **„Integration neu
+laden“**. Kopf zeigt „X Geräte nicht erreichbar“ bzw. „Alle Geräte erreichbar“ und erreichbar/gesamt. Geräte-Tracker werden
+standardmäßig ignoriert.
+
+```yaml
+type: custom:ha-device-status-card
+# exclude_domains: [device_tracker, button]
+# exclude_integrations: [fritz]
+# exclude: [sensor.meater_probe_123_innentemperatur]
+# include_unknown: true
+```
+
 ## Modern Vacuum Card (Saugroboter)
 
 - **Live-Karte** aus dem Kartenbild (z.B. Roborock Custom Map, `image.*`) – mit Roboter-Position, automatisch auf die
@@ -941,6 +975,8 @@ glow, smooth color transitions, animations), shipped as a single HACS download:
 - `custom:ha-home-battery-card` – home battery / solar storage (e.g. Anker Solarbank): charge ring with time left, animated solar → battery → home flow, PV strings, savings, history
 - `custom:ha-system-card` – system & updates: CPU/RAM/disk rings, services, all pending updates with install and progress, backups, restart
 - `custom:ha-weather-card` – weather with animated sky, rain/frost hint, hourly curve and 7-day forecast
+- `custom:ha-agenda-card` – waste pickups per bin with reminder the evening before, plus a day-grouped agenda from several calendars
+- `custom:ha-device-status-card` – all unreachable devices grouped by device/integration with "since", entities and reload
 - `custom:ha-vacuum-card` – robot vacuum with live map, tap rooms on the map for room cleaning, controls, modes, maintenance
 - `custom:ha-presence-card` – people as photo tiles (home/away, phone battery and charging found automatically) plus front door: hold to open (Nuki Opener), Ring to Open, doorbell
 - `custom:ha-alert-card` – alerts that only appear when something is going on (window open, vacuum error, low battery …), hidden otherwise

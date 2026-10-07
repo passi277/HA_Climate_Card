@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.38.0 – Termine & Gerätestatus
+- Neue **Modern Agenda Card** (`custom:ha-agenda-card`): nächste Abholung je Mülltonne mit Farbe/Symbol und Countdown, Erinnerung „Heute Abend rausstellen“ am Vortag, Terminliste aus mehreren Kalendern nach Tagen gruppiert
+- Neue **Modern Device Status Card** (`custom:ha-device-status-card`): nicht erreichbare Geräte nach Gerät/Integration, „seit …“, Filter, betroffene Entitäten, „Gerät öffnen“ und „Integration neu laden“
+- Restmüll bekommt eine eigene Farbe und ein eigenes Symbol (auch in der Raumkarte)
+
 ## 1.37.0 – Aufklappen & Systemaktionen
 - Weather Card: Werte, Stundenverlauf und Tagesvorschau lassen sich **auf- und zuklappen** („Details & Vorhersage“, zugeklappt mit Mini-Vorschau der nächsten Tage); der Zustand wird pro Wetter-Entität gemerkt, `collapsed: true` startet zugeklappt
 - System Card: neue Aktionsleiste mit **„YAML prüfen“** (Ergebnis direkt in der Karte, Fehlertext bei ungültiger Konfiguration), **„Schnell neu laden“** (`homeassistant.reload_all`) und **„Neu starten“** (mit Rückfrage); abschaltbar mit `show_actions: false` / `show_restart: false`

@@ -941,6 +941,7 @@ export interface WastePickup {
 }
 
 const WASTE_STYLES: [RegExp, string, string][] = [
+  [/rest|hausmüll|residual|general/i, "mdi:trash-can", "#607d8b"],
   [/bio|organ|grün|kompost/i, "mdi:leaf", "#7cb342"],
   [/papier|paper|pappe|karton/i, "mdi:newspaper-variant-outline", "#1e88e5"],
   [/gelb|wertstoff|verpackung|plastik|recycl|leichtverp/i, "mdi:recycle", "#fbc02d"],
@@ -1793,4 +1794,76 @@ export const weatherIcon = (condition?: string, night = false): string => {
     case "exceptional": return "mdi:alert-circle-outline";
     default: return "mdi:weather-cloudy";
   }
+};
+
+// ---------- Termine & Abfall ----------
+
+/** Nächste Abholung je Müllart (innerhalb von `days` Tagen), sortiert nach Datum */
+export const nextPickups = (events: CalendarEventLike[], now: Date, days = 14): WastePickup[] => {
+  const seen = new Set<string>();
+  return upcomingPickups(events, now, days, 1440).filter((p) => (seen.has(p.name) ? false : (seen.add(p.name), true)));
+};
+
+/** Start eines Kalender-Ereignisses als Datum + ganztägig ja/nein */
+export const eventStart = (start: CalendarEventLike["start"]): { date?: Date; allDay: boolean } => {
+  const allDay = typeof start === "object" ? !!start.date && !start.dateTime : /^\d{4}-\d{2}-\d{2}$/.test(String(start));
+  return { date: parseEventStart(start), allDay };
+};
+
+/** Tage zwischen heute und dem Datum (0 = heute) */
+export const daysUntil = (d: Date, now = new Date()): number => Math.round((dayStart(d) - dayStart(now)) / 86_400_000);
+
+// ---------- Gerätestatus ----------
+
+export interface OfflineDevice {
+  /** device_id oder entity_id (ohne Gerät) */
+  id: string;
+  name: string;
+  integration: string;
+  entities: string[];
+  /** Seit wann nicht erreichbar (frühester last_changed) */
+  since: string;
+  domain: string;
+}
+
+const PLATFORM_NAMES: Record<string, string> = {
+  homematicip_local: "Homematic IP", bosch_shc: "Bosch Smart Home", homematicip_cloud: "Homematic IP", fritz: "FRITZ!Box", hue: "Philips Hue", mqtt: "MQTT", zha: "Zigbee (ZHA)",
+  zwave_js: "Z-Wave", esphome: "ESPHome", shelly: "Shelly", tuya: "Tuya", tasmota: "Tasmota", meater: "MEATER", mobile_app: "Handy-App",
+  roborock: "Roborock", harmony: "Harmony", philips_js: "Philips TV", braviatv: "Sony Bravia", androidtv_remote: "Android TV", cast: "Chromecast",
+  sonos: "Sonos", nuki: "Nuki", blink: "Blink", reolink: "Reolink", gree: "Gree", template: "Template", group: "Gruppe", matter: "Matter",
+  google_assistant_sdk: "Google", remote_homeassistant: "Remote HA", ping: "Ping", upnp: "UPnP", dlna_dmr: "DLNA", openuv: "OpenUV",
+};
+
+/** Integrationsname lesbar machen */
+export const platformName = (p?: string): string =>
+  !p ? "Sonstige" : PLATFORM_NAMES[p] ?? p.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
+/** Nicht erreichbare Entitäten nach Gerät gruppieren (älteste zuerst) */
+export const offlineDevices = (states: Record<string, HassEntity>, entities: Record<string, EntityRegistryEntry> | undefined,
+  devices: Record<string, DeviceRegistryEntry> | undefined,
+  opts: { excludeDomains?: string[]; excludeIntegrations?: string[]; exclude?: string[]; includeUnknown?: boolean } = {}): OfflineDevice[] => {
+  const exDom = opts.excludeDomains ?? ["device_tracker"];
+  const groups = new Map<string, OfflineDevice>();
+  for (const st of Object.values(states)) {
+    const id = st.entity_id;
+    if (!(st.state === "unavailable" || (opts.includeUnknown && st.state === "unknown"))) continue;
+    const domain = id.split(".")[0]!;
+    const reg = entities?.[id];
+    if (exDom.includes(domain) || opts.exclude?.includes(id) || reg?.hidden) continue;
+    const platform = reg?.platform ?? "";
+    if (opts.excludeIntegrations?.includes(platform)) continue;
+    const dev = reg?.device_id ? devices?.[reg.device_id] : undefined;
+    const key = reg?.device_id ?? id;
+    const g = groups.get(key);
+    if (g) {
+      g.entities.push(id);
+      if (st.last_changed < g.since) g.since = st.last_changed;
+    } else {
+      groups.set(key, {
+        id: key, name: String(dev?.name_by_user || dev?.name || st.attributes.friendly_name || id),
+        integration: platform, entities: [id], since: st.last_changed, domain,
+      });
+    }
+  }
+  return [...groups.values()].sort((a, b) => a.since.localeCompare(b.since) || a.name.localeCompare(b.name));
 };

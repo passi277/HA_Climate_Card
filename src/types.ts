@@ -987,3 +987,41 @@ export interface WeatherCardConfig {
   animations?: "full" | "reduced" | "off";
   [key: string]: unknown;
 }
+
+export interface AgendaCalendar { entity: string; name?: string; color?: string; icon?: string }
+
+export interface AgendaCardConfig {
+  type: string;
+  name?: string;
+  /** Abfallkalender (Waste Collection Schedule o.ä.) – eine oder mehrere Entitäten */
+  waste?: string | string[];
+  /** Weitere Kalender für die Termin-Liste */
+  calendars?: (string | AgendaCalendar)[];
+  /** Zeitraum in Tagen (Standard 14) */
+  days?: number;
+  /** Höchstens so viele Termine (Standard 12) */
+  max_events?: number;
+  /** Müll-Termine zusätzlich in der Liste zeigen (Standard nein) */
+  waste_in_agenda?: boolean;
+  /** Ab dieser Uhrzeit am Vortag „Heute rausstellen“ (Standard 16:00) */
+  reminder_time?: string;
+  animations?: "full" | "reduced" | "off";
+  [key: string]: unknown;
+}
+
+export interface DeviceStatusCardConfig {
+  type: string;
+  name?: string;
+  /** Diese Domains ignorieren (Standard: device_tracker) */
+  exclude_domains?: string[];
+  /** Diese Integrationen (platform) ignorieren */
+  exclude_integrations?: string[];
+  /** Diese Entitäten ignorieren */
+  exclude?: string[];
+  /** Auch „unbekannt“ als Problem werten (Standard nein) */
+  include_unknown?: boolean;
+  /** Höchstens so viele Geräte, Rest über „Alle anzeigen“ (Standard 8) */
+  max_items?: number;
+  animations?: "full" | "reduced" | "off";
+  [key: string]: unknown;
+}

@@ -3,6 +3,7 @@ import type { HassEntity } from "../src/types";
 import {
   batteryHoursLeft, consumerGrid, formatHours, integratePower, statsEnergy, flowLpm, timerInfo, formatRemaining, rangeStatus, phDose, poolRuntimeRecommendation, cameraFeatures, wifiQuality, optionStyle, musicModes, isMusicEffect, energyFlows, formatPower, powerWatts, alertActive, batteryShoppingList, clockMinutes, upcomingPickups, wasteStyle, batteryIcon, doorDevices, doorKind, initials, isCharging, phoneSensors, brightnessPct, contactType, calibrationTransform, roomsFromMap, roomIcon, areaBatteries, batteryInfo, batteryNotesFor, mowerFeatures, mowerPhase, mapGeometry, mowerAreas, polygonSize, extendTrail, presetActive, presetData, DEFAULT_LIGHT_PRESETS, activityIcon, activityLabel, guessControlDevice, guessVolumeDevice, coverIcon, datetimeParts, nextOccurrence, coverPosition, skyPhase, sunPlacement, weatherOverlay, editorOptions, isNoEffect, lightEditorOptions, segmentIds, detectDeviceType, kelvinToRgb, lightColor, relatedScenes, supportsColor, supportsColorTemp, dewPoint, nextSwitch, parseSchedule, scheduleTempAt, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
   llmEvents, llmCategory, snapshotMediaId, dayGroups, homeBatteryFeatures, batteryEta, batteryStatusKey,
+  nextPickups, eventStart, daysUntil, offlineDevices, platformName,
   updateKind, pendingUpdates, updateName, resourceSensors, backupSensors, backupHealth, loadLevel, windDir, tempScale, weatherHint, weatherIcon,
   starlinkFeatures, speedtestFeatures, formatRate, formatBytes, formatUptime, toMbit, pingQuality,
   openContactsKey, powerOf, resolveContacts, secondsToDuration, stateIcon, temperatureOf, temperatureTint, trendSlope,
@@ -467,7 +468,7 @@ describe("waste collection", () => {
     expect(p?.days).toBe(1);
     expect(wasteStyle("Altpapier").icon).toBe("mdi:newspaper-variant-outline");
     expect(wasteStyle("Gelber Sack").icon).toBe("mdi:recycle");
-    expect(wasteStyle("Restmüll").icon).toBe("mdi:trash-can-outline");
+    expect(wasteStyle("Restmüll").icon).toBe("mdi:trash-can");
     expect(clockMinutes("10:30", 600)).toBe(630);
     expect(clockMinutes(undefined, 600)).toBe(600);
   });
@@ -992,5 +993,41 @@ describe("Wetter", () => {
     expect(weatherHint([h(0), h(5, { temperature: -2 })], "cloudy", now)).toMatchObject({ key: "frost", value: -2 });
     expect(weatherHint([h(0), h(1)], "sunny", now)).toEqual({ key: "dry" });
     expect(weatherHint([], "sunny", now)).toBeUndefined();
+  });
+});
+
+describe("Termine & Abfall", () => {
+  it("nächste Abholung je Müllart", () => {
+    const now = new Date(2026, 9, 7, 12, 0);
+    const p = nextPickups([
+      { summary: "Restmüll", start: { date: "2026-10-08" } }, { summary: "Altpapier", start: { date: "2026-10-15" } },
+      { summary: "Restmüll", start: { date: "2026-10-22" } }, { summary: "Gelber Sack", start: { date: "2026-10-30" } },
+    ], now, 14);
+    expect(p.map((x) => [x.name, x.days])).toEqual([["Restmüll", 1], ["Altpapier", 8]]);
+    expect(p[0]!.icon).toBe("mdi:trash-can");
+    expect(eventStart({ date: "2026-10-08" })).toMatchObject({ allDay: true });
+    expect(eventStart({ dateTime: "2026-10-08T09:30:00+02:00" }).allDay).toBe(false);
+    expect(daysUntil(new Date(2026, 9, 9, 23, 0), now)).toBe(2);
+  });
+});
+
+describe("Gerätestatus", () => {
+  it("gruppiert nicht erreichbare Entitäten nach Gerät", () => {
+    const states = Object.fromEntries([
+      { ...entity("light.couch_licht", "unavailable", { friendly_name: "Couch" }), last_changed: "2026-10-07T08:00:00Z" },
+      { ...entity("light.couch_links", "unavailable"), last_changed: "2026-10-07T07:00:00Z" },
+      { ...entity("cover.kuche", "unavailable"), last_changed: "2026-10-06T07:00:00Z" },
+      entity("device_tracker.ipad", "unavailable"),
+      entity("sensor.ok", "21"),
+      entity("sensor.unbekannt", "unknown"),
+    ].map((e) => [e.entity_id, e]));
+    const entities = { "light.couch_licht": { entity_id: "light.couch_licht", device_id: "d1", platform: "hue" }, "light.couch_links": { entity_id: "light.couch_links", device_id: "d1", platform: "hue" },
+      "cover.kuche": { entity_id: "cover.kuche", device_id: "d2", platform: "bosch_shc" } };
+    const devices = { d1: { id: "d1", name: "Couch Lightstrip" }, d2: { id: "d2", name: "Rollo Küche", name_by_user: "Küchenrollo" } };
+    const list = offlineDevices(states, entities, devices);
+    expect(list.map((d) => [d.name, d.entities.length, d.since])).toEqual([["Küchenrollo", 1, "2026-10-06T07:00:00Z"], ["Couch Lightstrip", 2, "2026-10-07T07:00:00Z"]]);
+    expect(offlineDevices(states, entities, devices, { excludeDomains: [], includeUnknown: true }).length).toBe(4);
+    expect(offlineDevices(states, entities, devices, { excludeIntegrations: ["hue"] }).length).toBe(1);
+    expect([platformName("bosch_shc"), platformName("my_custom_thing"), platformName(undefined)]).toEqual(["Bosch Smart Home", "My Custom Thing", "Sonstige"]);
   });
 });

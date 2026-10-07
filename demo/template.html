@@ -570,6 +570,16 @@
       // Wetter (met.no): Tages- und Stundenvorhersage über weather/subscribe_forecast
       "weather.forecast_home": { state: "partlycloudy", attributes: { friendly_name: "Zuhause", temperature: 10.9, apparent_temperature: 8.6, dew_point: 10, temperature_unit: "°C", humidity: 93,
         cloud_coverage: 42, uv_index: 2.4, pressure: 1012.9, pressure_unit: "hPa", wind_bearing: 82.8, wind_speed: 15.8, wind_gust_speed: 31, wind_speed_unit: "km/h", visibility_unit: "km", precipitation_unit: "mm", supported_features: 3 } },
+      // Termine & Gerätestatus
+      "calendar.familie": { state: "off", attributes: { friendly_name: "Familie" } },
+      "calendar.arbeit": { state: "off", attributes: { friendly_name: "Arbeit" } },
+      "light.couch_licht": { state: "unavailable", last_changed: new Date(Date.now() - 3 * 3600_000).toISOString(), attributes: { friendly_name: "Couch Licht" } },
+      "light.couch_links": { state: "unavailable", last_changed: new Date(Date.now() - 3 * 3600_000).toISOString(), attributes: { friendly_name: "Couch links" } },
+      "cover.kuche": { state: "unavailable", last_changed: new Date(Date.now() - 26 * 3600_000).toISOString(), attributes: { friendly_name: "Rollo Küche" } },
+      "button.kuche_my_position": { state: "unavailable", last_changed: new Date(Date.now() - 26 * 3600_000).toISOString(), attributes: { friendly_name: "Küche My position" } },
+      "sensor.meater_innentemperatur": { state: "unavailable", last_changed: new Date(Date.now() - 4 * 86400_000).toISOString(), attributes: { friendly_name: "Meater Innentemperatur" } },
+      "sensor.meater_kochstatus": { state: "unavailable", last_changed: new Date(Date.now() - 4 * 86400_000).toISOString(), attributes: { friendly_name: "Meater Kochstatus" } },
+      "device_tracker.ipad": { state: "unavailable", attributes: { friendly_name: "iPad" } },
       "calendar.llm_vision_timeline": { state: "off", attributes: { friendly_name: "LLM Vision Timeline", title: "Marcels Auto", description: "Ein blauer VW (Modell T-Roc) steht im Eingangsbereich.",
         key_frame: "/media/llmvision/snapshots/auto-1.jpg", camera_name: "camera.blink_carport", icon: "mdi:timeline-outline" } },
       ...Object.fromEntries(["tor", "carport", "pool", "schuppen"].flatMap((n, i) => [
@@ -613,6 +623,11 @@
       ...(/^\w+\.(cam_haus|blink_(tor|carport|pool|schuppen))/.test(id) ? { device_id: id.match(/^\w+\.(cam_haus|blink_(tor|carport|pool|schuppen))/)[1], platform: id.includes("blink") ? "blink" : "reolink" } : {}),
       ...(/^(sensor|button)\.(ventil|wasser)_(hecke|rasen)_batter/.test(id) ? { device_id: "dev_ventil_" + id.match(/_(hecke|rasen)_/)[1], ...(id.includes("wasser_") ? { platform: "battery_notes" } : {}) } : {}),
       ...(/^\w+\.(solarbank_3_e2700_pro|solarbank_sonne|system_solix_garten|system_sonne)_/.test(id) ? { device_id: /solarbank_sonne|system_sonne/.test(id) ? (id.includes("system_") ? "dev_sys_sonne" : "dev_sb_sonne") : (id.includes("system_") ? "dev_sys_garten" : "dev_sb_garten"), platform: "anker_solix" } : {}),
+      ...({ "light.couch_licht": ["dev_couch", "hue"], "light.couch_links": ["dev_couch", "hue"], "cover.kuche": ["dev_rollo_kueche", "bosch_shc"],
+        "button.kuche_my_position": ["dev_rollo_kueche", "bosch_shc"], "sensor.meater_innentemperatur": ["dev_meater", "meater"], "sensor.meater_kochstatus": ["dev_meater", "meater"],
+        "device_tracker.ipad": ["dev_ipad", "fritz"] }[id] ? (([d, pf]) => ({ device_id: d, platform: pf }))({ "light.couch_licht": ["dev_couch", "hue"], "light.couch_links": ["dev_couch", "hue"], "cover.kuche": ["dev_rollo_kueche", "bosch_shc"],
+        "button.kuche_my_position": ["dev_rollo_kueche", "bosch_shc"], "sensor.meater_innentemperatur": ["dev_meater", "meater"], "sensor.meater_kochstatus": ["dev_meater", "meater"],
+        "device_tracker.ipad": ["dev_ipad", "fritz"] }[id]) : {}),
       ...(/^\w+\.starlink_/.test(id) ? { device_id: id.includes("camper") ? "dev_starlink_camper" : "dev_starlink", platform: "starlink",
         translation_key: { konnektivitat: "connection", ping: "ping", ping_drop_rate: "ping_drop_rate", downlink_durchsatz: "downlink_throughput", uplink_durchsatz: "uplink_throughput", download: "download", upload: "upload", letzter_neustart: "last_boot_time", beeintrachtigt: "currently_obstructed", heizung: "heating", ruhezustand: "power_save_idle", verstaut: "stowed", zeitplan_fur_ruhezustand: "sleep_schedule", neu_starten: "reboot" }[id.replace(/^\w+\.starlink_(camper_)?/, "")] } : {}),
       ...(/^sensor\.speedtest_/.test(id) ? { device_id: "dev_speedtest", platform: "speedtestdotnet", translation_key: id.replace("sensor.speedtest_", "") } : {}),
@@ -621,6 +636,7 @@
     const devices = { cam_haus: { id: "cam_haus", name: "Haus" }, blink_tor: { id: "blink_tor", name: "Tor" }, blink_carport: { id: "blink_carport", name: "Carport" },
       blink_pool: { id: "blink_pool", name: "Pool" }, blink_schuppen: { id: "blink_schuppen", name: "Schuppen" }, dev_opener: { id: "dev_opener", name: "Klingel", model: "Nuki Opener" }, dev_gree: { id: "dev_gree", name: "Klima Schlafzimmer" }, dev_govee: { id: "dev_govee", name: "Carport" },
       dev_ventil_hecke: { id: "dev_ventil_hecke", name: "Ventil Hecke" }, dev_ventil_rasen: { id: "dev_ventil_rasen", name: "Ventil Rasen" },
+      dev_couch: { id: "dev_couch", name: "Couch Lightstrip" }, dev_rollo_kueche: { id: "dev_rollo_kueche", name: "Rollo Küche" }, dev_meater: { id: "dev_meater", name: "MEATER+ Sonde" }, dev_ipad: { id: "dev_ipad", name: "iPad" },
       dev_sb_garten: { id: "dev_sb_garten", name: "Solarbank 3 E2700 Pro", via_device_id: "dev_sys_garten" }, dev_sys_garten: { id: "dev_sys_garten", name: "System Solix Garten" },
       dev_sb_sonne: { id: "dev_sb_sonne", name: "Solarbank Hütte", via_device_id: "dev_sys_sonne" }, dev_sys_sonne: { id: "dev_sys_sonne", name: "System Hütte" } };
     const ymd = (offset) => { const d = new Date(Date.now() + offset * 86400000); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
@@ -646,6 +662,15 @@
     };
     const makeHass = () => ({
       async callApi(method, path) {
+        if (path.startsWith("calendars/calendar.familie")) {
+          const at = (d, h, m = 0) => { const x = new Date(); x.setDate(x.getDate() + d); x.setHours(h, m, 0, 0); return x.toISOString(); };
+          return [{ summary: "Zahnarzt", start: { dateTime: at(0, 23, 30) }, end: { dateTime: at(0, 23, 59) }, location: "Praxis Dr. Weber" },
+            { summary: "Geburtstag Oma", start: { date: ymd(2) }, end: { date: ymd(3) } }, { summary: "Grillen im Garten", start: { dateTime: at(4, 18) }, end: { dateTime: at(4, 22) } }];
+        }
+        if (path.startsWith("calendars/calendar.arbeit")) {
+          const at = (d, h, m = 0) => { const x = new Date(); x.setDate(x.getDate() + d); x.setHours(h, m, 0, 0); return x.toISOString(); };
+          return [{ summary: "Team-Meeting", start: { dateTime: at(1, 9, 30) }, end: { dateTime: at(1, 10, 30) } }, { summary: "Urlaub", start: { date: ymd(6) }, end: { date: ymd(9) } }];
+        }
         if (path === "config/core/check_config") { await new Promise((r) => setTimeout(r, 400)); return { result: "valid", errors: null }; }
         if (path.startsWith("calendars/calendar.llm_vision_timeline")) return LLM_EVENTS.map((e) => ({ summary: e.title, description: e.description, start: { dateTime: e.start }, end: { dateTime: e.end }, uid: e.uid }));
         if (path.startsWith("calendars/calendar.abfall")) return [
@@ -822,7 +847,7 @@
           setTimeout(() => { const h = makeHass(); cards.forEach((c) => (c.hass = h)); }, 150);
           return;
         }
-        if (domain === "homeassistant" && (service === "restart" || service === "reload_all")) return;
+        if (domain === "homeassistant" && (service === "restart" || service === "reload_all" || service === "reload_config_entry")) return;
         if (domain === "update" && service === "install") {
           const u = states[data.entity_id];
           states[data.entity_id] = { ...u, attributes: { ...u.attributes, in_progress: true, update_percentage: 10 } };
@@ -1059,6 +1084,8 @@
       ] }],
       ["Status – Batterien aus Bereich + Türkontakt + Einkaufsliste", { _status: true, areas: ["mein_zimmer"], shopping_list: true, expanded: true, contacts: [{ entity: "binary_sensor.tuerkontakt_pascal", name: "Tür" }] }],
       ["Status – Battery Notes am Gerät (Typ, „gewechselt vor“, gedrückt halten = Wechsel eintragen)", { _status: true, title: "Ventile", batteries: ["sensor.ventil_hecke_battery", "sensor.ventil_rasen_battery", "sensor.ventil_beete_battery"], shopping_list: true, expanded: true }],
+      ["Termine & Abfall – nächste Abholung je Tonne, Erinnerung am Vorabend, Termine aus mehreren Kalendern", { _agenda: true, waste: "calendar.abfall", calendars: ["calendar.familie", { entity: "calendar.arbeit", color: "#ab47bc" }] }],
+      ["Gerätestatus – nicht erreichbare Geräte nach Integration, „seit …“, Entitäten, Neu laden", { _devstatus: true }],
       ["System & Updates – CPU/RAM/Speicher, Dienste, Updates mit Installieren, Backup, Neustart", { _system: true, services: ["binary_sensor.zigbee2mqtt_bridge_connection_state", { entity: "binary_sensor.mosquitto_broker_running", name: "MQTT" }] }],
       ["Wetter – animierter Himmel, Hinweis „Regen ab …“, Stundenkurve, 7 Tage", { _weather: true, entity: "weather.forecast_home" }],
       ["Hausakku – Anker Solarbank entlädt (Ring, Restzeit, Fluss Solar → Akku → Haus, PV-Module, Ersparnis, Verlauf)", { _hbat: true, entity: "sensor.solarbank_3_e2700_pro_ladestand" }],
@@ -1101,9 +1128,9 @@
         grid.appendChild(wrap);
         return;
       }
-      const { _overview, _light, _group, _cover, _coverGroup, _switchTime, _media, _room, _status, _vacuum, _presence, _alert, _energy, _irrigation, _pool, _camera, _cameraGroup, _select, _mower, _starlink, _llm, _hbat, _system, _weather, ...rest } = cfg;
+      const { _overview, _light, _group, _cover, _coverGroup, _switchTime, _media, _room, _status, _vacuum, _presence, _alert, _energy, _irrigation, _pool, _camera, _cameraGroup, _select, _mower, _starlink, _llm, _hbat, _system, _weather, _agenda, _devstatus, ...rest } = cfg;
       const tag = _overview ? "ha-climate-overview-card" : _group ? "ha-light-group-card" : _light ? "ha-light-card"
-        : _cover ? "ha-cover-card" : _coverGroup ? "ha-cover-group-card" : _switchTime ? "ha-switch-time-card" : _media ? "ha-media-card" : _room ? "ha-room-card" : _status ? "ha-status-card" : _vacuum ? "ha-vacuum-card" : _presence ? "ha-presence-card" : _alert ? "ha-alert-card" : _energy ? "ha-energy-card" : _irrigation ? "ha-irrigation-card" : _pool ? "ha-pool-card" : _camera ? "ha-camera-card" : _cameraGroup ? "ha-camera-group-card" : _select ? "ha-select-card" : _mower ? "ha-mower-card" : _starlink ? "ha-starlink-card" : _llm ? "ha-llm-timeline-card" : _hbat ? "ha-home-battery-card" : _system ? "ha-system-card" : _weather ? "ha-weather-card" : "ha-climate-card";
+        : _cover ? "ha-cover-card" : _coverGroup ? "ha-cover-group-card" : _switchTime ? "ha-switch-time-card" : _media ? "ha-media-card" : _room ? "ha-room-card" : _status ? "ha-status-card" : _vacuum ? "ha-vacuum-card" : _presence ? "ha-presence-card" : _alert ? "ha-alert-card" : _energy ? "ha-energy-card" : _irrigation ? "ha-irrigation-card" : _pool ? "ha-pool-card" : _camera ? "ha-camera-card" : _cameraGroup ? "ha-camera-group-card" : _select ? "ha-select-card" : _mower ? "ha-mower-card" : _starlink ? "ha-starlink-card" : _llm ? "ha-llm-timeline-card" : _hbat ? "ha-home-battery-card" : _system ? "ha-system-card" : _weather ? "ha-weather-card" : _agenda ? "ha-agenda-card" : _devstatus ? "ha-device-status-card" : "ha-climate-card";
       const card = document.createElement(tag);
       card.id = "card" + i;
       card.setConfig({ type: `custom:${tag}`, ...rest });

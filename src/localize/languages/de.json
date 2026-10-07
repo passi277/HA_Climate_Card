@@ -1279,5 +1279,53 @@
     "days": "Tage",
     "hours": "Stunden",
     "collapsed": "Anfangs zugeklappt"
+  },
+  "agenda": {
+    "title": "Termine & Abfall",
+    "today": "Heute",
+    "tomorrow": "Morgen",
+    "in_days": "in {n} Tagen",
+    "all_day": "Ganztägig",
+    "untitled": "Termin",
+    "loading": "Lade…",
+    "no_pickups": "Keine Abholung in Sicht",
+    "no_events": "Keine Termine in den nächsten {n} Tagen",
+    "events_today": "{n} Termin(e) heute",
+    "nothing": "Nichts Besonderes",
+    "put_out": "Heute Abend rausstellen: {bins}",
+    "today_pickup": "Heute wird abgeholt: {bins}"
+  },
+  "agenda_editor": {
+    "name": "Name",
+    "waste": "Abfallkalender",
+    "calendars": "Weitere Kalender",
+    "days": "Zeitraum",
+    "max_events": "Max. Termine",
+    "reminder_time": "Erinnerung am Vortag ab",
+    "waste_in_agenda": "Müll auch in der Terminliste",
+    "hint": "Müllarten (Restmüll, Bio, Papier, Gelber Sack, Glas …) werden am Namen erkannt und farbig dargestellt."
+  },
+  "device_status": {
+    "title": "Gerätestatus",
+    "all_ok": "Alle Geräte erreichbar",
+    "one_offline": "1 Gerät nicht erreichbar",
+    "n_offline": "{n} Geräte nicht erreichbar",
+    "all_ok_hint": "Alles online – {n} Geräte überwacht",
+    "devices_total": "erreichbar / Geräte gesamt",
+    "since": "seit",
+    "n_entities": "{n} Entitäten",
+    "all": "Alle",
+    "open_device": "Gerät öffnen",
+    "reload": "Integration neu laden",
+    "show_all": "Alle {n} anzeigen",
+    "less": "Weniger"
+  },
+  "device_status_editor": {
+    "name": "Name",
+    "exclude_domains": "Diese Domains ignorieren",
+    "exclude_integrations": "Diese Integrationen ignorieren",
+    "exclude": "Diese Entitäten ignorieren",
+    "max_items": "Geräte bis „Alle anzeigen“",
+    "include_unknown": "Auch „unbekannt“ zählen"
   }
 }

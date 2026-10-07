@@ -1262,5 +1262,53 @@
     "days": "Days",
     "hours": "Hours",
     "collapsed": "Collapsed at start"
+  },
+  "agenda": {
+    "title": "Agenda & waste",
+    "today": "Today",
+    "tomorrow": "Tomorrow",
+    "in_days": "in {n} days",
+    "all_day": "All day",
+    "untitled": "Event",
+    "loading": "Loading…",
+    "no_pickups": "No pickups coming up",
+    "no_events": "No events in the next {n} days",
+    "events_today": "{n} event(s) today",
+    "nothing": "Nothing special",
+    "put_out": "Put out tonight: {bins}",
+    "today_pickup": "Pickup today: {bins}"
+  },
+  "agenda_editor": {
+    "name": "Name",
+    "waste": "Waste calendar",
+    "calendars": "Other calendars",
+    "days": "Range",
+    "max_events": "Max. events",
+    "reminder_time": "Reminder the day before from",
+    "waste_in_agenda": "Show waste in the event list too",
+    "hint": "Waste types (general, bio, paper, recycling, glass …) are recognised by name and colour coded."
+  },
+  "device_status": {
+    "title": "Device status",
+    "all_ok": "All devices reachable",
+    "one_offline": "1 device unreachable",
+    "n_offline": "{n} devices unreachable",
+    "all_ok_hint": "Everything online – {n} devices monitored",
+    "devices_total": "reachable / total devices",
+    "since": "since",
+    "n_entities": "{n} entities",
+    "all": "All",
+    "open_device": "Open device",
+    "reload": "Reload integration",
+    "show_all": "Show all {n}",
+    "less": "Less"
+  },
+  "device_status_editor": {
+    "name": "Name",
+    "exclude_domains": "Ignore these domains",
+    "exclude_integrations": "Ignore these integrations",
+    "exclude": "Ignore these entities",
+    "max_items": "Devices before \"show all\"",
+    "include_unknown": "Count \"unknown\" too"
   }
 }
