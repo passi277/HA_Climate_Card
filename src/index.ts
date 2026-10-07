@@ -33,3 +33,4 @@ import "./sleep-card";
 import "./climate-rooms-card";
 import "./energy-week-card";
 import "./parcel-card";
+import "./router-card";

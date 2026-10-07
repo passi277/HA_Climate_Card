@@ -1167,3 +1167,20 @@ export interface ParcelCardConfig {
   animations?: "full" | "reduced" | "off";
   [key: string]: unknown;
 }
+
+export interface RouterCardConfig {
+  type: string;
+  /** Eine beliebige Entität des Routers (z. B. Verbindung oder Clients) */
+  entity?: string;
+  name?: string;
+  /** Geräte im Netz zeigen (Standard an) */
+  clients?: boolean;
+  /** Geräte bis „Alle anzeigen“ (Standard 8) */
+  max_clients?: number;
+  /** WLAN-Schalter zeigen (Standard an) */
+  show_wifi?: boolean;
+  /** Neustart mit Rückfrage (Standard an) */
+  confirm_reboot?: boolean;
+  animations?: "full" | "reduced" | "off";
+  [key: string]: unknown;
+}

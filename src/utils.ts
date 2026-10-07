@@ -2204,3 +2204,139 @@ export const sortParcels = (list: Parcel[], deliveredDays = 3, now = Date.now())
     .sort((a, b) => parcelStatus(a.status).rank - parcelStatus(b.status).rank
       || Date.parse(b.timestamp ?? "") - Date.parse(a.timestamp ?? "") || 0
       || String(a.friendly_name || a.tracking_number).localeCompare(String(b.friendly_name || b.tracking_number)));
+
+// ---------- Router (FRITZ!Box, TP-Link …) ----------
+
+const ROUTER_PLATFORMS = ["fritz", "tplink_router", "tplink_deco", "tplink_omada", "asuswrt", "netgear", "unifi", "openwrt", "luci", "ubus", "keenetic_ndms2", "tplink"];
+
+export interface RouterWifi { entity: string; label: string; guest: boolean; band?: string }
+export interface RouterClient { entity: string; name: string; ip?: string; mac?: string; wired?: boolean; connectedTo?: string; online: boolean; lastSeen?: string; band?: string }
+
+export interface RouterFeatures {
+  platform?: string;
+  device?: string;
+  online?: string; wan_switch?: string;
+  external_ip?: string; external_ipv6?: string; lan_ip?: string;
+  down_rate?: string; up_rate?: string; link_down?: string; link_up?: string; max_down?: string; max_up?: string;
+  attenuation_down?: string; attenuation_up?: string; noise_down?: string; noise_up?: string;
+  gb_received?: string; gb_sent?: string;
+  uptime?: string; connection_uptime?: string;
+  cpu?: string; memory?: string;
+  clients_total?: string; clients_wifi?: string; clients_guest?: string; clients_wired?: string;
+  wifi: RouterWifi[];
+  reboot?: string; reconnect?: string; update?: string; guest_qr?: string;
+}
+
+/** WLAN-Schalter lesbar machen: „FRITZ!Box 7690 Wi-Fi Main 2.4Ghz“ → „WLAN 2,4 GHz“, Gast/IoT erkannt */
+export const wifiLabel = (name: string): { label: string; guest: boolean; band?: string } => {
+  const n = name.toLowerCase();
+  const band = /6\s?g/.test(n) ? "6 GHz" : /5\s?g/.test(n) ? "5 GHz" : /2[.,]?4\s?g/.test(n) ? "2,4 GHz" : undefined;
+  const guest = /guest|gast/.test(n);
+  const kind = guest ? "Gast" : /iot/.test(n) ? "IoT" : "WLAN";
+  return { label: band ? `${kind} ${band}` : kind, guest, band };
+};
+
+/**
+ * Router über sein Gerät erkennen: Verbindung, Durchsatz, Leitung, CPU/RAM, Clients, WLAN-Schalter, Neustart, Update.
+ * `anchor` ist eine beliebige Entität des Routers; ohne Anchor der erste bekannte Router.
+ */
+export const routerFeatures = (states: Record<string, HassEntity>, entities: Record<string, EntityRegistryEntry> | undefined,
+  anchor?: string): RouterFeatures => {
+  const reg = anchor ? entities?.[anchor] : undefined;
+  const platform = reg?.platform ?? ROUTER_PLATFORMS.find((p) => Object.values(entities ?? {}).some((e) => e.platform === p && e.device_id && states[e.entity_id]));
+  const list = platform ? deviceEntries(states, entities, anchor, platform) : [];
+  const out: RouterFeatures = { platform, device: list[0]?.device_id ?? undefined, wifi: [] };
+  if (!list.length) return out;
+  const name = (e: EntityRegistryEntry) => `${e.entity_id} ${states[e.entity_id]?.attributes.friendly_name ?? ""}`.toLowerCase();
+  const attr = (e: EntityRegistryEntry, k: string) => states[e.entity_id]?.attributes[k];
+  const of = (domain: string) => list.filter((e) => e.entity_id.startsWith(`${domain}.`));
+  const pick = (domain: string, keys: string[], re?: RegExp, not?: RegExp) => of(domain).find((e) =>
+    keys.includes(e.translation_key ?? "") || (!!re && re.test(name(e)) && !(not && not.test(name(e)))))?.entity_id;
+  out.online = of("binary_sensor").find((e) => e.translation_key === "is_connected" || attr(e, "device_class") === "connectivity"
+    || /verbindung|connection|connected/.test(name(e)))?.entity_id;
+  out.wan_switch = pick("switch", [], /e.?wan|wan.?connect/);
+  out.external_ip = pick("sensor", ["external_ip"], /extern\w*.?ip(?!v6)|wan.?ipv4|wan.?ip(?!v6)/, /ipv6/);
+  out.external_ipv6 = pick("sensor", ["external_ipv6"], /extern\w*.?ipv6|wan.?ipv6.?address/, /enabled/);
+  out.lan_ip = pick("sensor", [], /lan.?ipv4|lan.?ip/);
+  out.down_rate = pick("sensor", ["kb_s_received"], /^sensor\.\S*(?<!link_)(?<!maximaler_)download.?durchsatz|kb.?s.?received|download.?throughput/, /link|max/);
+  out.up_rate = pick("sensor", ["kb_s_sent"], /^sensor\.\S*(?<!link_)(?<!maximaler_)upload.?durchsatz|kb.?s.?sent|upload.?throughput/, /link|max/);
+  out.link_down = pick("sensor", ["link_kb_s_received"], /link.?download.?durchsatz|link.?download.?throughput/);
+  out.link_up = pick("sensor", ["link_kb_s_sent"], /link.?upload.?durchsatz|link.?upload.?throughput/);
+  out.max_down = pick("sensor", ["max_kb_s_received"], /max\w*.?download/);
+  out.max_up = pick("sensor", ["max_kb_s_sent"], /max\w*.?upload/);
+  out.attenuation_down = pick("sensor", ["link_attenuation_received"], /download.?leitungsd|download.?attenuation/);
+  out.attenuation_up = pick("sensor", ["link_attenuation_sent"], /upload.?leitungsd|upload.?attenuation/);
+  out.noise_down = pick("sensor", ["link_noise_margin_received"], /download.?rauschabstand|download.?noise/);
+  out.noise_up = pick("sensor", ["link_noise_margin_sent"], /upload.?rauschabstand|upload.?noise/);
+  out.gb_received = pick("sensor", ["gb_received"], /gb.?empfangen|gb.?received/);
+  out.gb_sent = pick("sensor", ["gb_sent"], /gb.?gesendet|gb.?sent/);
+  out.uptime = of("sensor").find((e) => e.translation_key === "device_uptime" || (attr(e, "device_class") === "timestamp" && /neustart|uptime|betriebszeit|boot/.test(name(e))))?.entity_id;
+  out.connection_uptime = of("sensor").find((e) => e.translation_key === "connection_uptime" || (attr(e, "device_class") === "timestamp" && /verbindungsverf|connection.?uptime/.test(name(e))))?.entity_id;
+  out.cpu = pick("sensor", [], /cpu/);
+  out.memory = pick("sensor", [], /memory|speicher|ram\b/);
+  out.clients_total = pick("sensor", [], /total.?clients|clients.?total|geräte.?gesamt/);
+  out.clients_wifi = pick("sensor", [], /main.?wifi.?clients|wifi.?clients/, /guest|gast/);
+  out.clients_guest = pick("sensor", [], /guest.?wifi.?clients|gast.*clients/);
+  out.clients_wired = pick("sensor", [], /wired.?clients|lan.?clients/);
+  out.wifi = of("switch").filter((e) => /wi.?fi|wlan|wireless/.test(name(e)) && !/data.?fetch|vpn|dhcp/.test(name(e))).map((e) => {
+    // Gerätename vorn entfernen, damit z. B. „FRITZ!Box 7690“ nicht als Band gelesen wird
+    const dev = String(attr(e, "friendly_name") ?? e.entity_id);
+    return { entity: e.entity_id, ...wifiLabel(dev.replace(/^(fritz!box\s*\d+|tp-link router)\s*/i, "")) };
+  });
+  out.reboot = of("button").find((e) => e.translation_key === "reboot" || attr(e, "device_class") === "restart" || /reboot|neu.?start|restart/.test(name(e)))?.entity_id;
+  out.reconnect = of("button").find((e) => e.translation_key === "reconnect" || /reconnect|neu.?verbind/.test(name(e)))?.entity_id;
+  out.update = of("update")[0]?.entity_id;
+  out.guest_qr = of("image").find((e) => /gast|guest/.test(name(e)))?.entity_id;
+  return out;
+};
+
+/** Geräte im Netz: device_tracker der Router-Integration (ohne den Router selbst), online zuerst */
+export const routerClients = (states: Record<string, HassEntity>, entities: Record<string, EntityRegistryEntry> | undefined,
+  platform?: string, routerDevice?: string): RouterClient[] => {
+  if (!platform) return [];
+  const out: RouterClient[] = [];
+  for (const st of Object.values(states)) {
+    if (!st.entity_id.startsWith("device_tracker.")) continue;
+    const reg = entities?.[st.entity_id];
+    if (!reg || reg.platform !== platform || (routerDevice && reg.device_id === routerDevice)) continue;
+    const a = st.attributes;
+    const type = String(a.connection_type ?? a.connection ?? a.type ?? "").toLowerCase();
+    out.push({
+      entity: st.entity_id,
+      name: String(a.host_name || a.hostname || a.friendly_name || st.entity_id).replace(/^(.+)\s\1$/, "$1"),
+      ip: a.ip ?? a.ip_address ?? undefined, mac: a.mac ?? undefined,
+      wired: type ? /lan|wired|ethernet|kabel/.test(type) && !/wlan|wifi|wireless/.test(type) : undefined,
+      connectedTo: a.connected_to ? String(a.connected_to) : undefined,
+      band: a.band ? String(a.band) : /5\s?g/.test(type) ? "5 GHz" : /2[.,]?4/.test(type) ? "2,4 GHz" : undefined,
+      online: st.state === "home",
+      lastSeen: a.last_time_reachable ?? a.last_seen ?? st.last_changed,
+    });
+  }
+  return out.sort((x, y) => Number(y.online) - Number(x.online) || x.name.localeCompare(y.name, "de"));
+};
+
+const CLIENT_ICONS: [RegExp, string][] = [
+  [/iphone|android|galaxy|\bs2\d|pixel|handy|phone|xiaomi|redmi/i, "mdi:cellphone"],
+  [/ipad|tab|tablet/i, "mdi:tablet"],
+  [/macbook|laptop|notebook|book/i, "mdi:laptop"],
+  [/\bpc\b|desktop|win|nas|server|raspberry|homeassistant|home-assistant/i, "mdi:desktop-tower-monitor"],
+  [/tv|bravia|fire|chromecast|roku|appletv|shield/i, "mdi:television"],
+  [/hue|bridge|hub|zigbee|harmony|matter/i, "mdi:hub"],
+  [/robo|roborock|vacuum|saug/i, "mdi:robot-vacuum"],
+  [/cam|kamera|reolink|blink|ring/i, "mdi:cctv"],
+  [/echo|alexa|sonos|speaker|nest|homepod/i, "mdi:speaker"],
+  [/ps\d|playstation|xbox|switch|nintendo/i, "mdi:gamepad-variant"],
+  [/printer|drucker|epson|brother|hp/i, "mdi:printer"],
+  [/repeater|mesh|orbi|deco|fritz|ap\d|access/i, "mdi:access-point-network"],
+  [/shelly|plug|tasmota|esp|sonoff|tuya/i, "mdi:power-socket-eu"],
+  [/klima|gree|ac\b|air/i, "mdi:air-conditioner"],
+  [/watch|uhr/i, "mdi:watch"],
+];
+
+/** Symbol für ein Gerät im Netz am Namen erkennen */
+export const clientIcon = (name: string, wired?: boolean): string =>
+  CLIENT_ICONS.find(([re]) => re.test(name))?.[1] ?? (wired ? "mdi:lan" : "mdi:wifi");
+
+/** kbit/s (FRITZ-Leitung) bzw. kB/s (Durchsatz) lesbar: „299 Mbit/s“, „6,5 kB/s“ */
+export const formatKbit = (kbit: number, lang = "de"): string =>
+  kbit >= 1000 ? `${(kbit / 1000).toLocaleString(lang, { maximumFractionDigits: kbit >= 100_000 ? 0 : 1 })} Mbit/s` : `${Math.round(kbit)} kbit/s`;

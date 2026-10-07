@@ -4,6 +4,7 @@ import {
   batteryHoursLeft, consumerGrid, formatHours, integratePower, statsEnergy, flowLpm, timerInfo, formatRemaining, rangeStatus, phDose, poolRuntimeRecommendation, cameraFeatures, wifiQuality, optionStyle, musicModes, isMusicEffect, energyFlows, formatPower, powerWatts, alertActive, batteryShoppingList, clockMinutes, upcomingPickups, wasteStyle, batteryIcon, doorDevices, doorKind, initials, isCharging, phoneSensors, brightnessPct, contactType, calibrationTransform, roomsFromMap, roomIcon, areaBatteries, batteryInfo, batteryNotesFor, mowerFeatures, mowerPhase, mapGeometry, mowerAreas, polygonSize, extendTrail, presetActive, presetData, DEFAULT_LIGHT_PRESETS, activityIcon, activityLabel, guessControlDevice, guessVolumeDevice, coverIcon, datetimeParts, nextOccurrence, coverPosition, skyPhase, sunPlacement, weatherOverlay, editorOptions, isNoEffect, lightEditorOptions, segmentIds, detectDeviceType, kelvinToRgb, lightColor, relatedScenes, supportsColor, supportsColorTemp, dewPoint, nextSwitch, parseSchedule, scheduleTempAt, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
   llmEvents, llmCategory, snapshotMediaId, dayGroups, homeBatteryFeatures, batteryEta, batteryStatusKey,
   nextPickups, eventStart, daysUntil, offlineDevices, platformName,
+  routerFeatures, routerClients, clientIcon, formatKbit, wifiLabel,
   sceneStyle, sceneLabel, sceneGroups, hueRoomLights, hueRooms, parcelStatus, parcelCarrier, parcelText, sortParcels, sceneActivated, mealieMinutes, formatMinutes, scaleIngredient, mealEntries, ymdLocal,
   minutesUntil, formatShortDuration, shiftTime, weekStart, monthStart, dailyTotals, kwhFactor, percentChange,
   updateKind, pendingUpdates, updateName, resourceSensors, backupSensors, backupHealth, loadLevel, windDir, tempScale, weatherHint, weatherIcon,
@@ -1163,5 +1164,54 @@ describe("Hue-Räume und Pakete", () => {
       { tracking_number: "5", status: "Ready to be picked up" },
     ], 3, now);
     expect(sorted.map((p) => p.tracking_number)).toEqual(["5", "3", "2", "1"]);
+  });
+});
+
+describe("Router", () => {
+  const E = (id: string, state: string, attrs: Record<string, unknown> = {}): HassEntity => ({ entity_id: id, state, attributes: { friendly_name: id, ...attrs }, last_changed: "2026-10-07T10:00:00Z" } as HassEntity);
+  it("erkennt FRITZ!Box über das Gerät", () => {
+    const list = [
+      E("binary_sensor.fritz_box_7690_verbindung", "on", { device_class: "connectivity" }),
+      E("sensor.fritz_box_7690_download_durchsatz", "6.5"), E("sensor.fritz_box_7690_link_download_durchsatz", "299132"),
+      E("sensor.fritz_box_7690_maximaler_download_durchsatz_der_verbindung", "280064"),
+      E("sensor.fritz_box_7690_letzter_neustart", "2026-10-01T19:00:05+00:00", { device_class: "timestamp" }),
+      E("sensor.fritz_box_7690_externe_ip", "1.2.3.4"), E("sensor.fritz_box_7690_externe_ipv6", "2001::1"),
+      E("switch.fritz_box_7690_wi_fi_asgard_5ghz", "on", { friendly_name: "FRITZ!Box 7690 Wi-Fi Main 5Ghz" }),
+      E("switch.fritz_box_7690_wi_fi_fritz_box_gastzugang", "off", { friendly_name: "FRITZ!Box 7690 Wi-Fi Guest" }),
+      E("button.fritz_box_7690_neu_starten", "unknown"), E("button.fritz_box_7690_neu_verbinden", "unknown"), E("update.fritz_box_7690_fritz_os", "off"),
+      E("device_tracker.handy", "home", { host_name: "S26-Ultra", ip: "192.168.178.24", connection_type: "WLAN", connected_to: "orbi" }),
+      E("device_tracker.nas", "not_home", { host_name: "NAS", connection_type: "LAN" }),
+    ];
+    const states = Object.fromEntries(list.map((e) => [e.entity_id, e]));
+    const entities = Object.fromEntries(list.map((e) => [e.entity_id, { entity_id: e.entity_id, platform: "fritz", device_id: e.entity_id.startsWith("device_tracker.") ? null : "fb" }]));
+    const f = routerFeatures(states, entities as any, "binary_sensor.fritz_box_7690_verbindung");
+    expect(f).toMatchObject({ platform: "fritz", device: "fb", online: "binary_sensor.fritz_box_7690_verbindung", down_rate: "sensor.fritz_box_7690_download_durchsatz",
+      link_down: "sensor.fritz_box_7690_link_download_durchsatz", max_down: "sensor.fritz_box_7690_maximaler_download_durchsatz_der_verbindung",
+      uptime: "sensor.fritz_box_7690_letzter_neustart", external_ip: "sensor.fritz_box_7690_externe_ip", external_ipv6: "sensor.fritz_box_7690_externe_ipv6",
+      reboot: "button.fritz_box_7690_neu_starten", reconnect: "button.fritz_box_7690_neu_verbinden", update: "update.fritz_box_7690_fritz_os" });
+    expect(f.wifi.map((w) => [w.label, w.guest])).toEqual([["WLAN 5 GHz", false], ["Gast", true]]);
+    const clients = routerClients(states, entities as any, "fritz", "fb");
+    expect(clients.map((c) => [c.name, c.online, c.wired, c.connectedTo])).toEqual([["S26-Ultra", true, false, "orbi"], ["NAS", false, true, undefined]]);
+  });
+  it("erkennt TP-Link (CPU, RAM, Clients, WLAN)", () => {
+    const list = [E("sensor.tp_link_router_cpu_used", "17"), E("sensor.tp_link_router_memory_used", "50"), E("sensor.tp_link_router_total_clients", "14"),
+      E("sensor.tp_link_router_total_main_wifi_clients", "12"), E("sensor.tp_link_router_total_guest_wifi_clients", "0"), E("sensor.tp_link_router_total_wired_clients", "2"),
+      E("sensor.tp_link_router_wan_ipv4_address", "100.1.2.3"), E("sensor.tp_link_router_lan_ipv4_address", "192.168.0.1"),
+      E("switch.tp_link_router_guest_wifi_5g", "off", { friendly_name: "TP-Link Router Guest WIFI 5G" }), E("switch.tp_link_router_wifi_2_4g", "on", { friendly_name: "TP-Link Router WIFI 2.4G" }),
+      E("switch.tp_link_router_router_data_fetching", "on", { friendly_name: "TP-Link Router Router data fetching" }), E("button.tp_link_router_reboot", "unknown")];
+    const states = Object.fromEntries(list.map((e) => [e.entity_id, e]));
+    const entities = Object.fromEntries(list.map((e) => [e.entity_id, { entity_id: e.entity_id, platform: "tplink_router", device_id: "tp" }]));
+    const f = routerFeatures(states, entities as any, "sensor.tp_link_router_total_clients");
+    expect(f).toMatchObject({ cpu: "sensor.tp_link_router_cpu_used", memory: "sensor.tp_link_router_memory_used", clients_total: "sensor.tp_link_router_total_clients",
+      clients_wifi: "sensor.tp_link_router_total_main_wifi_clients", clients_guest: "sensor.tp_link_router_total_guest_wifi_clients",
+      clients_wired: "sensor.tp_link_router_total_wired_clients", external_ip: "sensor.tp_link_router_wan_ipv4_address", lan_ip: "sensor.tp_link_router_lan_ipv4_address",
+      reboot: "button.tp_link_router_reboot" });
+    expect(f.wifi.map((w) => w.label)).toEqual(["Gast 5 GHz", "WLAN 2,4 GHz"]);
+  });
+  it("Symbole, Raten, WLAN-Namen", () => {
+    expect([clientIcon("S26-Ultra-von-Pascal"), clientIcon("BRAVIA-KD-65X85L"), clientIcon("huebridge"), clientIcon("unbekannt", true)])
+      .toEqual(["mdi:cellphone", "mdi:television", "mdi:hub", "mdi:lan"]);
+    expect([formatKbit(299132), formatKbit(48534), formatKbit(800)]).toEqual(["299 Mbit/s", "48,5 Mbit/s", "800 kbit/s"]);
+    expect(wifiLabel("Wi-Fi Main 2.4Ghz")).toMatchObject({ label: "WLAN 2,4 GHz", guest: false });
   });
 });

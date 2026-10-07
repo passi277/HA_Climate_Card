@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.41.0 – Router
+- Neue **Modern Router Card** (`custom:ha-router-card`) für FRITZ!Box, TP-Link und andere Router: Online-Status mit Betriebszeit, Firmware-Update (installieren mit Rückfrage), Download/Upload mit Auslastung der Leitung, CPU/RAM-Ringe, Anzahl Geräte (WLAN/LAN/Gast), aufklappbare Leitungswerte (externe IP/IPv6 zum Kopieren, Sync-Raten, Dämpfung, Rauschabstand, Datenmenge), WLAN-Schalter inkl. Gast/IoT (Haupt-WLAN nur mit Rückfrage aus), Gast-WLAN-QR, Geräte im Netz mit Symbol, IP, LAN/WLAN, Repeater und Suche, „Neu verbinden“ und „Neu starten“ – alles über das Gerät erkannt
+
 ## 1.40.1 – Gerätestatus: nur wirklich nicht erreichbare Geräte
 - Device Status Card: Ein Gerät gilt nur noch als nicht erreichbar, wenn **alle** seine Entitäten nicht verfügbar sind. Geräte, die noch Werte liefern und nur einzelne nicht verfügbare Entitäten haben (z. B. Starlink mit abgeschaltetem Ruhezustand-Zeitplan), erscheinen nicht mehr in der Liste
 - Neue Option `show_partial`: zeigt solche Geräte zugeklappt unter „Teilweise nicht verfügbar“ mit „2 von 26 Entitäten nicht verfügbar“

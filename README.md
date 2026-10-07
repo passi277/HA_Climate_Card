@@ -28,6 +28,7 @@ weiche Farbübergänge und Animationen. Ein HACS-Download, mehrere Karten:
 | **Modern Sleep Card** | `custom:ha-sleep-card` | Schlafmodus, Sleep-Timer mit Countdown, Klima, Wecker, „Gute Nacht“ |
 | **Modern Climate Rooms Card** | `custom:ha-climate-rooms-card` | Klima-Übersicht 2.0: alle Räume mit Heizung, Klimaanlage, Fenster, Feuchte |
 | **Modern Parcel Card** | `custom:ha-parcel-card` | Pakete & Post über 17TRACK: Status, Versender, Filter, + Paket, Archivieren |
+| **Modern Router Card** | `custom:ha-router-card` | Router (FRITZ!Box, TP-Link …): Durchsatz, Leitung, CPU/RAM, WLAN, Geräte im Netz, Neustart |
 | **Modern Energy Week Card** | `custom:ha-energy-week-card` | Wochenrückblick Energie: diese gegen letzte Woche, Kosten, Verbraucher |
 | **Climate Overview** | `custom:ha-climate-overview-card` | alle Klimageräte auf einen Blick |
 
@@ -704,6 +705,24 @@ type: custom:ha-parcel-card
 # max_items: 8
 ```
 
+## Modern Router Card (FRITZ!Box, TP-Link …)
+
+Eine beliebige Entität des Routers genügt – der Rest wird **über das Gerät erkannt** (FRITZ!Box, TP-Link `tplink_router`, ASUS, UniFi …):
+Online-Status mit Betriebszeit, **Firmware-Update** (Installieren mit Rückfrage), **Download/Upload** mit Auslastung der Leitung, **CPU/RAM**,
+Anzahl Geräte (WLAN/LAN/Gast), aufklappbare **Leitungswerte** (externe IP/IPv6 zum Kopieren, Sync-Raten, Dämpfung, Rauschabstand, Datenmenge),
+**WLAN-Schalter** inkl. Gast/IoT (Haupt-WLAN nur mit Rückfrage aus), **Gast-WLAN-QR**, **Geräte im Netz** (aus den `device_tracker` der
+Integration: Symbol, IP, LAN/WLAN, Repeater, zuletzt gesehen, Suche), **Neu verbinden** und **Neu starten**.
+
+```yaml
+type: custom:ha-router-card
+entity: binary_sensor.fritz_box_7690_verbindung   # oder z. B. sensor.tp_link_router_total_clients
+# name: FRITZ!Box
+# clients: false
+# max_clients: 8
+# show_wifi: false
+# confirm_reboot: false
+```
+
 ## Modern Energy Week Card (Wochenrückblick Energie)
 
 Verbrauch **dieser Woche gegen die Vorwoche** – fair bis zum gleichen Wochentag – mit Kosten, Ø pro Tag und Spitzentag, Balken Mo–So
@@ -1108,6 +1127,7 @@ glow, smooth color transitions, animations), shipped as a single HACS download:
 - `custom:ha-sleep-card` – sleep mode per person, sleep timers with countdown and ±15 min, climate, alarm and "good night"
 - `custom:ha-climate-rooms-card` – climate overview 2.0: every room with current/target, schedule, AC, open windows, humidity, boost
 - `custom:ha-parcel-card` – parcels from 17TRACK: status, carrier, latest event, filters, add, track and archive
+- `custom:ha-router-card` – router (FRITZ!Box, TP-Link …): online state, throughput, line, CPU/RAM, Wi-Fi switches with guest QR, devices on the network, reconnect/restart, firmware update
 - `custom:ha-energy-week-card` – energy week: this week vs. last week, cost, peak day, share per consumer, month view
 - `custom:ha-vacuum-card` – robot vacuum with live map, tap rooms on the map for room cleaning, controls, modes, maintenance
 - `custom:ha-presence-card` – people as photo tiles (home/away, phone battery and charging found automatically) plus front door: hold to open (Nuki Opener), Ring to Open, doorbell

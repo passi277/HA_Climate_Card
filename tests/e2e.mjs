@@ -1687,6 +1687,27 @@ colorFails.length ? fail(`Farbe folgt nicht dem Modus: ${colorFails.join(", ")}`
     ? ok("Pakete: Filter Unterwegs, Archivieren erst nach „Sicher?“, + Paket") : fail(`Pakete Aktionen: ${JSON.stringify({ transit, first, gone, add, hasNew })}`);
 }
 
+// Router (FRITZ!Box + TP-Link)
+{
+  const info = await p.evaluate(() => { const [a, b] = document.querySelectorAll("ha-router-card"); const ra = a.shadowRoot, rb = b.shadowRoot;
+    return { title: ra.querySelector(".h-title")?.textContent.trim(), sub: ra.querySelector(".h-sub")?.textContent.trim(), upd: !!ra.querySelector('[data-act="update"]'),
+      clients: ra.querySelectorAll(".client").length, wifi: [...ra.querySelectorAll(".w")].map((w) => w.textContent.trim()),
+      tpTiles: [...rb.querySelectorAll(".tile .t-l")].map((t) => t.textContent.trim()), tpWifi: [...rb.querySelectorAll(".w")].map((w) => w.textContent.trim()) }; });
+  info.title === "FRITZ!Box 7690" && /Online seit/.test(info.sub) && info.upd && info.clients >= 6 && info.wifi.includes("Gast") && info.tpTiles.includes("CPU") && info.tpWifi.includes("Gast 2,4 GHz")
+    ? ok(`Router: ${info.title} (${info.sub}), ${info.clients} Geräte, WLAN ${info.wifi.join("/")}; TP-Link ${info.tpTiles.join("/")}`) : fail(`Router: ${JSON.stringify(info)}`);
+  const n = await p.evaluate(() => window.serviceCalls.length);
+  await p.evaluate(() => document.querySelector("ha-router-card").shadowRoot.querySelector('[data-act="reboot"]').click());
+  await p.waitForTimeout(100);
+  const first = await p.evaluate((k) => window.serviceCalls.slice(k).filter((c) => c.domain === "button").length, n);
+  await p.evaluate(() => document.querySelector("ha-router-card").shadowRoot.querySelector('[data-act="reboot"]').click());
+  await p.evaluate(() => document.querySelector("ha-router-card").shadowRoot.querySelector('[data-wifi="switch.fritz_box_7690_wi_fi_guest"]').click());
+  await p.waitForTimeout(200);
+  const calls = await p.evaluate((k) => window.serviceCalls.slice(k), n);
+  first === 0 && calls.some((c) => c.domain === "button" && c.data.entity_id === "button.fritz_box_7690_neu_starten")
+    && calls.some((c) => c.domain === "switch" && c.service === "turn_on" && c.data.entity_id === "switch.fritz_box_7690_wi_fi_guest")
+    ? ok("Router: Neustart erst nach „Sicher?“, Gast-WLAN einschalten") : fail(`Router Aktionen: ${JSON.stringify(calls)}`);
+}
+
 // Theme-Umschalter
 await p.click('[data-theme="dark"]');
 (await p.evaluate(() => document.body.classList.contains("dark"))) ? ok("Dunkel-Modus umschaltbar") : fail("Dunkel-Modus");
