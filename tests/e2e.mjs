@@ -1634,6 +1634,58 @@ colorFails.length ? fail(`Farbe folgt nicht dem Modus: ${colorFails.join(", ")}`
   month >= 28 ? ok(`Energie-Woche: Monatsansicht (${month} Tage)`) : fail(`Energie-Monat: ${month}`);
 }
 
+// Rezepte ohne Essensplan
+{
+  const info = await p.evaluate(() => { const r = document.querySelectorAll("ha-recipe-card")[1].shadowRoot;
+    return { title: r.querySelector(".h-title")?.textContent.trim(), week: !!r.querySelector(".week"), fill: !!r.querySelector(".fill"), search: !!r.querySelector("input.search"), res: r.querySelectorAll(".res").length }; });
+  info.title === "Rezepte" && !info.week && !info.fill && info.search && info.res === 4 ? ok("Rezepte: show_plan: false → nur Suche und Rezepte") : fail(`Rezepte ohne Plan: ${JSON.stringify(info)}`);
+}
+
+// Szenen: Lampen aus dem Hue-Raum
+{
+  await p.evaluate(() => document.querySelector("ha-scene-card").shadowRoot.querySelector('.chip[data-room="g0"]').click());
+  await p.waitForTimeout(150);
+  const before = await p.evaluate(() => { const r = document.querySelector("ha-scene-card").shadowRoot;
+    return { group: r.querySelector(".light")?.dataset.light, count: r.querySelector(".l-count")?.textContent.trim(), members: r.querySelectorAll(".members .light").length }; });
+  await p.evaluate(() => document.querySelector("ha-scene-card").shadowRoot.querySelector(".l-name").click());
+  await p.waitForTimeout(150);
+  const members = await p.evaluate(() => document.querySelector("ha-scene-card").shadowRoot.querySelectorAll(".members .light").length);
+  before.group === "light.hue_tv" && /5 Lampen/.test(before.count) && before.members === 0 && members === 5
+    ? ok("Szenen: Raum TV → Hue-Gruppe mit 5 Lampen, aufklappbar") : fail(`Szenen Hue-Lampen: ${JSON.stringify(before)} ${members}`);
+}
+
+// Pakete (17TRACK)
+{
+  const P = () => document.querySelector("ha-parcel-card").shadowRoot;
+  const info = await p.evaluate(() => { const r = document.querySelector("ha-parcel-card").shadowRoot;
+    return { names: [...r.querySelectorAll(".p-text b")].map((b) => b.textContent.trim()), sub: r.querySelector(".h-sub")?.textContent.trim(),
+      chips: r.querySelectorAll(".chip").length, carrier: r.querySelector('.pkg[data-nr="1Z999AA10123456784"] .p-text small:last-child')?.textContent }; });
+  info.names[0] === "Ersatzakku" && info.names.length === 5 && !info.names.includes("Alte Lieferung") && /Abholen/.test(info.sub) && /UPS/.test(info.carrier)
+    ? ok(`Pakete: ${info.names.join(", ")} · ${info.sub}`) : fail(`Pakete: ${JSON.stringify(info)}`);
+  await p.evaluate(() => document.querySelector("ha-parcel-card").shadowRoot.querySelector('.chip[data-filter="transit"]').click());
+  await p.waitForTimeout(100);
+  const transit = await p.evaluate(() => document.querySelector("ha-parcel-card").shadowRoot.querySelectorAll(".pkg").length);
+  await p.evaluate(() => document.querySelector("ha-parcel-card").shadowRoot.querySelector('.chip[data-filter="transit"]').click());
+  await p.evaluate(() => document.querySelector("ha-parcel-card").shadowRoot.querySelector('.pkg[data-nr="DE5922818887"] .p-main').click());
+  await p.waitForTimeout(100);
+  const n = await p.evaluate(() => window.serviceCalls.length);
+  await p.evaluate(() => document.querySelector("ha-parcel-card").shadowRoot.querySelector('.pkg[data-nr="DE5922818887"] [data-act="archive"]').click());
+  await p.waitForTimeout(100);
+  const first = await p.evaluate((k) => window.serviceCalls.slice(k).filter((c) => c.service === "archive_package").length, n);
+  await p.evaluate(() => document.querySelector("ha-parcel-card").shadowRoot.querySelector('.pkg[data-nr="DE5922818887"] [data-act="archive"]').click());
+  await p.waitForTimeout(300);
+  const gone = await p.evaluate(() => !document.querySelector("ha-parcel-card").shadowRoot.querySelector('.pkg[data-nr="DE5922818887"]'));
+  await p.evaluate(() => document.querySelector("ha-parcel-card").shadowRoot.querySelector('[data-act="add"]').click());
+  await p.waitForTimeout(100);
+  await p.evaluate(() => { const r = document.querySelector("ha-parcel-card").shadowRoot; const f = r.querySelector("form.add");
+    f.querySelector('[name="nr"]').value = "JJD000390007777777"; f.querySelector('[name="name"]').value = "Lampe"; f.requestSubmit(); });
+  await p.waitForTimeout(400);
+  const add = await p.evaluate((k) => window.serviceCalls.slice(k).find((c) => c.service === "add_package"), n);
+  const hasNew = await p.evaluate(() => !!document.querySelector("ha-parcel-card").shadowRoot.querySelector('.pkg[data-nr="JJD000390007777777"]'));
+  transit === 2 && first === 0 && gone && add?.data.package_friendly_name === "Lampe" && hasNew
+    ? ok("Pakete: Filter Unterwegs, Archivieren erst nach „Sicher?“, + Paket") : fail(`Pakete Aktionen: ${JSON.stringify({ transit, first, gone, add, hasNew })}`);
+}
+
 // Theme-Umschalter
 await p.click('[data-theme="dark"]');
 (await p.evaluate(() => document.body.classList.contains("dark"))) ? ok("Dunkel-Modus umschaltbar") : fail("Dunkel-Modus");

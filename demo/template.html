@@ -130,6 +130,17 @@
       "scene.wohnzimmer_entspannen": { state: "unknown", attributes: { friendly_name: "Wohnzimmer Entspannen", group_name: "Wohnzimmer", name: "Entspannen" } },
       "scene.wohnzimmer_sonnenuntergang": { state: "unknown", attributes: { friendly_name: "Wohnzimmer Sonnenuntergang Savanne", group_name: "Wohnzimmer", name: "Sonnenuntergang Savanne" } },
       "scene.wohnzimmer_konzentrieren": { state: "unknown", attributes: { friendly_name: "Wohnzimmer Konzentrieren", group_name: "Wohnzimmer", name: "Konzentrieren" } },
+      "light.hue_tv": { state: "on", attributes: { friendly_name: "tv", is_hue_group: true, hue_type: "room", supported_color_modes: ["xy"], color_mode: "xy", brightness: 150, rgb_color: [255, 140, 60],
+        entity_id: ["light.tv_ambiente", "light.hue_play_gradient", "light.tv_spot_links", "light.tv_spot_rechts", "light.tv_couch"] } },
+      "light.hue_wohnzimmer": { state: "on", attributes: { friendly_name: "Wohnzimmer", is_hue_group: true, hue_type: "room", supported_color_modes: ["color_temp"], color_mode: "color_temp", brightness: 200, color_temp_kelvin: 2700,
+        entity_id: ["light.wohnzimmer_stehlampe", "light.wohnzimmer_decke"] } },
+      "light.tv_spot_links": { state: "off", attributes: { friendly_name: "Spot links", supported_color_modes: ["color_temp"] } },
+      "light.tv_spot_rechts": { state: "on", attributes: { friendly_name: "Spot rechts", supported_color_modes: ["color_temp"], color_mode: "color_temp", brightness: 120, color_temp_kelvin: 2400 } },
+      "light.tv_couch": { state: "on", attributes: { friendly_name: "Couch mitte", supported_color_modes: ["xy"], color_mode: "xy", brightness: 90, rgb_color: [255, 80, 20] } },
+      // 17TRACK
+      "sensor.17track_unterwegs": { state: "2", attributes: { friendly_name: "17Track Unterwegs", unit_of_measurement: "packages" } },
+      "sensor.17track_zugestellt": { state: "1", attributes: { friendly_name: "17Track Zugestellt", unit_of_measurement: "packages" } },
+      "sensor.17track_bereit_zur_abholung": { state: "1", attributes: { friendly_name: "17Track Bereit zur Abholung", unit_of_measurement: "packages" } },
       "light.tv_ambiente": { state: "on", attributes: { friendly_name: "Ambiente Stripe", supported_color_modes: ["xy"], color_mode: "xy", brightness: 160, rgb_color: [255, 120, 40] } },
       // Schlafen
       "input_boolean.schlafen_pascal": { state: "on", last_changed: new Date(Date.now() - 80 * 60000).toISOString(), attributes: { friendly_name: "Schlafmodus Pascal" } },
@@ -696,6 +707,16 @@
       { recipe_id: "r3", slug: "ofengemuese", name: "Ofengemüse mit Feta", total_time: "45 minutes", recipe_servings: 4, rating: null, tags: [{ name: "Vegetarisch" }], ingredients: [], instructions: [] },
       { recipe_id: "r4", slug: "linsencurry", name: "Rotes Linsencurry", total_time: "35 minutes", recipe_servings: 4, rating: 4, tags: [{ name: "Vegan" }], ingredients: [], instructions: [] },
     ];
+    // 17TRACK: Sendungen wie seventeentrack.get_packages
+    const hAgo = (h) => new Date(Date.now() - h * 3600000).toISOString();
+    const PACKAGES = [
+      { tracking_number: "00340434469856658870", friendly_name: "", status: "Delivered", info_text: "The shipment has been successfully delivered", location: "DE", timestamp: hAgo(5), origin_country: "Germany", destination_country: "Germany" },
+      { tracking_number: "00340434886291589635", friendly_name: "Sensoren", status: "In Transit", info_text: "Arrived at the parcel center", location: "Mannheim", timestamp: hAgo(3), origin_country: "Germany", destination_country: "Germany" },
+      { tracking_number: "DE5922818887", friendly_name: "Steckdosen", status: "Not Found", info_text: null, location: "", timestamp: null, origin_country: "Unknown", destination_country: "Unknown" },
+      { tracking_number: "1Z999AA10123456784", friendly_name: "Ersatzakku", status: "Ready to be picked up", info_text: "Ready for pickup at access point", location: "Packstation 112", timestamp: hAgo(1), origin_country: "Netherlands", destination_country: "Germany" },
+      { tracking_number: "H1001234567890123456", friendly_name: "Buch", status: "In Transit", info_text: "Out for delivery", location: "Mannheim", timestamp: hAgo(0.5), origin_country: "Germany", destination_country: "Germany" },
+      { tracking_number: "00340434000000000001", friendly_name: "Alte Lieferung", status: "Delivered", info_text: "Delivered", location: "DE", timestamp: hAgo(24 * 9) },
+    ];
     const MEALPLAN = [
       { mealplan_id: "m1", mealplan_date: ymd(0), entry_type: "dinner", title: "", recipe: RECIPES[1] },
       { mealplan_id: "m2", mealplan_date: ymd(1), entry_type: "lunch", title: "", recipe: RECIPES[3] },
@@ -727,6 +748,13 @@
       async callService(domain, service, data) {
         window.serviceCalls.push({ domain, service, data });
         if (domain === "llmvision" && service === "get_events") return { context: {}, response: { events: LLM_EVENTS } };
+        if (domain === "seventeentrack") {
+          log(`seventeentrack.${service} ${JSON.stringify(data)}`);
+          if (service === "get_packages") return { context: {}, response: { packages: PACKAGES.map((p) => ({ ...p })) } };
+          if (service === "add_package") PACKAGES.push({ tracking_number: data.package_tracking_number, friendly_name: data.package_friendly_name, status: "Not Found", info_text: null, location: "", timestamp: null });
+          if (service === "archive_package") { const i = PACKAGES.findIndex((p) => p.tracking_number === data.package_tracking_number); if (i >= 0) PACKAGES.splice(i, 1); }
+          return;
+        }
         if (domain === "mealie") {
           log(`mealie.${service} ${JSON.stringify(data)}`);
           if (service === "get_mealplan") return { context: {}, response: { mealplan: MEALPLAN.filter((m) => (!data.start_date || m.mealplan_date >= data.start_date) && (!data.end_date || m.mealplan_date <= data.end_date)) } };
@@ -982,6 +1010,7 @@
         }
         // Tageswerte der Energiekarte: Leistung seit 6 Uhr konstant auf dem aktuellen Wert
         // Langzeitstatistik (Tagesmittel) seit 1. Januar des Vorjahres für Monat/Jahr/Gesamt
+        if (msg.type === "config_entries/get" && msg.domain === "seventeentrack") return [{ entry_id: "17track_demo", domain: "seventeentrack", state: "loaded" }];
         if (msg.type === "config_entries/get" && msg.domain === "mealie") return [{ entry_id: "mealie_demo", domain: "mealie", state: "loaded", title: "Mealie" }];
         if (msg.type === "energy/get_prefs") return { energy_sources: [], device_consumption: [{ stat_consumption: "sensor.monitor_1_energy" }, { stat_consumption: "sensor.monitor_2_energy" }, { stat_consumption: "sensor.whirlpool_energy", name: "Whirlpool" }] };
         // Wochenrückblick: Tagesverbrauch (change) je Zähler, vorhersagbar je Tag
@@ -1157,10 +1186,9 @@
       ["Status – Batterien aus Bereich + Türkontakt + Einkaufsliste", { _status: true, areas: ["mein_zimmer"], shopping_list: true, expanded: true, contacts: [{ entity: "binary_sensor.tuerkontakt_pascal", name: "Tür" }] }],
       ["Status – Battery Notes am Gerät (Typ, „gewechselt vor“, gedrückt halten = Wechsel eintragen)", { _status: true, title: "Ventile", batteries: ["sensor.ventil_hecke_battery", "sensor.ventil_rasen_battery", "sensor.ventil_beete_battery"], shopping_list: true, expanded: true }],
       ["Rezepte & Essensplan (Mealie) – Woche, Zufällig, Suche, Rezept mit Portionen und Einkaufsliste", { _recipe: true }],
-      ["Ambiente & Szenen – Hue-Räume, Farbe/Symbol aus dem Namen, zuletzt aktivierte Szene, Lampen", { _scene: true, groups: [
-        { name: "TV", icon: "mdi:television", match: "tv", lights: ["light.tv_ambiente", "light.hue_play_gradient"] },
-        { name: "Wohnzimmer", icon: "mdi:sofa", match: "Wohnzimmer", lights: ["light.wohnzimmer_stehlampe", "light.wohnzimmer_decke"] },
-        { name: "Gäste WC", icon: "mdi:toilet", match: "Gäste WC", lights: ["light.gaste_wc"] }] }],
+      ["Rezepte ohne Essensplan (show_plan: false)", { _recipe: true, show_plan: false }],
+      ["Ambiente & Szenen – Hue-Räume wählen, Lampen automatisch aus dem Hue-Raum (Gruppe + aufklappbar), zuletzt aktivierte Szene", { _scene: true, rooms: ["tv", "Wohnzimmer", "Gäste WC"] }],
+      ["Pakete (17TRACK) – Status, Versender, letzte Meldung, Filter, + Paket, Verfolgen, Archivieren", { _parcel: true }],
       ["Schlafen – Schlafmodus, Sleep-Timer mit Countdown, Klima, Wecker, „Gute Nacht“", { _sleep: true, persons: [
         { name: "Pascal", color: "#1e88e5", sleep: "input_boolean.schlafen_pascal", alarm: "sensor.pascal_naechster_wecker",
           timers: [{ name: "TV aus", switch: "input_boolean.schalter_tv", time: "input_datetime.timer_tv" }, { name: "Klima aus", switch: "input_boolean.timer_klima_pascal", time: "input_datetime.timer_klima_pascal" }],
@@ -1216,9 +1244,9 @@
         grid.appendChild(wrap);
         return;
       }
-      const { _overview, _light, _group, _cover, _coverGroup, _switchTime, _media, _room, _status, _vacuum, _presence, _alert, _energy, _irrigation, _pool, _camera, _cameraGroup, _select, _mower, _starlink, _llm, _hbat, _system, _weather, _agenda, _devstatus, _recipe, _scene, _sleep, _crooms, _eweek, ...rest } = cfg;
+      const { _overview, _light, _group, _cover, _coverGroup, _switchTime, _media, _room, _status, _vacuum, _presence, _alert, _energy, _irrigation, _pool, _camera, _cameraGroup, _select, _mower, _starlink, _llm, _hbat, _system, _weather, _agenda, _devstatus, _recipe, _scene, _sleep, _crooms, _eweek, _parcel, ...rest } = cfg;
       const tag = _overview ? "ha-climate-overview-card" : _group ? "ha-light-group-card" : _light ? "ha-light-card"
-        : _cover ? "ha-cover-card" : _coverGroup ? "ha-cover-group-card" : _switchTime ? "ha-switch-time-card" : _media ? "ha-media-card" : _room ? "ha-room-card" : _status ? "ha-status-card" : _vacuum ? "ha-vacuum-card" : _presence ? "ha-presence-card" : _alert ? "ha-alert-card" : _energy ? "ha-energy-card" : _irrigation ? "ha-irrigation-card" : _pool ? "ha-pool-card" : _camera ? "ha-camera-card" : _cameraGroup ? "ha-camera-group-card" : _select ? "ha-select-card" : _mower ? "ha-mower-card" : _starlink ? "ha-starlink-card" : _llm ? "ha-llm-timeline-card" : _hbat ? "ha-home-battery-card" : _system ? "ha-system-card" : _weather ? "ha-weather-card" : _agenda ? "ha-agenda-card" : _devstatus ? "ha-device-status-card" : _recipe ? "ha-recipe-card" : _scene ? "ha-scene-card" : _sleep ? "ha-sleep-card" : _crooms ? "ha-climate-rooms-card" : _eweek ? "ha-energy-week-card" : "ha-climate-card";
+        : _cover ? "ha-cover-card" : _coverGroup ? "ha-cover-group-card" : _switchTime ? "ha-switch-time-card" : _media ? "ha-media-card" : _room ? "ha-room-card" : _status ? "ha-status-card" : _vacuum ? "ha-vacuum-card" : _presence ? "ha-presence-card" : _alert ? "ha-alert-card" : _energy ? "ha-energy-card" : _irrigation ? "ha-irrigation-card" : _pool ? "ha-pool-card" : _camera ? "ha-camera-card" : _cameraGroup ? "ha-camera-group-card" : _select ? "ha-select-card" : _mower ? "ha-mower-card" : _starlink ? "ha-starlink-card" : _llm ? "ha-llm-timeline-card" : _hbat ? "ha-home-battery-card" : _system ? "ha-system-card" : _weather ? "ha-weather-card" : _agenda ? "ha-agenda-card" : _devstatus ? "ha-device-status-card" : _recipe ? "ha-recipe-card" : _scene ? "ha-scene-card" : _sleep ? "ha-sleep-card" : _crooms ? "ha-climate-rooms-card" : _eweek ? "ha-energy-week-card" : _parcel ? "ha-parcel-card" : "ha-climate-card";
       const card = document.createElement(tag);
       card.id = "card" + i;
       card.setConfig({ type: `custom:${tag}`, ...rest });

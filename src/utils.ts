@@ -1908,16 +1908,59 @@ export const sceneActivated = (st?: HassEntity): number => {
   return Number.isFinite(t) ? t : 0;
 };
 
-export interface SceneGroup { key: string; name: string; icon?: string; scenes: HassEntity[]; lights: string[] }
+export interface SceneGroup { key: string; name: string; icon?: string; scenes: HassEntity[]; lights: string[]; group?: string }
 
-const groupTitle = (g: string): string => (g.length <= 3 ? g.toUpperCase() : g.charAt(0).toUpperCase() + g.slice(1));
+const groupTitle = (g: string): string => {
+  const t = g.replace(/[\s_]+$/, "").trim();
+  return t.length <= 3 ? t.toUpperCase() : t.charAt(0).toUpperCase() + t.slice(1);
+};
+
+/** Raumnamen vergleichen ohne Groß/klein und angehängte „_“ („Wohnzimmer_“ = „Wohnzimmer“) */
+const roomKey = (v: unknown): string => String(v ?? "").toLowerCase().replace(/[\s_]+$/, "").trim();
 
 /**
- * Szenen nach Raum gruppieren: über `groups` (Hue-Raum, Textmuster oder feste Liste) oder automatisch nach `group_name`.
+ * Hue-Raum/Zone als Lampengruppe: die Gruppen-Lampe (`is_hue_group`) mit diesem Namen und ihre Mitglieder.
+ * Räume gehen vor Zonen, bei gleichem Typ die Gruppe mit mehr Lampen.
+ */
+export const hueRoomLights = (states: Record<string, HassEntity>, name?: string): { group: string; members: string[] } | undefined => {
+  const k = roomKey(name);
+  if (!k) return undefined;
+  const hit = Object.values(states)
+    .filter((s) => s.entity_id.startsWith("light.") && s.attributes.is_hue_group && roomKey(s.attributes.friendly_name) === k)
+    .sort((a, b) => Number(b.attributes.hue_type === "room") - Number(a.attributes.hue_type === "room")
+      || ((b.attributes.entity_id as string[] | undefined)?.length ?? 0) - ((a.attributes.entity_id as string[] | undefined)?.length ?? 0))[0];
+  if (!hit) return undefined;
+  const members = ((hit.attributes.entity_id ?? []) as string[]).filter((id) => states[id]).sort((a, b) =>
+    String(states[a]!.attributes.friendly_name ?? a).localeCompare(String(states[b]!.attributes.friendly_name ?? b)));
+  return { group: hit.entity_id, members };
+};
+
+/** Alle Hue-Räume/Zonen (aus Szenen und Gruppen-Lampen) für die Auswahl im Editor */
+export const hueRooms = (states: Record<string, HassEntity>): { name: string; lights: number; scenes: number }[] => {
+  const by = new Map<string, { name: string; lights: number; scenes: number }>();
+  const add = (raw: unknown, light = 0, scene = 0) => {
+    const name = String(raw ?? "").trim();
+    if (!name) return;
+    const k = roomKey(name);
+    const e = by.get(k) ?? { name: name.replace(/[\s_]+$/, ""), lights: 0, scenes: 0 };
+    e.lights = Math.max(e.lights, light);
+    e.scenes += scene;
+    by.set(k, e);
+  };
+  for (const s of Object.values(states)) {
+    if (s.entity_id.startsWith("scene.")) add(s.attributes.group_name, 0, 1);
+    else if (s.entity_id.startsWith("light.") && s.attributes.is_hue_group) add(s.attributes.friendly_name, ((s.attributes.entity_id ?? []) as string[]).length);
+  }
+  return [...by.values()].sort((a, b) => a.name.localeCompare(b.name));
+};
+
+/**
+ * Szenen nach Raum gruppieren: über `rooms` (Hue-Räume), `groups` (Hue-Raum, Textmuster oder feste Liste) oder automatisch
+ * nach `group_name`. Lampen kommen – wenn nicht eingetragen – aus der Hue-Gruppe des Raums.
  * Gleiche Namen je Raum nur einmal (die zuletzt benutzte gewinnt).
  */
 export const sceneGroups = (states: Record<string, HassEntity>,
-  opts: { groups?: { name: string; icon?: string; match?: string; scenes?: string[]; lights?: string[] }[]; include?: string[]; exclude?: string[] } = {}): SceneGroup[] => {
+  opts: { groups?: { name: string; icon?: string; match?: string; scenes?: string[]; lights?: string[] }[]; rooms?: string[]; include?: string[]; exclude?: string[] } = {}): SceneGroup[] => {
   const all = Object.values(states).filter((s) => s.entity_id.startsWith("scene.") && s.state !== "unavailable");
   const has = (txt: string, pats?: string[]) => !!pats?.some((p) => txt.toLowerCase().includes(p.toLowerCase()));
   const ok = (s: HassEntity) => {
@@ -1933,17 +1976,21 @@ export const sceneGroups = (states: Record<string, HassEntity>,
     }
     return [...by.values()].sort((a, b) => sceneLabel(a).localeCompare(sceneLabel(b)));
   };
-  if (opts.groups?.length) {
-    // Hue-Raum vergleichen ohne Groß/klein und angehängte „_“ („Wohnzimmer_“ = „Wohnzimmer“)
-    const norm = (v: unknown) => String(v ?? "").toLowerCase().replace(/[\s_]+$/, "").trim();
-    return opts.groups.map((g, i) => {
-      const m = norm(g.match);
-      const byRoom = m ? all.filter((s) => norm(s.attributes.group_name) === m) : [];
+  const withLights = (g: Omit<SceneGroup, "lights" | "group">, match: string | undefined, lights?: string[]): SceneGroup => {
+    if (lights?.length) return { ...g, lights };
+    const hue = hueRoomLights(states, match);
+    return { ...g, lights: hue?.members ?? [], group: hue?.group };
+  };
+  const groups = opts.groups?.length ? opts.groups : opts.rooms?.length ? opts.rooms.map((r) => ({ name: groupTitle(r), match: r })) : undefined;
+  if (groups) {
+    return groups.map((g: { name: string; icon?: string; match?: string; scenes?: string[]; lights?: string[] }, i) => {
+      const m = roomKey(g.match);
+      const byRoom = m ? all.filter((s) => roomKey(s.attributes.group_name) === m) : [];
       // Textsuche nur, wenn kein Hue-Raum so heißt („Zimmer“ soll nicht „Wohnzimmer …“ finden)
       const list = g.scenes?.length ? g.scenes.map((id) => states[id]).filter((s): s is HassEntity => !!s)
         : byRoom.length ? byRoom
         : all.filter((s) => m && (String(s.attributes.friendly_name ?? "").toLowerCase().includes(m) || s.entity_id.includes(m.replace(/\s+/g, "_"))));
-      return { key: `g${i}`, name: g.name, icon: g.icon, scenes: dedupe(list.filter(ok)), lights: g.lights ?? [] };
+      return withLights({ key: `g${i}`, name: g.name, icon: g.icon, scenes: dedupe(list.filter(ok)) }, g.match, g.lights);
     }).filter((g) => g.scenes.length || g.lights.length);
   }
   const by = new Map<string, HassEntity[]>();
@@ -1952,7 +1999,8 @@ export const sceneGroups = (states: Record<string, HassEntity>,
     by.set(g, [...(by.get(g) ?? []), s]);
   }
   return [...by.entries()].sort((a, b) => (a[0] === "_other" ? 1 : b[0] === "_other" ? -1 : a[0].localeCompare(b[0])))
-    .map(([g, list]) => ({ key: g, name: g === "_other" ? "" : groupTitle(g), scenes: dedupe(list), lights: [] }));
+    .map(([g, list]) => g === "_other" ? { key: g, name: "", scenes: dedupe(list), lights: [] }
+      : withLights({ key: g, name: groupTitle(g), scenes: dedupe(list) }, g));
 };
 
 // ---------- Rezepte (Mealie) ----------
@@ -2064,3 +2112,79 @@ export const kwhFactor = (unit?: string): number => (/^wh$/i.test(unit ?? "") ? 
 /** Veränderung in Prozent (undefined, wenn die Vergleichsbasis fehlt) */
 export const percentChange = (now: number, before: number): number | undefined =>
   before > 0.05 ? Math.round(((now - before) / before) * 100) : undefined;
+
+// ---------- Pakete (17TRACK) ----------
+
+export interface Parcel {
+  tracking_number: string;
+  friendly_name?: string | null;
+  status?: string | null;
+  info_text?: string | null;
+  location?: string | null;
+  timestamp?: string | null;
+  origin_country?: string | null;
+  destination_country?: string | null;
+  package_type?: string | null;
+}
+
+export type ParcelKey = "ready" | "problem" | "transit" | "not_found" | "delivered";
+
+const PARCEL_STATUS: Record<ParcelKey, { icon: string; color: string; rank: number }> = {
+  ready: { icon: "mdi:store-marker-outline", color: "#8e24aa", rank: 0 },
+  problem: { icon: "mdi:alert-circle-outline", color: "#e53935", rank: 1 },
+  transit: { icon: "mdi:truck-fast-outline", color: "#1e88e5", rank: 2 },
+  not_found: { icon: "mdi:help-circle-outline", color: "#78909c", rank: 3 },
+  delivered: { icon: "mdi:package-variant-closed-check", color: "#43a047", rank: 4 },
+};
+
+/** Symbol, Farbe und Rang einer Statusgruppe */
+export const parcelStyle = (key: ParcelKey): { icon: string; color: string; rank: number } => PARCEL_STATUS[key];
+
+/** 17TRACK-Status („In Transit“, „Delivered“ …) auf eine Gruppe mit Symbol, Farbe und Sortierrang */
+export const parcelStatus = (status?: string | null): { key: ParcelKey; icon: string; color: string; rank: number } => {
+  const s = String(status ?? "").toLowerCase().replace(/[\s_]+/g, " ");
+  const key: ParcelKey = /pick|abhol/.test(s) ? "ready" : /undeliver|alert|expired|exception|warn|abgelaufen|nicht zugestellt/.test(s) ? "problem"
+    : /^delivered|zugestellt/.test(s) ? "delivered" : /transit|unterwegs|info received|out for delivery/.test(s) ? "transit" : "not_found";
+  return { key, ...PARCEL_STATUS[key] };
+};
+
+/** Versender am Format der Sendungsnummer erkennen */
+export const parcelCarrier = (nr: string): string | undefined => {
+  const n = nr.replace(/\s+/g, "").toUpperCase();
+  if (/^1Z[0-9A-Z]{16}$/.test(n)) return "UPS";
+  if (/^TBA\d+/.test(n)) return "Amazon";
+  if (/^(00340|JJD|JVGL|3S)/.test(n) || /^\d{12}$/.test(n) || /^\d{20}$/.test(n)) return "DHL";
+  if (/^[A-Z]{2}\d{9}DE$/.test(n)) return "Deutsche Post";
+  if (/^H\d{19}$/.test(n) || /^\d{14}$/.test(n)) return "Hermes";
+  if (/^0\d{13}$/.test(n) || /^\d{14}[A-Z]$/.test(n)) return "DPD";
+  if (/^\d{11}$/.test(n) || /^[A-Z0-9]{8}$/.test(n)) return "GLS";
+  if (/^DE\d{10}$/.test(n)) return "DHL";
+  return undefined;
+};
+
+const PARCEL_TEXTS: [RegExp, string][] = [
+  [/successfully delivered|has been delivered|delivered to/i, "Erfolgreich zugestellt"],
+  [/out for delivery|in delivery vehicle/i, "In Zustellung"],
+  [/ready for (pick ?up|collection)|available for pick ?up/i, "Abholbereit"],
+  [/arrived at.*(hub|facility|center|centre)|processed at/i, "Im Paketzentrum bearbeitet"],
+  [/departed|left the/i, "Hat das Paketzentrum verlassen"],
+  [/in transit/i, "Unterwegs"],
+  [/information received|electronic(ally)? (notified|advised)|label created/i, "Daten vom Versender übermittelt"],
+  [/delivery (attempt|failed)|could not be delivered|unsuccessful/i, "Zustellversuch fehlgeschlagen"],
+  [/returned to sender|return/i, "Rücksendung an den Absender"],
+  [/customs/i, "Beim Zoll"],
+];
+
+/** Häufige englische 17TRACK-Texte eindeutschen (andere bleiben unverändert) */
+export const parcelText = (info?: string | null, lang = "de"): string | undefined => {
+  if (!info) return undefined;
+  if (!lang.startsWith("de")) return info;
+  return PARCEL_TEXTS.find(([re]) => re.test(info))?.[1] ?? info;
+};
+
+/** Pakete sortieren (abholbereit → Problem → unterwegs → nicht gefunden → zugestellt, dann neueste zuerst) und alte Zustellungen ausblenden */
+export const sortParcels = (list: Parcel[], deliveredDays = 3, now = Date.now()): Parcel[] =>
+  list.filter((p) => parcelStatus(p.status).key !== "delivered" || !p.timestamp || now - Date.parse(p.timestamp) <= deliveredDays * 86_400_000)
+    .sort((a, b) => parcelStatus(a.status).rank - parcelStatus(b.status).rank
+      || Date.parse(b.timestamp ?? "") - Date.parse(a.timestamp ?? "") || 0
+      || String(a.friendly_name || a.tracking_number).localeCompare(String(b.friendly_name || b.tracking_number)));

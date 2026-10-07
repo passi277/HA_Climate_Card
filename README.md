@@ -27,6 +27,7 @@ weiche Farbübergänge und Animationen. Ein HACS-Download, mehrere Karten:
 | **Modern Scene Card** | `custom:ha-scene-card` | Szenen nach Raum mit Farbe/Symbol, zuletzt aktiv, Lampen und „Alles aus“ |
 | **Modern Sleep Card** | `custom:ha-sleep-card` | Schlafmodus, Sleep-Timer mit Countdown, Klima, Wecker, „Gute Nacht“ |
 | **Modern Climate Rooms Card** | `custom:ha-climate-rooms-card` | Klima-Übersicht 2.0: alle Räume mit Heizung, Klimaanlage, Fenster, Feuchte |
+| **Modern Parcel Card** | `custom:ha-parcel-card` | Pakete & Post über 17TRACK: Status, Versender, Filter, + Paket, Archivieren |
 | **Modern Energy Week Card** | `custom:ha-energy-week-card` | Wochenrückblick Energie: diese gegen letzte Woche, Kosten, Verbraucher |
 | **Climate Overview** | `custom:ha-climate-overview-card` | alle Klimageräte auf einen Blick |
 
@@ -612,6 +613,7 @@ type: custom:ha-recipe-card
 # shopping_list: todo.mealie_einkaufsliste
 # mealie_url: http://192.168.1.10:9925  # nur für Rezeptbilder
 # show_search: false
+# show_plan: false                    # nur Rezeptsuche, ohne Essensplan
 ```
 
 ## Modern Scene Card (Ambiente & Szenen)
@@ -620,6 +622,18 @@ Szenen **nach Raum**: ohne Angabe automatisch aus den Hue-Räumen (`group_name`)
 ergeben sich aus dem Namen (Nachtlicht, Kaminfeuer, Kerze, Nordlichter, Sonnenuntergang, Lesen, Konzentrieren …), die **zuletzt
 aktivierte Szene** ist markiert. Mit `groups` lassen sich Räume samt **Lampen** (an/aus, Helligkeit, „Raum aus“) festlegen;
 oben **„Alles aus“** für alle eingetragenen Lampen.
+
+Am einfachsten wählst du im Editor die **Hue-Räume/Zonen** aus (`rooms`); die Lampen des Raums kommen automatisch aus Hue –
+oben die ganze Gruppe mit Helligkeit, darunter aufklappbar jede einzelne Lampe.
+
+```yaml
+type: custom:ha-scene-card
+rooms: [tv, Wohnzimmer, Küche, Zimmer, Marcel]
+# favorites: [scene.tv_ambiente_kaminfeuer]
+# exclude: [Fick]
+```
+
+Eigene Räume (Szenen per Text oder Liste, eigene Lampen):
 
 ```yaml
 type: custom:ha-scene-card
@@ -671,6 +685,20 @@ rooms:
     window: binary_sensor.fenster_wohnzimmer_durchgang
     # navigation_path: /dashboard-final/wohnzimmer
 # humidity_range: [40, 60]
+```
+
+## Modern Parcel Card (Pakete & Post, 17TRACK)
+
+Alle Sendungen aus der **17TRACK**-Integration: abholbereit und Probleme zuerst, dann unterwegs, ohne Daten und zugestellt (zugestellte
+verschwinden nach `delivered_days`). Je Paket Name, Status, **Versender** (an der Sendungsnummer erkannt), letzte Meldung (eingedeutscht),
+Ort und „vor …“; aufgeklappt Sendungsnummer kopieren, **„Verfolgen“** bei 17TRACK und **„Archivieren“** (mit Rückfrage). Filter-Chips je Status
+und **„+ Paket“** (Sendungsnummer + Name). Aktualisiert sich, sobald sich die 17TRACK-Sensoren ändern.
+
+```yaml
+type: custom:ha-parcel-card
+# delivered_days: 3
+# show_add: false
+# max_items: 8
 ```
 
 ## Modern Energy Week Card (Wochenrückblick Energie)
@@ -1076,6 +1104,7 @@ glow, smooth color transitions, animations), shipped as a single HACS download:
 - `custom:ha-scene-card` – scenes per room (Hue rooms automatically), icon/color from the name, last activated scene, room lights and "all off"
 - `custom:ha-sleep-card` – sleep mode per person, sleep timers with countdown and ±15 min, climate, alarm and "good night"
 - `custom:ha-climate-rooms-card` – climate overview 2.0: every room with current/target, schedule, AC, open windows, humidity, boost
+- `custom:ha-parcel-card` – parcels from 17TRACK: status, carrier, latest event, filters, add, track and archive
 - `custom:ha-energy-week-card` – energy week: this week vs. last week, cost, peak day, share per consumer, month view
 - `custom:ha-vacuum-card` – robot vacuum with live map, tap rooms on the map for room cleaning, controls, modes, maintenance
 - `custom:ha-presence-card` – people as photo tiles (home/away, phone battery and charging found automatically) plus front door: hold to open (Nuki Opener), Ring to Open, doorbell

@@ -25,6 +25,7 @@ export class HaSceneCard extends LitElement {
   @state() private _config?: SceneCardConfig;
   @state() private _room?: string;
   @state() private _flash?: string;
+  @state() private _lightsOpen = false;
   private _cache?: { key: unknown; groups: SceneGroup[] };
 
   public static getConfigElement(): HTMLElement {
@@ -64,7 +65,7 @@ export class HaSceneCard extends LitElement {
 
   private _watched(): string[] {
     const groups = this._groups();
-    return [...groups.flatMap((g) => [...g.scenes.map((s) => s.entity_id), ...g.lights]), ...(this._config?.favorites ?? [])];
+    return [...groups.flatMap((g) => [...g.scenes.map((s) => s.entity_id), ...g.lights, ...(g.group ? [g.group] : [])]), ...(this._config?.favorites ?? [])];
   }
 
   private _groups(): SceneGroup[] {
@@ -75,7 +76,7 @@ export class HaSceneCard extends LitElement {
       return this._cache.groups.map((g) => ({ ...g, scenes: g.scenes.map((s) => hass.states[s.entity_id] ?? s) }));
     }
     const c = this._config!;
-    const groups = sceneGroups(hass.states, { groups: c.groups, include: c.include, exclude: c.exclude });
+    const groups = sceneGroups(hass.states, { groups: c.groups, rooms: c.rooms, include: c.include, exclude: c.exclude });
     this._cache = { key, groups };
     return groups;
   }
@@ -103,6 +104,7 @@ export class HaSceneCard extends LitElement {
 
   private _selectRoom(key: string): void {
     this._room = key;
+    this._lightsOpen = false;
     try { localStorage.setItem(STORE + (this._config?.name ?? ""), key); } catch { /* privat */ }
   }
 
@@ -121,7 +123,7 @@ export class HaSceneCard extends LitElement {
     </button>`;
   }
 
-  private _renderLight(id: string) {
+  private _renderLight(id: string, label?: string, count?: number) {
     const st = this.hass!.states[id];
     if (!st) return nothing;
     const on = st.state === "on";
@@ -131,7 +133,8 @@ export class HaSceneCard extends LitElement {
     return html`<div class="light ${on ? "on" : ""} ${st.state === "unavailable" ? "na" : ""}" style="--lc:${color}" data-light=${id}>
       <button class="l-tog" @click=${() => { this._haptic(); this._call("light", "toggle", { entity_id: id }); }} aria-pressed=${on}>
         <ha-icon .icon=${st.attributes.icon ?? (on ? "mdi:lightbulb-on" : "mdi:lightbulb-outline")}></ha-icon></button>
-      <button class="l-name" @click=${() => this._moreInfo(id)}>${String(st.attributes.friendly_name ?? id)}</button>
+      <button class="l-name" @click=${() => (count ? (this._lightsOpen = !this._lightsOpen) : this._moreInfo(id))}>${label ?? String(st.attributes.friendly_name ?? id)}
+        ${count ? html`<small class="l-count">${this._t("n_lights").replace("{n}", String(count))}<ha-icon class="chev ${this._lightsOpen ? "up" : ""}" icon="mdi:chevron-down"></ha-icon></small>` : nothing}</button>
       ${dim ? html`<input class="l-dim" type="range" min="1" max="100" .value=${String(pct)} aria-label=${this._t("brightness")}
           @change=${(e: Event) => this._call("light", "turn_on", { entity_id: id, brightness_pct: Number((e.target as HTMLInputElement).value) })}>
         <span class="l-pct">${pct}%</span>` : html`<span class="l-pct">${on ? this._t("on") : st.state === "unavailable" ? "–" : this._t("off")}</span>`}
@@ -144,6 +147,7 @@ export class HaSceneCard extends LitElement {
     const lang = getLanguage(this.hass);
     const groups = this._groups();
     const sel = groups.find((g) => g.key === this._room) ?? groups[0];
+    const hasGroup = !!sel?.group && !!this.hass.states[sel.group];
     const allLights = [...new Set(groups.flatMap((g) => g.lights))];
     const onLights = allLights.filter((id) => this.hass!.states[id]?.state === "on");
     const allScenes = groups.flatMap((g) => g.scenes);
@@ -171,9 +175,12 @@ export class HaSceneCard extends LitElement {
           ${g.icon ? html`<ha-icon .icon=${g.icon}></ha-icon>` : nothing}${g.name || this._t("other")}${on ? html`<span class="dot"></span>` : nothing}</button>`;
       })}</div>` : nothing}
       ${sel ? html`
-        ${sel.lights.length ? html`<div class="lights">
-          ${sel.lights.map((id) => this._renderLight(id))}
-          ${sel.lights.length > 1 ? html`<button class="room-off" @click=${() => { this._haptic(); this._call("light", "turn_off", { entity_id: sel.lights }); }}>
+        ${sel.lights.length || hasGroup ? html`<div class="lights">
+          ${hasGroup && sel.lights.length > 1 ? html`
+            ${this._renderLight(sel.group!, this._t("all_lights"), sel.lights.length)}
+            ${this._lightsOpen ? html`<div class="members">${sel.lights.map((id) => this._renderLight(id))}</div>` : nothing}`
+          : sel.lights.map((id) => this._renderLight(id))}
+          ${sel.lights.length > 1 ? html`<button class="room-off" @click=${() => { this._haptic(); this._call("light", "turn_off", { entity_id: hasGroup ? sel.group : sel.lights }); }}>
             <ha-icon icon="mdi:power"></ha-icon>${this._t("room_off")}</button>` : nothing}
         </div>` : nothing}
         ${sel.scenes.length ? html`<div class="grid">${sel.scenes.map((s) => this._renderScene(s, s === groupLast && !!sceneActivated(s)))}</div>`
@@ -233,6 +240,15 @@ export class HaSceneCard extends LitElement {
     .l-name { border: none; background: none; padding: 0; cursor: pointer; text-align: left; font-size: 13px; font-weight: 600;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .light:not(:has(.l-dim)) .l-name { grid-column: span 2; }
+    .l-name { display: flex; flex-direction: column; }
+    .l-count { display: inline-flex; align-items: center; gap: 2px; font-size: 11px; font-weight: 600; color: var(--secondary-text-color); }
+    .l-count .chev { --mdc-icon-size: 15px; transition: transform 0.25s; }
+    .l-count .chev.up { transform: rotate(180deg); }
+    .members .light { grid-template-columns: 30px minmax(0, 1.6fr) minmax(50px, 1fr) 36px; }
+    .members .l-tog { width: 30px; height: 30px; }
+    .members { display: flex; flex-direction: column; gap: 4px; padding-left: 14px; margin-left: 16px; border-left: 2px solid rgba(127,127,127,0.18);
+      animation: fade-in 0.25s var(--ease-out) both; }
+    @keyframes fade-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
     .l-dim { width: 100%; accent-color: var(--lc); }
     .l-pct { font-size: 12px; font-weight: 700; text-align: right; color: var(--secondary-text-color); }
     .light.na { opacity: 0.45; }

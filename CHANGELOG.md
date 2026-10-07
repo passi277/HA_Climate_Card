@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.40.0 – Pakete, Hue-Räume, Essensplan optional
+- Neue **Modern Parcel Card** (`custom:ha-parcel-card`) für 17TRACK: alle Sendungen nach Wichtigkeit (abholbereit, Problem, unterwegs, ohne Daten, zugestellt), Versender aus der Sendungsnummer (DHL, Deutsche Post, Hermes, DPD, GLS, UPS, Amazon), letzte Meldung auf Deutsch, Ort und „vor …“, Filter-Chips, Sendungsnummer kopieren, „Verfolgen“, „Archivieren“ (mit Rückfrage) und „+ Paket“; zugestellte Pakete verschwinden nach 3 Tagen
+- Scene Card: neue Option **`rooms`** – Hue-Räume/Zonen im Editor ankreuzen; die **Lampen kommen automatisch aus dem Hue-Raum** (Gruppe oben mit Helligkeit, einzelne Lampen aufklappbar, „Raum aus“ schaltet die Gruppe). Auch ohne Angabe und bei `groups` ohne `lights` werden die Hue-Lampen ergänzt
+- Recipe Card: **Essensplan abschaltbar** (`show_plan: false`, Häkchen im Editor) – dann nur Rezeptsuche und Rezepte
+
 ## 1.39.1 – Szenen: Räume exakt zuordnen
 - Scene Card: `match` trifft zuerst den Hue-Raum exakt (ohne Groß/klein und angehängtes „_“, „Wohnzimmer_“ = „Wohnzimmer“); die Textsuche greift nur, wenn kein Hue-Raum so heißt – „Zimmer“ zeigt nicht mehr auch Szenen aus Wohn- und Gästezimmer
 

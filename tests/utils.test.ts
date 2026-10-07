@@ -4,7 +4,7 @@ import {
   batteryHoursLeft, consumerGrid, formatHours, integratePower, statsEnergy, flowLpm, timerInfo, formatRemaining, rangeStatus, phDose, poolRuntimeRecommendation, cameraFeatures, wifiQuality, optionStyle, musicModes, isMusicEffect, energyFlows, formatPower, powerWatts, alertActive, batteryShoppingList, clockMinutes, upcomingPickups, wasteStyle, batteryIcon, doorDevices, doorKind, initials, isCharging, phoneSensors, brightnessPct, contactType, calibrationTransform, roomsFromMap, roomIcon, areaBatteries, batteryInfo, batteryNotesFor, mowerFeatures, mowerPhase, mapGeometry, mowerAreas, polygonSize, extendTrail, presetActive, presetData, DEFAULT_LIGHT_PRESETS, activityIcon, activityLabel, guessControlDevice, guessVolumeDevice, coverIcon, datetimeParts, nextOccurrence, coverPosition, skyPhase, sunPlacement, weatherOverlay, editorOptions, isNoEffect, lightEditorOptions, segmentIds, detectDeviceType, kelvinToRgb, lightColor, relatedScenes, supportsColor, supportsColorTemp, dewPoint, nextSwitch, parseSchedule, scheduleTempAt, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
   llmEvents, llmCategory, snapshotMediaId, dayGroups, homeBatteryFeatures, batteryEta, batteryStatusKey,
   nextPickups, eventStart, daysUntil, offlineDevices, platformName,
-  sceneStyle, sceneLabel, sceneGroups, sceneActivated, mealieMinutes, formatMinutes, scaleIngredient, mealEntries, ymdLocal,
+  sceneStyle, sceneLabel, sceneGroups, hueRoomLights, hueRooms, parcelStatus, parcelCarrier, parcelText, sortParcels, sceneActivated, mealieMinutes, formatMinutes, scaleIngredient, mealEntries, ymdLocal,
   minutesUntil, formatShortDuration, shiftTime, weekStart, monthStart, dailyTotals, kwhFactor, percentChange,
   updateKind, pendingUpdates, updateName, resourceSensors, backupSensors, backupHealth, loadLevel, windDir, tempScale, weatherHint, weatherIcon,
   starlinkFeatures, speedtestFeatures, formatRate, formatBytes, formatUptime, toMbit, pingQuality,
@@ -1118,5 +1118,41 @@ describe("Wochenrückblick Energie", () => {
     expect(dailyTotals([{ start: new Date(2026, 9, 6).toISOString(), change: 1500 }], start, 7, kwhFactor("Wh"))[1]).toBe(1.5);
     expect([kwhFactor("kWh"), kwhFactor("Wh"), kwhFactor("MWh")]).toEqual([1, 0.001, 1000]);
     expect([percentChange(12, 10), percentChange(8, 10), percentChange(5, 0)]).toEqual([20, -20, undefined]);
+  });
+});
+
+describe("Hue-Räume und Pakete", () => {
+  const L = (id: string, name: string, extra: Record<string, unknown> = {}): HassEntity => ({ entity_id: id, state: "on", attributes: { friendly_name: name, ...extra } } as HassEntity);
+  const states = Object.fromEntries([
+    L("light.tv", "tv", { is_hue_group: true, hue_type: "room", entity_id: ["light.b", "light.a"] }),
+    L("light.wz_zone", "Wohnzimmer_", { is_hue_group: true, hue_type: "zone", entity_id: ["light.a", "light.b", "light.c"] }),
+    L("light.wz_room", "Wohnzimmer", { is_hue_group: true, hue_type: "room", entity_id: ["light.c"] }),
+    L("light.a", "A"), L("light.b", "B"), L("light.c", "C"),
+    { entity_id: "scene.tv_hell", state: "unknown", attributes: { friendly_name: "tv Hell", group_name: "tv", name: "Hell" } } as HassEntity,
+  ].map((s) => [s.entity_id, s]));
+  it("findet Lampen eines Hue-Raums (Raum vor Zone)", () => {
+    expect(hueRoomLights(states, "TV")).toEqual({ group: "light.tv", members: ["light.a", "light.b"] });
+    expect(hueRoomLights(states, "Wohnzimmer")?.group).toBe("light.wz_room");
+    expect(hueRoomLights(states, "Küche")).toBeUndefined();
+    expect(hueRooms(states).map((r) => `${r.name}:${r.lights}:${r.scenes}`)).toEqual(["tv:2:1", "Wohnzimmer:3:0"]);
+    const g = sceneGroups(states, { rooms: ["tv"] });
+    expect([g[0]!.name, g[0]!.group, g[0]!.lights.length, g[0]!.scenes.length]).toEqual(["TV", "light.tv", 2, 1]);
+  });
+  it("Paket-Status, Versender, Texte und Sortierung", () => {
+    expect(["In Transit", "Delivered", "Ready to be picked up", "Undelivered", "Not Found", "Alert"].map((s) => parcelStatus(s).key))
+      .toEqual(["transit", "delivered", "ready", "problem", "not_found", "problem"]);
+    expect(["00340434469856658870", "1Z999AA10123456784", "TBA123456789000", "RR123456789DE", "JJD000390007777777", "DE5922818887"].map(parcelCarrier))
+      .toEqual(["DHL", "UPS", "Amazon", "Deutsche Post", "DHL", "DHL"]);
+    expect(parcelText("The shipment has been successfully delivered")).toBe("Erfolgreich zugestellt");
+    expect(parcelText("Something special", "de")).toBe("Something special");
+    const now = Date.parse("2026-10-07T12:00:00Z");
+    const sorted = sortParcels([
+      { tracking_number: "1", status: "Delivered", timestamp: "2026-10-07T08:00:00Z" },
+      { tracking_number: "2", status: "In Transit", timestamp: "2026-10-06T08:00:00Z" },
+      { tracking_number: "3", status: "In Transit", timestamp: "2026-10-07T09:00:00Z" },
+      { tracking_number: "4", status: "Delivered", timestamp: "2026-09-20T08:00:00Z" },
+      { tracking_number: "5", status: "Ready to be picked up" },
+    ], 3, now);
+    expect(sorted.map((p) => p.tracking_number)).toEqual(["5", "3", "2", "1"]);
   });
 });

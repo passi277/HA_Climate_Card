@@ -3,6 +3,7 @@ import { customElement, property, state } from "lit/decorators.js";
 import type { HomeAssistant, SceneCardConfig } from "./types";
 import { CARD_VERSION } from "./const";
 import { localize } from "./localize/localize";
+import { hueRooms } from "./utils";
 
 /** Visueller Editor: Name, Favoriten, Filter, Spalten. Räume mit Lampen über YAML (`groups`). */
 @customElement("ha-scene-card-editor")
@@ -17,6 +18,8 @@ export class HaSceneCardEditor extends LitElement {
   private _schema() {
     return [
       { name: "name", selector: { text: {} } },
+      { name: "rooms", selector: { select: { multiple: true, mode: "list", options: hueRooms(this.hass?.states ?? {}).map((r) => ({
+        value: r.name, label: `${r.name} (${[r.lights ? localize(this.hass, "scene.n_lights").replace("{n}", String(r.lights)) : "", r.scenes ? localize(this.hass, "scene.n_scenes").replace("{n}", String(r.scenes)) : ""].filter(Boolean).join(", ")})` })) } } },
       { name: "favorites", selector: { entity: { multiple: true, filter: { domain: "scene" } } } },
       { name: "include", selector: { text: { multiple: true } } },
       { name: "exclude", selector: { text: { multiple: true } } },
@@ -30,7 +33,7 @@ export class HaSceneCardEditor extends LitElement {
     const v = ev.detail.value as Record<string, unknown>;
     const config: SceneCardConfig = { ...this._config! };
     if (v.name) config.name = String(v.name); else delete config.name;
-    for (const k of ["favorites", "include", "exclude"] as const) {
+    for (const k of ["rooms", "favorites", "include", "exclude"] as const) {
       const l = Array.isArray(v[k]) ? (v[k] as string[]).filter(Boolean) : [];
       if (l.length) config[k] = l; else delete config[k];
     }
@@ -43,7 +46,7 @@ export class HaSceneCardEditor extends LitElement {
   protected render() {
     if (!this.hass || !this._config) return nothing;
     const c = this._config;
-    const data = { name: c.name, favorites: c.favorites ?? [], include: c.include ?? [], exclude: c.exclude ?? [], columns: c.columns ?? 3 };
+    const data = { name: c.name, rooms: c.rooms ?? [], favorites: c.favorites ?? [], include: c.include ?? [], exclude: c.exclude ?? [], columns: c.columns ?? 3 };
     return html`<ha-form .hass=${this.hass} .data=${data} .schema=${this._schema()}
       .computeLabel=${this._computeLabel} @value-changed=${this._valueChanged}></ha-form>
       <p class="hint">${localize(this.hass, "scene_editor.hint")}</p>

@@ -1033,6 +1033,8 @@ export interface RecipeCardConfig {
   config_entry_id?: string;
   /** Mealie-Adresse für Rezeptbilder, z. B. http://mealie.local:9925 */
   mealie_url?: string;
+  /** Essensplan der Woche zeigen (Standard an) */
+  show_plan?: boolean;
   /** Tage im Essensplan (Standard 7) */
   days?: number;
   /** Diese Mahlzeiten zeigen (Standard Mittag + Abend) */
@@ -1059,6 +1061,8 @@ export interface SceneGroupConfig {
 export interface SceneCardConfig {
   type: string;
   name?: string;
+  /** Hue-Räume/Zonen zur Auswahl (Name wie in der Hue-App) – Lampen kommen automatisch dazu */
+  rooms?: string[];
   /** Räume/Gruppen – ohne Angabe automatisch aus den Hue-Räumen */
   groups?: SceneGroupConfig[];
   /** Nur Szenen, deren Name eines der Muster enthält */
@@ -1143,6 +1147,21 @@ export interface EnergyWeekCardConfig {
   /** Strompreis in €/kWh (Standard 0,30) */
   price?: number;
   currency?: string;
+  animations?: "full" | "reduced" | "off";
+  [key: string]: unknown;
+}
+
+export interface ParcelCardConfig {
+  type: string;
+  name?: string;
+  /** 17TRACK-Integration (sonst automatisch die erste) */
+  config_entry_id?: string;
+  /** Zugestellte Pakete so viele Tage zeigen (Standard 3) */
+  delivered_days?: number;
+  /** „+ Paket“ zeigen (Standard an) */
+  show_add?: boolean;
+  /** Höchstens so viele Pakete, Rest über „Alle anzeigen“ (Standard 8) */
+  max_items?: number;
   animations?: "full" | "reduced" | "off";
   [key: string]: unknown;
 }

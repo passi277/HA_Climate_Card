@@ -80,6 +80,10 @@ export class HaRecipeCard extends LitElement {
     }
   }
 
+  private get _showPlan(): boolean {
+    return this._config?.show_plan !== false;
+  }
+
   private get _types(): string[] {
     return this._config?.entry_types?.length ? this._config.entry_types : ["lunch", "dinner"];
   }
@@ -102,7 +106,7 @@ export class HaRecipeCard extends LitElement {
         this._entry = entries?.find((e) => e.state === "loaded")?.entry_id ?? entries?.[0]?.entry_id;
       }
       if (!this._entry) { this._error = this._t("no_mealie"); return; }
-      await Promise.all([this._loadPlan(), this._config!.show_search !== false ? this._search("") : undefined]);
+      await Promise.all([this._showPlan ? this._loadPlan() : undefined, this._config!.show_search !== false || !this._showPlan ? this._search("") : undefined]);
     } catch (err: any) {
       this._error = err?.message ?? String(err);
     }
@@ -162,7 +166,8 @@ export class HaRecipeCard extends LitElement {
     try {
       if (recipeId) await this._service("set_mealplan", { date, entry_type: type, recipe_id: recipeId });
       else await this._service("set_random_mealplan", { date, entry_type: type });
-      await this._loadPlan();
+      if (this._showPlan) await this._loadPlan();
+      else this._notify(this._t("planned"));
     } catch (err: any) {
       this._notify(`${localize(this.hass, "card.error")}: ${err?.message ?? err}`);
     }
@@ -300,20 +305,21 @@ export class HaRecipeCard extends LitElement {
     const c = this._config;
     const todayKey = ymdLocal(new Date());
     const todays = (this._plan ?? []).filter((e) => e.date === todayKey);
-    const sub = this._error ? this._error : !this._plan ? this._t("loading")
+    const plan = this._showPlan;
+    const sub = this._error ? this._error : !plan ? (this._results ? this._t("recipes_hint") : this._t("loading")) : !this._plan ? this._t("loading")
       : todays.length ? `${this._t("today")}: ${todays.map((e) => e.title).join(" · ")}` : this._t("nothing_today");
     const planned = (this._plan ?? []).length;
     return html`<ha-card class="recipes anim-${c.animations ?? "full"}" style="--hcc-accent-c:#fb8c00">
       <div class="glow"><div class="blob b1"></div><div class="blob b2"></div></div>
       <div class="header">
         <span class="h-icon"><ha-icon icon="mdi:chef-hat"></ha-icon></span>
-        <span class="head-text"><span class="h-title">${c.name ?? this._t("title")}</span><span class="h-sub">${sub}</span></span>
-        ${this._plan ? html`<button class="fill ${this._busy === "fill-confirm" ? "confirm" : ""}" data-act="fill" ?disabled=${this._busy === "fill"} @click=${this._fillWeek}
+        <span class="head-text"><span class="h-title">${c.name ?? this._t(plan ? "title" : "title_recipes")}</span><span class="h-sub">${sub}</span></span>
+        ${plan && this._plan ? html`<button class="fill ${this._busy === "fill-confirm" ? "confirm" : ""}" data-act="fill" ?disabled=${this._busy === "fill"} @click=${this._fillWeek}
           title=${this._t("fill_week")}><ha-icon class=${this._busy === "fill" ? "spin" : ""} .icon=${this._busy === "fill" ? "mdi:loading" : "mdi:dice-multiple"}></ha-icon>
           ${this._busy === "fill-confirm" ? this._t("confirm") : planned ? this._t("fill_gaps") : this._t("fill_week")}</button>` : nothing}
       </div>
-      ${this._error ? nothing : !this._plan ? html`<div class="graph-placeholder"></div>` : this._renderWeek()}
-      ${c.show_search !== false && !this._error ? html`<div class="search-box">
+      ${this._error || !plan ? nothing : !this._plan ? html`<div class="graph-placeholder"></div>` : this._renderWeek()}
+      ${(c.show_search !== false || !plan) && !this._error ? html`<div class="search-box">
         <ha-icon icon="mdi:magnify"></ha-icon>
         <input class="search" type="search" .value=${this._query} placeholder=${this._slot ? this._t("search_for_slot") : this._t("search")} @input=${this._onSearch}>
       </div>

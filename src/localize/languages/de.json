@@ -1362,7 +1362,10 @@
     "type_side": "Beilage",
     "type_dessert": "Nachtisch",
     "type_snack": "Snack",
-    "type_drink": "Getränk"
+    "type_drink": "Getränk",
+    "title_recipes": "Rezepte",
+    "recipes_hint": "Rezept suchen und kochen",
+    "planned": "Im Essensplan eingetragen"
   },
   "recipe_editor": {
     "name": "Name",
@@ -1371,7 +1374,8 @@
     "entry_types": "Mahlzeiten",
     "days": "Tage",
     "show_search": "Rezeptsuche",
-    "hint": "Die Mealie-Integration wird automatisch gefunden. Ohne Mealie-Adresse werden keine Rezeptbilder geladen."
+    "hint": "Die Mealie-Integration wird automatisch gefunden. Ohne Mealie-Adresse werden keine Rezeptbilder geladen.",
+    "show_plan": "Essensplan anzeigen"
   },
   "scene": {
     "title": "Ambiente & Szenen",
@@ -1383,7 +1387,9 @@
     "no_scenes": "Keine Szenen in diesem Raum",
     "brightness": "Helligkeit",
     "on": "An",
-    "off": "Aus"
+    "off": "Aus",
+    "n_lights": "{n} Lampen",
+    "all_lights": "Alle Lampen"
   },
   "scene_editor": {
     "name": "Name",
@@ -1391,7 +1397,8 @@
     "include": "Nur Szenen mit …",
     "exclude": "Szenen ausblenden mit …",
     "columns": "Kacheln pro Zeile",
-    "hint": "Räume werden aus den Hue-Räumen gebildet. Eigene Räume mit Lampen: in YAML unter „groups“ (name, icon, match oder scenes, lights)."
+    "hint": "Wähle die Hue-Räume und Zonen; ihre Lampen erscheinen automatisch (Gruppe oben, einzelne Lampen aufklappbar). Eigene Räume: YAML „groups“ (name, icon, match oder scenes, lights).",
+    "rooms": "Räume (aus Hue) – leer = alle"
   },
   "sleep": {
     "title": "Schlafen",
@@ -1468,5 +1475,43 @@
     "entities": "Energiezähler (leer = aus den Energie-Einstellungen)",
     "price": "Strompreis",
     "hint": "Verglichen wird bis zum gleichen Wochentag der Vorwoche. Tippe auf einen Tag für die Aufteilung."
+  },
+  "parcel": {
+    "title": "Pakete",
+    "loading": "Lade Sendungen …",
+    "no_integration": "17TRACK-Integration nicht gefunden",
+    "none": "Keine Sendungen",
+    "nothing_on_way": "Nichts unterwegs",
+    "one_transit": "1 Paket unterwegs",
+    "n_transit": "{n} Pakete unterwegs",
+    "n_ready": "{n} zum Abholen bereit",
+    "n_problem": "{n} mit Problem",
+    "status_ready": "Abholbereit",
+    "status_problem": "Problem",
+    "status_transit": "Unterwegs",
+    "status_not_found": "Noch keine Daten",
+    "status_delivered": "Zugestellt",
+    "all": "Alle",
+    "add": "Paket",
+    "tracking_number": "Sendungsnummer",
+    "name_placeholder": "Name (z. B. Steckdosen)",
+    "save": "Hinzufügen",
+    "added": "„{name}“ wird verfolgt",
+    "copy": "Kopieren",
+    "copied": "Sendungsnummer kopiert",
+    "track": "Verfolgen",
+    "archive": "Archivieren",
+    "confirm": "Sicher?",
+    "not_found_hint": "17TRACK hat noch keine Daten – meist erscheinen sie, sobald der Versender das Paket übergibt.",
+    "show_all": "Alle {n} anzeigen",
+    "less": "Weniger",
+    "empty_hint": "Keine Sendungen – mit „+ Paket“ eine Sendungsnummer hinzufügen"
+  },
+  "parcel_editor": {
+    "name": "Name",
+    "delivered_days": "Zugestellte Pakete so viele Tage zeigen",
+    "max_items": "Pakete bis „Alle anzeigen“",
+    "show_add": "„+ Paket“ anzeigen",
+    "hint": "Daten kommen aus der 17TRACK-Integration (wird automatisch gefunden)."
   }
 }

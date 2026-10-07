@@ -1345,7 +1345,10 @@
     "type_side": "Side",
     "type_dessert": "Dessert",
     "type_snack": "Snack",
-    "type_drink": "Drink"
+    "type_drink": "Drink",
+    "title_recipes": "Recipes",
+    "recipes_hint": "Find a recipe and cook",
+    "planned": "Added to the meal plan"
   },
   "recipe_editor": {
     "name": "Name",
@@ -1354,7 +1357,8 @@
     "entry_types": "Meals",
     "days": "Days",
     "show_search": "Recipe search",
-    "hint": "The Mealie integration is detected automatically. Without the Mealie URL no recipe images are loaded."
+    "hint": "The Mealie integration is detected automatically. Without the Mealie URL no recipe images are loaded.",
+    "show_plan": "Show meal plan"
   },
   "scene": {
     "title": "Ambience & scenes",
@@ -1366,7 +1370,9 @@
     "no_scenes": "No scenes in this room",
     "brightness": "Brightness",
     "on": "On",
-    "off": "Off"
+    "off": "Off",
+    "n_lights": "{n} lights",
+    "all_lights": "All lights"
   },
   "scene_editor": {
     "name": "Name",
@@ -1374,7 +1380,8 @@
     "include": "Only scenes containing …",
     "exclude": "Hide scenes containing …",
     "columns": "Tiles per row",
-    "hint": "Rooms come from the Hue rooms. Custom rooms with lights: YAML \"groups\" (name, icon, match or scenes, lights)."
+    "hint": "Pick Hue rooms and zones; their lights show up automatically (group on top, single lights expandable). Custom rooms: YAML \"groups\" (name, icon, match or scenes, lights).",
+    "rooms": "Rooms (from Hue) – empty = all"
   },
   "sleep": {
     "title": "Sleep",
@@ -1451,5 +1458,43 @@
     "entities": "Energy meters (empty = energy settings)",
     "price": "Electricity price",
     "hint": "Compared up to the same weekday of the previous week. Tap a day for its breakdown."
+  },
+  "parcel": {
+    "title": "Parcels",
+    "loading": "Loading parcels …",
+    "no_integration": "17TRACK integration not found",
+    "none": "No parcels",
+    "nothing_on_way": "Nothing on the way",
+    "one_transit": "1 parcel on the way",
+    "n_transit": "{n} parcels on the way",
+    "n_ready": "{n} ready for pickup",
+    "n_problem": "{n} with a problem",
+    "status_ready": "Ready for pickup",
+    "status_problem": "Problem",
+    "status_transit": "In transit",
+    "status_not_found": "No data yet",
+    "status_delivered": "Delivered",
+    "all": "All",
+    "add": "Parcel",
+    "tracking_number": "Tracking number",
+    "name_placeholder": "Name (e.g. sockets)",
+    "save": "Add",
+    "added": "Tracking \"{name}\"",
+    "copy": "Copy",
+    "copied": "Tracking number copied",
+    "track": "Track",
+    "archive": "Archive",
+    "confirm": "Sure?",
+    "not_found_hint": "17TRACK has no data yet – it usually appears once the carrier picks up the parcel.",
+    "show_all": "Show all {n}",
+    "less": "Less",
+    "empty_hint": "No parcels – add a tracking number with \"+ Parcel\""
+  },
+  "parcel_editor": {
+    "name": "Name",
+    "delivered_days": "Show delivered parcels for days",
+    "max_items": "Parcels before \"show all\"",
+    "show_add": "Show \"+ Parcel\"",
+    "hint": "Data comes from the 17TRACK integration (found automatically)."
   }
 }
