@@ -1,4 +1,4 @@
-import type { ContactConfig, ContactType, EntityRegistryEntry, HassEntity } from "./types";
+import type { ContactConfig, ContactType, EntityRegistryEntry, HassEntity, LlmCategory, LlmEvent } from "./types";
 import { ACTION_ICONS, ACTION_TO_MODE, ClimateFeature, DEFAULT_SHOW, MODE_COLORS, MODE_ICONS, supports } from "./const";
 
 export const UNAVAILABLE = ["unavailable", "unknown"];
@@ -1534,3 +1534,65 @@ export const formatUptime = (sec: number, day = "T"): string => {
 
 /** Ping-Qualität für Farben */
 export const pingQuality = (ms: number): "good" | "fair" | "bad" => (ms < 40 ? "good" : ms < 80 ? "fair" : "bad");
+
+/** LLM Vision: Kategorie aus category/label, sonst aus Titel und Beschreibung (deutsch und englisch) */
+export const llmCategory = (category?: string, label?: string, text = ""): LlmCategory => {
+  const c = `${category ?? ""} ${label ?? ""}`.toLowerCase();
+  if (/person|people/.test(c)) return "person";
+  if (/vehicle|car|truck|van|bus|motorcycle|bicycle/.test(c)) return "vehicle";
+  if (/animal|cat|dog|bird/.test(c)) return "animal";
+  if (/package/.test(c)) return "package";
+  if (/nature|plant|tree/.test(c)) return "nature";
+  const t = text.toLowerCase();
+  if (/keine aktivität|no activity|nichts erkannt|no motion/.test(t)) return "none";
+  if (/paket|package|lieferung|parcel|zusteller/.test(t)) return "package";
+  if (/\b(auto|pkw|fahrzeug|wagen|suv|lkw|transporter|motorrad|fahrrad|kennzeichen|car|vehicle|truck|van)\b|auto\b|🚗/.test(t)) return "vehicle";
+  if (/tier(e|en)?\b|katze|kater|hund|fuchs|vogel|vögel|igel|marder|\breh\b|\bhase|kaninchen|\bmaus\b|ratte|waschbär|eichhörnchen|animal|\bcat\b|\bdog\b|\bfox\b|\bbird|🦊|🐈|🐕|🦔/.test(t)) return "animal";
+  if (/person|\bmann\b|\bfrau\b|\bkind(er)?\b|mensch|leute|besucher|jemand|\bman\b|woman|people|someone/.test(t)) return "person";
+  if (/pflanze|baum|blätter|blume|busch|hecke|plant|tree/.test(t)) return "nature";
+  return "other";
+};
+
+/** Ereignisse aus llmvision.get_events oder der Kalender-API vereinheitlichen, neueste zuerst */
+export const llmEvents = (raw: unknown): LlmEvent[] => {
+  const list = Array.isArray(raw) ? raw : (raw as { events?: unknown })?.events;
+  if (!Array.isArray(list)) return [];
+  const str = (v: unknown) => (typeof v === "string" ? v : v && typeof v === "object" && "dateTime" in v ? String((v as { dateTime: unknown }).dateTime)
+    : v && typeof v === "object" && "date" in v ? String((v as { date: unknown }).date) : "");
+  return list.map((e: Record<string, unknown>, i): LlmEvent => {
+    const title = str(e.title) || str(e.summary) || "";
+    const description = str(e.description);
+    const start = str(e.start) || str(e.starts);
+    return {
+      id: str(e.uid) || str(e.id) || `${start}-${i}`,
+      title, description, start,
+      end: str(e.end) || str(e.ends) || undefined,
+      image: str(e.key_frame) || str(e.image) || str(e.image_path) || undefined,
+      camera: str(e.camera_name) || str(e.camera) || undefined,
+      label: str(e.label) || undefined,
+      category: llmCategory(str(e.category), str(e.label), `${title} ${description}`),
+    };
+  }).filter((e) => e.start && !Number.isNaN(new Date(e.start).getTime()))
+    .sort((a, b) => new Date(b.start).getTime() - new Date(a.start).getTime());
+};
+
+/** Snapshot-Pfad (/media/…) → media-source-ID für media_source/resolve_media */
+export const snapshotMediaId = (path?: string): string | undefined => {
+  if (!path) return undefined;
+  if (path.startsWith("media-source://")) return path;
+  const m = path.match(/^\/media\/(?:local\/)?(.+)$/);
+  return m ? `media-source://media_source/local/${m[1]}` : undefined;
+};
+
+/** Nach Kalendertag gruppieren (lokale Zeit), Reihenfolge bleibt erhalten */
+export const dayGroups = <T extends { start: string }>(events: T[]): { day: string; date: Date; items: T[] }[] => {
+  const out: { day: string; date: Date; items: T[] }[] = [];
+  for (const e of events) {
+    const d = new Date(e.start);
+    const day = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    const last = out[out.length - 1];
+    if (last && last.day === day) last.items.push(e);
+    else out.push({ day, date: new Date(d.getFullYear(), d.getMonth(), d.getDate()), items: [e] });
+  }
+  return out;
+};

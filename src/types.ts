@@ -850,3 +850,37 @@ export interface StarlinkCardConfig extends StarlinkFeatures {
   animations?: "full" | "reduced" | "off";
   [key: string]: unknown;
 }
+
+export type LlmCategory = "person" | "vehicle" | "animal" | "package" | "nature" | "other" | "none";
+
+export interface LlmEvent {
+  id: string;
+  title: string;
+  description: string;
+  start: string;
+  end?: string;
+  /** Pfad des Snapshots (z.B. /media/llmvision/snapshots/x.jpg) */
+  image?: string;
+  camera?: string;
+  label?: string;
+  category: LlmCategory;
+}
+
+export interface LlmTimelineCardConfig {
+  type: string;
+  /** calendar.llm_vision_timeline */
+  entity: string;
+  name?: string;
+  /** Zeitraum in Tagen (Standard 7) */
+  days?: number;
+  /** Einträge in der Liste (Standard 20, „Mehr anzeigen“ lädt weitere) */
+  limit?: number;
+  show_latest?: boolean;
+  show_filters?: boolean;
+  /** Ereignisse „Keine Aktivität“ anzeigen (Standard aus) */
+  show_no_activity?: boolean;
+  /** Nur diese Kameras */
+  cameras?: string[];
+  animations?: "full" | "reduced" | "off";
+  [key: string]: unknown;
+}

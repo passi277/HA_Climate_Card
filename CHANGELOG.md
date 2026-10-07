@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.34.0 – KI-Timeline
+- Neue **Modern LLM Vision Timeline** (`custom:ha-llm-timeline-card`): neuestes Ereignis groß mit Snapshot, Kategorie, Zeit und Kamera; Filter nach Personen, Fahrzeugen, Tieren, Paketen und Kameras; Zeitleiste nach Tagen mit Vorschaubildern; Detailansicht mit großem Bild, Beschreibung und „Kamera öffnen“
+- Daten über `llmvision.get_events` (Bilder über `media_source`, signiert), Rückfall auf den Kalender; Kategorie aus Label oder Text (deutsch/englisch); „Keine Aktivität“ standardmäßig ausgeblendet; visueller Editor
+
 ## 1.33.0 – „Mähen“ mäht die Auswahl
 - Mower Card: Sind Bereiche ausgewählt, wird die große grüne Taste zu **„Bereich“/„Bereiche“** und startet nur diese (mit Rückfrage „Sicher?“) – nicht mehr versehentlich den ganzen Rasen. Ohne Auswahl bleibt sie „Mähen“
 - Meldet die Integration, dass mehrere Bereiche gleichzeitig nicht freigegeben sind (`multi_area_allowed: false`, z.B. `goat_mower` ohne Option „Experimentell“), ist der Start gesperrt und ein deutlicher Hinweis erklärt warum

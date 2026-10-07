@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { HassEntity } from "../src/types";
 import {
   batteryHoursLeft, consumerGrid, formatHours, integratePower, statsEnergy, flowLpm, timerInfo, formatRemaining, rangeStatus, phDose, poolRuntimeRecommendation, cameraFeatures, wifiQuality, optionStyle, musicModes, isMusicEffect, energyFlows, formatPower, powerWatts, alertActive, batteryShoppingList, clockMinutes, upcomingPickups, wasteStyle, batteryIcon, doorDevices, doorKind, initials, isCharging, phoneSensors, brightnessPct, contactType, calibrationTransform, roomsFromMap, roomIcon, areaBatteries, batteryInfo, batteryNotesFor, mowerFeatures, mowerPhase, mapGeometry, mowerAreas, polygonSize, extendTrail, presetActive, presetData, DEFAULT_LIGHT_PRESETS, activityIcon, activityLabel, guessControlDevice, guessVolumeDevice, coverIcon, datetimeParts, nextOccurrence, coverPosition, skyPhase, sunPlacement, weatherOverlay, editorOptions, isNoEffect, lightEditorOptions, segmentIds, detectDeviceType, kelvinToRgb, lightColor, relatedScenes, supportsColor, supportsColorTemp, dewPoint, nextSwitch, parseSchedule, scheduleTempAt, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
+  llmEvents, llmCategory, snapshotMediaId, dayGroups,
   starlinkFeatures, speedtestFeatures, formatRate, formatBytes, formatUptime, toMbit, pingQuality,
   openContactsKey, powerOf, resolveContacts, secondsToDuration, stateIcon, temperatureOf, temperatureTint, trendSlope,
 } from "../src/utils";
@@ -831,5 +832,46 @@ describe("starlinkFeatures / speedtestFeatures", () => {
     expect(formatUptime(5 * 3600 + 12 * 60, "d")).toBe("5 h 12 min");
     expect(formatUptime(-1)).toBe("");
     expect([pingQuality(20), pingQuality(56), pingQuality(120)]).toEqual(["good", "fair", "bad"]);
+  });
+});
+
+describe("LLM Vision Timeline", () => {
+  it("liest llmvision.get_events (neueste zuerst)", () => {
+    const ev = llmEvents({ events: [
+      { uid: "a", title: "Marcels Auto", start: "2026-10-04T11:43:04+02:00", end: "2026-10-04T11:44:07+02:00", description: "Auto steht", key_frame: "/media/llmvision/snapshots/a.jpg", camera_name: "camera.haus", category: "", label: "" },
+      { uid: "b", title: "Mann im Garten", start: "2026-10-07T07:55:52+02:00", description: "Eine Person geht", key_frame: "", camera_name: "camera.eingang" },
+    ] });
+    expect(ev.map((e) => e.id)).toEqual(["b", "a"]);
+    expect(ev[1]).toMatchObject({ title: "Marcels Auto", image: "/media/llmvision/snapshots/a.jpg", camera: "camera.haus", category: "vehicle" });
+    expect(ev[0]).toMatchObject({ image: undefined, category: "person" });
+  });
+
+  it("liest die Kalender-API (summary, start.dateTime) und verwirft Ungültiges", () => {
+    const ev = llmEvents([
+      { summary: "🦊 Unbekanntes Tier", description: "Ein dunkles Tier", start: { dateTime: "2026-10-03T23:18:42+02:00" }, end: { dateTime: "2026-10-03T23:19:42+02:00" }, uid: "x" },
+      { summary: "kaputt", start: {} },
+    ]);
+    expect(ev).toHaveLength(1);
+    expect(ev[0]).toMatchObject({ id: "x", title: "🦊 Unbekanntes Tier", category: "animal", end: "2026-10-03T23:19:42+02:00" });
+    expect(llmEvents(undefined)).toEqual([]);
+  });
+
+  it("erkennt Kategorien aus Label oder Text", () => {
+    expect(llmCategory("Vehicle")).toBe("vehicle");
+    expect(llmCategory("", "Dog")).toBe("animal");
+    expect(llmCategory("", "", "Paketbote an der Tür")).toBe("package");
+    expect(llmCategory("", "", "Mann im Garten")).toBe("person");
+    expect(llmCategory("", "", "Zwei Tiere am Zaun")).toBe("animal");
+    expect(llmCategory("", "", "Die Kamera dreht sich")).toBe("other");
+    expect(llmCategory("", "", "Keine Aktivität erkannt")).toBe("none");
+    expect(llmCategory("", "", "Unbekannte Pflanze")).toBe("nature");
+  });
+
+  it("baut die media-source-ID und gruppiert nach Tagen", () => {
+    expect(snapshotMediaId("/media/llmvision/snapshots/5816cb13-0.jpg")).toBe("media-source://media_source/local/llmvision/snapshots/5816cb13-0.jpg");
+    expect(snapshotMediaId("/media/local/x.jpg")).toBe("media-source://media_source/local/x.jpg");
+    expect(snapshotMediaId("/config/www/x.jpg")).toBeUndefined();
+    const g = dayGroups([{ start: "2026-10-07T09:00:00" }, { start: "2026-10-07T07:00:00" }, { start: "2026-10-05T22:00:00" }]);
+    expect(g.map((x) => x.items.length)).toEqual([2, 1]);
   });
 });

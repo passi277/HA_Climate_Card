@@ -21,3 +21,4 @@ import "./camera-group-card";
 import "./select-card";
 import "./mower-card";
 import "./starlink-card";
+import "./llm-timeline-card";

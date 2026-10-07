@@ -483,6 +483,27 @@ speedtest: sensor.speedtest_download           # beliebiger Speedtest-Sensor
 # ping: sensor.starlink_ping                    # Zuordnung überschreiben (auch speedtest_upload, speedtest_ping …)
 ```
 
+## Modern LLM Vision Timeline (KI-Ereignisse)
+
+Für die Timeline von [LLM Vision](https://github.com/valentinfrlch/ha-llmvision) (`calendar.llm_vision_timeline`): das **neueste
+Ereignis groß** mit Snapshot, Kategorie, Uhrzeit und Kamera, darunter die Beschreibung; **Filter-Chips** für Personen, Fahrzeuge,
+Tiere, Pakete … (nur die, die vorkommen) und für die Kameras; eine **Zeitleiste nach Tagen** („Heute“, „Gestern“, „Mo, 5. Okt.“) mit
+Vorschaubild, Titel, Beschreibung und Kamera; Antippen öffnet die **Detailansicht** mit großem Bild, voller Beschreibung und
+„Kamera öffnen“. Daten kommen über `llmvision.get_events` (mit Bildern über `media_source`), sonst aus dem Kalender. Die Kategorie
+wird aus dem Label oder aus Titel/Beschreibung erkannt (deutsch und englisch). Neue Ereignisse erscheinen sofort.
+
+```yaml
+type: custom:ha-llm-timeline-card
+entity: calendar.llm_vision_timeline
+# name: KI-Timeline
+# days: 7              # Zeitraum
+# limit: 20            # Einträge, „Mehr anzeigen“ lädt weitere
+# show_latest: false
+# show_filters: false
+# show_no_activity: true
+# cameras: [camera.haus_standardauflosung]
+```
+
 ## Modern Vacuum Card (Saugroboter)
 
 - **Live-Karte** aus dem Kartenbild (z.B. Roborock Custom Map, `image.*`) – mit Roboter-Position, automatisch auf die
@@ -862,6 +883,7 @@ glow, smooth color transitions, animations), shipped as a single HACS download:
 - `custom:ha-status-card` – batteries (per area, Battery Notes aware) and door/window contacts
 - `custom:ha-mower-card` – lawn mower with animated lawn or live map, controls, current run, statistics, blade wear and settings
 - `custom:ha-starlink-card` – Starlink dish (status, live throughput, ping, packet loss, warnings, stow/reboot) plus external speed test with history and "run test now"
+- `custom:ha-llm-timeline-card` – LLM Vision timeline: latest event with snapshot, category/camera filters, day-grouped timeline and detail view
 - `custom:ha-vacuum-card` – robot vacuum with live map, tap rooms on the map for room cleaning, controls, modes, maintenance
 - `custom:ha-presence-card` – people as photo tiles (home/away, phone battery and charging found automatically) plus front door: hold to open (Nuki Opener), Ring to Open, doorbell
 - `custom:ha-alert-card` – alerts that only appear when something is going on (window open, vacuum error, low battery …), hidden otherwise

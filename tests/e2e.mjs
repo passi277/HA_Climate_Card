@@ -1408,6 +1408,28 @@ colorFails.length ? fail(`Farbe folgt nicht dem Modus: ${colorFails.join(", ")}`
   camper ? ok(`Camper-Warnung: ${camper}`) : fail("Sichtbehinderungs-Warnung fehlt");
 }
 
+// KI-Timeline (LLM Vision)
+{
+  const q = (fn) => p.evaluate(fn);
+  const info = await q(() => {
+    const r = document.querySelector("ha-llm-timeline-card").shadowRoot;
+    return { items: r.querySelectorAll(".item").length, hero: r.querySelector(".hero-text b")?.textContent, img: !!r.querySelector("img.hero-img"), sub: r.querySelector(".h-sub")?.textContent };
+  });
+  info.hero === "Marcels Auto" && info.img ? ok(`KI-Timeline: neuestes Ereignis mit Bild (${info.sub})`) : fail(`KI-Timeline Kopf: ${JSON.stringify(info)}`);
+  info.items === 6 ? ok("KI-Timeline: 6 weitere Ereignisse, „Keine Aktivität“ ausgeblendet") : fail(`KI-Timeline Einträge: ${info.items}`);
+  await q(() => document.querySelector("ha-llm-timeline-card").shadowRoot.querySelector('.chip[data-cat="animal"]').click());
+  await p.waitForTimeout(300);
+  const cats = await q(() => [...document.querySelector("ha-llm-timeline-card").shadowRoot.querySelectorAll(".item")].map((i) => i.dataset.cat));
+  cats.length === 2 && cats.every((c) => c === "animal") ? ok("KI-Timeline: Filter „Tiere“") : fail(`KI-Timeline Filter: ${cats}`);
+  await q(() => document.querySelector("ha-llm-timeline-card").shadowRoot.querySelector(".item").click());
+  await p.waitForTimeout(400);
+  const dlg = await q(() => { const d = document.querySelector("ha-llm-timeline-card").shadowRoot.querySelector("dialog.detail"); return d?.open ? d.querySelector("h3")?.textContent : null; });
+  dlg?.includes("Unbekanntes Tier") ? ok("KI-Timeline: Detail öffnet sich") : fail(`KI-Timeline Detail: ${dlg}`);
+  await q(() => document.querySelector("ha-llm-timeline-card").shadowRoot.querySelector(".d-close").click());
+  await p.waitForTimeout(200);
+  (await q(() => !document.querySelector("ha-llm-timeline-card").shadowRoot.querySelector("dialog.detail"))) ? ok("KI-Timeline: Detail schließt") : fail("KI-Timeline: Detail bleibt offen");
+}
+
 // Theme-Umschalter
 await p.click('[data-theme="dark"]');
 (await p.evaluate(() => document.body.classList.contains("dark"))) ? ok("Dunkel-Modus umschaltbar") : fail("Dunkel-Modus");

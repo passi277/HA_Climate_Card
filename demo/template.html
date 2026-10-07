@@ -521,6 +521,8 @@
       "camera.blink_carport": { state: "idle", attributes: { friendly_name: "Carport", supported_features: 0, entity_picture: camScene("CARPORT", "#ffb74d", "#ffe0b2", "#8d8d8d", CAR + '<rect x="130" y="80" width="110" height="6" fill="#455a64"/>') } },
       "camera.blink_pool": { state: "idle", attributes: { friendly_name: "Pool", supported_features: 0, entity_picture: camScene("POOL", "#81d4fa", "#e1f5fe", "#9ccc65", POOL + TREE(40)) } },
       "camera.blink_schuppen": { state: "idle", attributes: { friendly_name: "Schuppen", supported_features: 0, entity_picture: camScene("SCHUPPEN", "#5c6bc0", "#9fa8da", "#558b2f", SHED + TREE(70)) } },
+      "calendar.llm_vision_timeline": { state: "off", attributes: { friendly_name: "LLM Vision Timeline", title: "Marcels Auto", description: "Ein blauer VW (Modell T-Roc) steht im Eingangsbereich.",
+        key_frame: "/media/llmvision/snapshots/auto-1.jpg", camera_name: "camera.blink_carport", icon: "mdi:timeline-outline" } },
       ...Object.fromEntries(["tor", "carport", "pool", "schuppen"].flatMap((n, i) => [
         [`binary_sensor.blink_${n}_bewegung`, { state: n === "carport" ? "on" : "off", attributes: { friendly_name: `${n} Bewegung`, device_class: "motion" } }],
         [`binary_sensor.blink_${n}_batteriestand`, { state: n === "schuppen" ? "on" : "off", attributes: { friendly_name: `${n} Batteriestand`, device_class: "battery" } }],
@@ -570,8 +572,29 @@
       blink_pool: { id: "blink_pool", name: "Pool" }, blink_schuppen: { id: "blink_schuppen", name: "Schuppen" }, dev_opener: { id: "dev_opener", name: "Klingel", model: "Nuki Opener" }, dev_gree: { id: "dev_gree", name: "Klima Schlafzimmer" }, dev_govee: { id: "dev_govee", name: "Carport" },
       dev_ventil_hecke: { id: "dev_ventil_hecke", name: "Ventil Hecke" }, dev_ventil_rasen: { id: "dev_ventil_rasen", name: "Ventil Rasen" } };
     const ymd = (offset) => { const d = new Date(Date.now() + offset * 86400000); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+    // LLM Vision: Ereignisse wie llmvision.get_events (Bilder über media_source/resolve_media)
+    const FOX = '<g transform="translate(70 112)"><ellipse cx="0" cy="0" rx="16" ry="8" fill="#e65100"/><circle cx="16" cy="-6" r="6" fill="#e65100"/><path d="M-16 0 L-30 -6 L-28 4Z" fill="#ffcc80"/></g>';
+    const llmAgo = (min) => { const d = new Date(Date.now() - min * 60000); return d.toISOString(); };
+    const LLM_EVENTS = [
+      ["Marcels Auto", "Ein blauer VW (Modell T-Roc) steht im Eingangsbereich.", 6, "auto-1", "camera.blink_carport"],
+      ["Paketbote an der Tür", "Ein Zusteller in gelber Jacke legt ein Paket vor die Haustür.", 95, "paket-1", "camera.cam_haus"],
+      ["Mann im Garten", "Eine Person im schwarzen ärmellosen Shirt und hellen Shorts geht neben der Hütte im Garten.", 190, "person-1", "camera.cam_haus"],
+      ["Keine Aktivität", "Auf den Bildern ist keine Bewegung zu erkennen.", 260, "", "camera.blink_tor"],
+      ["🦊 Unbekanntes Tier", "Ein dunkles Tier steht im Hintergrund links neben dem Holzzaun. (Kamera Eingang)", 60 * 21, "tier-1", "camera.blink_tor"],
+      ["Marcels Auto", "Das Auto von Marcel steht im Gartenbereich der Überwachungskamera.", 60 * 27, "auto-2", "camera.blink_carport"],
+      ["🦊 Unbekanntes Tier", "Ein kleines Tier bewegt sich im Hintergrund in der Nähe des Zauns. (Kamera Eingang)", 60 * 46, "tier-2", "camera.blink_schuppen"],
+      ["Unbekannte Pflanze", "Auf den Kamerabildern ist lediglich die Nahaufnahme von Blättern und Ästen zu sehen.", 60 * 52, "", "camera.blink_pool"],
+    ].map(([title, description, min, img, cam], i) => ({ uid: `llm-${i}`, title, description, start: llmAgo(min), end: llmAgo(min - 1),
+      key_frame: img ? `/media/llmvision/snapshots/${img}.jpg` : "", camera_name: cam, category: "", label: "" }));
+    const LLM_IMAGES = {
+      "auto-1": camScene("CARPORT", "#ffb74d", "#ffe0b2", "#8d8d8d", CAR), "auto-2": camScene("CARPORT", "#90caf9", "#e3f2fd", "#8d8d8d", CAR),
+      "paket-1": camScene("HAUS", "#7cb6e8", "#cfe6f7", "#6a9e4f", HOUSE + PERSON + '<rect x="120" y="118" width="18" height="14" fill="#a1887f"/>'),
+      "person-1": camScene("HAUS", "#7cb6e8", "#cfe6f7", "#6a9e4f", SHED + PERSON + TREE(60)),
+      "tier-1": camScene("TOR", "#37474f", "#546e7a", "#33691e", TREE(250) + FOX), "tier-2": camScene("SCHUPPEN", "#263238", "#455a64", "#33691e", SHED + FOX),
+    };
     const makeHass = () => ({
       async callApi(method, path) {
+        if (path.startsWith("calendars/calendar.llm_vision_timeline")) return LLM_EVENTS.map((e) => ({ summary: e.title, description: e.description, start: { dateTime: e.start }, end: { dateTime: e.end }, uid: e.uid }));
         if (path.startsWith("calendars/calendar.abfall")) return [
           { summary: "Restmüll", start: { date: ymd(1) }, end: { date: ymd(2) } },
           { summary: "Altpapier", start: { date: ymd(1) }, end: { date: ymd(2) } },
@@ -580,10 +603,11 @@
         return [];
       },
       states: { ...states }, entities, devices, language: lang, locale: { language: lang },
-      services: { homematicip_local: { enable_away_mode_by_duration: {}, disable_away_mode: {} }, blink: { trigger_camera: {} }, ecovacs_goat_g1: { request_live_position_stream: {}, refresh_state: {} }, goat_mower: { mow_areas: {} } },
+      services: { homematicip_local: { enable_away_mode_by_duration: {}, disable_away_mode: {} }, blink: { trigger_camera: {} }, ecovacs_goat_g1: { request_live_position_stream: {}, refresh_state: {} }, goat_mower: { mow_areas: {} }, llmvision: { get_events: {} } },
       config: { unit_system: { temperature: "°C" } },
       async callService(domain, service, data) {
         window.serviceCalls.push({ domain, service, data });
+        if (domain === "llmvision" && service === "get_events") return { context: {}, response: { events: LLM_EVENTS } };
         log(`${domain}.${service} ${JSON.stringify(data)}`);
         const s = states[data.entity_id];
         if (domain === "light" || domain === "scene") {
@@ -791,6 +815,11 @@
       },
       async callWS(msg) {
         const out = {};
+        if (msg.type === "media_source/resolve_media") {
+          const key = String(msg.media_content_id).replace(/^.*snapshots\//, "").replace(/\.jpg$/, "");
+          if (!LLM_IMAGES[key]) throw new Error("not found");
+          return { url: LLM_IMAGES[key], mime_type: "image/svg+xml" };
+        }
         // Tageswerte der Energiekarte: Leistung seit 6 Uhr konstant auf dem aktuellen Wert
         // Langzeitstatistik (Tagesmittel) seit 1. Januar des Vorjahres für Monat/Jahr/Gesamt
         if (msg.type === "recorder/statistics_during_period") {
@@ -938,6 +967,7 @@
       ] }],
       ["Status – Batterien aus Bereich + Türkontakt + Einkaufsliste", { _status: true, areas: ["mein_zimmer"], shopping_list: true, expanded: true, contacts: [{ entity: "binary_sensor.tuerkontakt_pascal", name: "Tür" }] }],
       ["Status – Battery Notes am Gerät (Typ, „gewechselt vor“, gedrückt halten = Wechsel eintragen)", { _status: true, title: "Ventile", batteries: ["sensor.ventil_hecke_battery", "sensor.ventil_rasen_battery", "sensor.ventil_beete_battery"], shopping_list: true, expanded: true }],
+      ["KI-Timeline – LLM Vision: neuestes Ereignis mit Bild, Filter, Zeitleiste nach Tagen, Detail beim Antippen", { _llm: true, entity: "calendar.llm_vision_timeline" }],
       ["Starlink + Speedtest – Live-Durchsatz, Ping, Speedtest mit Verlauf und „Jetzt testen“, Verstauen/Neustart", { _starlink: true, entity: "binary_sensor.starlink_konnektivitat", speedtest: "sensor.speedtest_download" }],
       ["Starlink – Camper mit Sichtbehinderung und Heizung (ohne Speedtest)", { _starlink: true, entity: "binary_sensor.starlink_camper_konnektivitat", name: "Camper" }],
       ["Mähroboter – mäht gerade (Live-Karte, Fortschritt, Statistik, Wartung, Einstellungen)", { _mower: true, entity: "lawn_mower.goat_wiese", name: "GOAT Wiese" }],
@@ -975,9 +1005,9 @@
         grid.appendChild(wrap);
         return;
       }
-      const { _overview, _light, _group, _cover, _coverGroup, _switchTime, _media, _room, _status, _vacuum, _presence, _alert, _energy, _irrigation, _pool, _camera, _cameraGroup, _select, _mower, _starlink, ...rest } = cfg;
+      const { _overview, _light, _group, _cover, _coverGroup, _switchTime, _media, _room, _status, _vacuum, _presence, _alert, _energy, _irrigation, _pool, _camera, _cameraGroup, _select, _mower, _starlink, _llm, ...rest } = cfg;
       const tag = _overview ? "ha-climate-overview-card" : _group ? "ha-light-group-card" : _light ? "ha-light-card"
-        : _cover ? "ha-cover-card" : _coverGroup ? "ha-cover-group-card" : _switchTime ? "ha-switch-time-card" : _media ? "ha-media-card" : _room ? "ha-room-card" : _status ? "ha-status-card" : _vacuum ? "ha-vacuum-card" : _presence ? "ha-presence-card" : _alert ? "ha-alert-card" : _energy ? "ha-energy-card" : _irrigation ? "ha-irrigation-card" : _pool ? "ha-pool-card" : _camera ? "ha-camera-card" : _cameraGroup ? "ha-camera-group-card" : _select ? "ha-select-card" : _mower ? "ha-mower-card" : _starlink ? "ha-starlink-card" : "ha-climate-card";
+        : _cover ? "ha-cover-card" : _coverGroup ? "ha-cover-group-card" : _switchTime ? "ha-switch-time-card" : _media ? "ha-media-card" : _room ? "ha-room-card" : _status ? "ha-status-card" : _vacuum ? "ha-vacuum-card" : _presence ? "ha-presence-card" : _alert ? "ha-alert-card" : _energy ? "ha-energy-card" : _irrigation ? "ha-irrigation-card" : _pool ? "ha-pool-card" : _camera ? "ha-camera-card" : _cameraGroup ? "ha-camera-group-card" : _select ? "ha-select-card" : _mower ? "ha-mower-card" : _starlink ? "ha-starlink-card" : _llm ? "ha-llm-timeline-card" : "ha-climate-card";
       const card = document.createElement(tag);
       card.id = "card" + i;
       card.setConfig({ type: `custom:${tag}`, ...rest });
