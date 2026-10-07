@@ -22,6 +22,7 @@ export interface DeviceRegistryEntry {
   name?: string | null;
   name_by_user?: string | null;
   model?: string | null;
+  via_device_id?: string | null;
 }
 
 export interface HomeAssistant {
@@ -881,6 +882,51 @@ export interface LlmTimelineCardConfig {
   show_no_activity?: boolean;
   /** Nur diese Kameras */
   cameras?: string[];
+  animations?: "full" | "reduced" | "off";
+  [key: string]: unknown;
+}
+
+export interface HomeBatteryFeatures {
+  soc?: string;
+  energy?: string;
+  capacity?: string;
+  solar?: string;
+  battery_power?: string;
+  charge_power?: string;
+  discharge_power?: string;
+  home?: string;
+  grid_charge?: string;
+  socket?: string;
+  heater?: string;
+  status?: string;
+  mode?: string;
+  error?: string;
+  cloud?: string;
+  heating?: string;
+  solar_today?: string;
+  savings_today?: string;
+  savings?: string;
+  co2?: string;
+  refresh?: string;
+}
+
+export interface HomeBatteryShowConfig {
+  flow?: boolean;
+  strings?: boolean;
+  stats?: boolean;
+  history?: boolean;
+}
+
+export interface HomeBatteryCardConfig extends HomeBatteryFeatures {
+  type: string;
+  /** Ladestand-Sensor (device_class battery) */
+  entity: string;
+  name?: string;
+  /** PV-Strings (Standard: automatisch, z.B. solar_pv1…4) */
+  strings?: string[];
+  show?: HomeBatteryShowConfig;
+  /** Stunden im Verlauf (Standard 48) */
+  hours_to_show?: number;
   animations?: "full" | "reduced" | "off";
   [key: string]: unknown;
 }

@@ -1,4 +1,4 @@
-import type { ContactConfig, ContactType, EntityRegistryEntry, HassEntity, LlmCategory, LlmEvent } from "./types";
+import type { ContactConfig, ContactType, DeviceRegistryEntry, EntityRegistryEntry, HassEntity, LlmCategory, LlmEvent } from "./types";
 import { ACTION_ICONS, ACTION_TO_MODE, ClimateFeature, DEFAULT_SHOW, MODE_COLORS, MODE_ICONS, supports } from "./const";
 
 export const UNAVAILABLE = ["unavailable", "unknown"];
@@ -1595,4 +1595,72 @@ export const dayGroups = <T extends { start: string }>(events: T[]): { day: stri
     else out.push({ day, date: new Date(d.getFullYear(), d.getMonth(), d.getDate()), items: [e] });
   }
   return out;
+};
+
+/** Hausakku (z.B. Anker Solarbank): Entitäten des Geräts und des übergeordneten Systems (via_device_id) finden */
+export const homeBatteryFeatures = (states: Record<string, HassEntity>, entities: Record<string, EntityRegistryEntry> | undefined,
+  devices: Record<string, DeviceRegistryEntry> | undefined, anchor: string): { f: Record<string, string | undefined>; strings: string[] } => {
+  const dev = entities?.[anchor]?.device_id;
+  if (!dev || !entities) return { f: {}, strings: [] };
+  const parent = devices?.[dev]?.via_device_id ?? undefined;
+  const all = Object.values(entities).filter((e) => states[e.entity_id] && (e.device_id === dev || (parent && e.device_id === parent)));
+  // Gerät zuerst, dann System
+  all.sort((a, b) => Number(a.device_id !== dev) - Number(b.device_id !== dev) || a.entity_id.localeCompare(b.entity_id));
+  const ids = all.map((e) => e.entity_id);
+  const name = (id: string) => `${id} ${states[id]?.attributes.friendly_name ?? ""}`.toLowerCase();
+  const attr = (id: string, k: string) => states[id]?.attributes[k];
+  const isPower = (id: string) => attr(id, "device_class") === "power" || /^k?W$/.test(String(attr(id, "unit_of_measurement") ?? ""));
+  const find = (pred: (id: string) => boolean) => ids.find(pred);
+  const sensor = (re: RegExp, extra: (id: string) => boolean = () => true, not?: RegExp) =>
+    find((id) => id.startsWith("sensor.") && re.test(name(id)) && extra(id) && !(not && not.test(name(id))));
+  const strings = ids.filter((id) => id.startsWith("sensor.") && /(solar_)?pv_?\d\b|pv\d$|string_?\d/.test(id) && isPower(id));
+  return {
+    strings,
+    f: {
+      soc: anchor,
+      energy: find((id) => id.startsWith("sensor.") && attr(id, "device_class") === "energy_storage" && !/kapazit|capacity/.test(name(id))),
+      capacity: find((id) => /^(number|sensor)\./.test(id) && attr(id, "device_class") === "energy_storage" && /kapazit|capacity/.test(name(id))),
+      solar: sensor(/solarleistung|solar_?power|pv_?power|photovoltai|solar_production/, isPower, /pv_?\d|string_?\d|_sb_|sb solar/),
+      battery_power: sensor(/akkuleistung|battery_power|batterie.?leistung/, isPower, /_sb_|sb akku/),
+      charge_power: sensor(/aufladeleistung|charging_power|charge_power/, isPower),
+      discharge_power: sensor(/entladeleistung|discharg/, isPower),
+      home: sensor(/hausabgabe|output_power|home_load|ac_output|ausgangsleistung/, isPower, /dc_|steckdose|socket/),
+      grid_charge: sensor(/netzaufladung|grid_?charg|ac_charg/, isPower),
+      socket: sensor(/steckdose|ac_socket|outlet/, isPower),
+      heater: sensor(/heizleistung|heating_power/, isPower),
+      status: sensor(/betriebszustand|charging_status|operating|operation_mode/),
+      mode: sensor(/benutzermodus|usage_mode|user_mode/),
+      error: sensor(/fehlercode|error_code|\berror\b/),
+      cloud: sensor(/cloud/),
+      heating: find((id) => id.startsWith("binary_sensor.") && /akkuheizung|battery_heat|heating/.test(name(id))),
+      solar_today: sensor(/erzeugung_tag|erzeugung tag|solar.*(today|daily|tag)\b|teges_ertrag/, (id) => attr(id, "device_class") === "energy" || /kWh/.test(String(attr(id, "unit_of_measurement")))),
+      savings_today: sensor(/kostenersparnis_tag|savings_(today|daily)/),
+      savings: sensor(/kostenersparnis|savings|ersparnis/, (id) => !/tag|monat|jahr|today|month|year|daily/.test(id)),
+      co2: sensor(/co2|co₂/),
+      refresh: find((id) => id.startsWith("button.") && /aktualisier|refresh|update/.test(name(id))),
+    },
+  };
+};
+
+/** Minuten bis leer (Entladen, power < 0) bzw. voll (Laden, power > 0) */
+export const batteryEta = (energyWh: number | undefined, capacityWh: number | undefined, powerW: number | undefined): number | undefined => {
+  if (energyWh == null || powerW == null || !Number.isFinite(energyWh) || !Number.isFinite(powerW) || Math.abs(powerW) < 5) return undefined;
+  if (powerW < 0) return (energyWh / -powerW) * 60;
+  if (capacityWh == null || !Number.isFinite(capacityWh) || capacityWh <= energyWh) return undefined;
+  return ((capacityWh - energyWh) / powerW) * 60;
+};
+
+/** Betriebszustand (Anker Solix u.a.) → Übersetzungsschlüssel und Richtung */
+export const batteryStatusKey = (state?: string, powerW?: number): { key: string; dir: "charge" | "discharge" | "idle" | "full" | "error" } => {
+  const s = String(state ?? "").toLowerCase();
+  if (/fully_charged|^full$|voll/.test(s)) return { key: "full", dir: "full" };
+  if (/protection|error|fault/.test(s)) return { key: "protection", dir: "error" };
+  if (/charge_ac|grid/.test(s)) return { key: "charge_grid", dir: "charge" };
+  if (/discharge/.test(s)) return { key: s.includes("bypass") ? "bypass_discharge" : "discharge", dir: "discharge" };
+  if (/charge/.test(s)) return { key: s.includes("bypass") ? "charge_bypass" : "charge", dir: "charge" };
+  if (/bypass/.test(s)) return { key: "bypass", dir: "idle" };
+  if (/standby|idle|wakeup|detection/.test(s)) return { key: "standby", dir: "idle" };
+  if (powerW != null && powerW > 5) return { key: "charge", dir: "charge" };
+  if (powerW != null && powerW < -5) return { key: "discharge", dir: "discharge" };
+  return { key: "standby", dir: "idle" };
 };

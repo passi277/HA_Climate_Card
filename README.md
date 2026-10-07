@@ -504,6 +504,24 @@ entity: calendar.llm_vision_timeline
 # cameras: [camera.haus_standardauflosung]
 ```
 
+## Modern Home Battery Card (Hausakku / Solarbank)
+
+Für Hausakkus und Balkonkraftwerke mit Speicher – getestet mit der **Anker Solarbank 3 E2700 Pro** (`anker_solix`): großer
+**Ladestand-Ring** mit Wh und Kapazität, Lade-/Entladeleistung und **Restzeit** („leer in ~22 h“, „voll in 2 h 18 min“), übersetzter
+Betriebszustand (Lädt, Entlädt · Durchleitung, Voll …) und Modus, **animierter Energiefluss** Solar → Akku → Haus (Tempo nach Leistung,
+Netzladung und Steckdose nur wenn aktiv), **PV-Module** mit Namen und Anteil, Kacheln für Solar heute, Ersparnis heute/gesamt und CO₂,
+**Verlauf** von Ladestand und Solarleistung sowie Hinweise bei Fehlercode, Cloud offline oder fast leerem Akku. Alle Entitäten werden
+über das Gerät und das übergeordnete System erkannt (deutsche und englische Namen) – jede lässt sich überschreiben.
+
+```yaml
+type: custom:ha-home-battery-card
+entity: sensor.solarbank_3_e2700_pro_ladestand
+# name: Solarbank
+# hours_to_show: 48
+# show: { history: false }   # flow, strings, stats, history
+# solar: sensor.xyz          # Zuordnung überschreiben (home, battery_power, capacity, status, strings: […] …)
+```
+
 ## Modern Vacuum Card (Saugroboter)
 
 - **Live-Karte** aus dem Kartenbild (z.B. Roborock Custom Map, `image.*`) – mit Roboter-Position, automatisch auf die
@@ -884,6 +902,7 @@ glow, smooth color transitions, animations), shipped as a single HACS download:
 - `custom:ha-mower-card` – lawn mower with animated lawn or live map, controls, current run, statistics, blade wear and settings
 - `custom:ha-starlink-card` – Starlink dish (status, live throughput, ping, packet loss, warnings, stow/reboot) plus external speed test with history and "run test now"
 - `custom:ha-llm-timeline-card` – LLM Vision timeline: latest event with snapshot, category/camera filters, day-grouped timeline and detail view
+- `custom:ha-home-battery-card` – home battery / solar storage (e.g. Anker Solarbank): charge ring with time left, animated solar → battery → home flow, PV strings, savings, history
 - `custom:ha-vacuum-card` – robot vacuum with live map, tap rooms on the map for room cleaning, controls, modes, maintenance
 - `custom:ha-presence-card` – people as photo tiles (home/away, phone battery and charging found automatically) plus front door: hold to open (Nuki Opener), Ring to Open, doorbell
 - `custom:ha-alert-card` – alerts that only appear when something is going on (window open, vacuum error, low battery …), hidden otherwise

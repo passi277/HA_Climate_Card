@@ -19,7 +19,7 @@ const walk = (dir) => {
 walk(join(root, "src"));
 sources.push(template);
 
-const toKey = (name) => "mdi" + name.split("-").map((p) => p[0].toUpperCase() + p.slice(1)).join("");
+const toKey = (name) => "mdi" + name.split("-").filter(Boolean).map((p) => p[0].toUpperCase() + p.slice(1)).join("");
 const icons = {};
 for (const [, name] of sources.join("\n").matchAll(/mdi:([a-z0-9-]+)/g)) {
   const key = toKey(name);

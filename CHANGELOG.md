@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.35.0 – Hausakku
+- Neue **Modern Home Battery Card** (`custom:ha-home-battery-card`), z.B. für die Anker Solarbank: Ladestand-Ring mit Wh/Kapazität, Lade-/Entladeleistung und Restzeit bis leer/voll, übersetzter Betriebszustand und Modus, animierter Energiefluss Solar → Akku → Haus, PV-Module mit Namen, Solar heute, Ersparnis heute/gesamt, CO₂, Verlauf von Ladestand und Solar, Warnungen (Fehlercode, Cloud offline, fast leer), Aktualisieren-Taste
+- Entitäten werden über Gerät und übergeordnetes System (`via_device_id`) erkannt, visueller Editor
+- Demo-Build: dynamische Symbolnamen brechen den Build nicht mehr ab
+
 ## 1.34.0 – KI-Timeline
 - Neue **Modern LLM Vision Timeline** (`custom:ha-llm-timeline-card`): neuestes Ereignis groß mit Snapshot, Kategorie, Zeit und Kamera; Filter nach Personen, Fahrzeugen, Tieren, Paketen und Kameras; Zeitleiste nach Tagen mit Vorschaubildern; Detailansicht mit großem Bild, Beschreibung und „Kamera öffnen“
 - Daten über `llmvision.get_events` (Bilder über `media_source`, signiert), Rückfall auf den Kalender; Kategorie aus Label oder Text (deutsch/englisch); „Keine Aktivität“ standardmäßig ausgeblendet; visueller Editor

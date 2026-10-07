@@ -521,6 +521,34 @@
       "camera.blink_carport": { state: "idle", attributes: { friendly_name: "Carport", supported_features: 0, entity_picture: camScene("CARPORT", "#ffb74d", "#ffe0b2", "#8d8d8d", CAR + '<rect x="130" y="80" width="110" height="6" fill="#455a64"/>') } },
       "camera.blink_pool": { state: "idle", attributes: { friendly_name: "Pool", supported_features: 0, entity_picture: camScene("POOL", "#81d4fa", "#e1f5fe", "#9ccc65", POOL + TREE(40)) } },
       "camera.blink_schuppen": { state: "idle", attributes: { friendly_name: "Schuppen", supported_features: 0, entity_picture: camScene("SCHUPPEN", "#5c6bc0", "#9fa8da", "#558b2f", SHED + TREE(70)) } },
+      // Anker Solarbank 3 E2700 Pro (anker_solix) + System – deutsche Namen wie im Garten; „sonne“ = lädt bei Sonne
+      ...Object.fromEntries([["solarbank_3_e2700_pro", "system_solix_garten", 19, 510, "bypass_discharge", 62, 3, 7, -23, 85, 0], ["solarbank_sonne", "system_sonne", 64, 1720, "charge_bypass", 640, 352, 288, 420, 200, 0]]
+        .flatMap(([d, sys, soc, wh, st, solar, pv1, pv2, batt, home, grid]) => [
+          [`sensor.${d}_ladestand`, { state: String(soc), attributes: { friendly_name: "Ladestand", unit_of_measurement: "%", device_class: "battery" } }],
+          [`sensor.${d}_akkuenergie`, { state: String(wh), attributes: { friendly_name: "Akkuenergie", unit_of_measurement: "Wh", device_class: "energy_storage" } }],
+          [`number.${d}_akku_kapazitat`, { state: "2688", attributes: { friendly_name: "Akku Kapazität", unit_of_measurement: "Wh", device_class: "energy_storage", min: 0, max: 100000, step: 1 } }],
+          [`sensor.${d}_betriebszustand`, { state: st, attributes: { friendly_name: "Betriebszustand", device_class: "enum" } }],
+          [`sensor.${d}_solarleistung`, { state: String(solar), attributes: { friendly_name: "Solarleistung", unit_of_measurement: "W", device_class: "power" } }],
+          [`sensor.${d}_solar_pv1`, { state: String(pv1), attributes: { friendly_name: "Solar PV1", name: "PV Outdoor-Küche links", unit_of_measurement: "W", device_class: "power" } }],
+          [`sensor.${d}_solar_pv2`, { state: String(pv2), attributes: { friendly_name: "Solar PV2", name: "PV Outdoor-Küche rechts", unit_of_measurement: "W", device_class: "power" } }],
+          [`sensor.${d}_solar_pv3`, { state: "0", attributes: { friendly_name: "Solar PV3", unit_of_measurement: "W", device_class: "power" } }],
+          [`sensor.${d}_akkuleistung`, { state: String(batt), attributes: { friendly_name: "Akkuleistung", unit_of_measurement: "W", device_class: "power" } }],
+          [`sensor.${d}_aufladeleistung`, { state: String(Math.max(0, batt)), attributes: { friendly_name: "Aufladeleistung", unit_of_measurement: "W", device_class: "power" } }],
+          [`sensor.${d}_entladeleistung`, { state: String(Math.max(0, -batt)), attributes: { friendly_name: "Entladeleistung", unit_of_measurement: "W", device_class: "power" } }],
+          [`sensor.${d}_ac_hausabgabe`, { state: String(home), attributes: { friendly_name: "AC Hausabgabe", unit_of_measurement: "W", device_class: "power" } }],
+          [`sensor.${d}_ac_steckdose`, { state: "0", attributes: { friendly_name: "AC Steckdose", unit_of_measurement: "W", device_class: "power" } }],
+          [`sensor.${d}_netzaufladung`, { state: String(grid), attributes: { friendly_name: "Netzaufladung", unit_of_measurement: "W", device_class: "power" } }],
+          [`sensor.${d}_heizleistung`, { state: "0", attributes: { friendly_name: "Heizleistung", unit_of_measurement: "W", device_class: "power" } }],
+          [`sensor.${d}_fehlercode`, { state: "0", attributes: { friendly_name: "Fehlercode" } }],
+          [`sensor.${d}_cloud_zustand`, { state: "online", attributes: { friendly_name: "Cloud Zustand", device_class: "enum" } }],
+          [`button.${d}_details_aktualisieren`, { state: "unknown", attributes: { friendly_name: "Details aktualisieren" } }],
+          [`sensor.${sys}_aktiver_benutzermodus`, { state: "smart", attributes: { friendly_name: "Aktiver Benutzermodus", device_class: "enum" } }],
+          [`sensor.${sys}_kostenersparnis`, { state: "551.63", attributes: { friendly_name: "Kostenersparnis", unit_of_measurement: "€" } }],
+          [`sensor.${sys}_co2_einsparung`, { state: "533.29", attributes: { friendly_name: "CO₂ Einsparung", unit_of_measurement: "kg" } }],
+          [`binary_sensor.${sys}_akkuheizung`, { state: "off", attributes: { friendly_name: "Akkuheizung", device_class: "heat" } }],
+          [`sensor.${sys}_solarerzeugung_tag`, { state: d.includes("sonne") ? "2.84" : "0.06", attributes: { friendly_name: "Solarerzeugung Tag", unit_of_measurement: "kWh", device_class: "energy" } }],
+          [`sensor.${sys}_solar_kostenersparnis_tag`, { state: d.includes("sonne") ? "1.02" : "0.38", attributes: { friendly_name: "Solar Kostenersparnis Tag", unit_of_measurement: "€" } }],
+        ])),
       "calendar.llm_vision_timeline": { state: "off", attributes: { friendly_name: "LLM Vision Timeline", title: "Marcels Auto", description: "Ein blauer VW (Modell T-Roc) steht im Eingangsbereich.",
         key_frame: "/media/llmvision/snapshots/auto-1.jpg", camera_name: "camera.blink_carport", icon: "mdi:timeline-outline" } },
       ...Object.fromEntries(["tor", "carport", "pool", "schuppen"].flatMap((n, i) => [
@@ -563,6 +591,7 @@
       ...(/_mein_zimmer_batter|zimmer_schalter_batter|turkontakt_mein_zimmer_batter/.test(id) ? { device_id: id.replace(/^\w+\.|_battery_plus.*|_batterie$/g, "") } : {}),
       ...(/^\w+\.(cam_haus|blink_(tor|carport|pool|schuppen))/.test(id) ? { device_id: id.match(/^\w+\.(cam_haus|blink_(tor|carport|pool|schuppen))/)[1], platform: id.includes("blink") ? "blink" : "reolink" } : {}),
       ...(/^(sensor|button)\.(ventil|wasser)_(hecke|rasen)_batter/.test(id) ? { device_id: "dev_ventil_" + id.match(/_(hecke|rasen)_/)[1], ...(id.includes("wasser_") ? { platform: "battery_notes" } : {}) } : {}),
+      ...(/^\w+\.(solarbank_3_e2700_pro|solarbank_sonne|system_solix_garten|system_sonne)_/.test(id) ? { device_id: /solarbank_sonne|system_sonne/.test(id) ? (id.includes("system_") ? "dev_sys_sonne" : "dev_sb_sonne") : (id.includes("system_") ? "dev_sys_garten" : "dev_sb_garten"), platform: "anker_solix" } : {}),
       ...(/^\w+\.starlink_/.test(id) ? { device_id: id.includes("camper") ? "dev_starlink_camper" : "dev_starlink", platform: "starlink",
         translation_key: { konnektivitat: "connection", ping: "ping", ping_drop_rate: "ping_drop_rate", downlink_durchsatz: "downlink_throughput", uplink_durchsatz: "uplink_throughput", download: "download", upload: "upload", letzter_neustart: "last_boot_time", beeintrachtigt: "currently_obstructed", heizung: "heating", ruhezustand: "power_save_idle", verstaut: "stowed", zeitplan_fur_ruhezustand: "sleep_schedule", neu_starten: "reboot" }[id.replace(/^\w+\.starlink_(camper_)?/, "")] } : {}),
       ...(/^sensor\.speedtest_/.test(id) ? { device_id: "dev_speedtest", platform: "speedtestdotnet", translation_key: id.replace("sensor.speedtest_", "") } : {}),
@@ -570,7 +599,9 @@
       area_id: /heizung_mein_zimmer|etrv_|wandthermostat_mein|_mein_zimmer_batter|zimmer_schalter_batter|turkontakt_mein_zimmer_batter/.test(id) ? "mein_zimmer" : null }]));
     const devices = { cam_haus: { id: "cam_haus", name: "Haus" }, blink_tor: { id: "blink_tor", name: "Tor" }, blink_carport: { id: "blink_carport", name: "Carport" },
       blink_pool: { id: "blink_pool", name: "Pool" }, blink_schuppen: { id: "blink_schuppen", name: "Schuppen" }, dev_opener: { id: "dev_opener", name: "Klingel", model: "Nuki Opener" }, dev_gree: { id: "dev_gree", name: "Klima Schlafzimmer" }, dev_govee: { id: "dev_govee", name: "Carport" },
-      dev_ventil_hecke: { id: "dev_ventil_hecke", name: "Ventil Hecke" }, dev_ventil_rasen: { id: "dev_ventil_rasen", name: "Ventil Rasen" } };
+      dev_ventil_hecke: { id: "dev_ventil_hecke", name: "Ventil Hecke" }, dev_ventil_rasen: { id: "dev_ventil_rasen", name: "Ventil Rasen" },
+      dev_sb_garten: { id: "dev_sb_garten", name: "Solarbank 3 E2700 Pro", via_device_id: "dev_sys_garten" }, dev_sys_garten: { id: "dev_sys_garten", name: "System Solix Garten" },
+      dev_sb_sonne: { id: "dev_sb_sonne", name: "Solarbank Hütte", via_device_id: "dev_sys_sonne" }, dev_sys_sonne: { id: "dev_sys_sonne", name: "System Hütte" } };
     const ymd = (offset) => { const d = new Date(Date.now() + offset * 86400000); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
     // LLM Vision: Ereignisse wie llmvision.get_events (Bilder über media_source/resolve_media)
     const FOX = '<g transform="translate(70 112)"><ellipse cx="0" cy="0" rx="16" ry="8" fill="#e65100"/><circle cx="16" cy="-6" r="6" fill="#e65100"/><path d="M-16 0 L-30 -6 L-28 4Z" fill="#ffcc80"/></g>';
@@ -844,6 +875,19 @@
           }
           return out;
         }
+        // Solarbank: Ladestand und Solarleistung über 48 h (Tagesgang)
+        if (msg.entity_ids.some((id) => /solarbank_(3_e2700_pro|sonne)_(ladestand|solarleistung)$/.test(id))) {
+          const now = Date.now() / 1000;
+          for (const id of msg.entity_ids) {
+            out[id] = Array.from({ length: 97 }, (_, i) => {
+              const t = now - (96 - i) * 1800, hour = new Date(t * 1000).getHours() + new Date(t * 1000).getMinutes() / 60;
+              const sun = Math.max(0, Math.sin(((hour - 7) / 12) * Math.PI));
+              const v = id.endsWith("solarleistung") ? Math.round(sun * 720) : Math.round(Math.min(100, Math.max(8, 35 + 55 * Math.sin(((hour - 11) / 24) * 2 * Math.PI))));
+              return { s: String(v), lu: t };
+            });
+          }
+          return out;
+        }
         // Pool-Werte: 48 h Verlauf mit Tagesgang
         if (msg.no_attributes && msg.entity_ids.every((id) => /^sensor\.pool_(wassertemperatur|ph_wert|redox)$/.test(id))) {
           const now = Date.now() / 1000;
@@ -967,6 +1011,8 @@
       ] }],
       ["Status – Batterien aus Bereich + Türkontakt + Einkaufsliste", { _status: true, areas: ["mein_zimmer"], shopping_list: true, expanded: true, contacts: [{ entity: "binary_sensor.tuerkontakt_pascal", name: "Tür" }] }],
       ["Status – Battery Notes am Gerät (Typ, „gewechselt vor“, gedrückt halten = Wechsel eintragen)", { _status: true, title: "Ventile", batteries: ["sensor.ventil_hecke_battery", "sensor.ventil_rasen_battery", "sensor.ventil_beete_battery"], shopping_list: true, expanded: true }],
+      ["Hausakku – Anker Solarbank entlädt (Ring, Restzeit, Fluss Solar → Akku → Haus, PV-Module, Ersparnis, Verlauf)", { _hbat: true, entity: "sensor.solarbank_3_e2700_pro_ladestand" }],
+      ["Hausakku – lädt bei Sonne", { _hbat: true, entity: "sensor.solarbank_sonne_ladestand", show: { history: false } }],
       ["KI-Timeline – LLM Vision: neuestes Ereignis mit Bild, Filter, Zeitleiste nach Tagen, Detail beim Antippen", { _llm: true, entity: "calendar.llm_vision_timeline" }],
       ["Starlink + Speedtest – Live-Durchsatz, Ping, Speedtest mit Verlauf und „Jetzt testen“, Verstauen/Neustart", { _starlink: true, entity: "binary_sensor.starlink_konnektivitat", speedtest: "sensor.speedtest_download" }],
       ["Starlink – Camper mit Sichtbehinderung und Heizung (ohne Speedtest)", { _starlink: true, entity: "binary_sensor.starlink_camper_konnektivitat", name: "Camper" }],
@@ -1005,9 +1051,9 @@
         grid.appendChild(wrap);
         return;
       }
-      const { _overview, _light, _group, _cover, _coverGroup, _switchTime, _media, _room, _status, _vacuum, _presence, _alert, _energy, _irrigation, _pool, _camera, _cameraGroup, _select, _mower, _starlink, _llm, ...rest } = cfg;
+      const { _overview, _light, _group, _cover, _coverGroup, _switchTime, _media, _room, _status, _vacuum, _presence, _alert, _energy, _irrigation, _pool, _camera, _cameraGroup, _select, _mower, _starlink, _llm, _hbat, ...rest } = cfg;
       const tag = _overview ? "ha-climate-overview-card" : _group ? "ha-light-group-card" : _light ? "ha-light-card"
-        : _cover ? "ha-cover-card" : _coverGroup ? "ha-cover-group-card" : _switchTime ? "ha-switch-time-card" : _media ? "ha-media-card" : _room ? "ha-room-card" : _status ? "ha-status-card" : _vacuum ? "ha-vacuum-card" : _presence ? "ha-presence-card" : _alert ? "ha-alert-card" : _energy ? "ha-energy-card" : _irrigation ? "ha-irrigation-card" : _pool ? "ha-pool-card" : _camera ? "ha-camera-card" : _cameraGroup ? "ha-camera-group-card" : _select ? "ha-select-card" : _mower ? "ha-mower-card" : _starlink ? "ha-starlink-card" : _llm ? "ha-llm-timeline-card" : "ha-climate-card";
+        : _cover ? "ha-cover-card" : _coverGroup ? "ha-cover-group-card" : _switchTime ? "ha-switch-time-card" : _media ? "ha-media-card" : _room ? "ha-room-card" : _status ? "ha-status-card" : _vacuum ? "ha-vacuum-card" : _presence ? "ha-presence-card" : _alert ? "ha-alert-card" : _energy ? "ha-energy-card" : _irrigation ? "ha-irrigation-card" : _pool ? "ha-pool-card" : _camera ? "ha-camera-card" : _cameraGroup ? "ha-camera-group-card" : _select ? "ha-select-card" : _mower ? "ha-mower-card" : _starlink ? "ha-starlink-card" : _llm ? "ha-llm-timeline-card" : _hbat ? "ha-home-battery-card" : "ha-climate-card";
       const card = document.createElement(tag);
       card.id = "card" + i;
       card.setConfig({ type: `custom:${tag}`, ...rest });

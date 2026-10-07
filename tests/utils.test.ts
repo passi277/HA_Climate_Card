@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { HassEntity } from "../src/types";
 import {
   batteryHoursLeft, consumerGrid, formatHours, integratePower, statsEnergy, flowLpm, timerInfo, formatRemaining, rangeStatus, phDose, poolRuntimeRecommendation, cameraFeatures, wifiQuality, optionStyle, musicModes, isMusicEffect, energyFlows, formatPower, powerWatts, alertActive, batteryShoppingList, clockMinutes, upcomingPickups, wasteStyle, batteryIcon, doorDevices, doorKind, initials, isCharging, phoneSensors, brightnessPct, contactType, calibrationTransform, roomsFromMap, roomIcon, areaBatteries, batteryInfo, batteryNotesFor, mowerFeatures, mowerPhase, mapGeometry, mowerAreas, polygonSize, extendTrail, presetActive, presetData, DEFAULT_LIGHT_PRESETS, activityIcon, activityLabel, guessControlDevice, guessVolumeDevice, coverIcon, datetimeParts, nextOccurrence, coverPosition, skyPhase, sunPlacement, weatherOverlay, editorOptions, isNoEffect, lightEditorOptions, segmentIds, detectDeviceType, kelvinToRgb, lightColor, relatedScenes, supportsColor, supportsColorTemp, dewPoint, nextSwitch, parseSchedule, scheduleTempAt, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
-  llmEvents, llmCategory, snapshotMediaId, dayGroups,
+  llmEvents, llmCategory, snapshotMediaId, dayGroups, homeBatteryFeatures, batteryEta, batteryStatusKey,
   starlinkFeatures, speedtestFeatures, formatRate, formatBytes, formatUptime, toMbit, pingQuality,
   openContactsKey, powerOf, resolveContacts, secondsToDuration, stateIcon, temperatureOf, temperatureTint, trendSlope,
 } from "../src/utils";
@@ -873,5 +873,65 @@ describe("LLM Vision Timeline", () => {
     expect(snapshotMediaId("/config/www/x.jpg")).toBeUndefined();
     const g = dayGroups([{ start: "2026-10-07T09:00:00" }, { start: "2026-10-07T07:00:00" }, { start: "2026-10-05T22:00:00" }]);
     expect(g.map((x) => x.items.length)).toEqual([2, 1]);
+  });
+});
+
+describe("Hausakku (Anker Solarbank)", () => {
+  const dev = "sb", site = "site";
+  const list: [string, string, Record<string, any>, string][] = [
+    ["sensor.solarbank_3_e2700_pro_ladestand", "19", { device_class: "battery", unit_of_measurement: "%" }, dev],
+    ["sensor.solarbank_3_e2700_pro_akkuenergie", "510", { device_class: "energy_storage", unit_of_measurement: "Wh" }, dev],
+    ["number.solarbank_3_e2700_pro_akku_kapazitat", "2688", { device_class: "energy_storage", unit_of_measurement: "Wh", friendly_name: "Akku Kapazität" }, dev],
+    ["sensor.solarbank_3_e2700_pro_betriebszustand", "bypass_discharge", { device_class: "enum" }, dev],
+    ["sensor.solarbank_3_e2700_pro_solarleistung", "62", { device_class: "power", unit_of_measurement: "W" }, dev],
+    ["sensor.solarbank_3_e2700_pro_solar_pv1", "3", { device_class: "power", unit_of_measurement: "W", name: "PV links" }, dev],
+    ["sensor.solarbank_3_e2700_pro_solar_pv2", "7", { device_class: "power", unit_of_measurement: "W" }, dev],
+    ["sensor.solarbank_3_e2700_pro_ac_steckdose", "0", { device_class: "power", unit_of_measurement: "W" }, dev],
+    ["sensor.solarbank_3_e2700_pro_dc_ausgangsleistung", "0", { device_class: "power", unit_of_measurement: "W" }, dev],
+    ["sensor.solarbank_3_e2700_pro_akkuleistung", "-23", { device_class: "power", unit_of_measurement: "W" }, dev],
+    ["sensor.solarbank_3_e2700_pro_aufladeleistung", "0", { device_class: "power", unit_of_measurement: "W" }, dev],
+    ["sensor.solarbank_3_e2700_pro_entladeleistung", "23", { device_class: "power", unit_of_measurement: "W" }, dev],
+    ["sensor.solarbank_3_e2700_pro_ac_hausabgabe", "85", { device_class: "power", unit_of_measurement: "W" }, dev],
+    ["sensor.solarbank_3_e2700_pro_netzaufladung", "0", { device_class: "power", unit_of_measurement: "W" }, dev],
+    ["sensor.solarbank_3_e2700_pro_heizleistung", "0", { device_class: "power", unit_of_measurement: "W" }, dev],
+    ["sensor.solarbank_3_e2700_pro_fehlercode", "0", {}, dev],
+    ["sensor.solarbank_3_e2700_pro_cloud_zustand", "online", {}, dev],
+    ["button.solarbank_3_e2700_pro_details_aktualisieren", "unknown", {}, dev],
+    ["sensor.system_solix_garten_sb_solarleistung", "62", { device_class: "power", unit_of_measurement: "W", friendly_name: "System Solix Garten SB Solarleistung" }, site],
+    ["sensor.system_solix_garten_sb_akkuleistung", "-23", { device_class: "power", unit_of_measurement: "W" }, site],
+    ["sensor.system_solix_garten_aktiver_benutzermodus", "smart", {}, site],
+    ["sensor.system_solix_garten_kostenersparnis", "551.63", { unit_of_measurement: "€" }, site],
+    ["sensor.system_solix_garten_co2_einsparung", "533", { unit_of_measurement: "kg" }, site],
+    ["binary_sensor.system_solix_garten_akkuheizung", "off", { device_class: "heat" }, site],
+    ["sensor.solarerzeugung_tag", "0.06", { device_class: "energy", unit_of_measurement: "kWh" }, site],
+    ["sensor.solar_kostenersparnis_tag_2", "0.38", { unit_of_measurement: "€" }, site],
+  ];
+  const states = Object.fromEntries(list.map(([id, s, a]) => [id, entity(id, s, a)]));
+  const entities = Object.fromEntries(list.map(([id, , , d]) => [id, { entity_id: id, device_id: d }]));
+  const devices = { sb: { id: "sb", via_device_id: "site" }, site: { id: "site" } };
+
+  it("findet alle Werte über Gerät und System", () => {
+    const { f, strings } = homeBatteryFeatures(states, entities, devices, "sensor.solarbank_3_e2700_pro_ladestand");
+    const p = "sensor.solarbank_3_e2700_pro_";
+    expect(f).toMatchObject({
+      energy: `${p}akkuenergie`, capacity: "number.solarbank_3_e2700_pro_akku_kapazitat", status: `${p}betriebszustand`, solar: `${p}solarleistung`,
+      battery_power: `${p}akkuleistung`, charge_power: `${p}aufladeleistung`, discharge_power: `${p}entladeleistung`, home: `${p}ac_hausabgabe`,
+      grid_charge: `${p}netzaufladung`, socket: `${p}ac_steckdose`, heater: `${p}heizleistung`, error: `${p}fehlercode`, cloud: `${p}cloud_zustand`,
+      refresh: "button.solarbank_3_e2700_pro_details_aktualisieren", mode: "sensor.system_solix_garten_aktiver_benutzermodus",
+      savings: "sensor.system_solix_garten_kostenersparnis", savings_today: "sensor.solar_kostenersparnis_tag_2", solar_today: "sensor.solarerzeugung_tag",
+      co2: "sensor.system_solix_garten_co2_einsparung", heating: "binary_sensor.system_solix_garten_akkuheizung",
+    });
+    expect(strings).toEqual([`${p}solar_pv1`, `${p}solar_pv2`]);
+    expect(homeBatteryFeatures(states, undefined, devices, "x").f).toEqual({});
+  });
+
+  it("berechnet Restzeit und Status", () => {
+    expect(Math.round(batteryEta(510, 2688, -23)! / 60)).toBe(22);
+    expect(Math.round(batteryEta(1000, 2688, 422)!)).toBe(240);
+    expect(batteryEta(510, 2688, 2)).toBeUndefined();
+    expect(batteryStatusKey("bypass_discharge")).toEqual({ key: "bypass_discharge", dir: "discharge" });
+    expect(batteryStatusKey("charge_ac")).toEqual({ key: "charge_grid", dir: "charge" });
+    expect(batteryStatusKey("fully_charged")).toEqual({ key: "full", dir: "full" });
+    expect(batteryStatusKey("unknown", 300).dir).toBe("charge");
   });
 });

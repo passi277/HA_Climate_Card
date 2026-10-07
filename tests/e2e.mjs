@@ -1430,6 +1430,24 @@ colorFails.length ? fail(`Farbe folgt nicht dem Modus: ${colorFails.join(", ")}`
   (await q(() => !document.querySelector("ha-llm-timeline-card").shadowRoot.querySelector("dialog.detail"))) ? ok("KI-Timeline: Detail schließt") : fail("KI-Timeline: Detail bleibt offen");
 }
 
+// Hausakku (Anker Solarbank)
+{
+  const info = await p.evaluate(() => [...document.querySelectorAll("ha-home-battery-card")].map((c) => {
+    const r = c.shadowRoot;
+    return { sub: r.querySelector(".h-sub")?.textContent.trim(), soc: r.querySelector(".r-in b")?.textContent.trim(),
+      wires: [...r.querySelectorAll(".wire")].map((w) => w.classList.contains("on")), strings: r.querySelectorAll(".str").length, hist: !!r.querySelector(".h-soc") };
+  }));
+  const [a, b] = info;
+  /Entlädt · Durchleitung · leer in ~22 h/.test(a?.sub ?? "") && a?.soc === "19%" ? ok(`Hausakku: ${a.sub}`) : fail(`Hausakku Kopf: ${JSON.stringify(a)}`);
+  /Lädt · Durchleitung · voll in 2 h 18 min/.test(b?.sub ?? "") ? ok(`Hausakku lädt: ${b.sub}`) : fail(`Hausakku lädt: ${JSON.stringify(b)}`);
+  a?.strings === 2 && a?.hist && a?.wires.every(Boolean) ? ok("Hausakku: 2 PV-Module, Fluss aktiv, Verlauf") : fail(`Hausakku Inhalt: ${JSON.stringify(a)}`);
+  const n = await p.evaluate(() => window.serviceCalls.length);
+  await p.evaluate(() => document.querySelector("ha-home-battery-card").shadowRoot.querySelector(".refresh").click());
+  await p.waitForTimeout(200);
+  const call = await p.evaluate((k) => window.serviceCalls.slice(k).find((c) => c.service === "press"), n);
+  call?.data.entity_id === "button.solarbank_3_e2700_pro_details_aktualisieren" ? ok("Hausakku: Aktualisieren drückt den Button") : fail(`Hausakku Aktualisieren: ${JSON.stringify(call)}`);
+}
+
 // Theme-Umschalter
 await p.click('[data-theme="dark"]');
 (await p.evaluate(() => document.body.classList.contains("dark"))) ? ok("Dunkel-Modus umschaltbar") : fail("Dunkel-Modus");
