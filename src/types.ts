@@ -1025,3 +1025,124 @@ export interface DeviceStatusCardConfig {
   animations?: "full" | "reduced" | "off";
   [key: string]: unknown;
 }
+
+export interface RecipeCardConfig {
+  type: string;
+  name?: string;
+  /** Mealie-Integration (sonst automatisch die erste) */
+  config_entry_id?: string;
+  /** Mealie-Adresse für Rezeptbilder, z. B. http://mealie.local:9925 */
+  mealie_url?: string;
+  /** Tage im Essensplan (Standard 7) */
+  days?: number;
+  /** Diese Mahlzeiten zeigen (Standard Mittag + Abend) */
+  entry_types?: string[];
+  /** Einkaufsliste für „Zutaten auf die Liste“ (Standard todo.mealie_einkaufsliste) */
+  shopping_list?: string;
+  /** Rezeptsuche zeigen (Standard an) */
+  show_search?: boolean;
+  animations?: "full" | "reduced" | "off";
+  [key: string]: unknown;
+}
+
+export interface SceneGroupConfig {
+  name: string;
+  icon?: string;
+  /** Hue-Raum (`group_name`) oder Textmuster im Szenennamen */
+  match?: string;
+  /** Feste Szenenliste (statt `match`) */
+  scenes?: string[];
+  /** Lampen des Raums (Leiste mit an/aus + Helligkeit) */
+  lights?: string[];
+}
+
+export interface SceneCardConfig {
+  type: string;
+  name?: string;
+  /** Räume/Gruppen – ohne Angabe automatisch aus den Hue-Räumen */
+  groups?: SceneGroupConfig[];
+  /** Nur Szenen, deren Name eines der Muster enthält */
+  include?: string[];
+  /** Szenen mit diesen Mustern ausblenden */
+  exclude?: string[];
+  /** Favoriten oben (Szenen-Entitäten) */
+  favorites?: string[];
+  /** Kacheln pro Zeile (Standard 3) */
+  columns?: number;
+  animations?: "full" | "reduced" | "off";
+  [key: string]: unknown;
+}
+
+export interface SleepTimerConfig {
+  /** input_boolean: Timer aktiv */
+  switch?: string;
+  /** input_datetime / time: Uhrzeit */
+  time: string;
+  name?: string;
+  icon?: string;
+}
+
+export interface SleepPersonConfig {
+  name: string;
+  icon?: string;
+  color?: string;
+  /** input_boolean: Schlafmodus */
+  sleep?: string;
+  timers?: SleepTimerConfig[];
+  climate?: string;
+  lights?: string[];
+  /** media_player / remote zum Ausschalten */
+  media?: string[];
+  /** Sensor mit Weckzeit (Zeitstempel), z. B. nächster Wecker vom Handy */
+  alarm?: string;
+}
+
+export interface SleepCardConfig {
+  type: string;
+  name?: string;
+  persons: SleepPersonConfig[];
+  animations?: "full" | "reduced" | "off";
+  [key: string]: unknown;
+}
+
+export interface ClimateRoomConfig {
+  name: string;
+  icon?: string;
+  temperature?: string;
+  humidity?: string;
+  /** Heizung (z. B. Homematic-Gruppe mit Wochenprogramm) */
+  heating?: string;
+  /** Klimaanlage */
+  ac?: string;
+  /** Fenster/Tür-Kontakt */
+  window?: string;
+  navigation_path?: string;
+}
+
+export interface ClimateRoomsCardConfig {
+  type: string;
+  name?: string;
+  rooms: ClimateRoomConfig[];
+  /** Komfortbereich Luftfeuchte (Standard 40–60) */
+  humidity_range?: [number, number];
+  animations?: "full" | "reduced" | "off";
+  [key: string]: unknown;
+}
+
+export interface EnergyWeekEntity {
+  entity: string;
+  name?: string;
+  color?: string;
+}
+
+export interface EnergyWeekCardConfig {
+  type: string;
+  name?: string;
+  /** Energiezähler (kWh/Wh, steigend) – ohne Angabe aus den Energie-Einstellungen */
+  entities?: (string | EnergyWeekEntity)[];
+  /** Strompreis in €/kWh (Standard 0,30) */
+  price?: number;
+  currency?: string;
+  animations?: "full" | "reduced" | "off";
+  [key: string]: unknown;
+}

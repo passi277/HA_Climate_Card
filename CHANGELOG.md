@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.39.0 – Rezepte, Szenen, Schlafen, Klima 2.0, Energie-Woche
+- Neue **Modern Recipe Card** (`custom:ha-recipe-card`) für Mealie: Essensplan der Woche (Mittag/Abend als Spalten), freie Plätze „Zufällig“ füllen oder per Suche, „Woche füllen“/„Lücken füllen“, Rezeptsuche mit Zeit, Tags und Sternen, Rezept mit Portionen-Umrechner, abhakbaren Zutaten und Schritten, „Heute/Morgen Abend einplanen“ und „fehlende Zutaten auf die Einkaufsliste“; Mealie-Integration wird automatisch gefunden
+- Neue **Modern Scene Card** (`custom:ha-scene-card`): Szenen nach Raum (Hue-Räume automatisch oder eigene Gruppen), Symbol und Farbe aus dem Namen, zuletzt aktivierte Szene markiert, Lampen des Raums mit Helligkeit, „Raum aus“ und „Alles aus“
+- Neue **Modern Sleep Card** (`custom:ha-sleep-card`): Schlafmodus je Person mit Nachthimmel, Sleep-Timer mit Countdown und ±15 min, Klima, Wecker und „Gute Nacht“ (Lampen + Medien aus, Schlafmodus an – mit Bestätigung)
+- Neue **Modern Climate Rooms Card** (`custom:ha-climate-rooms-card`): alle Räume mit Ist/Soll, Luftfeuchte, Heizung inkl. nächstem Wechsel aus dem Wochenprogramm, Klimaanlage, Warnung bei offenem Fenster, ±0,5°, Boost und Heizung an/aus
+- Neue **Modern Energy Week Card** (`custom:ha-energy-week-card`): Verbrauch dieser Woche gegen die Vorwoche (bis zum gleichen Wochentag), Kosten, Ø pro Tag, Spitzentag, Balken Mo–So, Anteil je Verbraucher (Tag antippen für die Aufteilung), auch als Monat; ohne Angabe aus den Energie-Einstellungen
+
 ## 1.38.0 – Termine & Gerätestatus
 - Neue **Modern Agenda Card** (`custom:ha-agenda-card`): nächste Abholung je Mülltonne mit Farbe/Symbol und Countdown, Erinnerung „Heute Abend rausstellen“ am Vortag, Terminliste aus mehreren Kalendern nach Tagen gruppiert
 - Neue **Modern Device Status Card** (`custom:ha-device-status-card`): nicht erreichbare Geräte nach Gerät/Integration, „seit …“, Filter, betroffene Entitäten, „Gerät öffnen“ und „Integration neu laden“

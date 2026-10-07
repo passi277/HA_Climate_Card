@@ -27,3 +27,8 @@ import "./system-card";
 import "./weather-card";
 import "./agenda-card";
 import "./device-status-card";
+import "./recipe-card";
+import "./scene-card";
+import "./sleep-card";
+import "./climate-rooms-card";
+import "./energy-week-card";

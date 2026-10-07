@@ -4,6 +4,8 @@ import {
   batteryHoursLeft, consumerGrid, formatHours, integratePower, statsEnergy, flowLpm, timerInfo, formatRemaining, rangeStatus, phDose, poolRuntimeRecommendation, cameraFeatures, wifiQuality, optionStyle, musicModes, isMusicEffect, energyFlows, formatPower, powerWatts, alertActive, batteryShoppingList, clockMinutes, upcomingPickups, wasteStyle, batteryIcon, doorDevices, doorKind, initials, isCharging, phoneSensors, brightnessPct, contactType, calibrationTransform, roomsFromMap, roomIcon, areaBatteries, batteryInfo, batteryNotesFor, mowerFeatures, mowerPhase, mapGeometry, mowerAreas, polygonSize, extendTrail, presetActive, presetData, DEFAULT_LIGHT_PRESETS, activityIcon, activityLabel, guessControlDevice, guessVolumeDevice, coverIcon, datetimeParts, nextOccurrence, coverPosition, skyPhase, sunPlacement, weatherOverlay, editorOptions, isNoEffect, lightEditorOptions, segmentIds, detectDeviceType, kelvinToRgb, lightColor, relatedScenes, supportsColor, supportsColorTemp, dewPoint, nextSwitch, parseSchedule, scheduleTempAt, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
   llmEvents, llmCategory, snapshotMediaId, dayGroups, homeBatteryFeatures, batteryEta, batteryStatusKey,
   nextPickups, eventStart, daysUntil, offlineDevices, platformName,
+  sceneStyle, sceneLabel, sceneGroups, sceneActivated, mealieMinutes, formatMinutes, scaleIngredient, mealEntries, ymdLocal,
+  minutesUntil, formatShortDuration, shiftTime, weekStart, monthStart, dailyTotals, kwhFactor, percentChange,
   updateKind, pendingUpdates, updateName, resourceSensors, backupSensors, backupHealth, loadLevel, windDir, tempScale, weatherHint, weatherIcon,
   starlinkFeatures, speedtestFeatures, formatRate, formatBytes, formatUptime, toMbit, pingQuality,
   openContactsKey, powerOf, resolveContacts, secondsToDuration, stateIcon, temperatureOf, temperatureTint, trendSlope,
@@ -1029,5 +1031,84 @@ describe("Gerätestatus", () => {
     expect(offlineDevices(states, entities, devices, { excludeDomains: [], includeUnknown: true }).length).toBe(4);
     expect(offlineDevices(states, entities, devices, { excludeIntegrations: ["hue"] }).length).toBe(1);
     expect([platformName("bosch_shc"), platformName("my_custom_thing"), platformName(undefined)]).toEqual(["Bosch Smart Home", "My Custom Thing", "Sonstige"]);
+  });
+});
+
+describe("Szenen", () => {
+  const sc = (id: string, name: string, group?: string, state = "unknown"): HassEntity =>
+    ({ entity_id: id, state, attributes: { friendly_name: group ? `${group} ${name}` : name, ...(group ? { group_name: group, name } : {}) } } as HassEntity);
+  it("erkennt Symbol und Farbe am Namen", () => {
+    expect(sceneStyle("Nachtlicht").icon).toBe("mdi:weather-night");
+    expect(sceneStyle("Ambiente Kaminfeuer").icon).toBe("mdi:fireplace");
+    expect(sceneStyle("Sonnenuntergang Savanne").icon).toBe("mdi:weather-sunset");
+    expect(sceneStyle("Irgendwas").icon).toBe("mdi:palette-outline");
+  });
+  it("Name ohne Raum, Gruppierung nach Hue-Raum, Doppelte nur einmal", () => {
+    expect(sceneLabel({ entity_id: "scene.x", state: "", attributes: { friendly_name: "Wohnzimmer_ Lesen", group_name: "Wohnzimmer" } } as HassEntity)).toBe("Lesen");
+    const t = new Date(Date.now() - 60_000).toISOString();
+    const states = Object.fromEntries([
+      sc("scene.tv_hell", "Hell", "tv"), sc("scene.tv_lesen", "Lesen", "tv"), sc("scene.wz_lesen", "Lesen", "Wohnzimmer"),
+      sc("scene.wz_lesen_2", "Lesen", "Wohnzimmer", t), sc("scene.film", "Filmabend"),
+    ].map((s) => [s.entity_id, s]));
+    const g = sceneGroups(states);
+    expect(g.map((x) => x.name)).toEqual(["TV", "Wohnzimmer", ""]);
+    expect(g[1]!.scenes.map((s) => s.entity_id)).toEqual(["scene.wz_lesen_2"]);
+    expect(sceneActivated(states["scene.wz_lesen_2"])).toBeGreaterThan(0);
+    const custom = sceneGroups(states, { groups: [{ name: "Fernsehen", match: "tv", lights: ["light.tv"] }, { name: "Leer", match: "nix" }], exclude: ["hell"] });
+    expect(custom.length).toBe(1);
+    expect(custom[0]!.scenes.map((s) => s.entity_id)).toEqual(["scene.tv_lesen"]);
+  });
+});
+
+describe("Rezepte (Mealie)", () => {
+  it("liest Zeiten in Minuten", () => {
+    expect(mealieMinutes("3 hours 20 minutes")).toBe(200);
+    expect(mealieMinutes("PT1H30M")).toBe(90);
+    expect(mealieMinutes("45 min")).toBe(45);
+    expect(mealieMinutes("1,5 Stunden")).toBe(90);
+    expect(mealieMinutes(null)).toBeUndefined();
+    expect([formatMinutes(200), formatMinutes(45), formatMinutes(120)]).toEqual(["3 h 20 min", "45 min", "2 h"]);
+  });
+  it("rechnet Mengen auf Portionen um", () => {
+    expect(scaleIngredient("2 Zwiebeln", 1.5)).toBe("3 Zwiebeln");
+    expect(scaleIngredient("½ TL Pfeffer", 2)).toBe("1 TL Pfeffer");
+    expect(scaleIngredient("1 kg Rindergulasch", 0.5)).toBe("½ kg Rindergulasch");
+    expect(scaleIngredient("2–3 EL Öl", 2)).toBe("4–6 EL Öl");
+    expect(scaleIngredient("1,5 l Wasser", 2)).toBe("3 l Wasser");
+    expect(scaleIngredient("Salz", 3)).toBe("Salz");
+  });
+  it("wandelt den Essensplan um", () => {
+    const e = mealEntries({ mealplan: [
+      { mealplan_id: "b", mealplan_date: "2026-10-09", entry_type: "lunch", title: "", recipe: { recipe_id: "r2", slug: "curry", name: "Curry", total_time: "35 minutes" } },
+      { mealplan_id: "a", mealplan_date: "2026-10-08", entry_type: "dinner", title: "Reste essen", recipe: null },
+      { mealplan_id: "c", mealplan_date: "2026-10-08", entry_type: "dinner", title: "" },
+    ] });
+    expect(e.map((x) => [x.date, x.type, x.title, x.time])).toEqual([["2026-10-08", "dinner", "Reste essen", undefined], ["2026-10-09", "lunch", "Curry", 35]]);
+    expect(ymdLocal(new Date(2026, 0, 5))).toBe("2026-01-05");
+  });
+});
+
+describe("Schlafen", () => {
+  it("Countdown und Uhrzeit verschieben", () => {
+    const now = new Date(2026, 9, 7, 22, 0).getTime();
+    expect(minutesUntil(new Date(2026, 9, 7, 23, 25), now)).toBe(85);
+    expect([formatShortDuration(45), formatShortDuration(85)]).toEqual(["45 min", "1:25 h"]);
+    expect([shiftTime(23 * 60 + 50, 15), shiftTime(10, -15), shiftTime(22 * 60, -15)]).toEqual(["00:05:00", "23:55:00", "21:45:00"]);
+  });
+});
+
+describe("Wochenrückblick Energie", () => {
+  it("Wochen- und Monatsanfang", () => {
+    expect(weekStart(new Date(2026, 9, 7, 15)).toDateString()).toBe(new Date(2026, 9, 5).toDateString());
+    expect(weekStart(new Date(2026, 9, 11), -1).toDateString()).toBe(new Date(2026, 8, 28).toDateString());
+    expect(monthStart(new Date(2026, 0, 20), -1).toDateString()).toBe(new Date(2025, 11, 1).toDateString());
+  });
+  it("verteilt Tageswerte und vergleicht", () => {
+    const start = new Date(2026, 9, 5);
+    const rows = [0, 1, 1, 3, 9].map((d, i) => ({ start: new Date(2026, 9, 5 + d, 0, 0).getTime(), change: [1.5, 2, 0.5, null, 4][i] as number | null }));
+    expect(dailyTotals(rows, start, 7)).toEqual([1.5, 2.5, 0, 0, 0, 0, 0]);
+    expect(dailyTotals([{ start: new Date(2026, 9, 6).toISOString(), change: 1500 }], start, 7, kwhFactor("Wh"))[1]).toBe(1.5);
+    expect([kwhFactor("kWh"), kwhFactor("Wh"), kwhFactor("MWh")]).toEqual([1, 0.001, 1000]);
+    expect([percentChange(12, 10), percentChange(8, 10), percentChange(5, 0)]).toEqual([20, -20, undefined]);
   });
 });

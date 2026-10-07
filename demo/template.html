@@ -119,6 +119,29 @@
     const POOL = '<ellipse cx="170" cy="140" rx="110" ry="26" fill="#29b6f6"/><ellipse cx="170" cy="138" rx="100" ry="20" fill="#4fc3f7"/>';
     const SHED = '<rect x="180" y="78" width="80" height="48" fill="#8d6e63"/><path d="M172 80 L220 56 L268 80Z" fill="#5d4037"/><rect x="210" y="96" width="20" height="30" fill="#3e2723"/>';
     const states = {
+      // Szenen (Hue-Räume) für die Szenen-Karte
+      "scene.tv_kaminfeuer": { state: new Date(Date.now() - 95 * 60000).toISOString(), attributes: { friendly_name: "tv Ambiente Kaminfeuer", group_name: "tv", name: "Ambiente Kaminfeuer" } },
+      "scene.tv_kerze": { state: "unknown", attributes: { friendly_name: "tv Kerze Ambiente", group_name: "tv", name: "Kerze Ambiente" } },
+      "scene.tv_nordlichter": { state: "unknown", attributes: { friendly_name: "tv Nordlichter", group_name: "tv", name: "Nordlichter" } },
+      "scene.tv_hell": { state: "unknown", attributes: { friendly_name: "tv Hell", group_name: "tv", name: "Hell" } },
+      "scene.tv_nachtlicht": { state: "unknown", attributes: { friendly_name: "tv Nachtlicht", group_name: "tv", name: "Nachtlicht" } },
+      "scene.tv_lesen": { state: "unknown", attributes: { friendly_name: "tv Lesen", group_name: "tv", name: "Lesen" } },
+      "scene.wohnzimmer_gedimmt": { state: new Date(Date.now() - 26 * 3600000).toISOString(), attributes: { friendly_name: "Wohnzimmer Gedimmt", group_name: "Wohnzimmer", name: "Gedimmt" } },
+      "scene.wohnzimmer_entspannen": { state: "unknown", attributes: { friendly_name: "Wohnzimmer Entspannen", group_name: "Wohnzimmer", name: "Entspannen" } },
+      "scene.wohnzimmer_sonnenuntergang": { state: "unknown", attributes: { friendly_name: "Wohnzimmer Sonnenuntergang Savanne", group_name: "Wohnzimmer", name: "Sonnenuntergang Savanne" } },
+      "scene.wohnzimmer_konzentrieren": { state: "unknown", attributes: { friendly_name: "Wohnzimmer Konzentrieren", group_name: "Wohnzimmer", name: "Konzentrieren" } },
+      "light.tv_ambiente": { state: "on", attributes: { friendly_name: "Ambiente Stripe", supported_color_modes: ["xy"], color_mode: "xy", brightness: 160, rgb_color: [255, 120, 40] } },
+      // Schlafen
+      "input_boolean.schlafen_pascal": { state: "on", last_changed: new Date(Date.now() - 80 * 60000).toISOString(), attributes: { friendly_name: "Schlafmodus Pascal" } },
+      "input_boolean.schalter_tv": { state: "on", attributes: { friendly_name: "TV-Timer aktiv" } },
+      "input_datetime.timer_tv": (() => { const d = new Date(Date.now() + 85 * 60000); return { state: "", attributes: { friendly_name: "TV aus um", has_date: false, has_time: true, hour: d.getHours(), minute: d.getMinutes() - (d.getMinutes() % 5), second: 0 } }; })(),
+      "input_boolean.schlafen_marcel": { state: "off", last_changed: new Date(Date.now() - 9 * 3600000).toISOString(), attributes: { friendly_name: "Schlafen Marcel" } },
+      "input_datetime.timer_klima_marcel": { state: "02:00:00", attributes: { friendly_name: "Klima aus um", has_date: false, has_time: true, hour: 2, minute: 0, second: 0 } },
+      "sensor.pascal_naechster_wecker": { state: (() => { const d = new Date(Date.now() + 86400000); d.setHours(6, 30, 0, 0); return d.toISOString(); })(), attributes: { friendly_name: "Nächster Wecker", device_class: "timestamp" } },
+      // Energie-Wochenrückblick (Zähler in kWh)
+      "sensor.monitor_1_energy": { state: "25.3", attributes: { friendly_name: "Monitor 1", unit_of_measurement: "kWh", device_class: "energy", state_class: "total_increasing" } },
+      "sensor.monitor_2_energy": { state: "22.2", attributes: { friendly_name: "Monitor 2", unit_of_measurement: "kWh", device_class: "energy", state_class: "total_increasing" } },
+      "sensor.whirlpool_energy": { state: "412.8", attributes: { friendly_name: "Whirlpool", unit_of_measurement: "kWh", device_class: "energy", state_class: "total_increasing" } },
       "climate.wohnzimmer": { state: "cool", attributes: {
         friendly_name: "Wohnzimmer", supported_features: 1 | 8 | 16 | 32 | 128 | 256 | 512,
         hvac_modes: ["off", "auto", "cool", "heat", "dry", "fan_only"], hvac_action: "cooling",
@@ -660,6 +683,24 @@
       "person-1": camScene("HAUS", "#7cb6e8", "#cfe6f7", "#6a9e4f", SHED + PERSON + TREE(60)),
       "tier-1": camScene("TOR", "#37474f", "#546e7a", "#33691e", TREE(250) + FOX), "tier-2": camScene("SCHUPPEN", "#263238", "#455a64", "#33691e", SHED + FOX),
     };
+    // Mealie: Rezepte und Essensplan wie mealie.get_recipes / get_recipe / get_mealplan
+    const RECIPES = [
+      { recipe_id: "r1", slug: "rindergulasch", name: "Rindergulasch", description: "Klassisches Rindergulasch, das am nächsten Tag noch besser schmeckt.", total_time: "3 hours", prep_time: "30 minutes", perform_time: "2 hours 30 minutes",
+        recipe_servings: 6, rating: 5, tags: [{ name: "Schmorgericht" }, { name: "High Protein" }],
+        ingredients: ["1 kg Rindergulasch", "1 kg Zwiebeln", "3 EL Tomatenmark", "3 EL Paprika edelsüß", "2 Knoblauchzehen", "500 ml Rinderfond", "Salz"].map((d) => ({ display: d, note: d, quantity: 0 })),
+        instructions: ["Zwiebeln in Streifen schneiden, Fleisch trocken tupfen.", "Fleisch portionsweise kräftig anbraten.", "Zwiebeln goldbraun schmoren, Tomatenmark mitrösten.", "Mit Fond ablöschen und 2,5 Stunden schmoren."].map((text) => ({ text })) },
+      { recipe_id: "r2", slug: "spaghetti-carbonara", name: "Spaghetti Carbonara", description: "Mit Guanciale, Eigelb und Pecorino – ohne Sahne.", total_time: "25 minutes", prep_time: "10 minutes", perform_time: "15 minutes",
+        recipe_servings: 2, rating: 4, tags: [{ name: "Pasta" }, { name: "Schnell" }],
+        ingredients: ["200 g Spaghetti", "80 g Guanciale", "3 Eigelb", "40 g Pecorino", "½ TL Pfeffer"].map((d) => ({ display: d, note: d, quantity: 0 })),
+        instructions: ["Spaghetti kochen.", "Guanciale knusprig braten.", "Eigelb mit Pecorino verrühren, alles abseits der Hitze vermengen."].map((text) => ({ text })) },
+      { recipe_id: "r3", slug: "ofengemuese", name: "Ofengemüse mit Feta", total_time: "45 minutes", recipe_servings: 4, rating: null, tags: [{ name: "Vegetarisch" }], ingredients: [], instructions: [] },
+      { recipe_id: "r4", slug: "linsencurry", name: "Rotes Linsencurry", total_time: "35 minutes", recipe_servings: 4, rating: 4, tags: [{ name: "Vegan" }], ingredients: [], instructions: [] },
+    ];
+    const MEALPLAN = [
+      { mealplan_id: "m1", mealplan_date: ymd(0), entry_type: "dinner", title: "", recipe: RECIPES[1] },
+      { mealplan_id: "m2", mealplan_date: ymd(1), entry_type: "lunch", title: "", recipe: RECIPES[3] },
+      { mealplan_id: "m3", mealplan_date: ymd(2), entry_type: "dinner", title: "", recipe: RECIPES[0] },
+    ];
     const makeHass = () => ({
       async callApi(method, path) {
         if (path.startsWith("calendars/calendar.familie")) {
@@ -686,6 +727,21 @@
       async callService(domain, service, data) {
         window.serviceCalls.push({ domain, service, data });
         if (domain === "llmvision" && service === "get_events") return { context: {}, response: { events: LLM_EVENTS } };
+        if (domain === "mealie") {
+          log(`mealie.${service} ${JSON.stringify(data)}`);
+          if (service === "get_mealplan") return { context: {}, response: { mealplan: MEALPLAN.filter((m) => (!data.start_date || m.mealplan_date >= data.start_date) && (!data.end_date || m.mealplan_date <= data.end_date)) } };
+          if (service === "get_recipes") {
+            const q = String(data.search_terms ?? "").toLowerCase();
+            return { context: {}, response: { recipes: { items: RECIPES.filter((r) => !q || r.name.toLowerCase().includes(q)).slice(0, data.result_limit ?? 10) } } };
+          }
+          if (service === "get_recipe") return { context: {}, response: { recipe: RECIPES.find((r) => r.slug === data.recipe_id || r.recipe_id === data.recipe_id) } };
+          if (service === "set_mealplan" || service === "set_random_mealplan") {
+            const recipe = RECIPES.find((r) => r.recipe_id === data.recipe_id) ?? RECIPES[(MEALPLAN.length * 3) % RECIPES.length];
+            MEALPLAN.push({ mealplan_id: `m${MEALPLAN.length + 1}`, mealplan_date: data.date ?? ymd(0), entry_type: data.entry_type ?? "dinner", title: "", recipe });
+          }
+          return;
+        }
+        if (domain === "todo" || (domain === "light" && Array.isArray(data.entity_id) && service === "turn_off" && data.entity_id.some((id) => !states[id]))) { log(`${domain}.${service} ${JSON.stringify(data)}`); return; }
         log(`${domain}.${service} ${JSON.stringify(data)}`);
         const s = states[data.entity_id];
         if (domain === "light" || domain === "scene") {
@@ -926,6 +982,22 @@
         }
         // Tageswerte der Energiekarte: Leistung seit 6 Uhr konstant auf dem aktuellen Wert
         // Langzeitstatistik (Tagesmittel) seit 1. Januar des Vorjahres für Monat/Jahr/Gesamt
+        if (msg.type === "config_entries/get" && msg.domain === "mealie") return [{ entry_id: "mealie_demo", domain: "mealie", state: "loaded", title: "Mealie" }];
+        if (msg.type === "energy/get_prefs") return { energy_sources: [], device_consumption: [{ stat_consumption: "sensor.monitor_1_energy" }, { stat_consumption: "sensor.monitor_2_energy" }, { stat_consumption: "sensor.whirlpool_energy", name: "Whirlpool" }] };
+        // Wochenrückblick: Tagesverbrauch (change) je Zähler, vorhersagbar je Tag
+        if (msg.type === "recorder/statistics_during_period" && msg.types?.includes("change")) {
+          const start = new Date(msg.start_time), end = Math.min(Date.now(), new Date(msg.end_time).getTime());
+          const base = { "sensor.monitor_1_energy": 0.9, "sensor.monitor_2_energy": 0.6, "sensor.whirlpool_energy": 4.2 };
+          for (const id of msg.statistic_ids) {
+            const rows = [];
+            for (let d = new Date(start); d.getTime() < end; d.setDate(d.getDate() + 1)) {
+              const k = d.getDate();
+              rows.push({ start: d.getTime(), end: d.getTime() + 86400000, change: +((base[id] ?? 1) * (0.7 + ((k * 37) % 11) / 18) * (d.getDay() % 6 === 0 ? 1.35 : 1)).toFixed(3) });
+            }
+            out[id] = rows;
+          }
+          return out;
+        }
         if (msg.type === "recorder/statistics_during_period") {
           const end = new Date(msg.end_time).getTime();
           for (const id of msg.statistic_ids) {
@@ -1084,6 +1156,22 @@
       ] }],
       ["Status – Batterien aus Bereich + Türkontakt + Einkaufsliste", { _status: true, areas: ["mein_zimmer"], shopping_list: true, expanded: true, contacts: [{ entity: "binary_sensor.tuerkontakt_pascal", name: "Tür" }] }],
       ["Status – Battery Notes am Gerät (Typ, „gewechselt vor“, gedrückt halten = Wechsel eintragen)", { _status: true, title: "Ventile", batteries: ["sensor.ventil_hecke_battery", "sensor.ventil_rasen_battery", "sensor.ventil_beete_battery"], shopping_list: true, expanded: true }],
+      ["Rezepte & Essensplan (Mealie) – Woche, Zufällig, Suche, Rezept mit Portionen und Einkaufsliste", { _recipe: true }],
+      ["Ambiente & Szenen – Hue-Räume, Farbe/Symbol aus dem Namen, zuletzt aktivierte Szene, Lampen", { _scene: true, groups: [
+        { name: "TV", icon: "mdi:television", match: "tv", lights: ["light.tv_ambiente", "light.hue_play_gradient"] },
+        { name: "Wohnzimmer", icon: "mdi:sofa", match: "Wohnzimmer", lights: ["light.wohnzimmer_stehlampe", "light.wohnzimmer_decke"] },
+        { name: "Gäste WC", icon: "mdi:toilet", match: "Gäste WC", lights: ["light.gaste_wc"] }] }],
+      ["Schlafen – Schlafmodus, Sleep-Timer mit Countdown, Klima, Wecker, „Gute Nacht“", { _sleep: true, persons: [
+        { name: "Pascal", color: "#1e88e5", sleep: "input_boolean.schlafen_pascal", alarm: "sensor.pascal_naechster_wecker",
+          timers: [{ name: "TV aus", switch: "input_boolean.schalter_tv", time: "input_datetime.timer_tv" }, { name: "Klima aus", switch: "input_boolean.timer_klima_pascal", time: "input_datetime.timer_klima_pascal" }],
+          climate: "climate.1ed763d9", lights: ["light.licht_mein_zimmer", "light.nachtlicht"], media: ["remote.harmony_hub_wohnzimmer"] },
+        { name: "Marcel", color: "#00897b", sleep: "input_boolean.schlafen_marcel", timers: [{ name: "Klima aus", time: "input_datetime.timer_klima_marcel" }], lights: ["light.deckenlampe_schlafzimmer"] }] }],
+      ["Klima 2.0 – alle Räume: Ist/Soll, Wochenprogramm, Klimaanlage, Fenster, Feuchte, Boost", { _crooms: true, rooms: [
+        { name: "Pascal", icon: "mdi:account", heating: "climate.heizung_mein_zimmer", ac: "climate.1ed763d9" },
+        { name: "Wohnzimmer", icon: "mdi:sofa", ac: "climate.wohnzimmer", temperature: "sensor.aussen" },
+        { name: "Büro", heating: "climate.buero", window: "binary_sensor.buero_fenster", humidity: "sensor.buero_feuchte" },
+        { name: "Schlafzimmer", ac: "climate.schlafzimmer" }] }],
+      ["Wochenrückblick Energie – diese gegen letzte Woche, Kosten, Spitzentag, Anteil je Verbraucher", { _eweek: true, price: 0.3 }],
       ["Termine & Abfall – nächste Abholung je Tonne, Erinnerung am Vorabend, Termine aus mehreren Kalendern", { _agenda: true, waste: "calendar.abfall", calendars: ["calendar.familie", { entity: "calendar.arbeit", color: "#ab47bc" }] }],
       ["Gerätestatus – nicht erreichbare Geräte nach Integration, „seit …“, Entitäten, Neu laden", { _devstatus: true }],
       ["System & Updates – CPU/RAM/Speicher, Dienste, Updates mit Installieren, Backup, Neustart", { _system: true, services: ["binary_sensor.zigbee2mqtt_bridge_connection_state", { entity: "binary_sensor.mosquitto_broker_running", name: "MQTT" }] }],
@@ -1128,9 +1216,9 @@
         grid.appendChild(wrap);
         return;
       }
-      const { _overview, _light, _group, _cover, _coverGroup, _switchTime, _media, _room, _status, _vacuum, _presence, _alert, _energy, _irrigation, _pool, _camera, _cameraGroup, _select, _mower, _starlink, _llm, _hbat, _system, _weather, _agenda, _devstatus, ...rest } = cfg;
+      const { _overview, _light, _group, _cover, _coverGroup, _switchTime, _media, _room, _status, _vacuum, _presence, _alert, _energy, _irrigation, _pool, _camera, _cameraGroup, _select, _mower, _starlink, _llm, _hbat, _system, _weather, _agenda, _devstatus, _recipe, _scene, _sleep, _crooms, _eweek, ...rest } = cfg;
       const tag = _overview ? "ha-climate-overview-card" : _group ? "ha-light-group-card" : _light ? "ha-light-card"
-        : _cover ? "ha-cover-card" : _coverGroup ? "ha-cover-group-card" : _switchTime ? "ha-switch-time-card" : _media ? "ha-media-card" : _room ? "ha-room-card" : _status ? "ha-status-card" : _vacuum ? "ha-vacuum-card" : _presence ? "ha-presence-card" : _alert ? "ha-alert-card" : _energy ? "ha-energy-card" : _irrigation ? "ha-irrigation-card" : _pool ? "ha-pool-card" : _camera ? "ha-camera-card" : _cameraGroup ? "ha-camera-group-card" : _select ? "ha-select-card" : _mower ? "ha-mower-card" : _starlink ? "ha-starlink-card" : _llm ? "ha-llm-timeline-card" : _hbat ? "ha-home-battery-card" : _system ? "ha-system-card" : _weather ? "ha-weather-card" : _agenda ? "ha-agenda-card" : _devstatus ? "ha-device-status-card" : "ha-climate-card";
+        : _cover ? "ha-cover-card" : _coverGroup ? "ha-cover-group-card" : _switchTime ? "ha-switch-time-card" : _media ? "ha-media-card" : _room ? "ha-room-card" : _status ? "ha-status-card" : _vacuum ? "ha-vacuum-card" : _presence ? "ha-presence-card" : _alert ? "ha-alert-card" : _energy ? "ha-energy-card" : _irrigation ? "ha-irrigation-card" : _pool ? "ha-pool-card" : _camera ? "ha-camera-card" : _cameraGroup ? "ha-camera-group-card" : _select ? "ha-select-card" : _mower ? "ha-mower-card" : _starlink ? "ha-starlink-card" : _llm ? "ha-llm-timeline-card" : _hbat ? "ha-home-battery-card" : _system ? "ha-system-card" : _weather ? "ha-weather-card" : _agenda ? "ha-agenda-card" : _devstatus ? "ha-device-status-card" : _recipe ? "ha-recipe-card" : _scene ? "ha-scene-card" : _sleep ? "ha-sleep-card" : _crooms ? "ha-climate-rooms-card" : _eweek ? "ha-energy-week-card" : "ha-climate-card";
       const card = document.createElement(tag);
       card.id = "card" + i;
       card.setConfig({ type: `custom:${tag}`, ...rest });

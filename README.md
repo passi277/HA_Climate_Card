@@ -23,6 +23,11 @@ weiche Farbübergänge und Animationen. Ein HACS-Download, mehrere Karten:
 | **Modern Camera Card** | `custom:ha-camera-card` | Eine Kamera (Reolink, Blink …): Live-/Standbild, Erkennung, Licht, Sirene, Schwenken, Positionen, Linsen – automatisch über das Gerät erkannt |
 | **Modern Camera Group** | `custom:ha-camera-group-card` | Mehrere Kameras als Raster mit Bewegung, Akku, WLAN, Scharf/Unscharf und Erkennung je Kamera |
 | **Modern Select Card** | `custom:ha-select-card` | Dropdowns (input_select/select) als Leiste, Chips, Kacheln, Liste oder kompaktes Dropdown – mit Symbolen und Farben je Option |
+| **Modern Recipe Card** | `custom:ha-recipe-card` | Mealie: Essensplan der Woche, Rezeptsuche, Rezept mit Portionen, Einkaufsliste |
+| **Modern Scene Card** | `custom:ha-scene-card` | Szenen nach Raum mit Farbe/Symbol, zuletzt aktiv, Lampen und „Alles aus“ |
+| **Modern Sleep Card** | `custom:ha-sleep-card` | Schlafmodus, Sleep-Timer mit Countdown, Klima, Wecker, „Gute Nacht“ |
+| **Modern Climate Rooms Card** | `custom:ha-climate-rooms-card` | Klima-Übersicht 2.0: alle Räume mit Heizung, Klimaanlage, Fenster, Feuchte |
+| **Modern Energy Week Card** | `custom:ha-energy-week-card` | Wochenrückblick Energie: diese gegen letzte Woche, Kosten, Verbraucher |
 | **Climate Overview** | `custom:ha-climate-overview-card` | alle Klimageräte auf einen Blick |
 
 *Modern Lovelace cards for Home Assistant in one shared design – English summary below.*
@@ -592,6 +597,96 @@ type: custom:ha-device-status-card
 # include_unknown: true
 ```
 
+## Modern Recipe Card (Rezepte & Essensplan, Mealie)
+
+Essensplan der nächsten Tage aus **Mealie** (Mahlzeiten als Spalten, standardmäßig Mittag und Abend). Freie Plätze antippen →
+**„Zufällig“** oder **„Suchen“**; **„Woche füllen“/„Lücken füllen“** plant alle freien Plätze zufällig (mit Bestätigung). Rezeptsuche
+mit Zeit, Tags und Sternen; ein Rezept öffnet sich mit Zeiten, **Portionen-Umrechner**, abhakbaren Zutaten („habe ich“) und Schritten,
+dazu **„Heute/Morgen Abend einplanen“** (bzw. für den gewählten freien Platz) und **„fehlende Zutaten auf die Einkaufsliste“**.
+Die Mealie-Integration wird automatisch gefunden.
+
+```yaml
+type: custom:ha-recipe-card
+# days: 7
+# entry_types: [lunch, dinner]          # breakfast, lunch, dinner, side, dessert, snack, drink
+# shopping_list: todo.mealie_einkaufsliste
+# mealie_url: http://192.168.1.10:9925  # nur für Rezeptbilder
+# show_search: false
+```
+
+## Modern Scene Card (Ambiente & Szenen)
+
+Szenen **nach Raum**: ohne Angabe automatisch aus den Hue-Räumen (`group_name`), gleiche Namen nur einmal. Symbol und Farbverlauf
+ergeben sich aus dem Namen (Nachtlicht, Kaminfeuer, Kerze, Nordlichter, Sonnenuntergang, Lesen, Konzentrieren …), die **zuletzt
+aktivierte Szene** ist markiert. Mit `groups` lassen sich Räume samt **Lampen** (an/aus, Helligkeit, „Raum aus“) festlegen;
+oben **„Alles aus“** für alle eingetragenen Lampen.
+
+```yaml
+type: custom:ha-scene-card
+groups:
+  - name: TV
+    icon: mdi:television
+    match: tv                     # Hue-Raum oder Text im Szenennamen
+    lights: [light.tv_2, light.couch_licht, light.tv]
+  - name: Wohnzimmer
+    match: Wohnzimmer
+# favorites: [scene.tv_ambiente_kaminfeuer]
+# exclude: [Fick]
+# columns: 3
+```
+
+## Modern Sleep Card (Schlafen)
+
+Je Person ein Block mit **Schlafmodus** (input_boolean; nachts mit Sternenhimmel), **Sleep-Timern** (Schalter + Uhrzeit, Countdown
+„aus in 1:20 h“, ±15 min), optional **Klima** (an/aus, ±1°), **Wecker** (Zeitstempel-Sensor) und **„Gute Nacht“**: schaltet die
+Lampen und Medien aus und den Schlafmodus an (zweimal tippen).
+
+```yaml
+type: custom:ha-sleep-card
+persons:
+  - name: Pascal
+    sleep: input_boolean.schalter_schlafen_klima_pascal
+    timers:
+      - { name: TV aus, switch: input_boolean.schalter_tv, time: input_datetime.timer_tv }
+      - { name: Klima aus, time: input_datetime.timer_klima }
+    climate: climate.1ed763d9
+    lights: [light.licht_mein_zimmer]
+    media: [remote.harmony_schlafzimmer]
+    # alarm: sensor.handy_next_alarm
+```
+
+## Modern Climate Rooms Card (Klima-Übersicht 2.0)
+
+Alle Räume als Kacheln: **Ist-Temperatur**, Soll, Heizen/Leerlauf, **nächster Wechsel aus dem Wochenprogramm** („ab 17:00 → 21°“,
+z.B. Homematic IP), Klimaanlage, **Luftfeuchte** mit Komfortbalken, Warnung **„Fenster offen – Heizung läuft noch“**; Bedienung
+±0,5°, **Boost** und Heizung an/aus, Klimaanlage an/aus. Oben Ø-Temperatur, Spanne und Zähler (heizen, Klima an, Fenster offen).
+
+```yaml
+type: custom:ha-climate-rooms-card
+rooms:
+  - name: Wohnzimmer
+    temperature: sensor.wohnzimmer_temperatur   # optional, sonst aus der Heizung
+    heating: climate.wohnzimmer_int0000004
+    ac: climate.1ed76e12
+    window: binary_sensor.fenster_wohnzimmer_durchgang
+    # navigation_path: /dashboard-final/wohnzimmer
+# humidity_range: [40, 60]
+```
+
+## Modern Energy Week Card (Wochenrückblick Energie)
+
+Verbrauch **dieser Woche gegen die Vorwoche** – fair bis zum gleichen Wochentag – mit Kosten, Ø pro Tag und Spitzentag, Balken Mo–So
+(diese/letzte Woche) und **Anteil je Verbraucher**; einen Tag antippen zeigt seine Aufteilung. Umschaltbar auf **Monat**. Daten aus der
+Langzeitstatistik; ohne `entities` aus den Energie-Einstellungen (Geräte, sonst Netzbezug).
+
+```yaml
+type: custom:ha-energy-week-card
+# entities:
+#   - sensor.shelly_monitor_1_switch_0_energy
+#   - { entity: sensor.whirlpool_energy, name: Whirlpool, color: "#ab47bc" }
+# price: 0.30
+```
+
 ## Modern Vacuum Card (Saugroboter)
 
 - **Live-Karte** aus dem Kartenbild (z.B. Roborock Custom Map, `image.*`) – mit Roboter-Position, automatisch auf die
@@ -977,6 +1072,11 @@ glow, smooth color transitions, animations), shipped as a single HACS download:
 - `custom:ha-weather-card` – weather with animated sky, rain/frost hint, hourly curve and 7-day forecast
 - `custom:ha-agenda-card` – waste pickups per bin with reminder the evening before, plus a day-grouped agenda from several calendars
 - `custom:ha-device-status-card` – all unreachable devices grouped by device/integration with "since", entities and reload
+- `custom:ha-recipe-card` – Mealie meal plan for the week, random/search to fill slots, recipe search, recipe with servings scaler and shopping list
+- `custom:ha-scene-card` – scenes per room (Hue rooms automatically), icon/color from the name, last activated scene, room lights and "all off"
+- `custom:ha-sleep-card` – sleep mode per person, sleep timers with countdown and ±15 min, climate, alarm and "good night"
+- `custom:ha-climate-rooms-card` – climate overview 2.0: every room with current/target, schedule, AC, open windows, humidity, boost
+- `custom:ha-energy-week-card` – energy week: this week vs. last week, cost, peak day, share per consumer, month view
 - `custom:ha-vacuum-card` – robot vacuum with live map, tap rooms on the map for room cleaning, controls, modes, maintenance
 - `custom:ha-presence-card` – people as photo tiles (home/away, phone battery and charging found automatically) plus front door: hold to open (Nuki Opener), Ring to Open, doorbell
 - `custom:ha-alert-card` – alerts that only appear when something is going on (window open, vacuum error, low battery …), hidden otherwise

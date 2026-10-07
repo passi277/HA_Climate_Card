@@ -1867,3 +1867,196 @@ export const offlineDevices = (states: Record<string, HassEntity>, entities: Rec
   }
   return [...groups.values()].sort((a, b) => a.since.localeCompare(b.since) || a.name.localeCompare(b.name));
 };
+
+// ---------- Szenen ----------
+
+const SCENE_STYLES: [RegExp, string, string][] = [
+  [/nacht|night/i, "mdi:weather-night", "#5c6bc0"],
+  [/kamin|feuer|fire/i, "mdi:fireplace", "#ff7043"],
+  [/kerze|candle/i, "mdi:candle", "#ffb300"],
+  [/nordlicht|aurora|galax/i, "mdi:star-shooting", "#26a69a"],
+  [/sonnenunter|sunset|horizont|savanne|tropen/i, "mdi:weather-sunset", "#ff8a65"],
+  [/frühling|bl[üu]te|spring/i, "mdi:flower", "#ec407a"],
+  [/lesen|read/i, "mdi:book-open-variant", "#fbc02d"],
+  [/konzentr|focus/i, "mdi:head-lightbulb", "#29b6f6"],
+  [/energie|energi|aktivier/i, "mdi:lightning-bolt", "#00acc1"],
+  [/entspann|relax|chill|ruhe|gemütlich|cozy/i, "mdi:sofa", "#ffa726"],
+  [/gedimmt|dim/i, "mdi:brightness-4", "#a1887f"],
+  [/hell|bright|wei(ß|ss)|white|normal|natürlich|\b\d{2,3}\b/i, "mdi:white-balance-sunny", "#fdd835"],
+  [/blau|blue/i, "mdi:palette", "#42a5f5"],
+  [/rot\b|red/i, "mdi:palette", "#e53935"],
+];
+
+/** Symbol und Farbe einer Szene am Namen erkennen */
+export const sceneStyle = (name: string): { icon: string; color: string } => {
+  const hit = SCENE_STYLES.find(([re]) => re.test(name));
+  return hit ? { icon: hit[1], color: hit[2] } : { icon: "mdi:palette-outline", color: "#ab47bc" };
+};
+
+/** Anzeigename einer Szene ohne Raum-Präfix („Wohnzimmer_ Lesen“ → „Lesen“) */
+export const sceneLabel = (st: HassEntity): string => {
+  if (st.attributes.name) return String(st.attributes.name).trim();
+  const fn = String(st.attributes.friendly_name ?? st.entity_id).trim();
+  const group = st.attributes.group_name ? String(st.attributes.group_name) : "";
+  if (group && fn.toLowerCase().startsWith(group.toLowerCase())) return fn.slice(group.length).replace(/^[_\s:-]+/, "").trim() || fn;
+  return fn;
+};
+
+/** Zeitpunkt der letzten Aktivierung (Szenen-Zustand ist ein Zeitstempel) */
+export const sceneActivated = (st?: HassEntity): number => {
+  const t = st ? Date.parse(st.state) : NaN;
+  return Number.isFinite(t) ? t : 0;
+};
+
+export interface SceneGroup { key: string; name: string; icon?: string; scenes: HassEntity[]; lights: string[] }
+
+const groupTitle = (g: string): string => (g.length <= 3 ? g.toUpperCase() : g.charAt(0).toUpperCase() + g.slice(1));
+
+/**
+ * Szenen nach Raum gruppieren: über `groups` (Hue-Raum, Textmuster oder feste Liste) oder automatisch nach `group_name`.
+ * Gleiche Namen je Raum nur einmal (die zuletzt benutzte gewinnt).
+ */
+export const sceneGroups = (states: Record<string, HassEntity>,
+  opts: { groups?: { name: string; icon?: string; match?: string; scenes?: string[]; lights?: string[] }[]; include?: string[]; exclude?: string[] } = {}): SceneGroup[] => {
+  const all = Object.values(states).filter((s) => s.entity_id.startsWith("scene.") && s.state !== "unavailable");
+  const has = (txt: string, pats?: string[]) => !!pats?.some((p) => txt.toLowerCase().includes(p.toLowerCase()));
+  const ok = (s: HassEntity) => {
+    const txt = `${s.attributes.friendly_name ?? ""} ${s.entity_id}`;
+    return (!opts.include?.length || has(txt, opts.include)) && !has(txt, opts.exclude);
+  };
+  const dedupe = (list: HassEntity[]) => {
+    const by = new Map<string, HassEntity>();
+    for (const s of list) {
+      const k = sceneLabel(s).toLowerCase();
+      const prev = by.get(k);
+      if (!prev || sceneActivated(s) > sceneActivated(prev)) by.set(k, s);
+    }
+    return [...by.values()].sort((a, b) => sceneLabel(a).localeCompare(sceneLabel(b)));
+  };
+  if (opts.groups?.length) {
+    return opts.groups.map((g, i) => {
+      const m = g.match?.toLowerCase();
+      const list = g.scenes?.length ? g.scenes.map((id) => states[id]).filter((s): s is HassEntity => !!s)
+        : all.filter((s) => m && (String(s.attributes.group_name ?? "").toLowerCase() === m
+          || String(s.attributes.friendly_name ?? "").toLowerCase().includes(m) || s.entity_id.includes(m.replace(/\s+/g, "_"))));
+      return { key: `g${i}`, name: g.name, icon: g.icon, scenes: dedupe(list.filter(ok)), lights: g.lights ?? [] };
+    }).filter((g) => g.scenes.length || g.lights.length);
+  }
+  const by = new Map<string, HassEntity[]>();
+  for (const s of all.filter(ok)) {
+    const g = String(s.attributes.group_name ?? "") || "_other";
+    by.set(g, [...(by.get(g) ?? []), s]);
+  }
+  return [...by.entries()].sort((a, b) => (a[0] === "_other" ? 1 : b[0] === "_other" ? -1 : a[0].localeCompare(b[0])))
+    .map(([g, list]) => ({ key: g, name: g === "_other" ? "" : groupTitle(g), scenes: dedupe(list), lights: [] }));
+};
+
+// ---------- Rezepte (Mealie) ----------
+
+/** Dauer aus Mealie („3 hours 20 minutes“, „PT1H30M“, „45 min“, „1 Stunde“) in Minuten */
+export const mealieMinutes = (s?: string | null): number | undefined => {
+  if (!s) return undefined;
+  const iso = /^P(?:T)?(?:(\d+)H)?(?:(\d+)M)?$/i.exec(s.trim());
+  if (iso && (iso[1] || iso[2])) return Number(iso[1] ?? 0) * 60 + Number(iso[2] ?? 0);
+  const h = /(\d+(?:[.,]\d+)?)\s*(?:h\b|hours?|std|stunden?)/i.exec(s);
+  const m = /(\d+)\s*(?:m\b|min|minutes?|minuten?)/i.exec(s);
+  if (!h && !m) return /^\d+$/.test(s.trim()) ? Number(s) : undefined;
+  return Math.round((h ? Number(h[1]!.replace(",", ".")) * 60 : 0) + (m ? Number(m[1]) : 0));
+};
+
+/** „1 h 20 min“ / „45 min“ */
+export const formatMinutes = (min: number): string => {
+  const h = Math.floor(min / 60), m = Math.round(min % 60);
+  return h ? (m ? `${h} h ${m} min` : `${h} h`) : `${m} min`;
+};
+
+const FRACTIONS: Record<string, number> = { "½": 0.5, "¼": 0.25, "¾": 0.75, "⅓": 1 / 3, "⅔": 2 / 3, "⅛": 0.125 };
+
+const fmtQty = (v: number): string => {
+  for (const [ch, f] of Object.entries(FRACTIONS)) if (Math.abs(v - f) < 0.01) return ch;
+  const whole = Math.floor(v), rest = v - whole;
+  for (const [ch, f] of Object.entries(FRACTIONS)) if (whole && Math.abs(rest - f) < 0.01) return `${whole}${ch}`;
+  return String(Math.round(v * 100) / 100).replace(".", ",");
+};
+
+/** Mengenangabe am Anfang einer Zutat umrechnen („2 Zwiebeln“ × 1,5 → „3 Zwiebeln“, „½ TL“, „2–3 EL“) */
+export const scaleIngredient = (text: string, factor: number): string => {
+  if (factor === 1) return text;
+  const num = "(\\d+(?:[.,]\\d+)?(?:\\s*[½¼¾⅓⅔⅛])?|[½¼¾⅓⅔⅛])";
+  const re = new RegExp(`^(\\s*(?:ca\\.\\s*|optional:\\s*)?)${num}(?:\\s*[–-]\\s*${num})?`, "i");
+  const parse = (q: string) => {
+    const t = q.replace(/\s+/g, "");
+    const fr = [...t].find((c) => c in FRACTIONS);
+    const base = fr ? t.replace(fr, "") : t;
+    return (base ? Number(base.replace(",", ".")) : 0) + (fr ? FRACTIONS[fr]! : 0);
+  };
+  return text.replace(re, (_m, pre: string, a: string, b?: string) =>
+    `${pre}${fmtQty(parse(a) * factor)}${b ? `–${fmtQty(parse(b) * factor)}` : ""}`);
+};
+
+export interface MealEntry { id?: string; date: string; type: string; title: string; recipeId?: string; slug?: string; description?: string; time?: number }
+
+/** Lokales Datum „YYYY-MM-DD“ */
+export const ymdLocal = (d: Date): string =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+/** Antwort von mealie.get_mealplan in einfache Einträge umwandeln */
+export const mealEntries = (raw: unknown): MealEntry[] => {
+  const r = raw as any;
+  const list: any[] = Array.isArray(r) ? r : Array.isArray(r?.mealplan) ? r.mealplan : Array.isArray(r?.response?.mealplan) ? r.response.mealplan : [];
+  return list.map((e) => {
+    const recipe = e.recipe ?? undefined;
+    const date = String(e.mealplan_date ?? e.date ?? "").slice(0, 10);
+    return { id: e.mealplan_id ?? e.id, date, type: String(e.entry_type ?? "dinner"), title: String(recipe?.name ?? e.title ?? ""),
+      recipeId: recipe?.recipe_id ?? recipe?.id, slug: recipe?.slug, description: recipe?.description ?? e.description ?? undefined,
+      time: mealieMinutes(recipe?.total_time) };
+  }).filter((e) => e.date && e.title).sort((a, b) => a.date.localeCompare(b.date));
+};
+
+// ---------- Schlafen ----------
+
+/** „in 1:25 h“ / „in 45 min“ als Minuten bis zum Zeitpunkt */
+export const minutesUntil = (at: Date | undefined, now = Date.now()): number | undefined =>
+  at ? Math.max(0, Math.round((at.getTime() - now) / 60_000)) : undefined;
+
+/** Kurze Dauer: „45 min“ bzw. „1:25 h“ */
+export const formatShortDuration = (min: number): string =>
+  min < 60 ? `${min} min` : `${Math.floor(min / 60)}:${String(min % 60).padStart(2, "0")} h`;
+
+/** Uhrzeit um Minuten verschieben (über Mitternacht hinweg), „HH:MM:00“ */
+export const shiftTime = (minutes: number, delta: number): string => {
+  const t = (((minutes + delta) % 1440) + 1440) % 1440;
+  return `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}:00`;
+};
+
+// ---------- Wochenrückblick Energie ----------
+
+/** Montag 0 Uhr der Woche von `d` (verschoben um `offset` Wochen) */
+export const weekStart = (d: Date, offset = 0): Date => {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  x.setDate(x.getDate() - ((x.getDay() + 6) % 7) + offset * 7);
+  return x;
+};
+
+/** Erster Tag des Monats von `d` (verschoben um `offset` Monate) */
+export const monthStart = (d: Date, offset = 0): Date => new Date(d.getFullYear(), d.getMonth() + offset, 1);
+
+/** Statistik-Zeilen (`change`) auf Tage ab `start` verteilen; `factor` z. B. 0,001 für Wh → kWh */
+export const dailyTotals = (rows: { start: number | string; change?: number | null }[], start: Date, days: number, factor = 1): number[] => {
+  const out = Array<number>(days).fill(0);
+  for (const r of rows) {
+    if (r.change == null || !Number.isFinite(r.change)) continue;
+    const t = new Date(typeof r.start === "number" ? r.start : Date.parse(r.start));
+    const idx = Math.round((new Date(t.getFullYear(), t.getMonth(), t.getDate()).getTime() - start.getTime()) / 86_400_000);
+    if (idx >= 0 && idx < days) out[idx]! += Math.max(0, r.change) * factor;
+  }
+  return out;
+};
+
+/** Faktor auf kWh für eine Energie-Einheit */
+export const kwhFactor = (unit?: string): number => (/^wh$/i.test(unit ?? "") ? 0.001 : /^mwh$/i.test(unit ?? "") ? 1000 : 1);
+
+/** Veränderung in Prozent (undefined, wenn die Vergleichsbasis fehlt) */
+export const percentChange = (now: number, before: number): number | undefined =>
+  before > 0.05 ? Math.round(((now - before) / before) * 100) : undefined;

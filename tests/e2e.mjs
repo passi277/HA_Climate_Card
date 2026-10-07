@@ -1528,6 +1528,112 @@ colorFails.length ? fail(`Farbe folgt nicht dem Modus: ${colorFails.join(", ")}`
   hue.length === 1 && hue[0] === "Couch Lightstrip" && call?.data.entity_id === "light.couch_licht" ? ok("Gerätestatus: Filter Philips Hue, Integration neu laden") : fail(`Gerätestatus Filter/Reload: ${hue} ${JSON.stringify(call)}`);
 }
 
+// Rezepte (Mealie)
+{
+  const R = () => document.querySelector("ha-recipe-card").shadowRoot;
+  const info = await p.evaluate(() => { const r = document.querySelector("ha-recipe-card").shadowRoot;
+    return { meals: [...r.querySelectorAll(".meal:not(.empty) span")].map((s) => s.textContent.trim()), empty: r.querySelectorAll(".meal.empty").length,
+      results: r.querySelectorAll(".res").length, sub: r.querySelector(".h-sub")?.textContent.trim() }; });
+  info.meals.includes("Spaghetti Carbonara") && info.results === 4 && /Heute: Spaghetti/.test(info.sub)
+    ? ok(`Rezepte: ${info.meals.length} geplant, ${info.empty} frei, ${info.results} neueste Rezepte`) : fail(`Rezepte: ${JSON.stringify(info)}`);
+  await p.evaluate(() => document.querySelector("ha-recipe-card").shadowRoot.querySelector(".meal.empty").click());
+  await p.waitForTimeout(100);
+  await p.evaluate(() => document.querySelector("ha-recipe-card").shadowRoot.querySelector('.mini[data-act="random"]').click());
+  await p.waitForTimeout(300);
+  const after = await p.evaluate(() => ({ calls: window.serviceCalls.filter((c) => c.service === "set_random_mealplan").length,
+    meals: document.querySelector("ha-recipe-card").shadowRoot.querySelectorAll(".meal:not(.empty)").length }));
+  after.calls === 1 && after.meals === info.meals.length + 1 ? ok("Rezepte: freier Platz → Zufällig plant ein") : fail(`Rezepte Zufall: ${JSON.stringify(after)}`);
+  await p.evaluate(() => { const i = document.querySelector("ha-recipe-card").shadowRoot.querySelector("input.search"); i.value = "gulasch"; i.dispatchEvent(new Event("input")); });
+  await p.waitForTimeout(700);
+  await p.evaluate(() => document.querySelector("ha-recipe-card").shadowRoot.querySelector(".res").click());
+  await p.waitForTimeout(400);
+  const dl = await p.evaluate(() => { const r = document.querySelector("ha-recipe-card").shadowRoot;
+    r.querySelectorAll(".serv .step")[0].click(); r.querySelectorAll(".serv .step")[0].click(); r.querySelectorAll(".serv .step")[0].click();
+    return { open: r.querySelector("dialog").open, title: r.querySelector(".dl-head h3")?.textContent }; });
+  await p.waitForTimeout(150);
+  const ing = await p.evaluate(() => document.querySelector("ha-recipe-card").shadowRoot.querySelector(".ings li span").textContent);
+  await p.evaluate(() => document.querySelector("ha-recipe-card").shadowRoot.querySelector('.act[data-act="shop"]').click());
+  await p.waitForTimeout(300);
+  const shop = await p.evaluate(() => window.serviceCalls.filter((c) => c.domain === "todo" && c.service === "add_item"));
+  dl.open && dl.title === "Rindergulasch" && ing === "½ kg Rindergulasch" && shop.length === 7 && shop[0].data.entity_id === "todo.mealie_einkaufsliste"
+    ? ok("Rezepte: Suche → Rezept, 3 statt 6 Portionen, Zutaten auf die Einkaufsliste") : fail(`Rezept-Detail: ${JSON.stringify({ dl, ing, n: shop.length })}`);
+  await p.evaluate(() => document.querySelector("ha-recipe-card").shadowRoot.querySelector(".x").click());
+}
+
+// Szenen
+{
+  const info = await p.evaluate(() => { const r = document.querySelector("ha-scene-card").shadowRoot;
+    return { chips: [...r.querySelectorAll(".chip")].map((c) => c.textContent.trim()), scenes: r.querySelectorAll(".scene").length,
+      last: r.querySelector(".scene.last .s-name")?.textContent.trim(), sub: r.querySelector(".h-sub")?.textContent.trim() }; });
+  info.chips.length === 3 && info.scenes === 6 && info.last === "Ambiente Kaminfeuer" && /Kaminfeuer/.test(info.sub)
+    ? ok(`Szenen: ${info.chips.join(", ")}, zuletzt ${info.last}`) : fail(`Szenen: ${JSON.stringify(info)}`);
+  const n = await p.evaluate(() => window.serviceCalls.length);
+  await p.evaluate(() => { const r = document.querySelector("ha-scene-card").shadowRoot; r.querySelector('.chip[data-room="g1"]').click(); });
+  await p.waitForTimeout(150);
+  await p.evaluate(() => document.querySelector("ha-scene-card").shadowRoot.querySelector('.scene[data-scene="scene.wohnzimmer_entspannen"]').click());
+  await p.evaluate(() => document.querySelector("ha-scene-card").shadowRoot.querySelector(".all-off").click());
+  await p.waitForTimeout(200);
+  const calls = await p.evaluate((k) => window.serviceCalls.slice(k).map((c) => `${c.domain}.${c.service}`), n);
+  calls.includes("scene.turn_on") && calls.includes("light.turn_off") ? ok("Szenen: Raum wechseln, Szene aktivieren, Alles aus") : fail(`Szenen Dienste: ${calls}`);
+}
+
+// Schlafen
+{
+  const info = await p.evaluate(() => { const r = document.querySelector("ha-sleep-card").shadowRoot;
+    return { asleep: r.querySelectorAll(".person.asleep").length, persons: r.querySelectorAll(".person").length,
+      tv: r.querySelector('.timer[data-timer="input_datetime.timer_tv"] small')?.textContent.trim(), alarm: !!r.querySelector(".alarm") }; });
+  info.asleep === 1 && info.persons === 2 && /aus in 1:2\d h/.test(info.tv) && info.alarm
+    ? ok(`Schlafen: Pascal schläft, TV ${info.tv}, Wecker`) : fail(`Schlafen: ${JSON.stringify(info)}`);
+  const n = await p.evaluate(() => window.serviceCalls.length);
+  await p.evaluate(() => document.querySelector("ha-sleep-card").shadowRoot.querySelectorAll('.timer[data-timer="input_datetime.timer_tv"] .step')[1].click());
+  await p.evaluate(() => document.querySelector("ha-sleep-card").shadowRoot.querySelector('[data-person="1"] .gn').click());
+  await p.waitForTimeout(100);
+  const first = await p.evaluate((k) => window.serviceCalls.slice(k).filter((c) => c.service === "turn_off").length, n);
+  await p.evaluate(() => document.querySelector("ha-sleep-card").shadowRoot.querySelector('[data-person="1"] .gn').click());
+  await p.waitForTimeout(200);
+  const calls = await p.evaluate((k) => window.serviceCalls.slice(k), n);
+  const dt = calls.find((c) => c.service === "set_datetime");
+  first === 0 && dt?.data.entity_id === "input_datetime.timer_tv" && calls.some((c) => c.service === "turn_on" && c.data.entity_id === "input_boolean.schlafen_marcel")
+    && calls.some((c) => c.domain === "light" && c.service === "turn_off")
+    ? ok(`Schlafen: +15 min (${dt.data.time}), „Gute Nacht“ erst nach Bestätigung`) : fail(`Schlafen Dienste: ${JSON.stringify(calls)}`);
+}
+
+// Klima-Räume
+{
+  const info = await p.evaluate(() => { const r = document.querySelector("ha-climate-rooms-card").shadowRoot;
+    return { rooms: r.querySelectorAll(".room").length, win: r.querySelectorAll(".room.win").length, heat: r.querySelectorAll(".room.heating").length,
+      next: r.querySelector('.room[data-room="Pascal"] .r-text small')?.textContent.trim(), sum: [...r.querySelectorAll(".sc")].map((s) => s.textContent.trim()) }; });
+  info.rooms === 4 && info.win === 1 && info.next
+    ? ok(`Klima 2.0: ${info.sum.join(", ")} · Pascal „${info.next}“`) : fail(`Klima 2.0: ${JSON.stringify(info)}`);
+  const n = await p.evaluate(() => window.serviceCalls.length);
+  // Frühere Tests haben die Heizung evtl. ausgeschaltet: erst einschalten, dann Boost
+  if (/Heizung aus/.test(info.next)) {
+    await p.evaluate(() => document.querySelector("ha-climate-rooms-card").shadowRoot.querySelector('.room[data-room="Pascal"] .pill[data-act="heat"]').click());
+    await p.waitForTimeout(400);
+  }
+  await p.evaluate(() => document.querySelector("ha-climate-rooms-card").shadowRoot.querySelector('.room[data-room="Pascal"] .pill[data-act="boost"]').click());
+  await p.waitForTimeout(300);
+  const calls = await p.evaluate((k) => window.serviceCalls.slice(k), n);
+  const boost = calls.find((c) => c.service === "set_preset_mode");
+  const next = await p.evaluate(() => document.querySelector("ha-climate-rooms-card").shadowRoot.querySelector('.room[data-room="Pascal"] .r-text small')?.textContent.trim());
+  boost?.data.entity_id === "climate.heizung_mein_zimmer" && (boost.data.preset_mode === "boost") === /Boost/.test(next)
+    ? ok(`Klima 2.0: ${calls.length > 1 ? "Heizung an, " : ""}Boost umgeschaltet („${next}“)`) : fail(`Klima 2.0 Boost: ${JSON.stringify(calls)} ${next}`);
+}
+
+// Wochenrückblick Energie
+{
+  await p.waitForTimeout(200);
+  const info = await p.evaluate(() => { const r = document.querySelector("ha-energy-week-card").shadowRoot;
+    return { total: r.querySelector(".kpi.main .k-v")?.textContent.trim(), cols: r.querySelectorAll(".chart .col").length,
+      shares: [...r.querySelectorAll(".share .s-name")].map((s) => s.textContent.trim()) }; });
+  /kWh/.test(info.total) && info.cols === 7 && info.shares[0] === "Whirlpool" && info.shares.length === 3
+    ? ok(`Energie-Woche: ${info.total}, ${info.shares.join(" > ")}`) : fail(`Energie-Woche: ${JSON.stringify(info)}`);
+  await p.evaluate(() => document.querySelector("ha-energy-week-card").shadowRoot.querySelector('.seg [data-range="month"]').click());
+  await p.waitForTimeout(400);
+  const month = await p.evaluate(() => document.querySelector("ha-energy-week-card").shadowRoot.querySelectorAll(".chart .col").length);
+  month >= 28 ? ok(`Energie-Woche: Monatsansicht (${month} Tage)`) : fail(`Energie-Monat: ${month}`);
+}
+
 // Theme-Umschalter
 await p.click('[data-theme="dark"]');
 (await p.evaluate(() => document.body.classList.contains("dark"))) ? ok("Dunkel-Modus umschaltbar") : fail("Dunkel-Modus");
