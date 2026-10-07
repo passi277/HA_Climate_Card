@@ -1466,6 +1466,9 @@
     "last_week": "Letzte Woche",
     "this_month": "Dieser Monat",
     "last_month": "Letzter Monat",
+    "this_year": "Dieses Jahr",
+    "last_year": "Letztes Jahr",
+    "year": "Jahr",
     "week": "Woche",
     "month": "Monat",
     "vs_prev": "zur Vorperiode",
@@ -1473,6 +1476,7 @@
     "cost": "Kosten",
     "per_day": "pro Tag",
     "peak": "Spitzentag",
+    "peak_month": "Spitzenmonat",
     "by_consumer": "Nach Verbraucher",
     "no_entities": "Keine Energiezähler gefunden – in der Karte oder in den Energie-Einstellungen eintragen",
     "chart": "Verbrauch je Tag"

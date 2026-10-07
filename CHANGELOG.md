@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.43.0 – Energie: Jahresansicht
+- Energy Week Card: neben Woche/Monat jetzt auch **Jahr** – 12 Monatsbalken gegen das Vorjahr, Vergleich fair bis zum gleichen Datum im Vorjahr, Ø pro Tag, Spitzenmonat; Monat antippen zeigt die Aufteilung je Verbraucher
+
 ## 1.42.0 – Dropdown nach oben
 - Select Card: neue Option **`dropdown_direction`** (`down` Standard, `up`, `auto`) – bei `layout: dropdown` klappt die Liste wahlweise nach oben auf (z. B. für eine Dashboard-Auswahl am Seitenende); `auto` entscheidet beim Öffnen nach freiem Platz. Auch je Auswahl einstellbar und im Editor wählbar
 

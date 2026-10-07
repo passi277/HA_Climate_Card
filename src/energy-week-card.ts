@@ -4,7 +4,7 @@ import type { EnergyWeekCardConfig, EnergyWeekEntity, HomeAssistant } from "./ty
 import { getLanguage, localize } from "./localize/localize";
 import { cardStyles } from "./styles";
 import { DOCS_URL } from "./shared";
-import { dailyTotals, kwhFactor, monthStart, percentChange, weekStart } from "./utils";
+import { dailyTotals, kwhFactor, monthlyTotals, monthStart, percentChange, weekStart, yearStart } from "./utils";
 import "./energy-week-editor";
 
 (window as any).customCards = (window as any).customCards || [];
@@ -18,13 +18,18 @@ import "./energy-week-editor";
 
 const PALETTE = ["#26a69a", "#42a5f5", "#ab47bc", "#ffa726", "#ec407a", "#7e57c2", "#66bb6a", "#8d6e63"];
 
-interface Series { entity: string; name: string; color: string; now: number[]; before: number[] }
+/** now/before: je Balken (Tag bzw. im Jahr Monat); beforeSame: Vorperiode bis zum gleichen Tag */
+interface Series { entity: string; name: string; color: string; now: number[]; before: number[]; beforeSame: number }
+
+type Range = "week" | "month" | "year";
+const DAY = 86_400_000;
+const sum = (a: number[]): number => a.reduce((x, y) => x + y, 0);
 
 @customElement("ha-energy-week-card")
 export class HaEnergyWeekCard extends LitElement {
   @property({ attribute: false }) hass?: HomeAssistant;
   @state() private _config?: EnergyWeekCardConfig;
-  @state() private _range: "week" | "month" = "week";
+  @state() private _range: Range = "week";
   @state() private _series?: Series[];
   @state() private _error?: string;
   @state() private _sel?: number;
@@ -93,8 +98,18 @@ export class HaEnergyWeekCard extends LitElement {
     return out;
   }
 
-  private _bounds(): { start: Date; prev: Date; days: number; prevDays: number } {
+  /** Zeitraum: Tage ab `start`/`prev`, `elapsed` = vergangene Tage inkl. heute */
+  private _bounds(): { start: Date; prev: Date; days: number; prevDays: number; elapsed: number } {
     const now = new Date();
+    const b = this._rawBounds(now);
+    return { ...b, elapsed: Math.min(b.days, Math.floor((now.getTime() - b.start.getTime()) / DAY) + 1) };
+  }
+
+  private _rawBounds(now: Date): { start: Date; prev: Date; days: number; prevDays: number } {
+    if (this._range === "year") {
+      const start = yearStart(now), prev = yearStart(now, -1);
+      return { start, prev, days: Math.round((yearStart(now, 1).getTime() - start.getTime()) / DAY), prevDays: Math.round((start.getTime() - prev.getTime()) / DAY) };
+    }
     if (this._range === "month") {
       const start = monthStart(now), prev = monthStart(now, -1);
       return { start, prev, days: new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate(), prevDays: Math.round((start.getTime() - prev.getTime()) / 86_400_000) };
@@ -106,8 +121,12 @@ export class HaEnergyWeekCard extends LitElement {
     try {
       const ents = await this._entities();
       if (!ents.length) { this._series = []; return; }
-      const { start, prev, days, prevDays } = this._bounds();
-      const end = new Date(start.getTime() + days * 86_400_000 + 3_600_000);
+      const { start, prev, days, prevDays, elapsed } = this._bounds();
+      const end = new Date(start.getTime() + days * DAY + 3_600_000);
+      // Vorperiode bis zum gleichen Tag (im Jahr: gleiches Datum im Vorjahr)
+      const now = new Date();
+      const sameIdx = this._range === "year"
+        ? Math.round((new Date(now.getFullYear() - 1, now.getMonth(), now.getDate()).getTime() - prev.getTime()) / DAY) + 1 : elapsed;
       const res: any = await this.hass!.callWS({
         type: "recorder/statistics_during_period", start_time: prev.toISOString(), end_time: end.toISOString(),
         statistic_ids: ents.map((e) => e.entity), period: "day", types: ["change"], units: { energy: "kWh" },
@@ -117,9 +136,11 @@ export class HaEnergyWeekCard extends LitElement {
         const rows = res?.[e.entity] ?? [];
         // units: energy=kWh rechnet der Recorder um; ohne Geräteklasse „energy“ bleibt die Sensor-Einheit
         const f = st?.attributes.device_class === "energy" ? 1 : kwhFactor(st?.attributes.unit_of_measurement);
+        const nowD = dailyTotals(rows, start, days, f), beforeD = dailyTotals(rows, prev, prevDays, f);
+        const year = this._range === "year";
         return {
-          entity: e.entity, name: e.name ?? String(st?.attributes.friendly_name ?? e.entity),
-          color: e.color ?? PALETTE[i % PALETTE.length]!, now: dailyTotals(rows, start, days, f), before: dailyTotals(rows, prev, prevDays, f),
+          entity: e.entity, name: e.name ?? String(st?.attributes.friendly_name ?? e.entity), color: e.color ?? PALETTE[i % PALETTE.length]!,
+          now: year ? monthlyTotals(nowD, start) : nowD, before: year ? monthlyTotals(beforeD, prev) : beforeD, beforeSame: sum(beforeD.slice(0, sameIdx)),
         };
       });
       this._error = undefined;
@@ -136,20 +157,25 @@ export class HaEnergyWeekCard extends LitElement {
     return v.toLocaleString(getLanguage(this.hass), { style: "currency", currency: this._config?.currency ?? "EUR", maximumFractionDigits: 2 });
   }
 
-  private _chart(series: Series[], days: number, start: Date) {
+  /** Datum des Balkens `i` (Tag bzw. Monat) */
+  private _barDate(start: Date, i: number): Date {
+    return this._range === "year" ? new Date(start.getFullYear(), i, 1) : new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+  }
+
+  private _chart(series: Series[], days: number, start: Date, today: number) {
     const sum = (arr: "now" | "before", i: number) => series.reduce((a, s) => a + (s[arr][i] ?? 0), 0);
     const now = Array.from({ length: days }, (_, i) => sum("now", i));
     const before = Array.from({ length: days }, (_, i) => sum("before", i));
     const max = Math.max(0.1, ...now, ...before);
-    const W = 320, H = 120, pad = 18, bw = (W / days) * (this._range === "week" ? 0.3 : 0.36);
-    const today = Math.floor((Date.now() - start.getTime()) / 86_400_000);
+    const W = 320, H = 120, pad = 18, bw = (W / days) * (this._range === "month" ? 0.36 : 0.3);
     const lang = getLanguage(this.hass);
     return html`<svg class="chart" viewBox="0 0 ${W} ${H + pad}" preserveAspectRatio="none" role="img" aria-label=${this._t("chart")}>
       ${now.map((v, i) => {
         const x = (i + 0.5) * (W / days);
         const hb = (before[i]! / max) * H, hn = (v / max) * H;
-        const d = new Date(start.getTime() + i * 86_400_000);
-        const label = this._range === "week" ? d.toLocaleDateString(lang, { weekday: "short" }).slice(0, 2) : (i % 5 === 0 ? String(d.getDate()) : "");
+        const d = this._barDate(start, i);
+        const label = this._range === "week" ? d.toLocaleDateString(lang, { weekday: "short" }).slice(0, 2)
+          : this._range === "year" ? d.toLocaleDateString(lang, { month: "narrow" }) : (i % 5 === 0 ? String(d.getDate()) : "");
         return svg`<g class="col ${this._sel === i ? "sel" : ""} ${i > today ? "future" : ""} ${i === today ? "today" : ""}" data-day=${i} @click=${() => { this._sel = this._sel === i ? undefined : i; }}>
           <rect class="hit" x=${x - W / days / 2} y="0" width=${W / days} height=${H + pad}></rect>
           <rect class="prev" x=${x - bw - 0.5} y=${H - hb} width=${bw} height=${Math.max(hb, 0.5)} rx="2"></rect>
@@ -165,20 +191,24 @@ export class HaEnergyWeekCard extends LitElement {
     const c = this._config;
     const series = this._series;
     const price = c.price ?? 0.3;
-    const { start, days } = this._bounds();
-    const today = Math.min(days - 1, Math.floor((Date.now() - start.getTime()) / 86_400_000));
-    const total = series?.reduce((a, s) => a + s.now.reduce((x, y) => x + y, 0), 0) ?? 0;
+    const { start, days, elapsed } = this._bounds();
+    const range = this._range;
+    // Balken: Tage, im Jahr Monate; `today` = aktueller Balken
+    const bars = range === "year" ? 12 : days;
+    const today = range === "year" ? new Date().getMonth() : elapsed - 1;
+    const total = series?.reduce((a, s) => a + sum(s.now), 0) ?? 0;
     // Vergleich fair: Vorperiode nur bis zum gleichen Tag
-    const prevSame = series?.reduce((a, s) => a + s.before.slice(0, today + 1).reduce((x, y) => x + y, 0), 0) ?? 0;
-    const prevAll = series?.reduce((a, s) => a + s.before.reduce((x, y) => x + y, 0), 0) ?? 0;
+    const prevSame = series?.reduce((a, s) => a + s.beforeSame, 0) ?? 0;
+    const prevAll = series?.reduce((a, s) => a + sum(s.before), 0) ?? 0;
     const delta = percentChange(total, prevSame);
-    const daily = Array.from({ length: days }, (_, i) => series?.reduce((a, s) => a + (s.now[i] ?? 0), 0) ?? 0);
+    const daily = Array.from({ length: bars }, (_, i) => series?.reduce((a, s) => a + (s.now[i] ?? 0), 0) ?? 0);
     const peak = daily.slice(0, today + 1).reduce((best, v, i) => (v > daily[best]! ? i : best), 0);
-    const avg = total / (today + 1);
+    const avg = total / elapsed;
     const lang = getLanguage(this.hass);
     const accent = delta == null ? "#26a69a" : delta > 5 ? "#ef6c00" : delta < -5 ? "#43a047" : "#26a69a";
-    const sel = this._sel != null && this._sel < days ? this._sel : undefined;
-    const selDate = sel != null ? new Date(start.getTime() + sel * 86_400_000) : undefined;
+    const sel = this._sel != null && this._sel < bars ? this._sel : undefined;
+    const selDate = sel != null ? this._barDate(start, sel) : undefined;
+    const setRange = (r: Range) => { this._range = r; this._sel = undefined; this._series = undefined; };
     const shares = (series ?? []).map((s) => ({ s, v: sel != null ? s.now[sel] ?? 0 : s.now.reduce((a, b) => a + b, 0) })).sort((a, b) => b.v - a.v);
     const shareTotal = shares.reduce((a, x) => a + x.v, 0);
     return html`<ha-card class="ew anim-${c.animations ?? "full"}" style="--hcc-accent-c:${accent}">
@@ -186,10 +216,9 @@ export class HaEnergyWeekCard extends LitElement {
       <div class="header">
         <span class="h-icon"><ha-icon icon="mdi:chart-bar"></ha-icon></span>
         <span class="head-text"><span class="h-title">${c.name ?? this._t("title")}</span>
-          <span class="h-sub">${this._t(this._range === "week" ? "this_week" : "this_month")}</span></span>
+          <span class="h-sub">${this._t(`this_${range}`)}</span></span>
         <span class="seg">
-          <button class=${this._range === "week" ? "on" : ""} data-range="week" @click=${() => { this._range = "week"; this._sel = undefined; this._series = undefined; }}>${this._t("week")}</button>
-          <button class=${this._range === "month" ? "on" : ""} data-range="month" @click=${() => { this._range = "month"; this._sel = undefined; this._series = undefined; }}>${this._t("month")}</button>
+          ${(["week", "month", "year"] as const).map((r) => html`<button class=${range === r ? "on" : ""} data-range=${r} @click=${() => setRange(r)}>${this._t(r)}</button>`)}
         </span>
       </div>
       ${this._error ? html`<div class="empty">${this._error}</div>` : !series ? html`<div class="graph-placeholder"></div>`
@@ -199,14 +228,14 @@ export class HaEnergyWeekCard extends LitElement {
             <span class="k-l">${delta != null ? html`<b class=${delta > 0 ? "up" : "down"}><ha-icon .icon=${delta > 0 ? "mdi:arrow-up" : "mdi:arrow-down"}></ha-icon>${Math.abs(delta)} %</b> ${this._t("vs_prev")}` : this._t("no_compare")}</span></div>
           <div class="kpi"><span class="k-v">${this._money(total * price)}</span><span class="k-l">${this._t("cost")}</span></div>
           <div class="kpi"><span class="k-v">${this._fmt(avg)}<small> kWh</small></span><span class="k-l">${this._t("per_day")}</span></div>
-          <div class="kpi"><span class="k-v">${new Date(start.getTime() + peak * 86_400_000).toLocaleDateString(lang, this._range === "week" ? { weekday: "short" } : { day: "numeric", month: "short" })}</span>
-            <span class="k-l">${this._t("peak")} · ${this._fmt(daily[peak] ?? 0)} kWh</span></div>
+          <div class="kpi"><span class="k-v">${this._barDate(start, peak).toLocaleDateString(lang, range === "week" ? { weekday: "short" } : range === "year" ? { month: "short" } : { day: "numeric", month: "short" })}</span>
+            <span class="k-l">${this._t(range === "year" ? "peak_month" : "peak")} · ${this._fmt(daily[peak] ?? 0)} kWh</span></div>
         </div>
-        ${this._chart(series, days, start)}
-        <div class="legend"><span><i class="now"></i>${this._t(this._range === "week" ? "this_week" : "this_month")}</span>
-          <span><i class="prev"></i>${this._t(this._range === "week" ? "last_week" : "last_month")} · ${this._fmt(prevAll)} kWh</span></div>
+        ${this._chart(series, bars, start, today)}
+        <div class="legend"><span><i class="now"></i>${this._t(`this_${range}`)}</span>
+          <span><i class="prev"></i>${this._t(`last_${range}`)} · ${this._fmt(prevAll, prevAll >= 1000 ? 0 : 1)} kWh</span></div>
         <div class="shares">
-          <div class="s-head">${selDate ? selDate.toLocaleDateString(lang, { weekday: "long", day: "numeric", month: "long" }) : this._t("by_consumer")}
+          <div class="s-head">${selDate ? selDate.toLocaleDateString(lang, range === "year" ? { month: "long", year: "numeric" } : { weekday: "long", day: "numeric", month: "long" }) : this._t("by_consumer")}
             ${sel != null ? html`<b>${this._fmt(shareTotal, 2)} kWh</b>` : nothing}</div>
           ${shares.map(({ s, v }) => html`<div class="share" style="--sc:${s.color}" data-share=${s.entity}>
             <span class="s-name"><i></i>${s.name}</span>

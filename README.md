@@ -726,7 +726,7 @@ entity: binary_sensor.fritz_box_7690_verbindung   # oder z. B. sensor.tp_link_ro
 ## Modern Energy Week Card (Wochenrückblick Energie)
 
 Verbrauch **dieser Woche gegen die Vorwoche** – fair bis zum gleichen Wochentag – mit Kosten, Ø pro Tag und Spitzentag, Balken Mo–So
-(diese/letzte Woche) und **Anteil je Verbraucher**; einen Tag antippen zeigt seine Aufteilung. Umschaltbar auf **Monat**. Daten aus der
+(diese/letzte Woche) und **Anteil je Verbraucher**; einen Tag antippen zeigt seine Aufteilung. Umschaltbar auf **Monat** und **Jahr** (12 Monatsbalken, Vergleich mit dem Vorjahr bis zum gleichen Datum). Daten aus der
 Langzeitstatistik; ohne `entities` aus den Energie-Einstellungen (Geräte, sonst Netzbezug).
 
 ```yaml

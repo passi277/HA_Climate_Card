@@ -1650,6 +1650,13 @@ colorFails.length ? fail(`Farbe folgt nicht dem Modus: ${colorFails.join(", ")}`
   await p.waitForTimeout(400);
   const month = await p.evaluate(() => document.querySelector("ha-energy-week-card").shadowRoot.querySelectorAll(".chart .col").length);
   month >= 28 ? ok(`Energie-Woche: Monatsansicht (${month} Tage)`) : fail(`Energie-Monat: ${month}`);
+  await p.evaluate(() => document.querySelector("ha-energy-week-card").shadowRoot.querySelector('.seg [data-range="year"]').click());
+  await p.waitForTimeout(500);
+  const year = await p.evaluate(() => { const r = document.querySelector("ha-energy-week-card").shadowRoot;
+    return { cols: r.querySelectorAll(".chart .col").length, today: r.querySelector(".chart .col.today")?.dataset.day, sub: r.querySelector(".h-sub").textContent.trim(),
+      total: r.querySelector(".kpi.main .k-v")?.textContent.trim(), peak: r.querySelectorAll(".kpi .k-l")[3]?.textContent.trim(), legend: r.querySelector(".legend").textContent.replace(/\s+/g, " ").trim() }; });
+  year.cols === 12 && Number(year.today) === new Date().getMonth() && year.sub === "Dieses Jahr" && /kWh/.test(year.total) && /Spitzenmonat/.test(year.peak) && /Letztes Jahr/.test(year.legend)
+    ? ok(`Energie-Woche: Jahresansicht (12 Monate, ${year.total})`) : fail(`Energie-Jahr: ${JSON.stringify(year)}`);
 }
 
 // Rezepte ohne Essensplan

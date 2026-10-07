@@ -2110,6 +2110,19 @@ export const weekStart = (d: Date, offset = 0): Date => {
 /** Erster Tag des Monats von `d` (verschoben um `offset` Monate) */
 export const monthStart = (d: Date, offset = 0): Date => new Date(d.getFullYear(), d.getMonth() + offset, 1);
 
+/** 1. Januar des Jahres von `d` (verschoben um `offset` Jahre) */
+export const yearStart = (d: Date, offset = 0): Date => new Date(d.getFullYear() + offset, 0, 1);
+
+/** Tageswerte ab `start` (1. Januar) zu Monatssummen zusammenfassen */
+export const monthlyTotals = (daily: number[], start: Date): number[] => {
+  const out = Array<number>(12).fill(0);
+  daily.forEach((v, i) => {
+    const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+    if (d.getFullYear() === start.getFullYear()) out[d.getMonth()]! += v;
+  });
+  return out;
+};
+
 /** Statistik-Zeilen (`change`) auf Tage ab `start` verteilen; `factor` z. B. 0,001 für Wh → kWh */
 export const dailyTotals = (rows: { start: number | string; change?: number | null }[], start: Date, days: number, factor = 1): number[] => {
   const out = Array<number>(days).fill(0);

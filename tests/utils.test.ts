@@ -6,7 +6,7 @@ import {
   nextPickups, eventStart, daysUntil, offlineDevices, platformName,
   routerFeatures, routerClients, clientIcon, formatKbit, wifiLabel,
   sceneStyle, sceneLabel, sceneGroups, hueRoomLights, hueRooms, parcelStatus, parcelCarrier, parcelText, sortParcels, sceneActivated, mealieMinutes, formatMinutes, scaleIngredient, mealEntries, ymdLocal,
-  minutesUntil, formatShortDuration, shiftTime, weekStart, monthStart, dailyTotals, kwhFactor, percentChange,
+  minutesUntil, formatShortDuration, shiftTime, weekStart, monthStart, yearStart, monthlyTotals, dailyTotals, kwhFactor, percentChange,
   updateKind, pendingUpdates, updateName, resourceSensors, backupSensors, backupHealth, loadLevel, windDir, tempScale, weatherHint, weatherIcon,
   starlinkFeatures, speedtestFeatures, formatRate, formatBytes, formatUptime, toMbit, pingQuality,
   openContactsKey, powerOf, resolveContacts, secondsToDuration, stateIcon, temperatureOf, temperatureTint, trendSlope,
@@ -1120,6 +1120,13 @@ describe("Wochenrückblick Energie", () => {
     expect(weekStart(new Date(2026, 9, 7, 15)).toDateString()).toBe(new Date(2026, 9, 5).toDateString());
     expect(weekStart(new Date(2026, 9, 11), -1).toDateString()).toBe(new Date(2026, 8, 28).toDateString());
     expect(monthStart(new Date(2026, 0, 20), -1).toDateString()).toBe(new Date(2025, 11, 1).toDateString());
+    expect(yearStart(new Date(2026, 9, 7), -1).toDateString()).toBe(new Date(2025, 0, 1).toDateString());
+  });
+  it("fasst Tage zu Monaten zusammen", () => {
+    const m = monthlyTotals(Array(365).fill(1), new Date(2026, 0, 1));
+    expect(m.length).toBe(12);
+    expect([m[0], m[1], m[11]]).toEqual([31, 28, 31]);
+    expect(monthlyTotals(Array(366).fill(1), new Date(2025, 0, 1))[11]).toBe(31);
   });
   it("verteilt Tageswerte und vergleicht", () => {
     const start = new Date(2026, 9, 5);

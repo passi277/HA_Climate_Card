@@ -1449,6 +1449,9 @@
     "last_week": "Last week",
     "this_month": "This month",
     "last_month": "Last month",
+    "this_year": "This year",
+    "last_year": "Last year",
+    "year": "Year",
     "week": "Week",
     "month": "Month",
     "vs_prev": "vs. previous",
@@ -1456,6 +1459,7 @@
     "cost": "Cost",
     "per_day": "per day",
     "peak": "Peak day",
+    "peak_month": "Peak month",
     "by_consumer": "By consumer",
     "no_entities": "No energy meters found – add them to the card or the energy settings",
     "chart": "Consumption per day"
