@@ -36,6 +36,11 @@ export class HaSelectCard extends LitElement {
   @state() private _open?: string;
   /** Richtung des offenen Dropdowns (bei „auto“ beim Öffnen gemessen) */
   @state() private _openUp = false;
+  /** Lage des schwebenden Menüs nach oben (Popover über dem Knopf, nicht von der Karte abgeschnitten) */
+  @state() private _pop?: { left: number; bottom: number; width: number };
+  private _outside = (ev: Event): void => {
+    if (!ev.composedPath().includes(this)) this._close();
+  };
   @state() private _confirm?: string;
   @state() private _pending: Record<string, string> = {};
   private _confirmTimer?: number;
@@ -64,6 +69,15 @@ export class HaSelectCard extends LitElement {
   disconnectedCallback(): void {
     super.disconnectedCallback();
     clearTimeout(this._confirmTimer);
+    this._close();
+  }
+
+  private _close(): void {
+    this._open = undefined;
+    this._pop = undefined;
+    document.removeEventListener("pointerdown", this._outside, true);
+    window.removeEventListener("scroll", this._outside, true);
+    window.removeEventListener("resize", this._outside);
   }
 
   private _t(key: string): string {
@@ -93,6 +107,8 @@ export class HaSelectCard extends LitElement {
       const next = Object.fromEntries(Object.entries(this._pending).filter(([id, v]) => this.hass!.states[id]?.state !== v));
       if (Object.keys(next).length !== Object.keys(this._pending).length) this._pending = next;
     }
+    const pop = this.renderRoot.querySelector<HTMLElement & { showPopover?: () => void }>(".pop");
+    if (pop?.showPopover && !pop.matches(":popover-open")) pop.showPopover();
   }
 
   private _rows(): Row[] {
@@ -125,7 +141,7 @@ export class HaSelectCard extends LitElement {
 
   private _select(r: Row, o: Opt): void {
     if (r.unavailable || o.value === r.current) {
-      if (r.layout === "dropdown") this._open = undefined;
+      if (r.layout === "dropdown") this._close();
       return;
     }
     const key = `${r.cfg.entity}|${o.value}`;
@@ -139,7 +155,7 @@ export class HaSelectCard extends LitElement {
     this._confirm = undefined;
     this._haptic("selection");
     this._pending = { ...this._pending, [r.cfg.entity]: o.value };
-    if (r.layout === "dropdown") this._open = undefined;
+    if (r.layout === "dropdown") this._close();
     const domain = r.cfg.entity.split(".")[0]!;
     this.hass!.callService(domain, "select_option", { entity_id: r.cfg.entity, option: o.value }).catch((err: any) => {
       this._haptic("failure");
@@ -183,7 +199,9 @@ export class HaSelectCard extends LitElement {
         const cur = r.options.find((o) => o.value === r.current);
         const open = this._open === r.cfg.entity;
         return html`<div class="dd ${open ? "open" : ""} ${r.up ? "up" : ""}">
-          ${open && r.up ? this._renderList(r) : nothing}
+          ${open && r.up ? this._pop
+            ? html`<div class="pop" popover="manual" style="left:${this._pop.left}px;bottom:${this._pop.bottom}px;width:${this._pop.width}px">${this._renderList(r)}</div>`
+            : this._renderList(r) : nothing}
           <button class="dd-btn" style="--oc:${cur?.color ?? "var(--secondary-text-color)"}" ?disabled=${r.unavailable} aria-expanded=${open}
             @click=${(ev: Event) => this._toggleDropdown(r, ev.currentTarget as HTMLElement, open)}>
             <ha-icon .icon=${cur?.icon ?? "mdi:help-circle-outline"}></ha-icon><span>${cur?.name ?? r.current ?? "–"}</span>
@@ -199,20 +217,28 @@ export class HaSelectCard extends LitElement {
   private _toggleDropdown(r: Row, btn: HTMLElement, open: boolean): void {
     this._haptic("selection");
     if (open) {
-      this._open = undefined;
+      this._close();
       return;
     }
     const dir = r.cfg.dropdown_direction ?? "down";
+    const rect = btn.getBoundingClientRect();
     let up = dir === "up";
     if (dir === "auto") {
       // Liste nach oben, wenn unten zu wenig Platz ist und oben mehr
-      const rect = btn.getBoundingClientRect();
       const need = r.options.length * 46 + 8;
       const below = window.innerHeight - rect.bottom;
       up = below < need && rect.top > below;
     }
     this._openUp = up;
     this._open = r.cfg.entity;
+    // Nach oben schwebt die Liste über dem Knopf (Popover); ohne Popover-Unterstützung in der Karte
+    this._pop = up && "showPopover" in HTMLElement.prototype
+      ? { left: rect.left, bottom: window.innerHeight - rect.top + 6, width: rect.width } : undefined;
+    if (this._pop) {
+      document.addEventListener("pointerdown", this._outside, true);
+      window.addEventListener("scroll", this._outside, true);
+      window.addEventListener("resize", this._outside);
+    }
   }
 
   private _renderList(r: Row) {
@@ -300,6 +326,11 @@ export class HaSelectCard extends LitElement {
     .list { display: flex; flex-direction: column; gap: 4px; padding: 4px; border-radius: var(--hcc-inner-radius, 14px); background: rgba(127,127,127,0.07); }
     .dd .list { margin-top: 6px; animation: fade-in 0.25s cubic-bezier(0.22, 1, 0.36, 1) both; }
     .dd.up .list { margin: 0 0 6px; animation-name: fade-in-up; }
+    .pop { position: fixed; inset: auto; top: auto; right: auto; margin: 0; padding: 0; border: none; overflow: visible;
+      background: var(--ha-card-background, var(--card-background-color, #1c1c1c)); color: var(--primary-text-color);
+      border-radius: var(--hcc-inner-radius, 14px); box-shadow: 0 8px 28px rgba(0,0,0,0.35); }
+    .dd.up .pop .list { margin: 0; max-height: 60vh; overflow-y: auto; }
+    .row.l-dropdown .dd.up.open:has(.pop) { flex-basis: 160px; }
     @keyframes fade-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
     @keyframes fade-in-up { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
     .li { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: none; border-radius: 10px; background: none; cursor: pointer; text-align: left; transition: background 0.2s; }

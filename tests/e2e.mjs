@@ -1249,15 +1249,18 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
   await up.evaluate((c) => c.shadowRoot.querySelector(".dd-btn").click());
   await p.waitForTimeout(150);
   const open = await up.evaluate((c) => { const dd = c.shadowRoot.querySelector(".dd"); const kids = [...dd.children].map((e) => e.className.split(" ")[0]);
-    return { up: dd.classList.contains("up"), order: kids.join(","), chev: c.shadowRoot.querySelector(".chev").classList.contains("up"), items: dd.querySelectorAll(".li").length }; });
+    const pop = dd.querySelector(".pop"), btn = dd.querySelector(".dd-btn");
+    return { up: dd.classList.contains("up"), order: kids.join(","), chev: c.shadowRoot.querySelector(".chev").classList.contains("up"), items: dd.querySelectorAll(".li").length,
+      shown: !!pop?.matches(":popover-open"), above: pop ? pop.getBoundingClientRect().bottom <= btn.getBoundingClientRect().top : false,
+      cardH: c.getBoundingClientRect().height }; });
   const n0 = await p.evaluate(() => window.serviceCalls.length);
   await up.evaluate((c) => [...c.shadowRoot.querySelectorAll(".dd .li")].find((b) => !b.classList.contains("sel")).click());
   await p.waitForTimeout(300);
   const pick = await p.evaluate((n) => window.serviceCalls.slice(n).map((c) => `${c.domain}.${c.service} ${c.data.entity_id} ${c.data.option}`), n0);
   const after = await up.evaluate((c) => ({ list: !!c.shadowRoot.querySelector(".list"), up: c.shadowRoot.querySelector(".dd").classList.contains("up") }));
-  before.chev && !before.list && open.up && open.order === "list,dd-btn" && !open.chev && open.items === 2
+  before.chev && !before.list && open.up && open.order === "pop,dd-btn" && open.shown && open.above && !open.chev && open.items === 2
     && pick.length === 1 && pick[0].startsWith("input_select.select_option input_select.pascal_dashboard") && !after.list && !after.up
-    ? ok("Auswahl: Dropdown öffnet nach oben (Liste vor dem Knopf), schließt nach Wahl")
+    ? ok("Auswahl: Dropdown öffnet schwebend nach oben über dem Knopf, schließt nach Wahl")
     : fail(`Dropdown nach oben: ${JSON.stringify({ before, open, pick, after })}`);
 }
 

@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.43.1 – Dropdown wirklich nach oben
+- Select Card: `dropdown_direction: up` (und `auto` bei wenig Platz) öffnet die Liste jetzt **schwebend über dem Knopf** – die Karte wird nicht mehr länger und der Knopf bleibt stehen; schließt bei Auswahl, Tippen daneben oder Scrollen
+
 ## 1.43.0 – Energie: Jahresansicht
 - Energy Week Card: neben Woche/Monat jetzt auch **Jahr** – 12 Monatsbalken gegen das Vorjahr, Vergleich fair bis zum gleichen Datum im Vorjahr, Ø pro Tag, Spitzenmonat; Monat antippen zeigt die Aufteilung je Verbraucher
 
