@@ -549,6 +549,27 @@
           [`sensor.${sys}_solarerzeugung_tag`, { state: d.includes("sonne") ? "2.84" : "0.06", attributes: { friendly_name: "Solarerzeugung Tag", unit_of_measurement: "kWh", device_class: "energy" } }],
           [`sensor.${sys}_solar_kostenersparnis_tag`, { state: d.includes("sonne") ? "1.02" : "0.38", attributes: { friendly_name: "Solar Kostenersparnis Tag", unit_of_measurement: "€" } }],
         ])),
+      // System & Updates (Zuhause-HA): Updates, CPU/RAM, Backup, Dienste
+      "update.home_assistant_core_update": { state: "on", attributes: { friendly_name: "Home Assistant Core Update", title: "Home Assistant Core", installed_version: "2026.10.1", latest_version: "2026.10.2", supported_features: 29, release_url: "https://www.home-assistant.io/" } },
+      "update.mosquitto_broker_update": { state: "on", attributes: { friendly_name: "Mosquitto broker Update", installed_version: "6.5.1", latest_version: "6.5.2", supported_features: 29 } },
+      "update.matter_server_update": { state: "on", attributes: { friendly_name: "Matter Server Update", installed_version: "8.1.0", latest_version: "8.2.0", in_progress: true, update_percentage: 45, supported_features: 29 } },
+      "update.battery_notes_update": { state: "on", attributes: { friendly_name: "Battery Notes Update", installed_version: "v3.1.4", latest_version: "v3.2.0", supported_features: 23, release_url: "https://github.com/andrew-codechimp/HA-Battery-Notes/releases" } },
+      "update.spook_your_homie_update": { state: "on", attributes: { friendly_name: "Spook 👻 Your homie Update", installed_version: "v4.0.1", latest_version: "v4.1.0", supported_features: 23, release_url: "https://github.com/frenck/spook/releases" } },
+      "update.mushroom_update": { state: "on", attributes: { friendly_name: "Mushroom Update", installed_version: "v5.0.4", latest_version: "v5.1.0", supported_features: 23 } },
+      "update.hacs_update": { state: "off", attributes: { friendly_name: "HACS Update", installed_version: "2.0.5", latest_version: "2.0.5" } },
+      "update.home_assistant_operating_system_update": { state: "off", attributes: { friendly_name: "Home Assistant Operating System Update", installed_version: "17.0", latest_version: "17.0" } },
+      "sensor.home_assistant_core_cpu_percent": { state: "4.7", attributes: { friendly_name: "Home Assistant Core CPU Prozent", unit_of_measurement: "%" } },
+      "sensor.home_assistant_core_memory_percent": { state: "11.17", attributes: { friendly_name: "Home Assistant Core Arbeitsspeicher in Prozent", unit_of_measurement: "%" } },
+      "sensor.system_monitor_disk_use_percent": { state: "71.3", attributes: { friendly_name: "Speicher belegt", unit_of_measurement: "%" } },
+      "sensor.backup_backup_manager_zustand": { state: "idle", attributes: { friendly_name: "Backup Backup-Manager-Zustand" } },
+      "sensor.backup_letztes_erfolgreiches_automatisches_backup": { state: new Date(Date.now() - 5 * 3600_000).toISOString(), attributes: { friendly_name: "Letztes erfolgreiches automatisches Backup", device_class: "timestamp" } },
+      "sensor.backup_zuletzt_versuchtes_automatisches_backup": { state: new Date(Date.now() - 5 * 3600_000 - 120_000).toISOString(), attributes: { friendly_name: "Letztes versuchtes automatisches Backup", device_class: "timestamp" } },
+      "sensor.backup_nachstes_geplantes_automatisches_backup": { state: new Date(Date.now() + 19 * 3600_000).toISOString(), attributes: { friendly_name: "Nächstes geplantes automatisches Backup", device_class: "timestamp" } },
+      "binary_sensor.zigbee2mqtt_bridge_connection_state": { state: "on", attributes: { friendly_name: "Zigbee2MQTT Bridge", device_class: "connectivity" } },
+      "binary_sensor.mosquitto_broker_running": { state: "on", attributes: { friendly_name: "MQTT-Broker", device_class: "running" } },
+      // Wetter (met.no): Tages- und Stundenvorhersage über weather/subscribe_forecast
+      "weather.forecast_home": { state: "partlycloudy", attributes: { friendly_name: "Zuhause", temperature: 10.9, apparent_temperature: 8.6, dew_point: 10, temperature_unit: "°C", humidity: 93,
+        cloud_coverage: 42, uv_index: 2.4, pressure: 1012.9, pressure_unit: "hPa", wind_bearing: 82.8, wind_speed: 15.8, wind_gust_speed: 31, wind_speed_unit: "km/h", visibility_unit: "km", precipitation_unit: "mm", supported_features: 3 } },
       "calendar.llm_vision_timeline": { state: "off", attributes: { friendly_name: "LLM Vision Timeline", title: "Marcels Auto", description: "Ein blauer VW (Modell T-Roc) steht im Eingangsbereich.",
         key_frame: "/media/llmvision/snapshots/auto-1.jpg", camera_name: "camera.blink_carport", icon: "mdi:timeline-outline" } },
       ...Object.fromEntries(["tor", "carport", "pool", "schuppen"].flatMap((n, i) => [
@@ -800,6 +821,17 @@
           setTimeout(() => { const h = makeHass(); cards.forEach((c) => (c.hass = h)); }, 150);
           return;
         }
+        if (domain === "homeassistant" && service === "restart") return;
+        if (domain === "update" && service === "install") {
+          const u = states[data.entity_id];
+          states[data.entity_id] = { ...u, attributes: { ...u.attributes, in_progress: true, update_percentage: 10 } };
+          setTimeout(() => { const h = makeHass(); cards.forEach((c) => (c.hass = h)); }, 100);
+          setTimeout(() => {
+            states[data.entity_id] = { ...u, state: "off", attributes: { ...u.attributes, in_progress: false, installed_version: u.attributes.latest_version } };
+            const h = makeHass(); cards.forEach((c) => (c.hass = h));
+          }, 1500);
+          return;
+        }
         if (domain === "homeassistant" && service === "update_entity" && String(data.entity_id).startsWith("sensor.speedtest_")) {
           setTimeout(() => {
             const now = new Date().toISOString();
@@ -840,6 +872,21 @@
       },
       connection: {
         async subscribeMessage(cb, msg) {
+          if (msg.entity_id === "weather.forecast_home") {
+            const now = new Date(); now.setMinutes(0, 0, 0);
+            const hourly = Array.from({ length: 30 }, (_, i) => {
+              const t = new Date(now.getTime() + i * 3600_000), h = t.getHours();
+              const rain = i >= 4 && i <= 8;
+              return { datetime: t.toISOString(), temperature: +(8 + 5 * Math.sin(((h - 9) / 24) * 2 * Math.PI) + (rain ? -1.5 : 0)).toFixed(1),
+                condition: rain ? (i === 6 ? "pouring" : "rainy") : h < 7 || h >= 20 ? "clear-night" : i < 4 ? "partlycloudy" : "cloudy",
+                precipitation: rain ? [0.4, 1.2, 2.6, 1.1, 0.3][i - 4] : 0, precipitation_probability: rain ? 70 + (i % 3) * 8 : 5, wind_speed: 14 + (i % 5) * 3, is_daytime: h >= 7 && h < 20 };
+            });
+            const conds = ["rainy", "partlycloudy", "sunny", "sunny", "cloudy", "lightning-rainy", "partlycloudy"];
+            const daily = conds.map((c, i) => ({ datetime: new Date(now.getTime() + i * 86400_000).toISOString(), condition: c,
+              temperature: [13, 15, 18, 19, 14, 12, 11][i], templow: [6, 5, 7, 9, 8, 4, -1][i], precipitation: [4.6, 0, 0, 0, 0.6, 9.2, 0.2][i], precipitation_probability: [80, 10, 0, 5, 30, 90, 20][i] }));
+            setTimeout(() => cb({ forecast: msg.forecast_type === "hourly" ? hourly : daily }), 50);
+            return () => {};
+          }
           setTimeout(() => cb({ forecast: [{ condition: "sunny", temperature: 31, templow: 17, precipitation_probability: 10 }] }), 50);
           return () => {};
         },
@@ -1011,6 +1058,8 @@
       ] }],
       ["Status – Batterien aus Bereich + Türkontakt + Einkaufsliste", { _status: true, areas: ["mein_zimmer"], shopping_list: true, expanded: true, contacts: [{ entity: "binary_sensor.tuerkontakt_pascal", name: "Tür" }] }],
       ["Status – Battery Notes am Gerät (Typ, „gewechselt vor“, gedrückt halten = Wechsel eintragen)", { _status: true, title: "Ventile", batteries: ["sensor.ventil_hecke_battery", "sensor.ventil_rasen_battery", "sensor.ventil_beete_battery"], shopping_list: true, expanded: true }],
+      ["System & Updates – CPU/RAM/Speicher, Dienste, Updates mit Installieren, Backup, Neustart", { _system: true, services: ["binary_sensor.zigbee2mqtt_bridge_connection_state", { entity: "binary_sensor.mosquitto_broker_running", name: "MQTT" }] }],
+      ["Wetter – animierter Himmel, Hinweis „Regen ab …“, Stundenkurve, 7 Tage", { _weather: true, entity: "weather.forecast_home" }],
       ["Hausakku – Anker Solarbank entlädt (Ring, Restzeit, Fluss Solar → Akku → Haus, PV-Module, Ersparnis, Verlauf)", { _hbat: true, entity: "sensor.solarbank_3_e2700_pro_ladestand" }],
       ["Hausakku – lädt bei Sonne", { _hbat: true, entity: "sensor.solarbank_sonne_ladestand", show: { history: false } }],
       ["KI-Timeline – LLM Vision: neuestes Ereignis mit Bild, Filter, Zeitleiste nach Tagen, Detail beim Antippen", { _llm: true, entity: "calendar.llm_vision_timeline" }],
@@ -1051,9 +1100,9 @@
         grid.appendChild(wrap);
         return;
       }
-      const { _overview, _light, _group, _cover, _coverGroup, _switchTime, _media, _room, _status, _vacuum, _presence, _alert, _energy, _irrigation, _pool, _camera, _cameraGroup, _select, _mower, _starlink, _llm, _hbat, ...rest } = cfg;
+      const { _overview, _light, _group, _cover, _coverGroup, _switchTime, _media, _room, _status, _vacuum, _presence, _alert, _energy, _irrigation, _pool, _camera, _cameraGroup, _select, _mower, _starlink, _llm, _hbat, _system, _weather, ...rest } = cfg;
       const tag = _overview ? "ha-climate-overview-card" : _group ? "ha-light-group-card" : _light ? "ha-light-card"
-        : _cover ? "ha-cover-card" : _coverGroup ? "ha-cover-group-card" : _switchTime ? "ha-switch-time-card" : _media ? "ha-media-card" : _room ? "ha-room-card" : _status ? "ha-status-card" : _vacuum ? "ha-vacuum-card" : _presence ? "ha-presence-card" : _alert ? "ha-alert-card" : _energy ? "ha-energy-card" : _irrigation ? "ha-irrigation-card" : _pool ? "ha-pool-card" : _camera ? "ha-camera-card" : _cameraGroup ? "ha-camera-group-card" : _select ? "ha-select-card" : _mower ? "ha-mower-card" : _starlink ? "ha-starlink-card" : _llm ? "ha-llm-timeline-card" : _hbat ? "ha-home-battery-card" : "ha-climate-card";
+        : _cover ? "ha-cover-card" : _coverGroup ? "ha-cover-group-card" : _switchTime ? "ha-switch-time-card" : _media ? "ha-media-card" : _room ? "ha-room-card" : _status ? "ha-status-card" : _vacuum ? "ha-vacuum-card" : _presence ? "ha-presence-card" : _alert ? "ha-alert-card" : _energy ? "ha-energy-card" : _irrigation ? "ha-irrigation-card" : _pool ? "ha-pool-card" : _camera ? "ha-camera-card" : _cameraGroup ? "ha-camera-group-card" : _select ? "ha-select-card" : _mower ? "ha-mower-card" : _starlink ? "ha-starlink-card" : _llm ? "ha-llm-timeline-card" : _hbat ? "ha-home-battery-card" : _system ? "ha-system-card" : _weather ? "ha-weather-card" : "ha-climate-card";
       const card = document.createElement(tag);
       card.id = "card" + i;
       card.setConfig({ type: `custom:${tag}`, ...rest });

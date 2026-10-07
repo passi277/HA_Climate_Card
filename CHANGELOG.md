@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.36.0 – System & Wetter
+- Neue **Modern System Card** (`custom:ha-system-card`): CPU/RAM/Speicher-Ringe, Dienste, alle verfügbaren Updates (sortiert, Versionssprung, Installieren mit Rückfrage, Core/Apps mit Backup, Fortschritt), Backup-Zustand (letztes/nächstes, überfällig, fehlgeschlagen), Neustart mit Rückfrage
+- Neue **Modern Weather Card** (`custom:ha-weather-card`): animierter Himmel nach Sonnenstand und Wetter, Hinweis „Regen ab …“/Frost/Gewitter/trocken, Wind mit Richtungspfeil, UV, Luftdruck, Taupunkt, Stundenkurve mit Regenbalken, 7-Tage-Vorschau mit Temperaturbalken
+
 ## 1.35.0 – Hausakku
 - Neue **Modern Home Battery Card** (`custom:ha-home-battery-card`), z.B. für die Anker Solarbank: Ladestand-Ring mit Wh/Kapazität, Lade-/Entladeleistung und Restzeit bis leer/voll, übersetzter Betriebszustand und Modus, animierter Energiefluss Solar → Akku → Haus, PV-Module mit Namen, Solar heute, Ersparnis heute/gesamt, CO₂, Verlauf von Ladestand und Solar, Warnungen (Fehlercode, Cloud offline, fast leer), Aktualisieren-Taste
 - Entitäten werden über Gerät und übergeordnetes System (`via_device_id`) erkannt, visueller Editor

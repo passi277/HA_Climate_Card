@@ -23,3 +23,5 @@ import "./mower-card";
 import "./starlink-card";
 import "./llm-timeline-card";
 import "./home-battery-card";
+import "./system-card";
+import "./weather-card";

@@ -522,6 +522,39 @@ entity: sensor.solarbank_3_e2700_pro_ladestand
 # solar: sensor.xyz          # Zuordnung überschreiben (home, battery_power, capacity, status, strings: […] …)
 ```
 
+## Modern System Card (System & Updates)
+
+Für die System-Seite: **CPU, RAM und Speicher** als Ringe (automatisch erkannt, z.B. `home_assistant_core_cpu_percent` oder der
+Systemmonitor), optionale **Dienste** (Zigbee2MQTT, MQTT … als grüne/rote Punkte), alle **verfügbaren Updates** sortiert nach Core/OS,
+Apps, Integrationen, Karten und Firmware – mit Versionssprung, **„Installieren“** (Rückfrage, Core/Apps mit Backup) und Fortschrittsbalken –,
+der Zustand der **Backups** (letztes/nächstes, Warnung wenn überfällig oder fehlgeschlagen) und ein **Neustart**-Knopf mit Rückfrage.
+
+```yaml
+type: custom:ha-system-card
+# services: [binary_sensor.zigbee2mqtt_bridge_connection_state, { entity: binary_sensor.mosquitto_broker_running, name: MQTT }]
+# resources: [sensor.system_monitor_processor_use]   # statt automatischer Erkennung
+# exclude_updates: [update.mushroom_update]
+# max_updates: 5
+# backup_max_age: 3      # Tage
+# show_restart: false
+```
+
+## Modern Weather Card (Wetter)
+
+**Animierter Himmel** (Tag, Dämmerung, Nacht mit Sternen und Mond nach `sun.sun`; Wolken, Regen, Schnee, Nebel, Gewitterblitze),
+große Temperatur mit Zustand, Max/Min und gefühlter Temperatur, ein **Hinweis** aus der Stundenvorhersage („Regen ab 14:00“, „Regen bis
+etwa 16:00“, „Frost ab 23:00“, „Gewitter möglich“, „Trocken in den nächsten 12 Stunden“), **Werte** (Wind mit Richtungspfeil, Böen,
+Luftfeuchte, UV farbig, Luftdruck, Taupunkt, Bewölkung), ein scrollbarer **Stundenverlauf** mit Temperaturkurve und Regenbalken und eine
+**7-Tage-Vorschau** mit farbigen Temperaturbalken auf gemeinsamer Skala.
+
+```yaml
+type: custom:ha-weather-card
+entity: weather.forecast_home
+# days: 7
+# hours: 24
+# show_details: false   # show_hourly, show_daily
+```
+
 ## Modern Vacuum Card (Saugroboter)
 
 - **Live-Karte** aus dem Kartenbild (z.B. Roborock Custom Map, `image.*`) – mit Roboter-Position, automatisch auf die
@@ -903,6 +936,8 @@ glow, smooth color transitions, animations), shipped as a single HACS download:
 - `custom:ha-starlink-card` – Starlink dish (status, live throughput, ping, packet loss, warnings, stow/reboot) plus external speed test with history and "run test now"
 - `custom:ha-llm-timeline-card` – LLM Vision timeline: latest event with snapshot, category/camera filters, day-grouped timeline and detail view
 - `custom:ha-home-battery-card` – home battery / solar storage (e.g. Anker Solarbank): charge ring with time left, animated solar → battery → home flow, PV strings, savings, history
+- `custom:ha-system-card` – system & updates: CPU/RAM/disk rings, services, all pending updates with install and progress, backups, restart
+- `custom:ha-weather-card` – weather with animated sky, rain/frost hint, hourly curve and 7-day forecast
 - `custom:ha-vacuum-card` – robot vacuum with live map, tap rooms on the map for room cleaning, controls, modes, maintenance
 - `custom:ha-presence-card` – people as photo tiles (home/away, phone battery and charging found automatically) plus front door: hold to open (Nuki Opener), Ring to Open, doorbell
 - `custom:ha-alert-card` – alerts that only appear when something is going on (window open, vacuum error, low battery …), hidden otherwise

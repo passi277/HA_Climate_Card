@@ -930,3 +930,56 @@ export interface HomeBatteryCardConfig extends HomeBatteryFeatures {
   animations?: "full" | "reduced" | "off";
   [key: string]: unknown;
 }
+
+export interface SystemCardConfig {
+  type: string;
+  name?: string;
+  /** Ressourcen-Sensoren in % (Standard: automatisch CPU/RAM/Disk) */
+  resources?: (string | { entity: string; name?: string; icon?: string })[];
+  /** Dienste (binary_sensor/switch), z.B. Zigbee2MQTT, MQTT */
+  services?: (string | { entity: string; name?: string; icon?: string })[];
+  /** Nur diese Updates (Standard: alle update.*) */
+  updates?: string[];
+  /** Diese Updates ausblenden */
+  exclude_updates?: string[];
+  /** So viele Updates anzeigen, Rest über „Alle anzeigen“ (Standard 5) */
+  max_updates?: number;
+  /** Backup gilt nach so vielen Tagen als überfällig (Standard 3) */
+  backup_max_age?: number;
+  show_resources?: boolean;
+  show_updates?: boolean;
+  show_backup?: boolean;
+  show_restart?: boolean;
+  animations?: "full" | "reduced" | "off";
+  [key: string]: unknown;
+}
+
+export interface WeatherForecast {
+  datetime: string;
+  condition?: string;
+  temperature?: number;
+  templow?: number;
+  precipitation?: number;
+  precipitation_probability?: number;
+  wind_speed?: number;
+  wind_bearing?: number;
+  is_daytime?: boolean;
+  humidity?: number;
+  uv_index?: number;
+}
+
+export interface WeatherCardConfig {
+  type: string;
+  /** weather.* */
+  entity: string;
+  name?: string;
+  show_hourly?: boolean;
+  show_daily?: boolean;
+  show_details?: boolean;
+  /** Tage in der Vorschau (Standard 7) */
+  days?: number;
+  /** Stunden im Verlauf (Standard 24) */
+  hours?: number;
+  animations?: "full" | "reduced" | "off";
+  [key: string]: unknown;
+}

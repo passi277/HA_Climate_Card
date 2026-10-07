@@ -1448,6 +1448,41 @@ colorFails.length ? fail(`Farbe folgt nicht dem Modus: ${colorFails.join(", ")}`
   call?.data.entity_id === "button.solarbank_3_e2700_pro_details_aktualisieren" ? ok("Hausakku: Aktualisieren drückt den Button") : fail(`Hausakku Aktualisieren: ${JSON.stringify(call)}`);
 }
 
+// System & Updates
+{
+  const info = await p.evaluate(() => { const r = document.querySelector("ha-system-card").shadowRoot;
+    return { sub: r.querySelector(".h-sub")?.textContent.trim(), rings: r.querySelectorAll(".res-item").length, upd: r.querySelectorAll(".upd").length,
+      count: r.querySelector(".count")?.textContent.trim(), backup: r.querySelector(".b-text b")?.textContent.trim(), svc: r.querySelectorAll(".svc.ok").length }; });
+  /Updates verfügbar/.test(info.sub) && info.rings === 3 && info.upd === 5 && info.svc === 2 && info.backup === "Backup aktuell"
+    ? ok(`System: ${info.sub}, ${info.count} Updates, 3 Ringe, Backup aktuell`) : fail(`System: ${JSON.stringify(info)}`);
+  const n = await p.evaluate(() => window.serviceCalls.length);
+  await p.evaluate(() => document.querySelector("ha-system-card").shadowRoot.querySelector(".u-btn").click());
+  await p.waitForTimeout(150);
+  const asked = await p.evaluate((k) => window.serviceCalls.length === k && document.querySelector("ha-system-card").shadowRoot.querySelector(".u-btn").classList.contains("ask"), n);
+  await p.evaluate(() => document.querySelector("ha-system-card").shadowRoot.querySelector(".u-btn.ask").click());
+  await p.waitForTimeout(300);
+  const call = await p.evaluate((k) => window.serviceCalls.slice(k).find((c) => c.service === "install"), n);
+  asked && call?.data.entity_id === "update.home_assistant_core_update" && call.data.backup === true
+    ? ok("System: Installieren fragt nach, Core mit Backup") : fail(`System Installieren: ${asked} ${JSON.stringify(call)}`);
+  await p.evaluate(() => document.querySelector("ha-system-card").shadowRoot.querySelector(".restart").click());
+  await p.waitForTimeout(100);
+  const noRestart = await p.evaluate(() => !window.serviceCalls.some((c) => c.service === "restart"));
+  await p.evaluate(() => document.querySelector("ha-system-card").shadowRoot.querySelector(".restart").click());
+  await p.waitForTimeout(100);
+  noRestart && (await p.evaluate(() => window.serviceCalls.some((c) => c.domain === "homeassistant" && c.service === "restart")))
+    ? ok("System: Neustart erst nach Bestätigung") : fail("System: Neustart-Rückfrage");
+}
+
+// Wetter
+{
+  const info = await p.evaluate(() => { const r = document.querySelector("ha-weather-card").shadowRoot;
+    return { temp: r.querySelector(".h-main .h-temp")?.textContent.trim(), cond: r.querySelector(".h-cond")?.textContent.trim(), hint: r.querySelector(".hint")?.textContent.trim(),
+      days: r.querySelectorAll("[data-day]").length, hours: r.querySelectorAll(".h-col").length, wind: r.querySelector('.det[data-k="wind"] small')?.textContent.trim() }; });
+  info.temp === "11°" && info.cond === "Teilweise bewölkt" ? ok(`Wetter: ${info.temp} ${info.cond}`) : fail(`Wetter Hero: ${JSON.stringify(info)}`);
+  /^Regen ab \d{2}:\d{2}$/.test(info.hint ?? "") ? ok(`Wetter-Hinweis: ${info.hint}`) : fail(`Wetter-Hinweis: ${info.hint}`);
+  info.days === 7 && info.hours >= 20 && info.wind === "O" ? ok("Wetter: 7 Tage, Stundenverlauf, Wind aus Ost") : fail(`Wetter Inhalt: ${JSON.stringify(info)}`);
+}
+
 // Theme-Umschalter
 await p.click('[data-theme="dark"]');
 (await p.evaluate(() => document.body.classList.contains("dark"))) ? ok("Dunkel-Modus umschaltbar") : fail("Dunkel-Modus");

@@ -1,4 +1,4 @@
-import type { ContactConfig, ContactType, DeviceRegistryEntry, EntityRegistryEntry, HassEntity, LlmCategory, LlmEvent } from "./types";
+import type { ContactConfig, ContactType, DeviceRegistryEntry, EntityRegistryEntry, HassEntity, LlmCategory, LlmEvent, WeatherForecast } from "./types";
 import { ACTION_ICONS, ACTION_TO_MODE, ClimateFeature, DEFAULT_SHOW, MODE_COLORS, MODE_ICONS, supports } from "./const";
 
 export const UNAVAILABLE = ["unavailable", "unknown"];
@@ -1663,4 +1663,134 @@ export const batteryStatusKey = (state?: string, powerW?: number): { key: string
   if (powerW != null && powerW > 5) return { key: "charge", dir: "charge" };
   if (powerW != null && powerW < -5) return { key: "discharge", dir: "discharge" };
   return { key: "standby", dir: "idle" };
+};
+
+// ---------- System & Updates ----------
+
+export type UpdateKind = "core" | "os" | "supervisor" | "app" | "integration" | "card" | "firmware" | "other";
+const KIND_ORDER: UpdateKind[] = ["core", "os", "supervisor", "app", "integration", "card", "firmware", "other"];
+
+/** Art eines Updates (für Sortierung und Symbol) */
+export const updateKind = (id: string, attrs: Record<string, any> = {}): UpdateKind => {
+  if (/home_assistant_core/.test(id)) return "core";
+  if (/home_assistant_operating_system|haos/.test(id)) return "os";
+  if (/home_assistant_supervisor/.test(id)) return "supervisor";
+  const pic = String(attrs.entity_picture ?? "");
+  const title = `${id} ${attrs.friendly_name ?? ""} ${attrs.title ?? ""}`.toLowerCase();
+  if (/firmware|fritz|_ota|shelly|hmip_|zigbee|_fw\b/.test(title)) return "firmware";
+  if (/\/api\/hassio\/addons|hassio/.test(pic) || /terminal|editor|broker|server|mosquitto|ccu|webhook|matter|mealie|frigate|esphome|node.?red|samba/.test(title)) return "app";
+  if (/card|theme|lovelace|_bar_|mushroom|graph/.test(title)) return "card";
+  if (/brands\.home-assistant\.io/.test(pic) || /hacs|integration/.test(title)) return "integration";
+  return attrs.release_url && /github\.com/.test(String(attrs.release_url)) ? "integration" : "other";
+};
+
+/** Verfügbare Updates: Core/OS/Supervisor zuerst, dann Apps, Integrationen, Karten, Firmware; jeweils nach Name */
+export const pendingUpdates = (states: Record<string, HassEntity>, include?: string[], exclude: string[] = []): HassEntity[] =>
+  Object.values(states)
+    .filter((s) => s.entity_id.startsWith("update.") && (s.state === "on" || s.attributes.in_progress) && (!include?.length || include.includes(s.entity_id)) && !exclude.includes(s.entity_id))
+    .sort((a, b) => KIND_ORDER.indexOf(updateKind(a.entity_id, a.attributes)) - KIND_ORDER.indexOf(updateKind(b.entity_id, b.attributes))
+      || String(a.attributes.friendly_name ?? a.entity_id).localeCompare(String(b.attributes.friendly_name ?? b.entity_id)));
+
+/** Lesbarer Update-Name: „ … Update“ / „Update“ am Ende entfernen */
+export const updateName = (st: HassEntity): string =>
+  String(st.attributes.title || st.attributes.friendly_name || st.entity_id.replace(/^update\./, "").replace(/_/g, " "))
+    .replace(/\s+(update|aktualisierung)$/i, "").trim();
+
+/** Ressourcen-Sensoren in % automatisch finden (CPU, RAM, Datenträger) */
+export const resourceSensors = (states: Record<string, HassEntity>): { entity: string; kind: "cpu" | "memory" | "disk" }[] => {
+  const ids = Object.keys(states).filter((id) => id.startsWith("sensor.") && states[id]!.attributes.unit_of_measurement === "%").sort();
+  const pick = (re: RegExp, not?: RegExp) => ids.find((id) => re.test(id) && !(not && not.test(id)));
+  const out: { entity: string; kind: "cpu" | "memory" | "disk" }[] = [];
+  const cpu = pick(/processor_use|cpu_(usage|percent|load)|_cpu$/, /addon|_app_|supervisor/) ?? pick(/home_assistant_core_cpu_percent/);
+  const mem = pick(/memory_use_percent|memory_usage|ram_(usage|percent)/, /addon|_app_|supervisor/) ?? pick(/home_assistant_core_memory_percent/);
+  const disk = pick(/disk_use_percent|disk_usage|storage_use|disk_percent/);
+  if (cpu) out.push({ entity: cpu, kind: "cpu" });
+  if (mem) out.push({ entity: mem, kind: "memory" });
+  if (disk) out.push({ entity: disk, kind: "disk" });
+  return out;
+};
+
+/** Backup-Sensoren der Backup-Integration finden */
+export const backupSensors = (states: Record<string, HassEntity>): { last?: string; attempted?: string; next?: string; state?: string } => {
+  const ids = Object.keys(states).filter((id) => id.startsWith("sensor.backup_")).sort();
+  return {
+    last: ids.find((id) => /(letztes_erfolgreiche|last_successful)/.test(id)),
+    attempted: ids.find((id) => /(zuletzt_versucht|letztes_versucht|last_attempted)/.test(id)),
+    next: ids.find((id) => /(nachstes|next_scheduled)/.test(id)),
+    state: ids.find((id) => /(manager|zustand|state)$/.test(id)),
+  };
+};
+
+/** Zustand der Backups: ok, überfällig (älter als maxAgeDays) oder fehlgeschlagen (Versuch nach dem letzten Erfolg) */
+export const backupHealth = (last?: string, attempted?: string, maxAgeDays = 3, now = Date.now()): "ok" | "stale" | "failed" | "none" => {
+  const l = last ? new Date(last).getTime() : NaN;
+  const a = attempted ? new Date(attempted).getTime() : NaN;
+  if (!Number.isFinite(l)) return Number.isFinite(a) ? "failed" : "none";
+  if (Number.isFinite(a) && a - l > 60 * 60_000) return "failed";
+  return now - l > maxAgeDays * 86400_000 ? "stale" : "ok";
+};
+
+/** Auslastungs-Stufe für Farben */
+export const loadLevel = (pct: number): "ok" | "warn" | "high" => (pct < 60 ? "ok" : pct < 85 ? "warn" : "high");
+
+// ---------- Wetter ----------
+
+/** Windrichtung als Himmelsrichtung (deutsch: N, NO, O …; englisch: N, NE, E …) */
+export const windDir = (bearing?: number, lang = "de"): string => {
+  if (bearing == null || !Number.isFinite(bearing)) return "";
+  const de = ["N", "NO", "O", "SO", "S", "SW", "W", "NW"], en = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+  return (lang.startsWith("de") ? de : en)[Math.round((((bearing % 360) + 360) % 360) / 45) % 8]!;
+};
+
+/** Gemeinsame Temperaturskala für die Tagesbalken */
+export const tempScale = (days: WeatherForecast[]): { min: number; max: number } => {
+  const vals = days.flatMap((d) => [d.templow, d.temperature]).filter((v): v is number => v != null && Number.isFinite(v));
+  if (!vals.length) return { min: 0, max: 1 };
+  const min = Math.floor(Math.min(...vals)), max = Math.ceil(Math.max(...vals));
+  return { min, max: max > min ? max : min + 1 };
+};
+
+const RAINY = /rainy|pouring|lightning-rainy|hail|snowy-rainy|snowy/;
+
+/** Hinweis aus der Stundenvorhersage: Regen ab/bis, Frost, Sturm – Schlüssel + Zeit für die Übersetzung */
+export const weatherHint = (hourly: WeatherForecast[], current?: string, now = Date.now()):
+  { key: "rain_from" | "rain_until" | "dry" | "frost" | "storm" | "thunder"; at?: Date; value?: number } | undefined => {
+  const next = hourly.filter((h) => new Date(h.datetime).getTime() >= now - 30 * 60_000).slice(0, 24);
+  if (!next.length) return undefined;
+  const wet = (h: WeatherForecast) => RAINY.test(h.condition ?? "") || (h.precipitation ?? 0) >= 0.3 || (h.precipitation_probability ?? 0) >= 60;
+  const thunder = next.slice(0, 12).find((h) => /lightning/.test(h.condition ?? ""));
+  if (thunder) return { key: "thunder", at: new Date(thunder.datetime) };
+  const raining = RAINY.test(current ?? "") || wet(next[0]!);
+  if (raining) {
+    const dry = next.find((h) => !wet(h));
+    return { key: "rain_until", at: dry ? new Date(dry.datetime) : undefined };
+  }
+  const rain = next.slice(0, 12).find(wet);
+  if (rain) return { key: "rain_from", at: new Date(rain.datetime) };
+  const storm = next.slice(0, 12).find((h) => (h.wind_speed ?? 0) >= 50);
+  if (storm) return { key: "storm", at: new Date(storm.datetime), value: storm.wind_speed };
+  const frost = next.find((h) => (h.temperature ?? 99) <= 0);
+  if (frost) return { key: "frost", at: new Date(frost.datetime), value: Math.min(...next.map((h) => h.temperature ?? 99)) };
+  return { key: "dry" };
+};
+
+/** Wetterzustand → MDI-Symbol (Nacht-Varianten) */
+export const weatherIcon = (condition?: string, night = false): string => {
+  switch (condition) {
+    case "clear-night": return "mdi:weather-night";
+    case "sunny": return night ? "mdi:weather-night" : "mdi:weather-sunny";
+    case "partlycloudy": return night ? "mdi:weather-night-partly-cloudy" : "mdi:weather-partly-cloudy";
+    case "cloudy": return "mdi:weather-cloudy";
+    case "fog": return "mdi:weather-fog";
+    case "hail": return "mdi:weather-hail";
+    case "lightning": return "mdi:weather-lightning";
+    case "lightning-rainy": return "mdi:weather-lightning-rainy";
+    case "pouring": return "mdi:weather-pouring";
+    case "rainy": return "mdi:weather-rainy";
+    case "snowy": return "mdi:weather-snowy";
+    case "snowy-rainy": return "mdi:weather-snowy-rainy";
+    case "windy": case "windy-variant": return "mdi:weather-windy";
+    case "exceptional": return "mdi:alert-circle-outline";
+    default: return "mdi:weather-cloudy";
+  }
 };

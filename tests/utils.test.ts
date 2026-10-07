@@ -3,6 +3,7 @@ import type { HassEntity } from "../src/types";
 import {
   batteryHoursLeft, consumerGrid, formatHours, integratePower, statsEnergy, flowLpm, timerInfo, formatRemaining, rangeStatus, phDose, poolRuntimeRecommendation, cameraFeatures, wifiQuality, optionStyle, musicModes, isMusicEffect, energyFlows, formatPower, powerWatts, alertActive, batteryShoppingList, clockMinutes, upcomingPickups, wasteStyle, batteryIcon, doorDevices, doorKind, initials, isCharging, phoneSensors, brightnessPct, contactType, calibrationTransform, roomsFromMap, roomIcon, areaBatteries, batteryInfo, batteryNotesFor, mowerFeatures, mowerPhase, mapGeometry, mowerAreas, polygonSize, extendTrail, presetActive, presetData, DEFAULT_LIGHT_PRESETS, activityIcon, activityLabel, guessControlDevice, guessVolumeDevice, coverIcon, datetimeParts, nextOccurrence, coverPosition, skyPhase, sunPlacement, weatherOverlay, editorOptions, isNoEffect, lightEditorOptions, segmentIds, detectDeviceType, kelvinToRgb, lightColor, relatedScenes, supportsColor, supportsColorTemp, dewPoint, nextSwitch, parseSchedule, scheduleTempAt, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
   llmEvents, llmCategory, snapshotMediaId, dayGroups, homeBatteryFeatures, batteryEta, batteryStatusKey,
+  updateKind, pendingUpdates, updateName, resourceSensors, backupSensors, backupHealth, loadLevel, windDir, tempScale, weatherHint, weatherIcon,
   starlinkFeatures, speedtestFeatures, formatRate, formatBytes, formatUptime, toMbit, pingQuality,
   openContactsKey, powerOf, resolveContacts, secondsToDuration, stateIcon, temperatureOf, temperatureTint, trendSlope,
 } from "../src/utils";
@@ -933,5 +934,63 @@ describe("Hausakku (Anker Solarbank)", () => {
     expect(batteryStatusKey("charge_ac")).toEqual({ key: "charge_grid", dir: "charge" });
     expect(batteryStatusKey("fully_charged")).toEqual({ key: "full", dir: "full" });
     expect(batteryStatusKey("unknown", 300).dir).toBe("charge");
+  });
+});
+
+describe("System & Updates", () => {
+  it("ordnet Updates nach Art und filtert", () => {
+    const states = Object.fromEntries([
+      entity("update.mushroom_update", "on", { friendly_name: "Mushroom Update" }),
+      entity("update.home_assistant_core_update", "on", { friendly_name: "Home Assistant Core Update" }),
+      entity("update.mosquitto_broker_update", "on", { friendly_name: "Mosquitto broker Update" }),
+      entity("update.hmip_swdo_1_update", "on", { friendly_name: "Türkontakt Update" }),
+      entity("update.hacs_update", "off", {}),
+      entity("update.matter_server_update", "off", { friendly_name: "Matter Server Update", in_progress: true }),
+    ].map((e) => [e.entity_id, e]));
+    expect(pendingUpdates(states).map((s) => s.entity_id)).toEqual([
+      "update.home_assistant_core_update", "update.matter_server_update", "update.mosquitto_broker_update", "update.mushroom_update", "update.hmip_swdo_1_update"]);
+    expect(pendingUpdates(states, undefined, ["update.mushroom_update"]).length).toBe(4);
+    expect(updateKind("update.home_assistant_operating_system_update")).toBe("os");
+    expect(updateKind("update.battery_notes_update", { entity_picture: "https://brands.home-assistant.io/_/battery_notes/icon.png" })).toBe("integration");
+    expect(updateName(states["update.mosquitto_broker_update"]!)).toBe("Mosquitto broker");
+  });
+
+  it("findet Ressourcen- und Backup-Sensoren", () => {
+    const states = Object.fromEntries([
+      entity("sensor.home_assistant_core_cpu_percent", "0.2", { unit_of_measurement: "%" }),
+      entity("sensor.home_assistant_core_memory_percent", "11", { unit_of_measurement: "%" }),
+      entity("sensor.system_monitor_disk_use_percent", "71", { unit_of_measurement: "%" }),
+      entity("sensor.backup_letztes_erfolgreiches_automatisches_backup", "2026-10-07T03:27:32+00:00"),
+      entity("sensor.backup_zuletzt_versuchtes_automatisches_backup", "2026-10-07T03:25:05+00:00"),
+      entity("sensor.backup_nachstes_geplantes_automatisches_backup", "2026-10-08T03:12:30+00:00"),
+      entity("sensor.backup_backup_manager_zustand", "idle"),
+    ].map((e) => [e.entity_id, e]));
+    expect(resourceSensors(states).map((r) => r.kind)).toEqual(["cpu", "memory", "disk"]);
+    expect(backupSensors(states)).toEqual({
+      last: "sensor.backup_letztes_erfolgreiches_automatisches_backup", attempted: "sensor.backup_zuletzt_versuchtes_automatisches_backup",
+      next: "sensor.backup_nachstes_geplantes_automatisches_backup", state: "sensor.backup_backup_manager_zustand" });
+    const now = new Date("2026-10-07T10:00:00Z").getTime();
+    expect(backupHealth("2026-10-07T03:27:32Z", "2026-10-07T03:25:05Z", 3, now)).toBe("ok");
+    expect(backupHealth("2026-10-01T03:27:32Z", undefined, 3, now)).toBe("stale");
+    expect(backupHealth("2026-10-05T03:00:00Z", "2026-10-07T03:00:00Z", 3, now)).toBe("failed");
+    expect([loadLevel(10), loadLevel(70), loadLevel(90)]).toEqual(["ok", "warn", "high"]);
+  });
+});
+
+describe("Wetter", () => {
+  it("Windrichtung, Skala, Symbole", () => {
+    expect([windDir(82.8), windDir(225), windDir(350, "en")]).toEqual(["O", "SW", "N"]);
+    expect(tempScale([{ datetime: "", temperature: 13, templow: 6 }, { datetime: "", temperature: 19, templow: -1 }])).toEqual({ min: -1, max: 19 });
+    expect(weatherIcon("partlycloudy", true)).toBe("mdi:weather-night-partly-cloudy");
+  });
+
+  it("Hinweis: Regen ab, Regen bis, Frost, trocken", () => {
+    const now = new Date("2026-10-07T08:00:00Z").getTime();
+    const h = (i: number, x: Record<string, unknown> = {}) => ({ datetime: new Date(now + i * 3600_000).toISOString(), temperature: 10, condition: "cloudy", ...x });
+    expect(weatherHint([h(0), h(1), h(2, { condition: "rainy" })], "cloudy", now)).toMatchObject({ key: "rain_from", at: new Date(now + 2 * 3600_000) });
+    expect(weatherHint([h(0, { condition: "rainy" }), h(1, { precipitation: 1 }), h(2)], "rainy", now)).toMatchObject({ key: "rain_until", at: new Date(now + 2 * 3600_000) });
+    expect(weatherHint([h(0), h(5, { temperature: -2 })], "cloudy", now)).toMatchObject({ key: "frost", value: -2 });
+    expect(weatherHint([h(0), h(1)], "sunny", now)).toEqual({ key: "dry" });
+    expect(weatherHint([], "sunny", now)).toBeUndefined();
   });
 });

@@ -1,6 +1,6 @@
 {
   "name": "ha-modern-home-cards",
-  "version": "1.35.0",
+  "version": "1.36.0",
   "description": "Moderne Home-Assistant-Karten im gleichen Design: Klima, Heizung, Licht",
   "type": "module",
   "main": "dist/ha-modern-home-cards.js",
