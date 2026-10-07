@@ -646,6 +646,7 @@
     };
     const makeHass = () => ({
       async callApi(method, path) {
+        if (path === "config/core/check_config") { await new Promise((r) => setTimeout(r, 400)); return { result: "valid", errors: null }; }
         if (path.startsWith("calendars/calendar.llm_vision_timeline")) return LLM_EVENTS.map((e) => ({ summary: e.title, description: e.description, start: { dateTime: e.start }, end: { dateTime: e.end }, uid: e.uid }));
         if (path.startsWith("calendars/calendar.abfall")) return [
           { summary: "Restmüll", start: { date: ymd(1) }, end: { date: ymd(2) } },
@@ -821,7 +822,7 @@
           setTimeout(() => { const h = makeHass(); cards.forEach((c) => (c.hass = h)); }, 150);
           return;
         }
-        if (domain === "homeassistant" && service === "restart") return;
+        if (domain === "homeassistant" && (service === "restart" || service === "reload_all")) return;
         if (domain === "update" && service === "install") {
           const u = states[data.entity_id];
           states[data.entity_id] = { ...u, attributes: { ...u.attributes, in_progress: true, update_percentage: 10 } };

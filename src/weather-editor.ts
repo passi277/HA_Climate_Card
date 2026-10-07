@@ -24,7 +24,7 @@ export class HaWeatherCardEditor extends LitElement {
     return [
       { name: "entity", required: true, selector: { entity: { filter: { domain: "weather" } } } },
       { name: "name", selector: { text: {} } },
-      { type: "grid", name: "", schema: SHOW.map((k) => ({ name: `show_${k}`, selector: { boolean: {} } })) },
+      { type: "grid", name: "", schema: [...SHOW.map((k) => ({ name: `show_${k}`, selector: { boolean: {} } })), { name: "collapsed", selector: { boolean: {} } }] },
       { type: "grid", name: "", schema: [
         { name: "days", selector: { number: { min: 3, max: 10, mode: "box" } } },
         { name: "hours", selector: { number: { min: 6, max: 48, mode: "box", unit_of_measurement: "h" } } },
@@ -39,6 +39,7 @@ export class HaWeatherCardEditor extends LitElement {
     const config: WeatherCardConfig = { ...this._config!, entity: String(v.entity ?? "") };
     if (v.name) config.name = String(v.name); else delete config.name;
     for (const k of SHOW) { if (v[`show_${k}`] === false) config[`show_${k}`] = false; else delete config[`show_${k}`]; }
+    if (v.collapsed) config.collapsed = true; else delete config.collapsed;
     const d = Number(v.days), h = Number(v.hours);
     if (Number.isFinite(d) && d > 0 && d !== 7) config.days = d; else delete config.days;
     if (Number.isFinite(h) && h > 0 && h !== 24) config.hours = h; else delete config.hours;
@@ -49,7 +50,7 @@ export class HaWeatherCardEditor extends LitElement {
   protected render() {
     if (!this.hass || !this._config) return nothing;
     const c = this._config;
-    const data: Record<string, unknown> = { entity: c.entity, name: c.name, days: c.days ?? 7, hours: c.hours ?? 24 };
+    const data: Record<string, unknown> = { entity: c.entity, name: c.name, days: c.days ?? 7, hours: c.hours ?? 24, collapsed: !!c.collapsed };
     for (const k of SHOW) data[`show_${k}`] = c[`show_${k}`] !== false;
     return html`<ha-form .hass=${this.hass} .data=${data} .schema=${this._schema()}
       .computeLabel=${this._computeLabel} @value-changed=${this._valueChanged}></ha-form>

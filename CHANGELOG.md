@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.37.0 – Aufklappen & Systemaktionen
+- Weather Card: Werte, Stundenverlauf und Tagesvorschau lassen sich **auf- und zuklappen** („Details & Vorhersage“, zugeklappt mit Mini-Vorschau der nächsten Tage); der Zustand wird pro Wetter-Entität gemerkt, `collapsed: true` startet zugeklappt
+- System Card: neue Aktionsleiste mit **„YAML prüfen“** (Ergebnis direkt in der Karte, Fehlertext bei ungültiger Konfiguration), **„Schnell neu laden“** (`homeassistant.reload_all`) und **„Neu starten“** (mit Rückfrage); abschaltbar mit `show_actions: false` / `show_restart: false`
+
 ## 1.36.0 – System & Wetter
 - Neue **Modern System Card** (`custom:ha-system-card`): CPU/RAM/Speicher-Ringe, Dienste, alle verfügbaren Updates (sortiert, Versionssprung, Installieren mit Rückfrage, Core/Apps mit Backup, Fortschritt), Backup-Zustand (letztes/nächstes, überfällig, fehlgeschlagen), Neustart mit Rückfrage
 - Neue **Modern Weather Card** (`custom:ha-weather-card`): animierter Himmel nach Sonnenstand und Wetter, Hinweis „Regen ab …“/Frost/Gewitter/trocken, Wind mit Richtungspfeil, UV, Luftdruck, Taupunkt, Stundenkurve mit Regenbalken, 7-Tage-Vorschau mit Temperaturbalken

@@ -35,6 +35,9 @@ export class HaSystemCard extends LitElement {
   @state() private _config?: SystemCardConfig;
   @state() private _confirm?: string;
   @state() private _all = false;
+  /** Ergebnis von „YAML prüfen“ */
+  @state() private _check?: { state: "running" | "valid" | "invalid" | "error"; text?: string };
+  @state() private _reloading?: "running" | "done";
   private _confirmTimer?: number;
   private _ids: string[] = [];
 
@@ -123,6 +126,53 @@ export class HaSystemCard extends LitElement {
     const data: Record<string, unknown> = { entity_id: st.entity_id };
     if ((feats & FEAT_BACKUP) && (kind === "core" || kind === "app")) data.backup = true;
     this._call("update", "install", data);
+  }
+
+  /** Konfiguration prüfen (wie Entwicklerwerkzeuge → YAML → „Konfiguration prüfen“) */
+  private async _checkConfig(): Promise<void> {
+    if (this._check?.state === "running") return;
+    this._haptic("light");
+    this._check = { state: "running" };
+    try {
+      const res = await this.hass!.callApi!<{ result: string; errors?: string | null }>("POST", "config/core/check_config");
+      this._check = res?.result === "valid" ? { state: "valid" } : { state: "invalid", text: res?.errors ?? undefined };
+      this._haptic(res?.result === "valid" ? "success" : "failure");
+    } catch (err: any) {
+      this._check = { state: "error", text: String(err?.message ?? err?.body?.message ?? err) };
+      this._haptic("failure");
+    }
+  }
+
+  /** Schnelles Neuladen aller YAML-Konfigurationen (wie im Neustart-Dialog „Schnell neu laden“) */
+  private async _quickReload(): Promise<void> {
+    if (this._reloading === "running") return;
+    this._haptic("medium");
+    this._reloading = "running";
+    await this._call("homeassistant", "reload_all", {});
+    this._reloading = "done";
+    window.setTimeout(() => { this._reloading = undefined; }, 2500);
+  }
+
+  private _renderActions() {
+    const c = this._config!;
+    const showActions = c.show_actions !== false, showRestart = c.show_restart !== false;
+    if (!showActions && !showRestart) return nothing;
+    const chk = this._check?.state;
+    const asking = this._confirm === "restart";
+    return html`<div class="actions">
+      ${showActions ? html`
+        <button class="act ${chk === "valid" ? "ok" : chk === "invalid" || chk === "error" ? "bad" : ""}" data-act="check" @click=${() => this._checkConfig()}>
+          <ha-icon class=${chk === "running" ? "spin" : ""} .icon=${chk === "running" ? "mdi:loading" : chk === "valid" ? "mdi:check-circle" : chk === "invalid" || chk === "error" ? "mdi:alert-circle" : "mdi:file-check-outline"}></ha-icon>
+          <span>${this._t(chk === "running" ? "checking" : chk === "valid" ? "check_ok" : chk === "invalid" || chk === "error" ? "check_bad" : "check")}</span></button>
+        <button class="act ${this._reloading === "done" ? "ok" : ""}" data-act="reload" @click=${() => this._quickReload()}>
+          <ha-icon class=${this._reloading === "running" ? "spin" : ""} .icon=${this._reloading === "running" ? "mdi:loading" : this._reloading === "done" ? "mdi:check-circle" : "mdi:reload"}></ha-icon>
+          <span>${this._t(this._reloading === "done" ? "reload_done" : "reload")}</span></button>` : nothing}
+      ${showRestart ? html`<button class="act restart ${asking ? "ask" : ""}" data-act="restart" @click=${() => this._restart()}>
+        <ha-icon .icon=${asking ? "mdi:alert" : "mdi:restart"}></ha-icon><span>${this._t(asking ? "restart_confirm" : "restart_short")}</span></button>` : nothing}
+    </div>
+    ${(chk === "invalid" || chk === "error") && this._check?.text ? html`<div class="check-err">
+      <ha-icon icon="mdi:alert-circle-outline"></ha-icon><pre>${this._check.text}</pre>
+      <button aria-label=${this._t("close")} @click=${() => { this._check = undefined; }}><ha-icon icon="mdi:close"></ha-icon></button></div>` : nothing}`;
   }
 
   private _restart(): void {
@@ -246,14 +296,12 @@ export class HaSystemCard extends LitElement {
       <div class="header">
         <span class="h-icon"><ha-icon icon="mdi:server"></ha-icon></span>
         <span class="head-text"><span class="h-title">${c.name ?? this._t("title")}</span><span class="h-sub">${sub}</span></span>
-        ${c.show_restart !== false ? html`<button class="restart ${this._confirm === "restart" ? "ask" : ""}" @click=${() => this._restart()}
-          title=${this._t("restart")} aria-label=${this._t("restart")}>
-          <ha-icon .icon=${this._confirm === "restart" ? "mdi:alert" : "mdi:restart"}></ha-icon>${this._confirm === "restart" ? html`<span>${this._t("restart_confirm")}</span>` : nothing}</button>` : nothing}
       </div>
       ${c.show_resources !== false ? this._renderResources() : nothing}
       ${this._renderServices()}
       ${c.show_updates !== false ? this._renderUpdates(updates) : nothing}
       ${c.show_backup !== false ? this._renderBackup(health, b) : nothing}
+      ${this._renderActions()}
     </ha-card>`;
   }
 
@@ -266,10 +314,28 @@ export class HaSystemCard extends LitElement {
     .head-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
     .h-title { font-size: 17px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .h-sub { font-size: 13px; font-weight: 600; color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .restart { flex: none; display: inline-flex; align-items: center; gap: 6px; height: 34px; min-width: 34px; padding: 0 8px; border: none; border-radius: 999px;
-      cursor: pointer; justify-content: center; background: rgba(127,127,127,0.1); color: var(--secondary-text-color); font-size: 12.5px; font-weight: 700; transition: background 0.3s, color 0.3s; }
-    .restart ha-icon { --mdc-icon-size: 18px; }
-    .restart.ask { color: #fff; background: #f57c00; padding: 0 12px; }
+
+    /* Aktionen */
+    .actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); grid-auto-flow: column; gap: 8px; }
+    .act { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; padding: 10px 4px; border: none; border-radius: var(--hcc-inner-radius, 14px);
+      cursor: pointer; font-size: 12.5px; font-weight: 600; background: rgba(127,127,127,0.08); transition: background 0.3s, color 0.3s, transform 0.2s var(--ease-spring); }
+    .act:active { transform: scale(0.97); }
+    .act span { max-width: 100%; text-align: center; line-height: 1.2; overflow-wrap: anywhere; }
+    .act ha-icon { --mdc-icon-size: 22px; color: var(--secondary-text-color); }
+    .act.ok { color: var(--success-color, #43a047); background: color-mix(in srgb, var(--success-color, #43a047) 12%, transparent); }
+    .act.ok ha-icon { color: var(--success-color, #43a047); }
+    .act.bad { color: var(--error-color, #e53935); background: color-mix(in srgb, var(--error-color, #e53935) 12%, transparent); }
+    .act.bad ha-icon { color: var(--error-color, #e53935); }
+    .act.restart ha-icon { color: #fb8c00; }
+    .act.restart.ask { color: #fff; background: #f57c00; }
+    .act.restart.ask ha-icon { color: #fff; }
+    .spin { animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .check-err { display: flex; align-items: flex-start; gap: 8px; padding: 10px 12px; border-radius: 12px; color: var(--error-color, #e53935);
+      background: color-mix(in srgb, var(--error-color, #e53935) 10%, transparent); }
+    .check-err > ha-icon { --mdc-icon-size: 20px; flex: none; }
+    .check-err pre { flex: 1; min-width: 0; margin: 0; font-size: 12px; white-space: pre-wrap; word-break: break-word; color: var(--primary-text-color); font-family: inherit; }
+    .check-err button { flex: none; border: none; background: none; padding: 0; cursor: pointer; color: var(--secondary-text-color); }
 
     /* Ressourcen */
     .res { display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); gap: 8px; }

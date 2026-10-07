@@ -1473,6 +1473,17 @@ colorFails.length ? fail(`Farbe folgt nicht dem Modus: ${colorFails.join(", ")}`
     ? ok("System: Neustart erst nach Bestätigung") : fail("System: Neustart-Rückfrage");
 }
 
+// System: YAML prüfen, Schnell neu laden
+{
+  await p.evaluate(() => document.querySelector("ha-system-card").shadowRoot.querySelector('[data-act="check"]').click());
+  await p.waitForTimeout(700);
+  const chk = await p.evaluate(() => document.querySelector("ha-system-card").shadowRoot.querySelector('[data-act="check"]').textContent.trim());
+  await p.evaluate(() => document.querySelector("ha-system-card").shadowRoot.querySelector('[data-act="reload"]').click());
+  await p.waitForTimeout(200);
+  const reload = await p.evaluate(() => window.serviceCalls.some((c) => c.domain === "homeassistant" && c.service === "reload_all"));
+  chk === "YAML ok" && reload ? ok("System: YAML prüfen (gültig) und Schnell neu laden") : fail(`System Aktionen: ${chk} ${reload}`);
+}
+
 // Wetter
 {
   const info = await p.evaluate(() => { const r = document.querySelector("ha-weather-card").shadowRoot;
@@ -1481,6 +1492,13 @@ colorFails.length ? fail(`Farbe folgt nicht dem Modus: ${colorFails.join(", ")}`
   info.temp === "11°" && info.cond === "Teilweise bewölkt" ? ok(`Wetter: ${info.temp} ${info.cond}`) : fail(`Wetter Hero: ${JSON.stringify(info)}`);
   /^Regen ab \d{2}:\d{2}$/.test(info.hint ?? "") ? ok(`Wetter-Hinweis: ${info.hint}`) : fail(`Wetter-Hinweis: ${info.hint}`);
   info.days === 7 && info.hours >= 20 && info.wind === "O" ? ok("Wetter: 7 Tage, Stundenverlauf, Wind aus Ost") : fail(`Wetter Inhalt: ${JSON.stringify(info)}`);
+  await p.evaluate(() => document.querySelector("ha-weather-card").shadowRoot.querySelector(".fold").click());
+  await p.waitForTimeout(200);
+  const folded = await p.evaluate(() => { const r = document.querySelector("ha-weather-card").shadowRoot; return { body: !!r.querySelector(".fold-body"), label: r.querySelector(".fold span")?.textContent.trim(), saved: localStorage.getItem("hcc-weather-open:weather.forecast_home") }; });
+  await p.evaluate(() => document.querySelector("ha-weather-card").shadowRoot.querySelector(".fold").click());
+  await p.waitForTimeout(200);
+  const reopened = await p.evaluate(() => !!document.querySelector("ha-weather-card").shadowRoot.querySelector(".fold-body [data-day]"));
+  !folded.body && folded.label === "Details & Vorhersage" && folded.saved === "0" && reopened ? ok("Wetter: Details & Vorhersage auf-/zuklappbar (gemerkt)") : fail(`Wetter Klappen: ${JSON.stringify(folded)} ${reopened}`);
 }
 
 // Theme-Umschalter

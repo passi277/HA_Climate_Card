@@ -24,6 +24,8 @@ export class HaWeatherCard extends LitElement {
   @state() private _config?: WeatherCardConfig;
   @state() private _daily: WeatherForecast[] = [];
   @state() private _hourly: WeatherForecast[] = [];
+  /** Werte, Stundenverlauf und Tage aufgeklappt (pro Wetter-Entität im Browser gemerkt) */
+  @state() private _open = true;
   private _subs: Promise<Unsub>[] = [];
   private _subKey = "";
 
@@ -37,8 +39,19 @@ export class HaWeatherCard extends LitElement {
 
   public setConfig(config: WeatherCardConfig): void {
     if (!config?.entity) throw new Error("ha-weather-card: 'entity' (weather.*) angeben");
-    if (this._config?.entity !== config.entity) this._unsubscribe();
+    if (this._config?.entity !== config.entity) {
+      this._unsubscribe();
+      let saved: string | null = null;
+      try { saved = localStorage.getItem(`hcc-weather-open:${config.entity}`); } catch { /* kein Speicher */ }
+      this._open = saved != null ? saved === "1" : !config.collapsed;
+    }
     this._config = { ...config };
+  }
+
+  private _toggle(): void {
+    this._open = !this._open;
+    window.dispatchEvent(new CustomEvent("haptic", { detail: "selection" }));
+    try { localStorage.setItem(`hcc-weather-open:${this._config!.entity}`, this._open ? "1" : "0"); } catch { /* kein Speicher */ }
   }
 
   public getCardSize(): number {
@@ -259,9 +272,17 @@ export class HaWeatherCard extends LitElement {
         </span>
       </button>
       ${this._renderHint(st.state)}
-      ${c.show_details !== false ? this._renderDetails(a) : nothing}
-      ${c.show_hourly !== false ? this._renderHourly() : nothing}
-      ${c.show_daily !== false ? this._renderDaily() : nothing}
+      ${c.show_details !== false || c.show_hourly !== false || c.show_daily !== false ? html`
+        <button class="fold ${this._open ? "open" : ""}" aria-expanded=${this._open} @click=${() => this._toggle()}>
+          <ha-icon icon="mdi:chart-timeline-variant"></ha-icon><span>${this._t(this._open ? "less" : "more")}</span>
+          ${!this._open && this._daily.length > 1 ? html`<small>${this._daily.slice(1, 4).map((d) => html`<ha-icon .icon=${weatherIcon(d.condition)}></ha-icon>${this._temp(d.temperature)}`)}</small>` : nothing}
+          <ha-icon class="chev" icon="mdi:chevron-down"></ha-icon>
+        </button>
+        ${this._open ? html`<div class="fold-body">
+          ${c.show_details !== false ? this._renderDetails(a) : nothing}
+          ${c.show_hourly !== false ? this._renderHourly() : nothing}
+          ${c.show_daily !== false ? this._renderDaily() : nothing}
+        </div>` : nothing}` : nothing}
     </ha-card>`;
   }
 
@@ -332,6 +353,20 @@ export class HaWeatherCard extends LitElement {
       --hc: #42a5f5; color: var(--primary-text-color); background: color-mix(in srgb, var(--hc) 13%, transparent); }
     .hint ha-icon { --mdc-icon-size: 20px; color: var(--hc); flex: none; }
     .hint.dry { --hc: var(--success-color, #43a047); }
+
+    /* Auf-/Zuklappen */
+    .fold { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 12px; border: none; border-radius: var(--hcc-inner-radius, 14px); cursor: pointer;
+      font-size: 13px; font-weight: 600; color: var(--secondary-text-color); background: rgba(127,127,127,0.07); text-align: left; }
+    .fold > ha-icon { --mdc-icon-size: 18px; flex: none; }
+    .fold > span { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    @container (max-width: 380px) { .fold small { display: none; } }
+    .fold small { display: inline-flex; align-items: center; gap: 2px 8px; flex-wrap: wrap; font-size: 12.5px; font-weight: 700; color: var(--primary-text-color); }
+    .fold small ha-icon { --mdc-icon-size: 16px; color: var(--secondary-text-color); margin-right: -5px; }
+    .fold .chev { transition: transform 0.3s var(--ease-out); }
+    .fold.open .chev { transform: rotate(180deg); }
+    .fold-body { display: flex; flex-direction: column; gap: 12px; animation: fold-in 0.3s var(--ease-out) both; }
+    @keyframes fold-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+    ha-card.anim-off .fold-body { animation: none; }
     .hint.frost { --hc: #4fc3f7; }
     .hint.storm, .hint.thunder { --hc: #fb8c00; }
 

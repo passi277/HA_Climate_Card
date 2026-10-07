@@ -1203,7 +1203,15 @@
     "backup_last": "letztes",
     "backup_next": "nächstes",
     "restart": "Home Assistant neu starten",
-    "restart_confirm": "Neu starten?"
+    "restart_confirm": "Neu starten?",
+    "check": "YAML prüfen",
+    "checking": "Prüfe…",
+    "check_ok": "YAML ok",
+    "check_bad": "Fehler in YAML",
+    "reload": "Schnell neu laden",
+    "reload_done": "Neu geladen",
+    "restart_short": "Neu starten",
+    "close": "Schließen"
   },
   "system_editor": {
     "name": "Name",
@@ -1216,7 +1224,8 @@
     "exclude_updates": "Diese Updates ausblenden",
     "max_updates": "Updates bis „Alle anzeigen“",
     "backup_max_age": "Backup überfällig nach",
-    "hint": "CPU/RAM/Speicher, alle update.*-Entitäten und die Sensoren der Backup-Integration werden automatisch erkannt."
+    "hint": "CPU/RAM/Speicher, alle update.*-Entitäten und die Sensoren der Backup-Integration werden automatisch erkannt.",
+    "show_actions": "YAML prüfen & Schnell neu laden"
   },
   "weather": {
     "title": "Wetter",
@@ -1257,7 +1266,9 @@
     "cond_snowy_rainy": "Schneeregen",
     "cond_sunny": "Sonnig",
     "cond_windy": "Windig",
-    "cond_windy_variant": "Windig, bewölkt"
+    "cond_windy_variant": "Windig, bewölkt",
+    "more": "Details & Vorhersage",
+    "less": "Weniger anzeigen"
   },
   "weather_editor": {
     "entity": "Wetter-Entität",
@@ -1266,6 +1277,7 @@
     "show_hourly": "Stundenverlauf",
     "show_daily": "Tagesvorschau",
     "days": "Tage",
-    "hours": "Stunden"
+    "hours": "Stunden",
+    "collapsed": "Anfangs zugeklappt"
   }
 }

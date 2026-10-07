@@ -1186,7 +1186,15 @@
     "backup_last": "last",
     "backup_next": "next",
     "restart": "Restart Home Assistant",
-    "restart_confirm": "Restart?"
+    "restart_confirm": "Restart?",
+    "check": "Check YAML",
+    "checking": "Checking…",
+    "check_ok": "YAML ok",
+    "check_bad": "YAML errors",
+    "reload": "Quick reload",
+    "reload_done": "Reloaded",
+    "restart_short": "Restart",
+    "close": "Close"
   },
   "system_editor": {
     "name": "Name",
@@ -1199,7 +1207,8 @@
     "exclude_updates": "Hide these updates",
     "max_updates": "Updates before \"show all\"",
     "backup_max_age": "Backup overdue after",
-    "hint": "CPU/RAM/disk, all update.* entities and the backup integration sensors are detected automatically."
+    "hint": "CPU/RAM/disk, all update.* entities and the backup integration sensors are detected automatically.",
+    "show_actions": "Check YAML & quick reload"
   },
   "weather": {
     "title": "Weather",
@@ -1240,7 +1249,9 @@
     "cond_snowy_rainy": "Sleet",
     "cond_sunny": "Sunny",
     "cond_windy": "Windy",
-    "cond_windy_variant": "Windy, cloudy"
+    "cond_windy_variant": "Windy, cloudy",
+    "more": "Details & forecast",
+    "less": "Show less"
   },
   "weather_editor": {
     "entity": "Weather entity",
@@ -1249,6 +1260,7 @@
     "show_hourly": "Hourly",
     "show_daily": "Daily forecast",
     "days": "Days",
-    "hours": "Hours"
+    "hours": "Hours",
+    "collapsed": "Collapsed at start"
   }
 }

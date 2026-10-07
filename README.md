@@ -527,7 +527,8 @@ entity: sensor.solarbank_3_e2700_pro_ladestand
 Für die System-Seite: **CPU, RAM und Speicher** als Ringe (automatisch erkannt, z.B. `home_assistant_core_cpu_percent` oder der
 Systemmonitor), optionale **Dienste** (Zigbee2MQTT, MQTT … als grüne/rote Punkte), alle **verfügbaren Updates** sortiert nach Core/OS,
 Apps, Integrationen, Karten und Firmware – mit Versionssprung, **„Installieren“** (Rückfrage, Core/Apps mit Backup) und Fortschrittsbalken –,
-der Zustand der **Backups** (letztes/nächstes, Warnung wenn überfällig oder fehlgeschlagen) und ein **Neustart**-Knopf mit Rückfrage.
+der Zustand der **Backups** (letztes/nächstes, Warnung wenn überfällig oder fehlgeschlagen) und eine Aktionsleiste mit **YAML prüfen**,
+**Schnell neu laden** und **Neu starten** (mit Rückfrage).
 
 ```yaml
 type: custom:ha-system-card
@@ -537,6 +538,7 @@ type: custom:ha-system-card
 # max_updates: 5
 # backup_max_age: 3      # Tage
 # show_restart: false
+# show_actions: false   # YAML prüfen & Schnell neu laden ausblenden
 ```
 
 ## Modern Weather Card (Wetter)
@@ -545,7 +547,7 @@ type: custom:ha-system-card
 große Temperatur mit Zustand, Max/Min und gefühlter Temperatur, ein **Hinweis** aus der Stundenvorhersage („Regen ab 14:00“, „Regen bis
 etwa 16:00“, „Frost ab 23:00“, „Gewitter möglich“, „Trocken in den nächsten 12 Stunden“), **Werte** (Wind mit Richtungspfeil, Böen,
 Luftfeuchte, UV farbig, Luftdruck, Taupunkt, Bewölkung), ein scrollbarer **Stundenverlauf** mit Temperaturkurve und Regenbalken und eine
-**7-Tage-Vorschau** mit farbigen Temperaturbalken auf gemeinsamer Skala.
+**7-Tage-Vorschau** mit farbigen Temperaturbalken auf gemeinsamer Skala. Werte, Stunden und Tage lassen sich auf- und zuklappen (wird gemerkt).
 
 ```yaml
 type: custom:ha-weather-card
@@ -553,6 +555,7 @@ entity: weather.forecast_home
 # days: 7
 # hours: 24
 # show_details: false   # show_hourly, show_daily
+# collapsed: true       # Details & Vorhersage anfangs zugeklappt
 ```
 
 ## Modern Vacuum Card (Saugroboter)

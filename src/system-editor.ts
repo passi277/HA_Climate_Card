@@ -4,7 +4,7 @@ import type { HomeAssistant, SystemCardConfig } from "./types";
 import { CARD_VERSION } from "./const";
 import { localize } from "./localize/localize";
 
-const SHOW = ["resources", "updates", "backup", "restart"] as const;
+const SHOW = ["resources", "updates", "backup", "actions", "restart"] as const;
 
 /** Visueller Editor: Name, Bereiche, Ressourcen, Dienste, ausgeblendete Updates, Backup-Alter. */
 @customElement("ha-system-card-editor")

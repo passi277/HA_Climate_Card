@@ -950,6 +950,8 @@ export interface SystemCardConfig {
   show_updates?: boolean;
   show_backup?: boolean;
   show_restart?: boolean;
+  /** „YAML prüfen“ und „Schnell neu laden“ (Standard an) */
+  show_actions?: boolean;
   animations?: "full" | "reduced" | "off";
   [key: string]: unknown;
 }
@@ -976,6 +978,8 @@ export interface WeatherCardConfig {
   show_hourly?: boolean;
   show_daily?: boolean;
   show_details?: boolean;
+  /** Werte/Stunden/Tage anfangs zugeklappt (danach merkt sich der Browser den Zustand) */
+  collapsed?: boolean;
   /** Tage in der Vorschau (Standard 7) */
   days?: number;
   /** Stunden im Verlauf (Standard 24) */
