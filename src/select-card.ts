@@ -88,8 +88,11 @@ export class HaSelectCard extends LitElement {
     const c = this._config;
     if (!c) return [];
     const list = c.entities?.length ? c.entities : c.entity ? [{ entity: c.entity, name: c.name, icon: c.icon }] : [];
+    // Name/Symbol der Karte gelten auch für eine einzelne Auswahl unter `entities` (so speichert der Editor)
+    const single = list.length === 1;
     return list.map((e) => {
-      const base = typeof e === "string" ? { entity: e } : e;
+      const raw = typeof e === "string" ? { entity: e } : e;
+      const base = single ? { ...raw, name: raw.name ?? c.name, icon: raw.icon ?? c.icon } : raw;
       return { ...base, layout: base.layout ?? c.layout, dropdown_direction: base.dropdown_direction ?? c.dropdown_direction, options: { ...c.options, ...base.options }, confirm: base.confirm ?? c.confirm };
     });
   }

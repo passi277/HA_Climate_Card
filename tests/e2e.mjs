@@ -1245,7 +1245,7 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
 }
 {
   const up = await p.evaluateHandle(() => document.querySelectorAll("ha-select-card")[2]);
-  const before = await up.evaluate((c) => ({ chev: c.shadowRoot.querySelector(".chev").classList.contains("up"), list: !!c.shadowRoot.querySelector(".list") }));
+  const before = await up.evaluate((c) => ({ name: c.shadowRoot.querySelector(".r-name").textContent.trim(), chev: c.shadowRoot.querySelector(".chev").classList.contains("up"), list: !!c.shadowRoot.querySelector(".list") }));
   await up.evaluate((c) => c.shadowRoot.querySelector(".dd-btn").click());
   await p.waitForTimeout(150);
   const open = await up.evaluate((c) => { const dd = c.shadowRoot.querySelector(".dd"); const kids = [...dd.children].map((e) => e.className.split(" ")[0]);
@@ -1258,7 +1258,7 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
   await p.waitForTimeout(300);
   const pick = await p.evaluate((n) => window.serviceCalls.slice(n).map((c) => `${c.domain}.${c.service} ${c.data.entity_id} ${c.data.option}`), n0);
   const after = await up.evaluate((c) => ({ list: !!c.shadowRoot.querySelector(".list"), up: c.shadowRoot.querySelector(".dd").classList.contains("up") }));
-  before.chev && !before.list && open.up && open.order === "pop,dd-btn" && open.shown && open.above && !open.chev && open.items === 2
+  before.name === "Dashboard Auswahl" && before.chev && !before.list && open.up && open.order === "pop,dd-btn" && open.shown && open.above && !open.chev && open.items === 2
     && pick.length === 1 && pick[0].startsWith("input_select.select_option input_select.pascal_dashboard") && !after.list && !after.up
     ? ok("Auswahl: Dropdown öffnet schwebend nach oben über dem Knopf, schließt nach Wahl")
     : fail(`Dropdown nach oben: ${JSON.stringify({ before, open, pick, after })}`);

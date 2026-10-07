@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.43.2 – Select: Name bei einer Auswahl
+- Select Card: `name` und `icon` der Karte gelten auch, wenn genau eine Auswahl unter `entities` steht (so speichert der visuelle Editor) – z. B. „Dashboard Auswahl“ statt des Entitätsnamens
+
 ## 1.43.1 – Dropdown wirklich nach oben
 - Select Card: `dropdown_direction: up` (und `auto` bei wenig Platz) öffnet die Liste jetzt **schwebend über dem Knopf** – die Karte wird nicht mehr länger und der Knopf bleibt stehen; schließt bei Auswahl, Tippen daneben oder Scrollen
 
