@@ -925,6 +925,10 @@
     "layout_tiles": "Kacheln",
     "layout_list": "Liste",
     "layout_dropdown": "Kompaktes Dropdown",
+    "dropdown_direction": "Dropdown öffnet nach",
+    "dir_down": "Unten",
+    "dir_up": "Oben",
+    "dir_auto": "Automatisch (je nach Platz)",
     "hint": "Symbole und Farben werden aus den Optionsnamen erraten. Je Option änderbar, ausblendbar, und mit Rückfrage – per YAML:"
   },
   "mower": {

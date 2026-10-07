@@ -710,12 +710,15 @@ export interface CameraGroupCardConfig {
 export interface SelectOptionConfig { name?: string; icon?: string; color?: string; hide?: boolean }
 
 export type SelectLayout = "auto" | "segment" | "chips" | "tiles" | "list" | "dropdown";
+/** Aufklapp-Richtung des Dropdowns (Standard: down) */
+export type DropdownDirection = "down" | "up" | "auto";
 
 export interface SelectEntityConfig {
   entity: string;
   name?: string;
   icon?: string;
   layout?: SelectLayout;
+  dropdown_direction?: DropdownDirection;
   options?: Record<string, SelectOptionConfig>;
   /** Optionen mit Rückfrage („Sicher?“) */
   confirm?: string[];
@@ -729,6 +732,7 @@ export interface SelectCardConfig {
   name?: string;
   icon?: string;
   layout?: SelectLayout;
+  dropdown_direction?: DropdownDirection;
   options?: Record<string, SelectOptionConfig>;
   confirm?: string[];
   /** Kacheln je Zeile (Standard: automatisch bis 4) */

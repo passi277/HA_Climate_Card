@@ -908,6 +908,10 @@
     "layout_tiles": "Tiles",
     "layout_list": "List",
     "layout_dropdown": "Compact dropdown",
+    "dropdown_direction": "Dropdown opens",
+    "dir_down": "Downwards",
+    "dir_up": "Upwards",
+    "dir_auto": "Automatic (by available space)",
     "hint": "Icons and colors are guessed from the option names. Per option overridable, hideable and with confirmation – via YAML:"
   },
   "mower": {

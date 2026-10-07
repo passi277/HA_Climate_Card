@@ -1216,6 +1216,7 @@
         entities: ["input_select.bewaesserung_modus", { entity: "input_select.pool_modus", confirm: ["Aus"] }, "input_select.jahreszeit",
           { entity: "input_select.pascal_dashboard", layout: "tiles" }, "select.defekter_modus"] }],
       ["Auswahl – kompaktes Dropdown", { _select: true, entities: [{ entity: "input_select.bewaesserung_rasen_status", layout: "dropdown" }] }],
+      ["Auswahl – Dropdown öffnet nach oben", { _select: true, layout: "dropdown", dropdown_direction: "up", entities: ["input_select.pascal_dashboard"] }],
       ["Hinweis-Karte – erscheint nur, wenn etwas los ist (Fenster offen, Saugroboter putzt)", { _alert: true,
         contacts: [{ entity: "binary_sensor.buero_fenster", name: "Büro" }, { entity: "binary_sensor.wz_balkontuer", name: "Balkontür" }, "binary_sensor.wz_fenster"],
         alerts: [{ entity: "vacuum.roborock_s8_maxv_ultra", state: ["cleaning", "returning"], severity: "info", title: "Saugroboter putzt", icon: "mdi:robot-vacuum", navigation_path: "#roborock" },

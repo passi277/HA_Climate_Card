@@ -25,6 +25,7 @@ interface Row {
   options: Opt[];
   current?: string;
   layout: Exclude<SelectLayout, "auto">;
+  up: boolean;
   unavailable: boolean;
 }
 
@@ -33,6 +34,8 @@ export class HaSelectCard extends LitElement {
   @property({ attribute: false }) hass?: HomeAssistant;
   @state() private _config?: SelectCardConfig;
   @state() private _open?: string;
+  /** Richtung des offenen Dropdowns (bei „auto“ beim Öffnen gemessen) */
+  @state() private _openUp = false;
   @state() private _confirm?: string;
   @state() private _pending: Record<string, string> = {};
   private _confirmTimer?: number;
@@ -73,7 +76,7 @@ export class HaSelectCard extends LitElement {
     const list = c.entities?.length ? c.entities : c.entity ? [{ entity: c.entity, name: c.name, icon: c.icon }] : [];
     return list.map((e) => {
       const base = typeof e === "string" ? { entity: e } : e;
-      return { ...base, layout: base.layout ?? c.layout, options: { ...c.options, ...base.options }, confirm: base.confirm ?? c.confirm };
+      return { ...base, layout: base.layout ?? c.layout, dropdown_direction: base.dropdown_direction ?? c.dropdown_direction, options: { ...c.options, ...base.options }, confirm: base.confirm ?? c.confirm };
     });
   }
 
@@ -104,7 +107,7 @@ export class HaSelectCard extends LitElement {
       });
       const layout = !cfg.layout || cfg.layout === "auto" ? (options.length <= 4 ? "segment" : "chips") : cfg.layout;
       return {
-        cfg, options, layout, current: this._pending[cfg.entity] ?? st?.state,
+        cfg, options, layout, up: this._open === cfg.entity && this._openUp, current: this._pending[cfg.entity] ?? st?.state,
         name: cfg.name ?? st?.attributes.friendly_name ?? cfg.entity,
         icon: cfg.icon ?? st?.attributes.icon ?? "mdi:form-dropdown",
         unavailable: !st || UNAVAILABLE.includes(st.state),
@@ -179,17 +182,37 @@ export class HaSelectCard extends LitElement {
       case "dropdown": {
         const cur = r.options.find((o) => o.value === r.current);
         const open = this._open === r.cfg.entity;
-        return html`<div class="dd ${open ? "open" : ""}">
+        return html`<div class="dd ${open ? "open" : ""} ${r.up ? "up" : ""}">
+          ${open && r.up ? this._renderList(r) : nothing}
           <button class="dd-btn" style="--oc:${cur?.color ?? "var(--secondary-text-color)"}" ?disabled=${r.unavailable} aria-expanded=${open}
-            @click=${() => { this._haptic("selection"); this._open = open ? undefined : r.cfg.entity; }}>
+            @click=${(ev: Event) => this._toggleDropdown(r, ev.currentTarget as HTMLElement, open)}>
             <ha-icon .icon=${cur?.icon ?? "mdi:help-circle-outline"}></ha-icon><span>${cur?.name ?? r.current ?? "–"}</span>
-            <ha-icon class="chev ${open ? "up" : ""}" icon="mdi:chevron-down"></ha-icon></button>
-          ${open ? this._renderList(r) : nothing}
+            <ha-icon class="chev ${(open ? !r.up : r.cfg.dropdown_direction === "up") ? "up" : ""}" icon="mdi:chevron-down"></ha-icon></button>
+          ${open && !r.up ? this._renderList(r) : nothing}
         </div>`;
       }
       default:
         return this._renderList(r);
     }
+  }
+
+  private _toggleDropdown(r: Row, btn: HTMLElement, open: boolean): void {
+    this._haptic("selection");
+    if (open) {
+      this._open = undefined;
+      return;
+    }
+    const dir = r.cfg.dropdown_direction ?? "down";
+    let up = dir === "up";
+    if (dir === "auto") {
+      // Liste nach oben, wenn unten zu wenig Platz ist und oben mehr
+      const rect = btn.getBoundingClientRect();
+      const need = r.options.length * 46 + 8;
+      const below = window.innerHeight - rect.bottom;
+      up = below < need && rect.top > below;
+    }
+    this._openUp = up;
+    this._open = r.cfg.entity;
   }
 
   private _renderList(r: Row) {
@@ -276,7 +299,9 @@ export class HaSelectCard extends LitElement {
     /* Liste / Dropdown */
     .list { display: flex; flex-direction: column; gap: 4px; padding: 4px; border-radius: var(--hcc-inner-radius, 14px); background: rgba(127,127,127,0.07); }
     .dd .list { margin-top: 6px; animation: fade-in 0.25s cubic-bezier(0.22, 1, 0.36, 1) both; }
+    .dd.up .list { margin: 0 0 6px; animation-name: fade-in-up; }
     @keyframes fade-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+    @keyframes fade-in-up { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
     .li { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: none; border-radius: 10px; background: none; cursor: pointer; text-align: left; transition: background 0.2s; }
     .li:hover { background: rgba(127,127,127,0.08); }
     .li-icon { flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; color: var(--oc); background: color-mix(in srgb, var(--oc) 14%, transparent); }

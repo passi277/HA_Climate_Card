@@ -999,7 +999,7 @@ cameras:
 Eine oder mehrere Auswahlen (`input_select` / `select`) als moderner Umschalter. **Symbole und Farben werden aus den Optionsnamen erraten**
 (Aus, Automatik, Smart, Manuell, Sommer, Winter, Zuhause, Garten, Eco, Boost, Nacht, Urlaub, gestartet/pausiert/gestoppt …) und lassen sich je Option ändern.
 Darstellung: `segment` (Leiste mit gleitender Markierung, Standard bis 4 Optionen), `chips` (wischbar, ab 5), `tiles` (Kacheln), `list` oder `dropdown`
-(kompakter Knopf, klappt eine Liste in der Karte auf). Mit `confirm` fragen ausgewählte Optionen nach („Sicher?“).
+(kompakter Knopf, klappt eine Liste in der Karte auf; mit `dropdown_direction: up` nach oben, `auto` je nach Platz). Mit `confirm` fragen ausgewählte Optionen nach („Sicher?“).
 
 ```yaml
 type: custom:ha-select-card
@@ -1015,6 +1015,7 @@ entities:
       Zuhause: { name: Daheim }
 # layout: auto | segment | chips | tiles | list | dropdown   (für alle)
 # columns: 3                             # Kacheln je Zeile
+# dropdown_direction: down | up | auto   # Dropdown nach unten/oben aufklappen
 ```
 
 ## Heizungen (z.B. Homematic IP)

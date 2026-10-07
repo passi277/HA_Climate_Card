@@ -23,6 +23,7 @@ export class HaSelectCardEditor extends LitElement {
       { name: "title", selector: { text: {} } },
       { name: "entities", selector: { entity: { multiple: true, filter: [{ domain: "input_select" }, { domain: "select" }] } } },
       { name: "layout", selector: { select: { mode: "dropdown", options: ["auto", "segment", "chips", "tiles", "list", "dropdown"].map((v) => ({ value: v, label: this._t(`layout_${v}`) })) } } },
+      ...(this._config?.layout === "dropdown" ? [{ name: "dropdown_direction", selector: { select: { mode: "dropdown", options: ["down", "up", "auto"].map((v) => ({ value: v, label: this._t(`dir_${v}`) })) } } }] : []),
     ];
   }
 
@@ -36,6 +37,7 @@ export class HaSelectCardEditor extends LitElement {
     delete config.entity;
     if (!config.title) delete config.title;
     if (!config.layout || config.layout === "auto") delete config.layout;
+    if (config.layout !== "dropdown" || !config.dropdown_direction || config.dropdown_direction === "down") delete config.dropdown_direction;
     this._config = config;
     this.dispatchEvent(new CustomEvent("config-changed", { detail: { config }, bubbles: true, composed: true }));
   }
@@ -43,7 +45,7 @@ export class HaSelectCardEditor extends LitElement {
   protected render() {
     if (!this.hass || !this._config) return nothing;
     const c = this._config;
-    const data = { layout: "auto", ...c, entities: (c.entities ?? (c.entity ? [c.entity] : [])).map((e) => (typeof e === "string" ? e : e.entity)) };
+    const data = { layout: "auto", dropdown_direction: "down", ...c, entities: (c.entities ?? (c.entity ? [c.entity] : [])).map((e) => (typeof e === "string" ? e : e.entity)) };
     return html`<ha-form .hass=${this.hass} .data=${data} .schema=${this._schema()}
       .computeLabel=${this._computeLabel} @value-changed=${this._valueChanged}></ha-form>
       <p class="hint">${this._t("hint")}</p>

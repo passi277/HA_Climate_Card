@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.42.0 – Dropdown nach oben
+- Select Card: neue Option **`dropdown_direction`** (`down` Standard, `up`, `auto`) – bei `layout: dropdown` klappt die Liste wahlweise nach oben auf (z. B. für eine Dashboard-Auswahl am Seitenende); `auto` entscheidet beim Öffnen nach freiem Platz. Auch je Auswahl einstellbar und im Editor wählbar
+
 ## 1.41.0 – Router
 - Neue **Modern Router Card** (`custom:ha-router-card`) für FRITZ!Box, TP-Link und andere Router: Online-Status mit Betriebszeit, Firmware-Update (installieren mit Rückfrage), Download/Upload mit Auslastung der Leitung, CPU/RAM-Ringe, Anzahl Geräte (WLAN/LAN/Gast), aufklappbare Leitungswerte (externe IP/IPv6 zum Kopieren, Sync-Raten, Dämpfung, Rauschabstand, Datenmenge), WLAN-Schalter inkl. Gast/IoT (Haupt-WLAN nur mit Rückfrage aus), Gast-WLAN-QR, Geräte im Netz mit Symbol, IP, LAN/WLAN, Repeater und Suche, „Neu verbinden“ und „Neu starten“ – alles über das Gerät erkannt
 
