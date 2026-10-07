@@ -1301,7 +1301,9 @@
     "open_device": "Open device",
     "reload": "Reload integration",
     "show_all": "Show all {n}",
-    "less": "Less"
+    "less": "Less",
+    "n_of_total": "{n} of {total} entities unavailable",
+    "partial": "Partly unavailable ({n})"
   },
   "device_status_editor": {
     "name": "Name",
@@ -1309,7 +1311,8 @@
     "exclude_integrations": "Ignore these integrations",
     "exclude": "Ignore these entities",
     "max_items": "Devices before \"show all\"",
-    "include_unknown": "Count \"unknown\" too"
+    "include_unknown": "Count \"unknown\" too",
+    "show_partial": "Show partly affected devices"
   },
   "recipe": {
     "title": "Meal plan",

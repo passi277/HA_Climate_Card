@@ -1020,6 +1020,8 @@ export interface DeviceStatusCardConfig {
   exclude?: string[];
   /** Auch „unbekannt“ als Problem werten (Standard nein) */
   include_unknown?: boolean;
+  /** Geräte, bei denen nur einzelne Entitäten nicht verfügbar sind, zugeklappt darunter zeigen (Standard nein) */
+  show_partial?: boolean;
   /** Höchstens so viele Geräte, Rest über „Alle anzeigen“ (Standard 8) */
   max_items?: number;
   animations?: "full" | "reduced" | "off";

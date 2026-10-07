@@ -29,6 +29,7 @@ export class HaDeviceStatusCardEditor extends LitElement {
       { type: "grid", name: "", schema: [
         { name: "max_items", selector: { number: { min: 1, max: 100, mode: "box" } } },
         { name: "include_unknown", selector: { boolean: {} } },
+        { name: "show_partial", selector: { boolean: {} } },
       ] },
     ];
   }
@@ -48,6 +49,7 @@ export class HaDeviceStatusCardEditor extends LitElement {
     const m = Number(v.max_items);
     if (Number.isFinite(m) && m > 0 && m !== 8) config.max_items = m; else delete config.max_items;
     if (v.include_unknown) config.include_unknown = true; else delete config.include_unknown;
+    if (v.show_partial) config.show_partial = true; else delete config.show_partial;
     this._config = config;
     this.dispatchEvent(new CustomEvent("config-changed", { detail: { config }, bubbles: true, composed: true }));
   }
@@ -56,7 +58,7 @@ export class HaDeviceStatusCardEditor extends LitElement {
     if (!this.hass || !this._config) return nothing;
     const c = this._config;
     const data = { name: c.name, exclude_domains: c.exclude_domains ?? ["device_tracker"], exclude_integrations: c.exclude_integrations ?? [],
-      exclude: c.exclude ?? [], max_items: c.max_items ?? 8, include_unknown: !!c.include_unknown };
+      exclude: c.exclude ?? [], max_items: c.max_items ?? 8, include_unknown: !!c.include_unknown, show_partial: !!c.show_partial };
     return html`<ha-form .hass=${this.hass} .data=${data} .schema=${this._schema()}
       .computeLabel=${this._computeLabel} @value-changed=${this._valueChanged}></ha-form>
       <div class="version">HA Modern Home Cards v${CARD_VERSION}</div>`;

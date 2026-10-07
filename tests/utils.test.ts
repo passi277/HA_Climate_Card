@@ -1030,6 +1030,15 @@ describe("Gerätestatus", () => {
     expect(list.map((d) => [d.name, d.entities.length, d.since])).toEqual([["Küchenrollo", 1, "2026-10-06T07:00:00Z"], ["Couch Lightstrip", 2, "2026-10-07T07:00:00Z"]]);
     expect(offlineDevices(states, entities, devices, { excludeDomains: [], includeUnknown: true }).length).toBe(4);
     expect(offlineDevices(states, entities, devices, { excludeIntegrations: ["hue"] }).length).toBe(1);
+    // Gerät liefert noch Werte: nur eine von drei Entitäten fehlt → nicht „nicht erreichbar“, nur mit includePartial
+    const st2 = { ...states, ...Object.fromEntries([entity("binary_sensor.starlink_ok", "on"), entity("sensor.starlink_ping", "33"),
+      { ...entity("time.starlink_beginn", "unavailable"), last_changed: "2026-10-07T09:00:00Z" }].map((e) => [e.entity_id, e])) };
+    const ent2 = { ...entities, ...Object.fromEntries(["binary_sensor.starlink_ok", "sensor.starlink_ping", "time.starlink_beginn"].map((id) => [id, { entity_id: id, device_id: "d3", platform: "starlink" }])) };
+    const dev2 = { ...devices, d3: { id: "d3", name: "Starlink" } };
+    expect(offlineDevices(st2, ent2, dev2).map((d) => d.name)).toEqual(["Küchenrollo", "Couch Lightstrip"]);
+    const withPartial = offlineDevices(st2, ent2, dev2, { includePartial: true });
+    expect(withPartial.find((d) => d.name === "Starlink")).toMatchObject({ partial: true, total: 3, entities: ["time.starlink_beginn"] });
+    expect(withPartial.find((d) => d.name === "Couch Lightstrip")).toMatchObject({ partial: false, total: 2 });
     expect([platformName("bosch_shc"), platformName("my_custom_thing"), platformName(undefined)]).toEqual(["Bosch Smart Home", "My Custom Thing", "Sonstige"]);
   });
 });

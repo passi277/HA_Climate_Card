@@ -1824,6 +1824,10 @@ export interface OfflineDevice {
   /** Seit wann nicht erreichbar (frühester last_changed) */
   since: string;
   domain: string;
+  /** Alle relevanten Entitäten des Geräts */
+  total: number;
+  /** Nur ein Teil der Entitäten ist nicht verfügbar – das Gerät selbst liefert noch Werte */
+  partial?: boolean;
 }
 
 const PLATFORM_NAMES: Record<string, string> = {
@@ -1838,22 +1842,28 @@ const PLATFORM_NAMES: Record<string, string> = {
 export const platformName = (p?: string): string =>
   !p ? "Sonstige" : PLATFORM_NAMES[p] ?? p.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
-/** Nicht erreichbare Entitäten nach Gerät gruppieren (älteste zuerst) */
+/**
+ * Nicht erreichbare Geräte: ein Gerät gilt nur als nicht erreichbar, wenn ALLE seine relevanten Entitäten
+ * nicht verfügbar sind. Geräte, bei denen nur einzelne Entitäten fehlen, kommen mit `includePartial` als `partial` dazu.
+ * Entitäten ohne Gerät sind eigene Einträge. Sortierung: älteste zuerst.
+ */
 export const offlineDevices = (states: Record<string, HassEntity>, entities: Record<string, EntityRegistryEntry> | undefined,
   devices: Record<string, DeviceRegistryEntry> | undefined,
-  opts: { excludeDomains?: string[]; excludeIntegrations?: string[]; exclude?: string[]; includeUnknown?: boolean } = {}): OfflineDevice[] => {
+  opts: { excludeDomains?: string[]; excludeIntegrations?: string[]; exclude?: string[]; includeUnknown?: boolean; includePartial?: boolean } = {}): OfflineDevice[] => {
   const exDom = opts.excludeDomains ?? ["device_tracker"];
   const groups = new Map<string, OfflineDevice>();
+  const totals = new Map<string, number>();
   for (const st of Object.values(states)) {
     const id = st.entity_id;
-    if (!(st.state === "unavailable" || (opts.includeUnknown && st.state === "unknown"))) continue;
     const domain = id.split(".")[0]!;
     const reg = entities?.[id];
     if (exDom.includes(domain) || opts.exclude?.includes(id) || reg?.hidden) continue;
     const platform = reg?.platform ?? "";
     if (opts.excludeIntegrations?.includes(platform)) continue;
-    const dev = reg?.device_id ? devices?.[reg.device_id] : undefined;
     const key = reg?.device_id ?? id;
+    totals.set(key, (totals.get(key) ?? 0) + 1);
+    if (!(st.state === "unavailable" || (opts.includeUnknown && st.state === "unknown"))) continue;
+    const dev = reg?.device_id ? devices?.[reg.device_id] : undefined;
     const g = groups.get(key);
     if (g) {
       g.entities.push(id);
@@ -1861,11 +1871,17 @@ export const offlineDevices = (states: Record<string, HassEntity>, entities: Rec
     } else {
       groups.set(key, {
         id: key, name: String(dev?.name_by_user || dev?.name || st.attributes.friendly_name || id),
-        integration: platform, entities: [id], since: st.last_changed, domain,
+        integration: platform, entities: [id], since: st.last_changed, domain, total: 0,
       });
     }
   }
-  return [...groups.values()].sort((a, b) => a.since.localeCompare(b.since) || a.name.localeCompare(b.name));
+  const out: OfflineDevice[] = [];
+  for (const g of groups.values()) {
+    g.total = totals.get(g.id) ?? g.entities.length;
+    g.partial = g.entities.length < g.total;
+    if (!g.partial || opts.includePartial) out.push(g);
+  }
+  return out.sort((a, b) => a.since.localeCompare(b.since) || a.name.localeCompare(b.name));
 };
 
 // ---------- Szenen ----------

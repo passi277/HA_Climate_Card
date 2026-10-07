@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.40.1 – Gerätestatus: nur wirklich nicht erreichbare Geräte
+- Device Status Card: Ein Gerät gilt nur noch als nicht erreichbar, wenn **alle** seine Entitäten nicht verfügbar sind. Geräte, die noch Werte liefern und nur einzelne nicht verfügbare Entitäten haben (z. B. Starlink mit abgeschaltetem Ruhezustand-Zeitplan), erscheinen nicht mehr in der Liste
+- Neue Option `show_partial`: zeigt solche Geräte zugeklappt unter „Teilweise nicht verfügbar“ mit „2 von 26 Entitäten nicht verfügbar“
+
 ## 1.40.0 – Pakete, Hue-Räume, Essensplan optional
 - Neue **Modern Parcel Card** (`custom:ha-parcel-card`) für 17TRACK: alle Sendungen nach Wichtigkeit (abholbereit, Problem, unterwegs, ohne Daten, zugestellt), Versender aus der Sendungsnummer (DHL, Deutsche Post, Hermes, DPD, GLS, UPS, Amazon), letzte Meldung auf Deutsch, Ort und „vor …“, Filter-Chips, Sendungsnummer kopieren, „Verfolgen“, „Archivieren“ (mit Rückfrage) und „+ Paket“; zugestellte Pakete verschwinden nach 3 Tagen
 - Scene Card: neue Option **`rooms`** – Hue-Räume/Zonen im Editor ankreuzen; die **Lampen kommen automatisch aus dem Hue-Raum** (Gruppe oben mit Helligkeit, einzelne Lampen aufklappbar, „Raum aus“ schaltet die Gruppe). Auch ohne Angabe und bei `groups` ohne `lights` werden die Hue-Lampen ergänzt

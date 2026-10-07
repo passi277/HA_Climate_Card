@@ -1318,7 +1318,9 @@
     "open_device": "Gerät öffnen",
     "reload": "Integration neu laden",
     "show_all": "Alle {n} anzeigen",
-    "less": "Weniger"
+    "less": "Weniger",
+    "n_of_total": "{n} von {total} Entitäten nicht verfügbar",
+    "partial": "Teilweise nicht verfügbar ({n})"
   },
   "device_status_editor": {
     "name": "Name",
@@ -1326,7 +1328,8 @@
     "exclude_integrations": "Diese Integrationen ignorieren",
     "exclude": "Diese Entitäten ignorieren",
     "max_items": "Geräte bis „Alle anzeigen“",
-    "include_unknown": "Auch „unbekannt“ zählen"
+    "include_unknown": "Auch „unbekannt“ zählen",
+    "show_partial": "Teilweise betroffene Geräte zeigen"
   },
   "recipe": {
     "title": "Essensplan",

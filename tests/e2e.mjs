@@ -1513,9 +1513,10 @@ colorFails.length ? fail(`Farbe folgt nicht dem Modus: ${colorFails.join(", ")}`
 {
   const info = await p.evaluate(() => { const r = document.querySelector("ha-device-status-card").shadowRoot;
     return { sub: r.querySelector(".h-sub")?.textContent.trim(), first: r.querySelector(".d-text b")?.textContent.trim(), chips: r.querySelectorAll(".chip").length,
-      ipad: [...r.querySelectorAll(".d-text b")].some((b) => b.textContent.includes("iPad")) }; });
-  /Geräte nicht erreichbar/.test(info.sub) && info.first === "MEATER+ Sonde" && info.chips >= 4 && !info.ipad
-    ? ok(`Gerätestatus: ${info.sub}, älteste zuerst, Geräte-Tracker ausgeblendet`) : fail(`Gerätestatus: ${JSON.stringify(info)}`);
+      ipad: [...r.querySelectorAll(".d-text b")].some((b) => b.textContent.includes("iPad")),
+      starlink: [...r.querySelectorAll(".d-text b")].some((b) => b.textContent.includes("Starlink")) }; });
+  /Geräte nicht erreichbar/.test(info.sub) && info.first === "MEATER+ Sonde" && info.chips >= 4 && !info.ipad && !info.starlink
+    ? ok(`Gerätestatus: ${info.sub}, älteste zuerst, Geräte-Tracker und teilweise erreichbare Geräte (Starlink) ausgeblendet`) : fail(`Gerätestatus: ${JSON.stringify(info)}`);
   await p.evaluate(() => document.querySelector("ha-device-status-card").shadowRoot.querySelector('.chip[data-int="hue"]').click());
   await p.waitForTimeout(150);
   const hue = await p.evaluate(() => [...document.querySelector("ha-device-status-card").shadowRoot.querySelectorAll(".d-text b")].map((b) => b.textContent.trim()));

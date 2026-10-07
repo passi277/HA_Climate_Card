@@ -31,7 +31,8 @@ export class HaDeviceStatusCard extends LitElement {
   @state() private _open?: string;
   @state() private _all = false;
   @state() private _reloading?: string;
-  private _cache?: { key: unknown; list: OfflineDevice[]; total: number };
+  @state() private _partialOpen = false;
+  private _cache?: { key: unknown; list: OfflineDevice[]; partial: OfflineDevice[]; total: number };
 
   public static getConfigElement(): HTMLElement {
     return document.createElement("ha-device-status-card-editor");
@@ -71,15 +72,18 @@ export class HaDeviceStatusCard extends LitElement {
     return false;
   }
 
-  private _list(): { list: OfflineDevice[]; total: number } {
+  private _list(): { list: OfflineDevice[]; partial: OfflineDevice[]; total: number } {
     const hass = this.hass!;
     if (this._cache?.key === hass.states) return this._cache;
     const c = this._config!;
-    const list = offlineDevices(hass.states, hass.entities, hass.devices, {
+    const all = offlineDevices(hass.states, hass.entities, hass.devices, {
       excludeDomains: c.exclude_domains, excludeIntegrations: c.exclude_integrations, exclude: c.exclude, includeUnknown: c.include_unknown,
+      includePartial: !!c.show_partial,
     });
+    const list = all.filter((d) => !d.partial);
+    const partial = all.filter((d) => d.partial);
     const total = hass.devices ? Object.keys(hass.devices).length : new Set(Object.values(hass.entities ?? {}).map((e) => e.device_id).filter(Boolean)).size;
-    this._cache = { key: hass.states, list, total };
+    this._cache = { key: hass.states, list, partial, total };
     return this._cache;
   }
 
@@ -115,7 +119,9 @@ export class HaDeviceStatusCard extends LitElement {
       <button class="d-main" @click=${() => { this._open = open ? undefined : d.id; }} aria-expanded=${open}>
         <span class="d-ic"><ha-icon .icon=${DOMAIN_ICON[d.domain] ?? "mdi:power-plug-off-outline"}></ha-icon></span>
         <span class="d-text"><b>${d.name}</b>
-          <small><span class="int">${platformName(d.integration)}</span> · ${this._t("since")} ${relTime(d.since, lang).replace(/^vor /, "")}${d.entities.length > 1 ? ` · ${this._t("n_entities").replace("{n}", String(d.entities.length))}` : ""}</small></span>
+          <small><span class="int">${platformName(d.integration)}</span> · ${d.partial
+            ? this._t("n_of_total").replace("{n}", String(d.entities.length)).replace("{total}", String(d.total))
+            : `${this._t("since")} ${relTime(d.since, lang).replace(/^vor /, "")}${d.entities.length > 1 ? ` · ${this._t("n_entities").replace("{n}", String(d.entities.length))}` : ""}`}</small></span>
         <ha-icon class="chev" icon="mdi:chevron-down"></ha-icon>
       </button>
       ${open ? html`<div class="d-body">
@@ -134,7 +140,7 @@ export class HaDeviceStatusCard extends LitElement {
   protected render() {
     if (!this._config || !this.hass) return nothing;
     const c = this._config;
-    const { list, total } = this._list();
+    const { list, partial, total } = this._list();
     const counts = new Map<string, number>();
     for (const d of list) counts.set(d.integration, (counts.get(d.integration) ?? 0) + 1);
     const filter = this._filter && counts.has(this._filter) ? this._filter : undefined;
@@ -160,6 +166,12 @@ export class HaDeviceStatusCard extends LitElement {
         <div class="list">${shown.map((d) => this._renderDevice(d))}</div>
         ${shownAll.length > max ? html`<button class="more" @click=${() => { this._all = !this._all; }}>
           <ha-icon .icon=${this._all ? "mdi:chevron-up" : "mdi:chevron-down"}></ha-icon>${this._all ? this._t("less") : this._t("show_all").replace("{n}", String(shownAll.length))}</button>` : nothing}`}
+      ${partial.length ? html`<div class="partial ${this._partialOpen ? "open" : ""}">
+        <button class="p-head" @click=${() => { this._partialOpen = !this._partialOpen; }} aria-expanded=${this._partialOpen}>
+          <ha-icon icon="mdi:alert-circle-outline"></ha-icon><span>${this._t("partial").replace("{n}", String(partial.length))}</span>
+          <ha-icon class="chev" icon="mdi:chevron-down"></ha-icon></button>
+        ${this._partialOpen ? html`<div class="list">${partial.map((d) => this._renderDevice(d))}</div>` : nothing}
+      </div>` : nothing}
     </ha-card>`;
   }
 
@@ -214,6 +226,13 @@ export class HaDeviceStatusCard extends LitElement {
     .more { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px; border: none; border-radius: 12px; cursor: pointer;
       font-size: 13px; font-weight: 600; background: rgba(127,127,127,0.06); color: var(--secondary-text-color); }
     .more ha-icon { --mdc-icon-size: 18px; }
+    .partial { display: flex; flex-direction: column; gap: 6px; }
+    .p-head { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: none; border-radius: 12px; cursor: pointer; text-align: left;
+      font-size: 12.5px; font-weight: 600; color: var(--secondary-text-color); background: rgba(127,127,127,0.06); }
+    .p-head span { flex: 1; }
+    .p-head ha-icon { --mdc-icon-size: 18px; }
+    .partial.open .p-head .chev { transform: rotate(180deg); }
+    .partial .dev { --accent: #fb8c00; }
   `];
 }
 

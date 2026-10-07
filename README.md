@@ -596,7 +596,10 @@ type: custom:ha-device-status-card
 # exclude_integrations: [fritz]
 # exclude: [sensor.meater_probe_123_innentemperatur]
 # include_unknown: true
+# show_partial: true       # Geräte mit nur einzelnen ausgefallenen Entitäten zugeklappt darunter
 ```
+
+Ein Gerät zählt nur als nicht erreichbar, wenn **alle** seine Entitäten nicht verfügbar sind – liefert es noch Werte, taucht es nur mit `show_partial` (unter „Teilweise nicht verfügbar“) auf.
 
 ## Modern Recipe Card (Rezepte & Essensplan, Mealie)
 
