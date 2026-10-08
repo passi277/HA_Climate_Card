@@ -1735,6 +1735,67 @@ colorFails.length ? fail(`Farbe folgt nicht dem Modus: ${colorFails.join(", ")}`
     ? ok("Router: Neustart erst nach „Sicher?“, Gast-WLAN einschalten") : fail(`Router Aktionen: ${JSON.stringify(calls)}`);
 }
 
+// Schloss (Smart Lock + Opener)
+{
+  await p.waitForTimeout(300);
+  const info = await p.evaluate(() => { const [a, b] = document.querySelectorAll("ha-lock-card"); const ra = a.shadowRoot, rb = b.shadowRoot;
+    return { sub: ra.querySelector(".h-sub")?.textContent.trim(), bat: ra.querySelector(".chip")?.textContent.trim(), door: ra.querySelector(".inf")?.textContent.trim(),
+      ev: [...ra.querySelectorAll(".ev")].map((e) => e.dataset.kind), who: ra.querySelector(".ev-text small")?.textContent.trim(),
+      opener: [...rb.querySelectorAll(".act")].map((x) => x.dataset.act), obat: rb.querySelector(".chip.warn")?.textContent.trim(), oev: [...rb.querySelectorAll(".ev")].map((e) => e.dataset.kind) }; });
+  /^Aufgeschlossen/.test(info.sub) && info.bat === "78 %" && info.door === "Tür zu" && info.ev[0] === "unlocked" && info.who === "Pascal" && info.ev.length === 5
+    && info.opener.join() === "rto,open" && info.obat === "Akku schwach" && info.oev.join() === "rto_off,ring,rto_on"
+    ? ok(`Schloss: ${info.sub}, Verlauf ${info.ev.join(">")} (${info.who}); Opener ${info.oev.join(">")}`) : fail(`Schloss: ${JSON.stringify(info)}`);
+  const n = await p.evaluate(() => window.serviceCalls.length);
+  const card = await p.evaluateHandle(() => document.querySelector("ha-lock-card"));
+  await card.evaluate((c) => c.shadowRoot.querySelector('[data-act="open"]').click());
+  await p.waitForTimeout(100);
+  const asked = await card.evaluate((c) => c.shadowRoot.querySelector('[data-act="open"]').textContent.trim());
+  const first = await p.evaluate((k) => window.serviceCalls.slice(k).length, n);
+  await card.evaluate((c) => c.shadowRoot.querySelector('[data-act="open"]').click());
+  await card.evaluate((c) => c.shadowRoot.querySelector('[data-act="lock"]').click());
+  await p.waitForTimeout(300);
+  const calls = await p.evaluate((k) => window.serviceCalls.slice(k).map((c) => `${c.domain}.${c.service}:${c.data.entity_id}`), n);
+  const after = await card.evaluate((c) => c.shadowRoot.querySelector(".h-sub").textContent.trim());
+  first === 0 && asked === "Sicher?" && calls.join() === "lock.open:lock.haustuer,lock.lock:lock.haustuer" && /^Abgeschlossen/.test(after)
+    ? ok("Schloss: Öffnen erst nach „Sicher?“, Abschließen sofort") : fail(`Schloss Aktionen: ${JSON.stringify({ first, asked, calls, after })}`);
+}
+
+// Temperatur-Überwachung
+{
+  const info = await p.evaluate(() => { const r = document.querySelector("ha-temperature-card").shadowRoot;
+    return { sub: r.querySelector(".h-sub")?.textContent.trim(), tiles: r.querySelectorAll(".tile").length, alert: [...r.querySelectorAll(".tile.alert .t-name")].map((t) => t.textContent.trim()),
+      sparks: r.querySelectorAll(".tile .spark").length, lines: r.querySelectorAll(".chart .ln").length, mm: r.querySelector(".tile .mm")?.textContent.trim() }; });
+  /Außensteckdose: warm/.test(info.sub) && info.tiles === 4 && info.alert.join() === "Außensteckdose" && info.sparks === 4 && info.lines === 4 && /↓/.test(info.mm)
+    ? ok(`Temperatur: ${info.sub}, ${info.tiles} Kacheln, Verlauf mit ${info.lines} Linien`) : fail(`Temperatur: ${JSON.stringify(info)}`);
+}
+
+// Funknetz (Zigbee2MQTT + Shelly)
+{
+  const info = await p.evaluate(() => { const [a, b] = document.querySelectorAll("ha-network-card"); const ra = a.shadowRoot, rb = b.shadowRoot;
+    return { title: ra.querySelector(".h-title")?.textContent.trim(), sub: ra.querySelector(".h-sub")?.textContent.trim(), first: ra.querySelector(".d-name")?.textContent.trim(),
+      n: ra.querySelectorAll(".dev").length, bridge: ra.querySelector(".bridge")?.textContent.replace(/\s+/g, " ").trim(),
+      stitle: rb.querySelector(".h-title")?.textContent.trim(), sfirst: rb.querySelector(".d-name")?.textContent.trim(), sprob: rb.querySelector(".d-sub .bad")?.textContent.trim() }; });
+  info.title === "Zigbee" && /5 Geräte · 1 offline/.test(info.sub) && info.first === "Rauchmelder" && info.n === 5 && /Bridge verbunden · 2\.14\.2/.test(info.bridge)
+    && info.stitle === "Shelly" && info.sfirst === "Shelly Hütte Außensteckdosen" && info.sprob === "Neustart nötig"
+    ? ok(`Funknetz: ${info.sub}; Shelly zuerst ${info.sfirst} (${info.sprob})`) : fail(`Funknetz: ${JSON.stringify(info)}`);
+  const sh = await p.evaluateHandle(() => document.querySelectorAll("ha-network-card")[1]);
+  await sh.evaluate((c) => c.shadowRoot.querySelector('.dev[data-device="sh_kuhlschrank"] .d-head').click());
+  await p.waitForTimeout(150);
+  const n = await p.evaluate(() => window.serviceCalls.length);
+  const body = await sh.evaluate((c) => [...c.shadowRoot.querySelectorAll('.dev[data-device="sh_kuhlschrank"] .kv')].map((k) => k.textContent.replace(/\s+/g, " ").trim()));
+  await sh.evaluate((c) => c.shadowRoot.querySelector('.dev[data-device="sh_kuhlschrank"] [data-act="update"]').click());
+  await p.waitForTimeout(100);
+  const first = await p.evaluate((k) => window.serviceCalls.slice(k).length, n);
+  await sh.evaluate((c) => c.shadowRoot.querySelector('.dev[data-device="sh_kuhlschrank"] [data-act="update"]').click());
+  await p.waitForTimeout(150);
+  const calls = await p.evaluate((k) => window.serviceCalls.slice(k).map((c) => `${c.domain}.${c.service}:${c.data.entity_id}`), n);
+  await sh.evaluate((c) => c.shadowRoot.querySelector('[data-filter="attention"]').click());
+  await p.waitForTimeout(100);
+  const att = await sh.evaluate((c) => c.shadowRoot.querySelectorAll(".dev").length);
+  first === 0 && calls.join() === "update.install:update.shelly_kuhlschrank_firmware" && body.some((b) => /Signal\s*-58 dBm/.test(b)) && body.some((b) => /Firmware\s*v1\.14\.0/.test(b)) && att === 2
+    ? ok("Funknetz: Details, Update erst nach „Sicher?“, Filter Achtung") : fail(`Funknetz Aktionen: ${JSON.stringify({ first, calls, body, att })}`);
+}
+
 // Theme-Umschalter
 await p.click('[data-theme="dark"]');
 (await p.evaluate(() => document.body.classList.contains("dark"))) ? ok("Dunkel-Modus umschaltbar") : fail("Dunkel-Modus");

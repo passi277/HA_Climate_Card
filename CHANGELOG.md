@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.44.0 – Schloss, Temperatur-Überwachung, Funknetz
+- Neue **Modern Lock Card** (`custom:ha-lock-card`) für Türschlösser und Nuki Opener: Abschließen, Aufschließen/Öffnen mit Rückfrage, Ring to Open, Klingel („zuletzt geklingelt“), Türsensor, Akku und letzter Batteriewechsel, **Verlauf mit Person bzw. Automation** – Zubehör automatisch über das Gerät
+- Neue **Modern Temperature Card** (`custom:ha-temperature-card`): Temperaturen als Kacheln mit Trend/h, Min/Max und Mini-Verlauf, Grenzwert-Warnung (Gerätetemperaturen automatisch ab 60/80 °C, eigene Grenzen je Sensor), gemeinsamer 24-h-Verlauf; Wetter/Klima über Attribut
+- Neue **Modern Network Card** (`custom:ha-network-card`) für Zigbee2MQTT, ZHA und Shelly: Geräte mit LQI/WLAN-Signal, Akku, Bereich, zuletzt gesehen, Warnungen (Überhitzung, Neustart nötig …) und Firmware-Updates, Probleme zuerst, Filter „Achtung“, Details mit Update/Neustart (Rückfrage) und „Gerät öffnen“; Zigbee2MQTT-Bridge mit Version und Anlernen
+
 ## 1.43.2 – Select: Name bei einer Auswahl
 - Select Card: `name` und `icon` der Karte gelten auch, wenn genau eine Auswahl unter `entities` steht (so speichert der visuelle Editor) – z. B. „Dashboard Auswahl“ statt des Entitätsnamens
 

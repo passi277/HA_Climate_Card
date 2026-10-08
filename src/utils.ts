@@ -2353,3 +2353,240 @@ export const clientIcon = (name: string, wired?: boolean): string =>
 /** kbit/s (FRITZ-Leitung) bzw. kB/s (Durchsatz) lesbar: „299 Mbit/s“, „6,5 kB/s“ */
 export const formatKbit = (kbit: number, lang = "de"): string =>
   kbit >= 1000 ? `${(kbit / 1000).toLocaleString(lang, { maximumFractionDigits: kbit >= 100_000 ? 0 : 1 })} Mbit/s` : `${Math.round(kbit)} kbit/s`;
+
+// ---------- Schloss (Nuki & Co.) ----------
+
+export interface LockFeatures {
+  /** Klingel (Nuki Opener „Klingelaktion“, doorbell) */
+  doorbell?: string;
+  /** Ring to Open (Vorlage oder Integration) */
+  ring_to_open?: string;
+  /** Akku schwach (binary_sensor) */
+  battery_low?: string;
+  /** Akku in % */
+  battery?: string;
+  /** Türkontakt (Nuki Smart Lock Türsensor) */
+  door?: string;
+  /** Letzter Batteriewechsel (Battery Notes) */
+  battery_replaced?: string;
+}
+
+/** Zubehör eines Schlosses über das Gerät finden (Klingel, Ring to Open, Akku, Türsensor) */
+export const lockFeatures = (states: Record<string, HassEntity>, entities: Record<string, EntityRegistryEntry> | undefined, lock: string): LockFeatures => {
+  const device = entities?.[lock]?.device_id;
+  if (!device) return {};
+  const ids = Object.values(entities!).filter((e) => e.device_id === device && e.entity_id !== lock && states[e.entity_id]).map((e) => e.entity_id);
+  const dc = (id: string) => states[id]?.attributes.device_class;
+  const base = doorDevices(states, entities, lock);
+  return {
+    doorbell: base.doorbell,
+    ring_to_open: ids.find((id) => id.startsWith("binary_sensor.") && /ring_?to_?open|rto/.test(id)),
+    battery_low: ids.find((id) => id.startsWith("binary_sensor.") && /_plus_low$/.test(id)) ?? base.battery,
+    battery: ids.find((id) => id.startsWith("sensor.") && dc(id) === "battery" && states[id]?.attributes.unit_of_measurement === "%"),
+    door: ids.find((id) => id.startsWith("binary_sensor.") && ["door", "opening"].includes(dc(id))),
+    battery_replaced: ids.find((id) => id.startsWith("sensor.") && /battery_last_replaced/.test(id)),
+  };
+};
+
+export type LockEventKind = "locked" | "unlocked" | "open" | "jammed" | "ring" | "rto_on" | "rto_off" | "door_open" | "door_closed";
+
+export interface LockEvent {
+  when: number;
+  kind: LockEventKind;
+  /** Person (über user_id) oder Auslöser (Automation/Skript) */
+  who?: string;
+}
+
+/** Logbuch-Einträge (logbook/get_events) zu einem Verlauf: neueste zuerst, Zwischenzustände weg */
+export const lockHistory = (rows: { when: number | string; entity_id?: string; state?: string; context_user_id?: string | null;
+  context_name?: string; context_entity_id_name?: string; context_event_type?: string }[],
+  ids: { lock: string; doorbell?: string; ring_to_open?: string; door?: string },
+  persons: Record<string, string> = {}, opener = false): LockEvent[] => {
+  const out: LockEvent[] = [];
+  for (const r of rows) {
+    const when = typeof r.when === "number" ? r.when * 1000 : Date.parse(r.when);
+    let kind: LockEventKind | undefined;
+    if (r.entity_id === ids.lock) {
+      kind = r.state === "locked" ? (opener ? "rto_off" : "locked") : r.state === "unlocked" ? (opener ? "rto_on" : "unlocked")
+        : r.state === "open" ? "open" : r.state === "jammed" ? "jammed" : undefined;
+    } else if (r.entity_id === ids.doorbell && r.state === "on") kind = "ring";
+    else if (r.entity_id === ids.ring_to_open && !opener) kind = r.state === "on" ? "rto_on" : r.state === "off" ? "rto_off" : undefined;
+    else if (r.entity_id === ids.door) kind = r.state === "on" ? "door_open" : r.state === "off" ? "door_closed" : undefined;
+    if (!kind || !Number.isFinite(when)) continue;
+    const who = (r.context_user_id && persons[r.context_user_id]) || r.context_entity_id_name || r.context_name || undefined;
+    out.push({ when, kind, who });
+  }
+  return out.sort((a, b) => b.when - a.when);
+};
+
+// ---------- Temperatur-Überwachung ----------
+
+export type TempLevel = "alarm_low" | "warn_low" | "ok" | "warn_high" | "alarm_high";
+
+export interface TempLimits { warn_high?: number; alarm_high?: number; warn_low?: number; alarm_low?: number }
+
+/** Standard-Grenzen: Gerätetemperaturen (Shelly & Co.) warnen ab 60 °C, Alarm ab 80 °C */
+export const tempDefaults = (entityId: string, name = ""): TempLimits =>
+  /device_temperature|ger(ä|ae)tetemperatur|chip|cpu|board/i.test(`${entityId} ${name}`) ? { warn_high: 60, alarm_high: 80 } : {};
+
+export const tempLevel = (v: number, l: TempLimits): TempLevel => {
+  if (l.alarm_high != null && v >= l.alarm_high) return "alarm_high";
+  if (l.alarm_low != null && v <= l.alarm_low) return "alarm_low";
+  if (l.warn_high != null && v >= l.warn_high) return "warn_high";
+  if (l.warn_low != null && v <= l.warn_low) return "warn_low";
+  return "ok";
+};
+
+/** Min/Max seit `since` und Veränderung über die letzte Stunde */
+export const tempStats = (pts: { t: number; v: number }[], now: number, since: number): { min?: number; max?: number; trend?: number } => {
+  const win = pts.filter((p) => p.t >= since);
+  if (!win.length) return {};
+  const vs = win.map((p) => p.v);
+  const last = pts[pts.length - 1]!;
+  // Wert vor einer Stunde: letzter Punkt davor
+  let ref: { t: number; v: number } | undefined;
+  for (const p of pts) if (p.t <= now - 3_600_000) ref = p;
+  return { min: Math.min(...vs), max: Math.max(...vs), trend: ref ? +(last.v - ref.v).toFixed(2) : undefined };
+};
+
+// ---------- Funknetz (Zigbee, Shelly …) ----------
+
+export interface NetDevice {
+  id: string;
+  name: string;
+  model?: string;
+  manufacturer?: string;
+  area?: string;
+  firmware?: string;
+  /** Signal: LQI (0–255) oder dBm */
+  signal?: number;
+  signal_unit?: "lqi" | "dBm";
+  signal_entity?: string;
+  quality?: "very_good" | "good" | "fair" | "weak";
+  battery?: number;
+  battery_entity?: string;
+  last_seen?: number;
+  offline: boolean;
+  /** Firmware-Update verfügbar (update.*) */
+  update?: string;
+  reboot?: string;
+  /** Gerätetemperatur (Shelly) */
+  temperature?: number;
+  power?: number;
+  /** Seit wann online (Shelly „Betriebszeit“ als Zeitstempel) */
+  uptime_since?: number;
+  /** Aktive Warnungen (Überhitzung, Neustart nötig …) */
+  problems: string[];
+  entities: string[];
+}
+
+/** LQI-Qualität wie in Zigbee2MQTT üblich */
+export const lqiQuality = (q: number): "very_good" | "good" | "fair" | "weak" =>
+  q >= 150 ? "very_good" : q >= 100 ? "good" : q >= 50 ? "fair" : "weak";
+
+/** Gerät gehört zur Integration? (Z2M über die MQTT-Kennung, sonst über die Plattform der Entitäten) */
+const netMember = (dev: DeviceRegistryEntry | undefined, ents: EntityRegistryEntry[], integration: string): boolean => {
+  if (integration === "zigbee2mqtt") {
+    return !!dev?.identifiers?.some(([d, id]) => d === "mqtt" && /^zigbee2mqtt_0x/.test(id))
+      || (!dev?.identifiers && ents.some((e) => e.platform === "mqtt" && /_linkquality$/.test(e.entity_id)));
+  }
+  return ents.some((e) => e.platform === integration);
+};
+
+/** Integration automatisch: Zigbee2MQTT, ZHA, Shelly – die mit den meisten Geräten */
+export const netIntegration = (entities: Record<string, EntityRegistryEntry> | undefined): string | undefined => {
+  const count: Record<string, Set<string>> = {};
+  for (const e of Object.values(entities ?? {})) {
+    if (!e.device_id) continue;
+    const key = e.platform === "mqtt" && /_linkquality$/.test(e.entity_id) ? "zigbee2mqtt"
+      : e.platform === "zha" || e.platform === "shelly" ? e.platform : undefined;
+    if (key) (count[key] ??= new Set()).add(e.device_id);
+  }
+  return Object.entries(count).sort((a, b) => b[1].size - a[1].size)[0]?.[0];
+};
+
+const PROBLEM_RE = /overheat|overpower|overcurrent|overvoltage|restart_required|überhitz|überlast|überstrom|überspann|neustart_erforderlich/i;
+
+/** Geräte einer Funk-Integration mit Signal, Akku, „zuletzt gesehen“, Update und Warnungen */
+export const networkDevices = (states: Record<string, HassEntity>, entities: Record<string, EntityRegistryEntry> | undefined,
+  devices: Record<string, DeviceRegistryEntry> | undefined, integration: string, areas: Record<string, { name: string }> = {},
+  exclude: string[] = []): NetDevice[] => {
+  const byDevice = new Map<string, EntityRegistryEntry[]>();
+  for (const e of Object.values(entities ?? {})) {
+    if (!e.device_id || !states[e.entity_id]) continue;
+    const list = byDevice.get(e.device_id) ?? [];
+    list.push(e);
+    byDevice.set(e.device_id, list);
+  }
+  const out: NetDevice[] = [];
+  for (const [id, ents] of byDevice) {
+    const dev = devices?.[id];
+    if (!netMember(dev, ents, integration)) continue;
+    // Zigbee2MQTT-Bridge selbst ist kein Funkgerät
+    if (dev?.identifiers?.some(([, x]) => /^zigbee2mqtt_bridge/.test(x)) || dev?.model === "Bridge") continue;
+    const name = (dev?.name_by_user || dev?.name || states[ents[0]!.entity_id]?.attributes.friendly_name || id).trim();
+    if (exclude.some((x) => x === id || x.toLowerCase() === name.toLowerCase())) continue;
+    const st = (e: EntityRegistryEntry) => states[e.entity_id]!;
+    const num = (e?: EntityRegistryEntry) => { if (!e) return undefined; const n = Number(st(e).state); return Number.isFinite(n) ? n : undefined; };
+    const own = ents.filter((e) => !["battery_notes", "utility_meter", "template"].includes(e.platform ?? ""));
+    const sensor = (re: RegExp, keys: string[] = []) => own.find((e) => e.entity_id.startsWith("sensor.") && (keys.includes(e.translation_key ?? "") || re.test(e.entity_id)));
+    const lqi = sensor(/_(linkquality|lqi)$/, ["linkquality", "lqi"]);
+    const rssi = lqi ? undefined : own.find((e) => e.entity_id.startsWith("sensor.") && (/_rssi$/.test(e.entity_id) || e.translation_key === "rssi"
+      || st(e).attributes.device_class === "signal_strength"));
+    const bat = ents.find((e) => e.entity_id.startsWith("sensor.") && st(e).attributes.device_class === "battery" && st(e).attributes.unit_of_measurement === "%"
+      && e.platform !== "battery_notes") ?? ents.find((e) => e.entity_id.startsWith("sensor.") && /_battery_plus$/.test(e.entity_id));
+    const signalEnt = lqi ?? rssi;
+    const signal = num(signalEnt);
+    const unit = lqi ? "lqi" : rssi ? "dBm" : undefined;
+    const lastSeenEnt = sensor(/_last_seen$/, ["last_seen"]);
+    const lastSeen = lastSeenEnt && !UNAVAILABLE.includes(st(lastSeenEnt).state) ? Date.parse(st(lastSeenEnt).state)
+      : Math.max(...own.map((e) => Date.parse(st(e).last_updated)).filter(Number.isFinite));
+    const primary = own.filter((e) => !e.entity_category);
+    const offline = (primary.length ? primary : own).every((e) => UNAVAILABLE.includes(st(e).state));
+    const upd = own.find((e) => e.entity_id.startsWith("update.") && !/beta/.test(e.entity_id) && e.translation_key !== "beta_firmware" && st(e).state === "on");
+    const reboot = own.find((e) => e.entity_id.startsWith("button.") && (st(e).attributes.device_class === "restart" || /_(reboot|restart|neu_starten)$/.test(e.entity_id)));
+    const temp = own.find((e) => e.entity_id.startsWith("sensor.") && /device_temperature/.test(e.entity_id + (e.translation_key ?? "")));
+    const tempV = temp ? num(temp) : undefined;
+    const power = own.find((e) => e.entity_id.startsWith("sensor.") && st(e).attributes.device_class === "power");
+    const uptime = sensor(/_uptime$/, ["uptime"]);
+    const upSince = uptime ? Date.parse(st(uptime).state) : NaN;
+    const problems = own.filter((e) => e.entity_id.startsWith("binary_sensor.") && st(e).state === "on"
+      && (PROBLEM_RE.test(e.entity_id) || ["problem", "heat", "safety"].includes(st(e).attributes.device_class)))
+      .map((e) => e.entity_id);
+    const areaId = dev?.area_id ?? ents.find((e) => e.area_id)?.area_id;
+    out.push({
+      id, name, model: dev?.model ?? undefined, manufacturer: dev?.manufacturer ?? undefined, firmware: dev?.sw_version ?? undefined,
+      area: areaId ? areas[areaId]?.name : undefined,
+      signal, signal_unit: unit, signal_entity: signalEnt?.entity_id,
+      quality: signal == null ? undefined : unit === "lqi" ? lqiQuality(signal) : wifiQuality(signal),
+      battery: num(bat), battery_entity: bat?.entity_id, last_seen: Number.isFinite(lastSeen) ? lastSeen : undefined, offline,
+      update: upd?.entity_id, reboot: reboot?.entity_id, temperature: tempV, power: num(power),
+      uptime_since: Number.isFinite(upSince) ? upSince : undefined, problems, entities: ents.map((e) => e.entity_id),
+    });
+  }
+  return out;
+};
+
+/** Wie dringend ein Gerät Aufmerksamkeit braucht (für die Sortierung; höher = wichtiger) */
+export const netSeverity = (d: NetDevice, lowBattery = 20): number =>
+  (d.offline ? 100 : 0) + (d.problems.length ? 50 : 0) + (d.quality === "weak" ? 30 : d.quality === "fair" ? 5 : 0)
+  + (d.battery != null && d.battery <= lowBattery ? 20 : 0) + (d.update ? 3 : 0);
+
+/** Symbol eines Funkgeräts aus Name und Modell */
+export const netIcon = (name: string, model = ""): string => {
+  const s = `${name} ${model}`.toLowerCase();
+  if (/rauch|smoke/.test(s)) return "mdi:smoke-detector-variant";
+  if (/ventil|valve/.test(s)) return "mdi:pipe-valve";
+  if (/tür|tuer|door|contact|kontakt|fenster|window/.test(s)) return "mdi:door-sliding";
+  if (/temp|humid|klima|thermo/.test(s)) return "mdi:thermometer";
+  if (/bewegung|motion|presence|präsenz|occupancy/.test(s)) return "mdi:motion-sensor";
+  if (/vibration/.test(s)) return "mdi:vibrate";
+  if (/kühl|fridge/.test(s)) return "mdi:fridge-outline";
+  if (/pumpe|pump/.test(s)) return "mdi:pump";
+  if (/pool/.test(s)) return "mdi:pool";
+  if (/licht|light|lamp|bulb|leuchte/.test(s)) return "mdi:lightbulb-outline";
+  if (/button|taster|schalter|switch with|remote|fernbed/.test(s)) return "mdi:gesture-tap-button";
+  if (/steckdose|stecker|plug|socket/.test(s)) return "mdi:power-socket-eu";
+  if (/repeater|router/.test(s)) return "mdi:access-point";
+  return "mdi:chip";
+};

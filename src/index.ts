@@ -34,3 +34,6 @@ import "./climate-rooms-card";
 import "./energy-week-card";
 import "./parcel-card";
 import "./router-card";
+import "./lock-card";
+import "./temperature-card";
+import "./network-card";

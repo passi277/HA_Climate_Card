@@ -22,7 +22,10 @@ export interface DeviceRegistryEntry {
   name?: string | null;
   name_by_user?: string | null;
   model?: string | null;
+  manufacturer?: string | null;
+  sw_version?: string | null;
   via_device_id?: string | null;
+  identifiers?: [string, string][];
 }
 
 export interface HomeAssistant {
@@ -1187,4 +1190,63 @@ export interface RouterCardConfig {
   confirm_reboot?: boolean;
   animations?: "full" | "reduced" | "off";
   [key: string]: unknown;
+}
+
+export interface LockCardConfig {
+  type: string;
+  /** lock.* (Nuki Smart Lock, Nuki Opener, andere Schlösser) */
+  entity: string;
+  name?: string;
+  /** Verlauf der letzten Aktionen (Standard an) */
+  history?: boolean;
+  /** Stunden für den Verlauf (Standard 48) */
+  history_hours?: number;
+  /** Aufschließen/Öffnen mit Rückfrage (Standard an) */
+  confirm?: boolean;
+  /** Klingel-Sensor (sonst automatisch über das Gerät) */
+  doorbell?: string;
+  /** Türkontakt (sonst automatisch über das Gerät) */
+  door?: string;
+}
+
+export interface TemperatureEntityConfig {
+  entity: string;
+  name?: string;
+  /** Wert aus einem Attribut (z. B. weather → temperature) */
+  attribute?: string;
+  icon?: string;
+  color?: string;
+  /** Warnung ab (z. B. 60 °C für Gerätetemperaturen) */
+  warn_high?: number;
+  /** Alarm ab */
+  alarm_high?: number;
+  /** Warnung unter (z. B. 5 °C Frost) */
+  warn_low?: number;
+  /** Alarm unter */
+  alarm_low?: number;
+}
+
+export interface TemperatureCardConfig {
+  type: string;
+  title?: string;
+  entities: (string | TemperatureEntityConfig)[];
+  /** Stunden im Verlauf (Standard 24) */
+  hours?: number;
+  /** Verlauf zeigen (Standard an) */
+  show_graph?: boolean;
+  /** Kacheln je Zeile (Standard 2) */
+  columns?: number;
+}
+
+export interface NetworkCardConfig {
+  type: string;
+  /** zigbee2mqtt, zha, shelly oder eine andere Integration (Standard: automatisch) */
+  integration?: string;
+  title?: string;
+  /** Geräte ausblenden (Name oder Geräte-ID) */
+  exclude?: string[];
+  /** Geräte bis „Alle anzeigen“ (Standard 8) */
+  max_items?: number;
+  /** Neustart/Update mit Rückfrage (Standard an) */
+  confirm?: boolean;
 }

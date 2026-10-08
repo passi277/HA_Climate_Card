@@ -672,7 +672,39 @@
       "lock.klingel": { state: "locked", attributes: { friendly_name: "Klingel", supported_features: 1 } },
       "binary_sensor.klingel_klingelaktion": { state: "off", attributes: { friendly_name: "Klingel Klingelaktion" } },
       "binary_sensor.klingel_batterie": { state: "on", attributes: { friendly_name: "Klingel Batteriestand", device_class: "battery" } },
+      // Nuki Smart Lock mit Türsensor
+      "lock.haustuer": { state: "unlocked", last_changed: new Date(Date.now() - 12 * 60000).toISOString(), attributes: { friendly_name: "Haustür", supported_features: 1 } },
+      "binary_sensor.haustuer_tur": { state: "off", attributes: { friendly_name: "Haustür Tür", device_class: "door" } },
+      "sensor.haustuer_batterie": { state: "78", attributes: { friendly_name: "Haustür Batterie", device_class: "battery", unit_of_measurement: "%" } },
+      // Zigbee2MQTT: Bridge + Geräte (LQI, Akku), Rauchmelder offline
+      "sensor.zigbee2mqtt_bridge_version": { state: "2.14.2", attributes: { friendly_name: "Zigbee2MQTT Bridge Version" } },
+      "switch.zigbee2mqtt_bridge_permit_join": { state: "off", attributes: { friendly_name: "Zigbee2MQTT Bridge Permit join" } },
+      ...Object.fromEntries([["tursensor_haus", "Türsensor Haus", 142, 87, "binary_sensor", "contact", "off"], ["temperatur_haus", "Temperatur Haus", 38, 15, "sensor", "temperature", "21.4"],
+        ["ventil_volleyball", "Ventil Volleyball", 96, 64, "switch", null, "off"], ["steckdose_repeater", "Steckdose Repeater", 188, null, "switch", null, "on"],
+        ["rauchmelder", "Rauchmelder", null, 90, "binary_sensor", "smoke", "unavailable"]].flatMap(([n, name, lqi, bat, dom, dc, st]) => [
+        [`${dom}.${n}${dc ? "_" + dc : ""}`, { state: st, attributes: { friendly_name: `${name}${dc === "temperature" ? " Temperatur" : ""}`, ...(dc ? { device_class: dc } : {}), ...(dc === "temperature" ? { unit_of_measurement: "°C" } : {}) } }],
+        [`sensor.${n}_linkquality`, { state: lqi == null ? "unavailable" : String(lqi), attributes: { friendly_name: `${name} Linkquality`, unit_of_measurement: "lqi", state_class: "measurement" } }],
+        ...(bat != null ? [[`sensor.${n}_battery`, { state: st === "unavailable" ? "unavailable" : String(bat), attributes: { friendly_name: `${name} Batterie`, device_class: "battery", unit_of_measurement: "%" } }]] : []),
+      ])),
+      // Shelly: Kühlschrank (Update), Außensteckdosen (warm, schwaches WLAN, Neustart nötig), Licht Hütte
+      "switch.shelly_kuhlschrank": { state: "on", attributes: { friendly_name: "Steckdose Kühlschrank" } },
+      "sensor.shelly_kuhlschrank_power": { state: "68.4", attributes: { friendly_name: "Shelly Kühlschrank power", device_class: "power", unit_of_measurement: "W" } },
+      "sensor.shelly_kuhlschrank_rssi": { state: "-58", attributes: { friendly_name: "Shelly Kühlschrank Signalstärke", device_class: "signal_strength", unit_of_measurement: "dBm" } },
+      "sensor.shelly_kuhlschrank_uptime": { state: new Date(Date.now() - 3 * 86400000).toISOString(), attributes: { friendly_name: "Shelly Kühlschrank Betriebszeit", device_class: "timestamp" } },
+      "update.shelly_kuhlschrank_firmware": { state: "on", attributes: { friendly_name: "Shelly Kühlschrank Firmware", installed_version: "1.14.0", latest_version: "1.15.0" } },
+      "update.shelly_kuhlschrank_beta_firmware": { state: "on", attributes: { friendly_name: "Shelly Kühlschrank Beta-Firmware", latest_version: "1.16.0-beta1" } },
+      "button.shelly_kuhlschrank_reboot": { state: "unknown", attributes: { friendly_name: "Shelly Kühlschrank Reboot", device_class: "restart" } },
+      "switch.shelly_hutte_ausensteckdosen_switch_0": { state: "on", attributes: { friendly_name: "Außensteckdosen Hütte" } },
+      "sensor.shelly_hutte_ausensteckdosen_switch_0_device_temperature": { state: "64.2", attributes: { friendly_name: "Shelly Hütte Außensteckdosen Switch 0 device temperature", device_class: "temperature", unit_of_measurement: "°C" } },
+      "sensor.shelly_hutte_ausensteckdosen_rssi": { state: "-77", attributes: { friendly_name: "Shelly Außensteckdosen Signalstärke", device_class: "signal_strength", unit_of_measurement: "dBm" } },
+      "binary_sensor.shelly_hutte_ausensteckdosen_restart_required": { state: "on", attributes: { friendly_name: "Neustart erforderlich" } },
+      "binary_sensor.shelly_hutte_ausensteckdosen_switch_0_overheating": { state: "off", attributes: { friendly_name: "Überhitzung", device_class: "problem" } },
+      "button.shelly_hutte_ausensteckdosen_reboot": { state: "unknown", attributes: { friendly_name: "Shelly Außensteckdosen Reboot", device_class: "restart" } },
+      "switch.shelly_licht": { state: "off", attributes: { friendly_name: "Shelly Licht" } },
+      "sensor.shelly_licht_hutte_switch_0_device_temperature": { state: "41.5", attributes: { friendly_name: "Shelly Licht Hütte Switch 0 device temperature", device_class: "temperature", unit_of_measurement: "°C" } },
+      "sensor.shelly_licht_hutte_rssi": { state: "-61", attributes: { friendly_name: "Shelly Licht Hütte Signalstärke", device_class: "signal_strength", unit_of_measurement: "dBm" } },
     };
+    states["person.pascal"].attributes.user_id = "u_pascal";
     for (const [id, s] of Object.entries(states)) Object.assign(s, { entity_id: id, last_changed: s.last_changed ?? now, last_updated: now });
 
     // Simuliert, was das Gerät nach einer Änderung als Aktion meldet
@@ -706,6 +738,12 @@
       ...(/^\w+\.starlink_/.test(id) ? { device_id: id.includes("camper") ? "dev_starlink_camper" : "dev_starlink", platform: "starlink",
         translation_key: { konnektivitat: "connection", ping: "ping", ping_drop_rate: "ping_drop_rate", downlink_durchsatz: "downlink_throughput", uplink_durchsatz: "uplink_throughput", download: "download", upload: "upload", letzter_neustart: "last_boot_time", beeintrachtigt: "currently_obstructed", heizung: "heating", ruhezustand: "power_save_idle", verstaut: "stowed", zeitplan_fur_ruhezustand: "sleep_schedule", neu_starten: "reboot" }[id.replace(/^\w+\.starlink_(camper_)?/, "")] } : {}),
       ...(/^\w+\.fritz_box_7690_/.test(id) ? { device_id: "dev_fritz", platform: "fritz" } : {}),
+      ...(/^\w+\.haustuer_?/.test(id) || id === "lock.haustuer" ? { device_id: "dev_nuki_lock", platform: "nuki" } : {}),
+      ...(/^\w+\.(tursensor_haus|temperatur_haus|ventil_volleyball|steckdose_repeater|rauchmelder)_?/.test(id) ? { device_id: "z2m_" + id.match(/\.(tursensor_haus|temperatur_haus|ventil_volleyball|steckdose_repeater|rauchmelder)/)[1], platform: "mqtt",
+        ...(/_(linkquality|battery)$/.test(id) ? { entity_category: "diagnostic" } : {}) } : {}),
+      ...(/^\w+\.zigbee2mqtt_bridge_/.test(id) ? { device_id: "z2m_bridge", platform: "mqtt" } : {}),
+      ...(/^\w+\.shelly_(kuhlschrank|hutte_ausensteckdosen|licht)/.test(id) ? { device_id: "sh_" + id.match(/shelly_(kuhlschrank|hutte_ausensteckdosen|licht)/)[1], platform: "shelly",
+        ...(/_(rssi|uptime|reboot|firmware|restart_required|overheating|device_temperature)$/.test(id) ? { entity_category: "diagnostic" } : {}) } : {}),
       ...(/^device_tracker\.fb_/.test(id) ? { platform: "fritz" } : {}),
       ...(/^\w+\.tp_link_router_/.test(id) ? { device_id: "dev_tplink", platform: "tplink_router" } : {}),
       ...(/^sensor\.speedtest_/.test(id) ? { device_id: "dev_speedtest", platform: "speedtestdotnet", translation_key: id.replace("sensor.speedtest_", "") } : {}),
@@ -715,6 +753,15 @@
       blink_pool: { id: "blink_pool", name: "Pool" }, blink_schuppen: { id: "blink_schuppen", name: "Schuppen" }, dev_opener: { id: "dev_opener", name: "Klingel", model: "Nuki Opener" }, dev_gree: { id: "dev_gree", name: "Klima Schlafzimmer" }, dev_govee: { id: "dev_govee", name: "Carport" },
       dev_ventil_hecke: { id: "dev_ventil_hecke", name: "Ventil Hecke" }, dev_ventil_rasen: { id: "dev_ventil_rasen", name: "Ventil Rasen" },
       dev_couch: { id: "dev_couch", name: "Couch Lightstrip" }, dev_rollo_kueche: { id: "dev_rollo_kueche", name: "Rollo Küche" }, dev_meater: { id: "dev_meater", name: "MEATER+ Sonde" }, dev_ipad: { id: "dev_ipad", name: "iPad" },
+      dev_nuki_lock: { id: "dev_nuki_lock", name: "Haustür", model: "Nuki Smart Lock 4.0", manufacturer: "Nuki" },
+      z2m_bridge: { id: "z2m_bridge", name: "Zigbee2MQTT Bridge", model: "Bridge", identifiers: [["mqtt", "zigbee2mqtt_bridge_0x00124b"]] },
+      ...Object.fromEntries([["tursensor_haus", "Türsensor Haus", "Contact sensor", "eWeLink"], ["temperatur_haus", "Temperatur Haus", "Temperature and humidity sensor", "Tuya"],
+        ["ventil_volleyball", "Ventil Volleyball", "Zigbee smart water valve", "SONOFF"], ["steckdose_repeater", "Steckdose Repeater", "TRETAKT smart plug", "IKEA"],
+        ["rauchmelder", "Rauchmelder", "Smart smoke detector", "Aqara"]].map(([n, name, model, man], i) => ["z2m_" + n, { id: "z2m_" + n, name, model, manufacturer: man,
+        area_id: i < 2 ? "hutte" : null, sw_version: "1.0." + i, identifiers: [["mqtt", "zigbee2mqtt_0xa4c13" + i]] }])),
+      sh_kuhlschrank: { id: "sh_kuhlschrank", name: "Shelly Kühlschrank", model: "Shelly Plug E", manufacturer: "Shelly", sw_version: "20230913-113610/v1.14.0-gcb84623", area_id: "hutte" },
+      sh_hutte_ausensteckdosen: { id: "sh_hutte_ausensteckdosen", name: "Shelly Hütte Außensteckdosen", model: "Shelly 1PM Gen3", manufacturer: "Shelly", area_id: "hutte" },
+      sh_licht: { id: "sh_licht", name: "Shelly Licht Hütte", model: "Shelly 1 Mini Gen3", manufacturer: "Shelly" },
       dev_fritz: { id: "dev_fritz", name: "FRITZ!Box 7690" }, dev_tplink: { id: "dev_tplink", name: "TP-Link Router" },
       dev_sb_garten: { id: "dev_sb_garten", name: "Solarbank 3 E2700 Pro", via_device_id: "dev_sys_garten" }, dev_sys_garten: { id: "dev_sys_garten", name: "System Solix Garten" },
       dev_sb_sonne: { id: "dev_sb_sonne", name: "Solarbank Hütte", via_device_id: "dev_sys_sonne" }, dev_sys_sonne: { id: "dev_sys_sonne", name: "System Hütte" } };
@@ -787,7 +834,7 @@
         ];
         return [];
       },
-      states: { ...states }, entities, devices, language: lang, locale: { language: lang },
+      states: { ...states }, entities, devices, areas: { hutte: { area_id: "hutte", name: "Hütte" } }, language: lang, locale: { language: lang },
       services: { homematicip_local: { enable_away_mode_by_duration: {}, disable_away_mode: {} }, blink: { trigger_camera: {} }, ecovacs_goat_g1: { request_live_position_stream: {}, refresh_state: {} }, goat_mower: { mow_areas: {} }, llmvision: { get_events: {} } },
       config: { unit_system: { temperature: "°C" } },
       async callService(domain, service, data) {
@@ -1055,6 +1102,17 @@
         }
         // Tageswerte der Energiekarte: Leistung seit 6 Uhr konstant auf dem aktuellen Wert
         // Langzeitstatistik (Tagesmittel) seit 1. Januar des Vorjahres für Monat/Jahr/Gesamt
+        if (msg.type === "logbook/get_events") {
+          const ago = (min) => (Date.now() - min * 60000) / 1000;
+          const ev = {
+            "lock.haustuer": [{ when: ago(12), state: "unlocked", context_user_id: "u_pascal" }, { when: ago(9 * 60), state: "locked", context_name: "Automation Abends abschließen" },
+              { when: ago(10 * 60), state: "open", context_user_id: "u_pascal" }, { when: ago(26 * 60), state: "unlocked" }, { when: ago(27 * 60), state: "locked" }, { when: ago(30 * 60), state: "jammed" }],
+            "binary_sensor.haustuer_tur": [{ when: ago(10 * 60 - 1), state: "on" }, { when: ago(10 * 60 - 2), state: "off" }],
+            "lock.klingel": [{ when: ago(95), state: "unlocked", context_user_id: "u_pascal" }, { when: ago(80), state: "locked", context_name: "Ring to Open Timer" }],
+            "binary_sensor.klingel_klingelaktion": [{ when: ago(94), state: "on" }, { when: ago(93), state: "off" }],
+          };
+          return msg.entity_ids.flatMap((id) => (ev[id] ?? []).map((e) => ({ ...e, entity_id: id }))).sort((x, y) => x.when - y.when);
+        }
         if (msg.type === "config_entries/get" && msg.domain === "seventeentrack") return [{ entry_id: "17track_demo", domain: "seventeentrack", state: "loaded" }];
         if (msg.type === "config_entries/get" && msg.domain === "mealie") return [{ entry_id: "mealie_demo", domain: "mealie", state: "loaded", title: "Mealie" }];
         if (msg.type === "energy/get_prefs") return { energy_sources: [], device_consumption: [{ stat_consumption: "sensor.monitor_1_energy" }, { stat_consumption: "sensor.monitor_2_energy" }, { stat_consumption: "sensor.whirlpool_energy", name: "Whirlpool" }] };
@@ -1082,6 +1140,21 @@
               rows.push({ start: d.getTime(), end: n.getTime(), mean });
             }
             out[id] = rows;
+          }
+          return out;
+        }
+        // Temperatur-Überwachung: Tagesgang um den aktuellen Wert, Wetter über das Attribut
+        if (msg.entity_ids.some((id) => /device_temperature$|^sensor\.temperatur_haus_temperature$|^weather\./.test(id))) {
+          const now = Date.now() / 1000;
+          for (const id of msg.entity_ids) {
+            const isW = id.startsWith("weather.");
+            const cur = isW ? Number(states[id]?.attributes.temperature ?? 14) : Number(states[id]?.state);
+            const amp = id.includes("device") ? 6 : isW ? 5 : 1.5;
+            out[id] = Array.from({ length: 49 }, (_, i) => {
+              const t = now - (48 - i) * 1800, h = new Date(t * 1000).getHours();
+              const v = +(cur + amp * (Math.sin(((h - 9) / 24) * 2 * Math.PI) - Math.sin(((new Date().getHours() - 9) / 24) * 2 * Math.PI))).toFixed(1);
+              return isW ? { s: "cloudy", lu: t, a: { temperature: v } } : { s: String(v), lu: t };
+            });
           }
           return out;
         }
@@ -1247,6 +1320,13 @@
         { name: "Schlafzimmer", ac: "climate.schlafzimmer" }] }],
       ["Router – FRITZ!Box: Durchsatz, Leitung, WLAN, Geräte im Netz, Neu verbinden/Neustart, FRITZ!OS-Update", { _router: true, entity: "binary_sensor.fritz_box_7690_verbindung" }],
       ["Router – TP-Link: CPU/RAM, Clients, WLAN inkl. Gast, Neustart", { _router: true, entity: "sensor.tp_link_router_total_clients", name: "TP-Link Garten" }],
+      ["Schloss – Nuki Smart Lock: Auf/Ab, Öffnen mit Rückfrage, Türsensor, Akku, Verlauf mit Person", { _lock: true, entity: "lock.haustuer" }],
+      ["Schloss – Nuki Opener: Ring to Open, Tür öffnen, Klingel", { _lock: true, entity: "lock.klingel", name: "Klingel" }],
+      ["Temperatur-Überwachung – Hütte, Außen (Wetter), Gerätetemperaturen mit Warnung ab 60 °C", { _temp: true, title: "Temperaturen", entities: [
+        { entity: "sensor.temperatur_haus_temperature", name: "Hütte innen" }, { entity: "weather.zuhause", attribute: "temperature", name: "Außen" },
+        { entity: "sensor.shelly_hutte_ausensteckdosen_switch_0_device_temperature", name: "Außensteckdose" }, { entity: "sensor.shelly_licht_hutte_switch_0_device_temperature", name: "Licht Hütte" }] }],
+      ["Funknetz – Zigbee2MQTT: Bridge, LQI, Akku, offline zuerst", { _net: true, integration: "zigbee2mqtt" }],
+      ["Funknetz – Shelly: WLAN-Signal, Firmware-Update, Neustart nötig", { _net: true, integration: "shelly" }],
       ["Wochenrückblick Energie – diese gegen letzte Woche, Kosten, Spitzentag, Anteil je Verbraucher", { _eweek: true, price: 0.3 }],
       ["Termine & Abfall – nächste Abholung je Tonne, Erinnerung am Vorabend, Termine aus mehreren Kalendern", { _agenda: true, waste: "calendar.abfall", calendars: ["calendar.familie", { entity: "calendar.arbeit", color: "#ab47bc" }] }],
       ["Gerätestatus – nicht erreichbare Geräte nach Integration, „seit …“, Entitäten, Neu laden", { _devstatus: true }],
@@ -1292,9 +1372,9 @@
         grid.appendChild(wrap);
         return;
       }
-      const { _overview, _light, _group, _cover, _coverGroup, _switchTime, _media, _room, _status, _vacuum, _presence, _alert, _energy, _irrigation, _pool, _camera, _cameraGroup, _select, _mower, _starlink, _llm, _hbat, _system, _weather, _agenda, _devstatus, _recipe, _scene, _sleep, _crooms, _eweek, _parcel, _router, ...rest } = cfg;
+      const { _overview, _light, _group, _cover, _coverGroup, _switchTime, _media, _room, _status, _vacuum, _presence, _alert, _energy, _irrigation, _pool, _camera, _cameraGroup, _select, _mower, _starlink, _llm, _hbat, _system, _weather, _agenda, _devstatus, _recipe, _scene, _sleep, _crooms, _eweek, _parcel, _router, _lock, _temp, _net, ...rest } = cfg;
       const tag = _overview ? "ha-climate-overview-card" : _group ? "ha-light-group-card" : _light ? "ha-light-card"
-        : _cover ? "ha-cover-card" : _coverGroup ? "ha-cover-group-card" : _switchTime ? "ha-switch-time-card" : _media ? "ha-media-card" : _room ? "ha-room-card" : _status ? "ha-status-card" : _vacuum ? "ha-vacuum-card" : _presence ? "ha-presence-card" : _alert ? "ha-alert-card" : _energy ? "ha-energy-card" : _irrigation ? "ha-irrigation-card" : _pool ? "ha-pool-card" : _camera ? "ha-camera-card" : _cameraGroup ? "ha-camera-group-card" : _select ? "ha-select-card" : _mower ? "ha-mower-card" : _starlink ? "ha-starlink-card" : _llm ? "ha-llm-timeline-card" : _hbat ? "ha-home-battery-card" : _system ? "ha-system-card" : _weather ? "ha-weather-card" : _agenda ? "ha-agenda-card" : _devstatus ? "ha-device-status-card" : _recipe ? "ha-recipe-card" : _scene ? "ha-scene-card" : _sleep ? "ha-sleep-card" : _crooms ? "ha-climate-rooms-card" : _eweek ? "ha-energy-week-card" : _parcel ? "ha-parcel-card" : _router ? "ha-router-card" : "ha-climate-card";
+        : _cover ? "ha-cover-card" : _coverGroup ? "ha-cover-group-card" : _switchTime ? "ha-switch-time-card" : _media ? "ha-media-card" : _room ? "ha-room-card" : _status ? "ha-status-card" : _vacuum ? "ha-vacuum-card" : _presence ? "ha-presence-card" : _alert ? "ha-alert-card" : _energy ? "ha-energy-card" : _irrigation ? "ha-irrigation-card" : _pool ? "ha-pool-card" : _camera ? "ha-camera-card" : _cameraGroup ? "ha-camera-group-card" : _select ? "ha-select-card" : _mower ? "ha-mower-card" : _starlink ? "ha-starlink-card" : _llm ? "ha-llm-timeline-card" : _hbat ? "ha-home-battery-card" : _system ? "ha-system-card" : _weather ? "ha-weather-card" : _agenda ? "ha-agenda-card" : _devstatus ? "ha-device-status-card" : _recipe ? "ha-recipe-card" : _scene ? "ha-scene-card" : _sleep ? "ha-sleep-card" : _crooms ? "ha-climate-rooms-card" : _eweek ? "ha-energy-week-card" : _parcel ? "ha-parcel-card" : _router ? "ha-router-card" : _lock ? "ha-lock-card" : _temp ? "ha-temperature-card" : _net ? "ha-network-card" : "ha-climate-card";
       const card = document.createElement(tag);
       card.id = "card" + i;
       card.setConfig({ type: `custom:${tag}`, ...rest });

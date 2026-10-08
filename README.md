@@ -29,6 +29,9 @@ weiche Farbübergänge und Animationen. Ein HACS-Download, mehrere Karten:
 | **Modern Climate Rooms Card** | `custom:ha-climate-rooms-card` | Klima-Übersicht 2.0: alle Räume mit Heizung, Klimaanlage, Fenster, Feuchte |
 | **Modern Parcel Card** | `custom:ha-parcel-card` | Pakete & Post über 17TRACK: Status, Versender, Filter, + Paket, Archivieren |
 | **Modern Router Card** | `custom:ha-router-card` | Router (FRITZ!Box, TP-Link …): Durchsatz, Leitung, CPU/RAM, WLAN, Geräte im Netz, Neustart |
+| **Modern Lock Card** | `custom:ha-lock-card` | Türschloss / Nuki Opener: Auf/Ab, Öffnen mit Rückfrage, Ring to Open, Klingel, Akku, Verlauf mit Person |
+| **Modern Temperature Card** | `custom:ha-temperature-card` | Temperatur-Überwachung: Kacheln mit Trend, Min/Max, Grenzwert-Warnung, gemeinsamer Verlauf |
+| **Modern Network Card** | `custom:ha-network-card` | Funknetz (Zigbee2MQTT, ZHA, Shelly): Signal, Akku, zuletzt gesehen, Warnungen, Updates, Neustart |
 | **Modern Energy Week Card** | `custom:ha-energy-week-card` | Wochenrückblick Energie: diese gegen letzte Woche, Kosten, Verbraucher |
 | **Climate Overview** | `custom:ha-climate-overview-card` | alle Klimageräte auf einen Blick |
 
@@ -723,6 +726,62 @@ entity: binary_sensor.fritz_box_7690_verbindung   # oder z. B. sensor.tp_link_ro
 # confirm_reboot: false
 ```
 
+## Modern Lock Card (Nuki & Co.)
+
+Für Türschlösser und den **Nuki Opener**. Klingel, Ring to Open, Akku, Türsensor und letzter Batteriewechsel (Battery Notes) werden **über das Gerät** gefunden.
+Schloss: **Abschließen** sofort, **Aufschließen** und **Öffnen** mit Rückfrage („Sicher?“). Opener: **Ring to Open** an/aus und **Tür öffnen**.
+Der **Verlauf** (Logbuch) zeigt, wer auf- oder abgeschlossen hat – Person über den Benutzer oder Automation/Skript –, wann es geklingelt hat und wann die Tür offen war.
+
+```yaml
+type: custom:ha-lock-card
+entity: lock.klingel
+# name: Haustür
+# history: false
+# history_hours: 48
+# confirm: false
+# doorbell: binary_sensor.klingel_klingelaktion   # sonst automatisch
+# door: binary_sensor.haustuer_tur                 # sonst automatisch
+```
+
+## Modern Temperature Card (Temperatur-Überwachung)
+
+Sensoren als Kacheln mit **Wert, Trend pro Stunde, Min/Max** (heute bzw. letzte 6 h) und Mini-Verlauf; darunter ein **gemeinsamer Verlauf**.
+**Gerätetemperaturen** (z. B. Shelly `…_device_temperature`) warnen automatisch ab 60 °C und alarmieren ab 80 °C; eigene Grenzen je Sensor.
+Wetter und Klimageräte über ein Attribut.
+
+```yaml
+type: custom:ha-temperature-card
+title: Temperaturen
+entities:
+  - entity: sensor.temperatur_haus_temperature
+    name: Hütte innen
+  - entity: weather.forecast_home
+    attribute: temperature
+    name: Außen
+  - entity: sensor.kuehlschrank_temperatur
+    warn_high: 8          # warn_low / alarm_low / alarm_high ebenso
+    alarm_high: 12
+# hours: 24
+# columns: 2
+# show_graph: false
+```
+
+## Modern Network Card (Zigbee, Shelly)
+
+Alle Geräte einer Funk-Integration – **Zigbee2MQTT**, **ZHA** oder **Shelly** (ohne Angabe die mit den meisten Geräten) – mit **Signal** (Zigbee-LQI bzw. WLAN-dBm),
+**Akku**, Bereich, Modell, „zuletzt gesehen“, **Warnungen** (Überhitzung, Überlast, Neustart nötig) und **Firmware-Updates**. Offline-Geräte und Probleme stehen oben,
+Filter „Achtung“. Antippen zeigt Details mit **Update installieren**, **Neu starten** (beides mit Rückfrage) und „Gerät öffnen“. Bei Zigbee2MQTT zusätzlich
+Bridge-Status mit Version und **Anlernen** (permit join).
+
+```yaml
+type: custom:ha-network-card
+integration: zigbee2mqtt   # zha | shelly | …
+# title: Zigbee
+# exclude: [Button Pumpe]
+# max_items: 8
+# confirm: false
+```
+
 ## Modern Energy Week Card (Wochenrückblick Energie)
 
 Verbrauch **dieser Woche gegen die Vorwoche** – fair bis zum gleichen Wochentag – mit Kosten, Ø pro Tag und Spitzentag, Balken Mo–So
@@ -1128,6 +1187,9 @@ glow, smooth color transitions, animations), shipped as a single HACS download:
 - `custom:ha-sleep-card` – sleep mode per person, sleep timers with countdown and ±15 min, climate, alarm and "good night"
 - `custom:ha-climate-rooms-card` – climate overview 2.0: every room with current/target, schedule, AC, open windows, humidity, boost
 - `custom:ha-parcel-card` – parcels from 17TRACK: status, carrier, latest event, filters, add, track and archive
+- `custom:ha-lock-card` – door lock / Nuki Opener: lock, unlock and open with confirmation, Ring to Open, doorbell, battery, history with who unlocked
+- `custom:ha-temperature-card` – temperature monitor: tiles with trend, min/max and limit warnings (device temperatures from 60 °C), shared history chart
+- `custom:ha-network-card` – radio network (Zigbee2MQTT, ZHA, Shelly): signal, battery, last seen, warnings, firmware updates, restart
 - `custom:ha-router-card` – router (FRITZ!Box, TP-Link …): online state, throughput, line, CPU/RAM, Wi-Fi switches with guest QR, devices on the network, reconnect/restart, firmware update
 - `custom:ha-energy-week-card` – energy week: this week vs. last week, cost, peak day, share per consumer, month view
 - `custom:ha-vacuum-card` – robot vacuum with live map, tap rooms on the map for room cleaning, controls, modes, maintenance

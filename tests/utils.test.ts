@@ -5,6 +5,7 @@ import {
   llmEvents, llmCategory, snapshotMediaId, dayGroups, homeBatteryFeatures, batteryEta, batteryStatusKey,
   nextPickups, eventStart, daysUntil, offlineDevices, platformName,
   routerFeatures, routerClients, clientIcon, formatKbit, wifiLabel,
+  lockFeatures, lockHistory, tempDefaults, tempLevel, tempStats, networkDevices, netIntegration, netSeverity, netIcon, lqiQuality,
   sceneStyle, sceneLabel, sceneGroups, hueRoomLights, hueRooms, parcelStatus, parcelCarrier, parcelText, sortParcels, sceneActivated, mealieMinutes, formatMinutes, scaleIngredient, mealEntries, ymdLocal,
   minutesUntil, formatShortDuration, shiftTime, weekStart, monthStart, yearStart, monthlyTotals, dailyTotals, kwhFactor, percentChange,
   updateKind, pendingUpdates, updateName, resourceSensors, backupSensors, backupHealth, loadLevel, windDir, tempScale, weatherHint, weatherIcon,
@@ -1220,5 +1221,75 @@ describe("Router", () => {
       .toEqual(["mdi:cellphone", "mdi:television", "mdi:hub", "mdi:lan"]);
     expect([formatKbit(299132), formatKbit(48534), formatKbit(800)]).toEqual(["299 Mbit/s", "48,5 Mbit/s", "800 kbit/s"]);
     expect(wifiLabel("Wi-Fi Main 2.4Ghz")).toMatchObject({ label: "WLAN 2,4 GHz", guest: false });
+  });
+});
+
+describe("Schloss, Temperatur, Funknetz", () => {
+  it("findet Nuki-Zubehör und baut den Verlauf", () => {
+    const states = Object.fromEntries([
+      entity("lock.klingel", "locked", { supported_features: 1 }), entity("binary_sensor.klingel_klingelaktion", "off"),
+      entity("binary_sensor.klingel_batterie", "off", { device_class: "battery" }), entity("binary_sensor.klingel_ring_to_open", "off", { device_class: "lock" }),
+      entity("sensor.klingel_battery_last_replaced", "2026-10-02T07:26:51+00:00", { device_class: "timestamp" }),
+      entity("binary_sensor.klingel_battery_plus_low", "off", { device_class: "battery" }),
+    ].map((e) => [e.entity_id, e]));
+    const ents = Object.fromEntries(Object.keys(states).map((id) => [id, { entity_id: id, device_id: "d" }]));
+    const f = lockFeatures(states, ents, "lock.klingel");
+    expect(f).toMatchObject({ doorbell: "binary_sensor.klingel_klingelaktion", ring_to_open: "binary_sensor.klingel_ring_to_open",
+      battery_low: "binary_sensor.klingel_battery_plus_low", battery_replaced: "sensor.klingel_battery_last_replaced" });
+    const h = lockHistory([
+      { when: 100, entity_id: "lock.klingel", state: "unlocked", context_user_id: "u1" },
+      { when: 200, entity_id: "binary_sensor.klingel_klingelaktion", state: "on" },
+      { when: 201, entity_id: "binary_sensor.klingel_klingelaktion", state: "off" },
+      { when: 300, entity_id: "lock.klingel", state: "locked", context_name: "Timer" },
+      { when: 150, entity_id: "lock.klingel", state: "unlocking" },
+    ], { lock: "lock.klingel", doorbell: "binary_sensor.klingel_klingelaktion" }, { u1: "Pascal" }, true);
+    expect(h.map((e) => `${e.kind}:${e.who ?? ""}`)).toEqual(["rto_off:Timer", "ring:", "rto_on:Pascal"]);
+    expect(lockHistory([{ when: 5, entity_id: "lock.x", state: "unlocked" }], { lock: "lock.x" })[0]!.kind).toBe("unlocked");
+  });
+  it("bewertet Temperaturen", () => {
+    const dev = tempDefaults("sensor.shelly_x_switch_0_device_temperature");
+    expect(dev).toEqual({ warn_high: 60, alarm_high: 80 });
+    expect(tempDefaults("sensor.wohnzimmer_temperatur")).toEqual({});
+    expect([tempLevel(55, dev), tempLevel(64, dev), tempLevel(85, dev), tempLevel(-3, { warn_low: 3, alarm_low: 0 })]).toEqual(["ok", "warn_high", "alarm_high", "alarm_low"]);
+    const now = 10 * 3_600_000;
+    const pts = [{ t: now - 3 * 3_600_000, v: 18 }, { t: now - 3_600_000, v: 19 }, { t: now - 600_000, v: 21 }, { t: now, v: 20.5 }];
+    expect(tempStats(pts, now, now - 2 * 3_600_000)).toEqual({ min: 19, max: 21, trend: 1.5 });
+  });
+  it("listet Zigbee- und Shelly-Geräte mit Signal, Akku und Warnungen", () => {
+    const st = (id: string, s: string, a: Record<string, any> = {}) => entity(id, s, a);
+    const states = Object.fromEntries([
+      st("sensor.tuer_linkquality", "38", { unit_of_measurement: "lqi" }), st("sensor.tuer_battery", "12", { device_class: "battery", unit_of_measurement: "%" }),
+      st("binary_sensor.tuer_contact", "off"), st("sensor.rauch_linkquality", "unavailable"), st("binary_sensor.rauch_smoke", "unavailable"),
+      st("binary_sensor.zigbee2mqtt_bridge_connection_state", "on"),
+      st("switch.shelly_plug", "on"), st("sensor.shelly_plug_rssi", "-58", { device_class: "signal_strength", unit_of_measurement: "dBm" }),
+      st("update.shelly_plug_firmware", "on"), st("update.shelly_plug_beta_firmware", "on"), st("button.shelly_plug_reboot", "unknown", { device_class: "restart" }),
+      st("binary_sensor.shelly_plug_restart_required", "on"), st("sensor.shelly_plug_switch_0_device_temperature", "51", { device_class: "temperature" }),
+    ].map((e) => [e.entity_id, e]));
+    const reg = (id: string, device: string, platform: string, extra: Record<string, any> = {}) => [id, { entity_id: id, device_id: device, platform, ...extra }];
+    const entities = Object.fromEntries([
+      reg("sensor.tuer_linkquality", "z1", "mqtt", { entity_category: "diagnostic" }), reg("sensor.tuer_battery", "z1", "mqtt", { entity_category: "diagnostic" }),
+      reg("binary_sensor.tuer_contact", "z1", "mqtt"), reg("sensor.rauch_linkquality", "z2", "mqtt", { entity_category: "diagnostic" }), reg("binary_sensor.rauch_smoke", "z2", "mqtt"),
+      reg("binary_sensor.zigbee2mqtt_bridge_connection_state", "zb", "mqtt"),
+      reg("switch.shelly_plug", "s1", "shelly"), reg("sensor.shelly_plug_rssi", "s1", "shelly", { entity_category: "diagnostic" }),
+      reg("update.shelly_plug_firmware", "s1", "shelly"), reg("update.shelly_plug_beta_firmware", "s1", "shelly", { translation_key: "beta_firmware" }),
+      reg("button.shelly_plug_reboot", "s1", "shelly"), reg("binary_sensor.shelly_plug_restart_required", "s1", "shelly"),
+      reg("sensor.shelly_plug_switch_0_device_temperature", "s1", "shelly"),
+    ]);
+    const devices = { z1: { id: "z1", name: "Tür", area_id: "a", identifiers: [["mqtt", "zigbee2mqtt_0x1"]] as [string, string][] },
+      z2: { id: "z2", name: "Rauchmelder", identifiers: [["mqtt", "zigbee2mqtt_0x2"]] as [string, string][] },
+      zb: { id: "zb", name: "Bridge", model: "Bridge", identifiers: [["mqtt", "zigbee2mqtt_bridge_0x0"]] as [string, string][] },
+      s1: { id: "s1", name: "Shelly Plug", model: "Plug S" } };
+    expect(netIntegration(entities)).toBe("zigbee2mqtt");
+    const z = networkDevices(states, entities, devices, "zigbee2mqtt", { a: { name: "Hütte" } });
+    expect(z.map((d) => d.name).sort()).toEqual(["Rauchmelder", "Tür"]);
+    const tuer = z.find((d) => d.name === "Tür")!;
+    expect(tuer).toMatchObject({ signal: 38, signal_unit: "lqi", quality: "weak", battery: 12, area: "Hütte", offline: false });
+    expect(z.find((d) => d.name === "Rauchmelder")!.offline).toBe(true);
+    const [sh] = networkDevices(states, entities, devices, "shelly");
+    expect(sh).toMatchObject({ signal: -58, signal_unit: "dBm", quality: "good", update: "update.shelly_plug_firmware", reboot: "button.shelly_plug_reboot", temperature: 51,
+      problems: ["binary_sensor.shelly_plug_restart_required"] });
+    expect(netSeverity(z.find((d) => d.name === "Rauchmelder")!)).toBeGreaterThan(netSeverity(tuer));
+    expect([lqiQuality(160), lqiQuality(120), lqiQuality(60), lqiQuality(20)]).toEqual(["very_good", "good", "fair", "weak"]);
+    expect([netIcon("Ventil Volleyball"), netIcon("Rauchmelder"), netIcon("X", "TRETAKT smart plug")]).toEqual(["mdi:pipe-valve", "mdi:smoke-detector-variant", "mdi:power-socket-eu"]);
   });
 });
