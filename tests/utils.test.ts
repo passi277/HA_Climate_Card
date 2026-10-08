@@ -5,7 +5,7 @@ import {
   llmEvents, llmCategory, snapshotMediaId, dayGroups, homeBatteryFeatures, batteryEta, batteryStatusKey,
   nextPickups, eventStart, daysUntil, offlineDevices, platformName,
   routerFeatures, routerClients, clientIcon, formatKbit, wifiLabel,
-  lockFeatures, lockHistory, zigbeeLayout, zigbeeRoute, normMac, tempDefaults, tempLevel, tempStats, networkDevices, netIntegration, netSeverity, netIcon, lqiQuality,
+  lockFeatures, lockHistory, zigbeeLayout, zigbeeRoute, plugFeatures, plugIcon, meatProbes, cookPhase, cookProgress, normMac, tempDefaults, tempLevel, tempStats, networkDevices, netIntegration, netSeverity, netIcon, lqiQuality,
   sceneStyle, sceneLabel, sceneGroups, hueRoomLights, hueRooms, parcelStatus, parcelCarrier, parcelText, sortParcels, sceneActivated, mealieMinutes, formatMinutes, scaleIngredient, mealEntries, ymdLocal,
   minutesUntil, formatShortDuration, shiftTime, weekStart, monthStart, yearStart, monthlyTotals, dailyTotals, kwhFactor, percentChange,
   updateKind, pendingUpdates, updateName, resourceSensors, backupSensors, backupHealth, loadLevel, windDir, tempScale, weatherHint, weatherIcon,
@@ -1336,5 +1336,31 @@ describe("Schloss, Temperatur, Funknetz", () => {
     const h = lockHistory([{ when: 1, entity_id: "lock.o", state: "unlocked" }, { when: 2, entity_id: "lock.o", state: "open" }, { when: 3, entity_id: "lock.s", state: "locked" }],
       { lock: "lock.s", opener: "lock.o" });
     expect(h.map((e) => e.kind)).toEqual(["locked", "buzz", "rto_on"]);
+  });
+  it("Steckdosen: Messwerte über das Gerät", () => {
+    const st = (id: string, v: string, a: Record<string, any> = {}) => entity(id, v, a);
+    const states = Object.fromEntries([st("switch.k", "on"), st("sensor.k_power", "68", { device_class: "power" }),
+      st("sensor.k_returned_energy", "1", { device_class: "energy" }), st("sensor.k_energy", "412", { device_class: "energy" }),
+      st("sensor.k_switch_0_device_temperature", "41", { device_class: "temperature" }), st("binary_sensor.k_overpowering", "off"),
+      st("sensor.k_energy_daily", "1", { device_class: "energy" })].map((e) => [e.entity_id, e]));
+    const entities = Object.fromEntries(Object.keys(states).map((id) => [id, { entity_id: id, device_id: "d", platform: id.endsWith("daily") ? "utility_meter" : "shelly" }]));
+    expect(plugFeatures(states, entities, "switch.k")).toEqual({ power: "sensor.k_power", energy: "sensor.k_energy", voltage: undefined, current: undefined,
+      temperature: "sensor.k_switch_0_device_temperature", problems: ["binary_sensor.k_overpowering"] });
+    expect([plugIcon("Kühlschrank"), plugIcon("Stecker Pumpe"), plugIcon("Monitor 2"), plugIcon("Irgendwas")]).toEqual(["mdi:fridge-outline", "mdi:pump", "mdi:monitor", "mdi:power-socket-eu"]);
+  });
+  it("Grillthermometer: Sonden und Kochstatus", () => {
+    const st = (id: string, v: string) => entity(id, v);
+    const states = Object.fromEntries([st("sensor.meater_probe_a_innentemperatur", "48"), st("sensor.meater_probe_a_soll_temperatur", "56"),
+      st("sensor.meater_probe_a_kochstatus", "started"), st("sensor.meater_probe_a_verbleibende_zeit", "2026-10-08T12:00:00+00:00"),
+      st("sensor.meater_probe_b_innentemperatur", "unavailable"), st("sensor.other_temp", "20")].map((e) => [e.entity_id, e]));
+    const entities = Object.fromEntries(Object.keys(states).map((id) => [id, { entity_id: id, device_id: id.includes("probe_a") ? "a" : id.includes("probe_b") ? "b" : "o",
+      platform: id.includes("meater") ? "meater" : "x", translation_key: id.endsWith("soll_temperatur") ? "cook_target_temp" : undefined }]));
+    const probes = meatProbes(states, entities, { a: { id: "a", name: "Meater plus" }, b: { id: "b", name: "Meater 2 plus" } });
+    expect(probes.map((p) => p.name)).toEqual(["Meater 2 plus", "Meater plus"]);
+    expect(probes[1]).toMatchObject({ internal: "sensor.meater_probe_a_innentemperatur", target: "sensor.meater_probe_a_soll_temperatur",
+      state: "sensor.meater_probe_a_kochstatus", remaining: "sensor.meater_probe_a_verbleibende_zeit" });
+    expect(["started", "Ready For Resting", "resting", "finished", "OVERCOOK!", "not_started", "configured"].map(cookPhase))
+      .toEqual(["cooking", "ready", "resting", "done", "over", "idle", "configured"]);
+    expect([cookProgress(28, 56), cookProgress(60, 56), cookProgress(undefined, 56), cookProgress(30, 56, 4)]).toEqual([50, 100, undefined, 50]);
   });
 });

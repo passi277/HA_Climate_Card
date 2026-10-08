@@ -1693,5 +1693,54 @@
     "i_wifi": "Wi-Fi (all devices via the router)",
     "wired": "Also show wired devices",
     "z2m_topic": "Zigbee2MQTT topic (default zigbee2mqtt)"
+  },
+  "plug": {
+    "title": "Plugs",
+    "on": "on",
+    "off": "Off",
+    "today": "Today",
+    "month": "Month",
+    "sure": "Off?",
+    "unavailable": "Unavailable",
+    "idle": "Not running? below {w} W since"
+  },
+  "plug_editor": {
+    "title": "Title",
+    "entities": "Plugs / switches",
+    "price": "Electricity price (per kWh)",
+    "columns": "Columns",
+    "confirm_off": "Confirm turning off",
+    "show_graph": "Power history (24 h)",
+    "hint": "Power, energy, temperature and warnings (overpower, overheating) are found via the device. “Not running” warning (e.g. fridge) via YAML:"
+  },
+  "grill": {
+    "title": "Meat thermometer",
+    "target": "Target",
+    "internal": "Internal",
+    "ambient": "Ambient",
+    "left": "Left",
+    "ready_at": "ready at",
+    "running": "Cooking for",
+    "take_out": "Take it out now and let it rest!",
+    "overcooked": "Overcooked – take it out!",
+    "no_probes": "No probe found",
+    "all_idle": "No probe active",
+    "probe_active": "probe active",
+    "probes_active": "probes active",
+    "in_charger": "in charger / inactive",
+    "phase_idle": "Ready",
+    "phase_configured": "Configured",
+    "phase_cooking": "Cooking",
+    "phase_ready": "Target reached",
+    "phase_resting": "Resting",
+    "phase_done": "Done",
+    "phase_over": "Overcooked"
+  },
+  "grill_editor": {
+    "title": "Title",
+    "entities": "Probes (one temperature each, empty = all Meater)",
+    "show_graph": "Temperature history",
+    "hide_idle": "Hide inactive probes",
+    "hint": "Internal, ambient, target and peak temperature, cook state, cook name and remaining time are found per probe via the device."
   }
 }

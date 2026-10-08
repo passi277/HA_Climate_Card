@@ -2770,3 +2770,114 @@ export const zigbeeRoute = (nodes: ZNode[], id: string): string[] => {
   for (let cur = by.get(id); cur && !path.includes(cur.id) && path.length < 12; cur = cur.parent ? by.get(cur.parent) : undefined) path.push(cur.id);
   return path;
 };
+
+// ---------- Steckdosen / Verbraucher ----------
+
+export interface PlugFeatures {
+  power?: string;
+  energy?: string;
+  voltage?: string;
+  current?: string;
+  temperature?: string;
+  /** Warn-Sensoren (Überlast, Überhitzung …) */
+  problems: string[];
+}
+
+/** Messwerte einer schaltbaren Steckdose über ihr Gerät finden (Shelly, Tasmota, Tuya …) */
+export const plugFeatures = (states: Record<string, HassEntity>, entities: Record<string, EntityRegistryEntry> | undefined, sw: string): PlugFeatures => {
+  const device = entities?.[sw]?.device_id;
+  const ids = device ? Object.values(entities!).filter((e) => e.device_id === device && states[e.entity_id]
+    && !["battery_notes", "utility_meter", "template"].includes(e.platform ?? "")).map((e) => e.entity_id) : [];
+  const dc = (id: string) => states[id]?.attributes.device_class;
+  const sensors = ids.filter((id) => id.startsWith("sensor."));
+  return {
+    power: sensors.find((id) => dc(id) === "power"),
+    // Gesamtverbrauch: kein „returned“/Einspeisung, bevorzugt …_energy
+    energy: sensors.filter((id) => dc(id) === "energy" && !/returned|einspeis|return/i.test(id)).sort((a, b) => Number(/_energy$/.test(b)) - Number(/_energy$/.test(a)))[0],
+    voltage: sensors.find((id) => dc(id) === "voltage"),
+    current: sensors.find((id) => dc(id) === "current"),
+    temperature: sensors.find((id) => dc(id) === "temperature" && /device_temperature|temperatur/i.test(id)),
+    problems: ids.filter((id) => id.startsWith("binary_sensor.") && PROBLEM_RE.test(id)),
+  };
+};
+
+/** Symbol eines Verbrauchers aus dem Namen */
+export const plugIcon = (name: string): string => {
+  const s = name.toLowerCase();
+  if (/kühl|kuehl|fridge|gefrier|freezer/.test(s)) return "mdi:fridge-outline";
+  if (/pumpe|pump/.test(s)) return "mdi:pump";
+  if (/pool|whirlpool/.test(s)) return "mdi:pool";
+  if (/monitor|bildschirm|pc|computer/.test(s)) return "mdi:monitor";
+  if (/tv|fernseh/.test(s)) return "mdi:television";
+  if (/licht|lampe|light/.test(s)) return "mdi:lightbulb-outline";
+  if (/wasch|washer/.test(s)) return "mdi:washing-machine";
+  if (/trockner|dryer/.test(s)) return "mdi:tumble-dryer";
+  if (/kaffee|coffee/.test(s)) return "mdi:coffee-maker-outline";
+  if (/heiz|heater|radiator/.test(s)) return "mdi:radiator";
+  if (/außen|aussen|outdoor|garten/.test(s)) return "mdi:power-socket-de";
+  return "mdi:power-socket-eu";
+};
+
+// ---------- Grillthermometer (Meater & Co.) ----------
+
+export interface MeatProbe {
+  device: string;
+  name: string;
+  internal?: string;
+  ambient?: string;
+  target?: string;
+  peak?: string;
+  state?: string;
+  cook?: string;
+  remaining?: string;
+  elapsed?: string;
+  entities: string[];
+}
+
+/** Sonden einer Grillthermometer-Integration (Meater: translation_key, sonst deutsche/englische Namen) */
+export const meatProbes = (states: Record<string, HassEntity>, entities: Record<string, EntityRegistryEntry> | undefined,
+  devices: Record<string, DeviceRegistryEntry> | undefined, anchors?: string[], platform = "meater"): MeatProbe[] => {
+  const byDevice = groupByDevice(states, entities);
+  const wanted = anchors?.length ? new Set(anchors.map((a) => entities?.[a]?.device_id ?? a)) : undefined;
+  const out: MeatProbe[] = [];
+  for (const [id, ents] of byDevice) {
+    if (wanted ? !wanted.has(id) : !ents.some((e) => e.platform === platform)) continue;
+    const pick = (keys: string[], re: RegExp) => ents.find((e) => e.entity_id.startsWith("sensor.") && (keys.includes(e.translation_key ?? "") || re.test(e.entity_id)))?.entity_id;
+    const p: MeatProbe = {
+      device: id,
+      name: (devices?.[id]?.name_by_user || devices?.[id]?.name || String(states[ents[0]!.entity_id]?.attributes.friendly_name ?? id)).trim(),
+      internal: pick(["internal"], /_(innentemperatur|internal|kerntemperatur)$/),
+      ambient: pick(["ambient"], /_(umgebungstemperatur|ambient)$/),
+      target: pick(["cook_target_temp"], /_(soll_temperatur|zieltemperatur|target(_temp)?)$/),
+      peak: pick(["cook_peak_temp"], /_(spitzentemperatur|peak(_temp)?)$/),
+      state: pick(["cook_state"], /_(kochstatus|cook_state|status)$/),
+      cook: pick(["cook_name"], /_(kocht|cook_name|gericht)$/),
+      remaining: pick(["cook_time_remaining"], /_(verbleibende_zeit|time_remaining|remaining)$/),
+      elapsed: pick(["cook_time_elapsed"], /_(verstrichene_zeit|time_elapsed|elapsed)$/),
+      entities: ents.map((e) => e.entity_id),
+    };
+    if (p.internal) out.push(p);
+  }
+  return out.sort((a, b) => a.name.localeCompare(b.name, "de"));
+};
+
+export type CookPhase = "idle" | "configured" | "cooking" | "ready" | "resting" | "done" | "over";
+
+/** Kochstatus vereinheitlichen (Meater-Enum, deutsch und englisch) */
+export const cookPhase = (state?: string): CookPhase => {
+  const s = (state ?? "").toLowerCase().replace(/[\s-]+/g, "_");
+  if (/not_started|nicht_gestartet|^$/.test(s)) return "idle";
+  if (/overcook|slightly_overdone|leicht_übergart|übergart|zu_lange/.test(s)) return "over";
+  if (/ready_for_resting|ruhen_bereit|bereit_zum_ruhen/.test(s)) return "ready";
+  if (/resting|ruht/.test(s)) return "resting";
+  if (/finished|fertig|slightly_underdone|leicht_untergart/.test(s)) return "done";
+  if (/started|cooking|läuft|gestartet|kocht/.test(s)) return "cooking";
+  if (/configured|konfiguriert|eingestellt/.test(s)) return "configured";
+  return "idle";
+};
+
+/** Fortschritt zur Zieltemperatur in % (ab Startwert, sonst ab 0 °C) */
+export const cookProgress = (internal?: number, target?: number, start = 0): number | undefined => {
+  if (internal == null || target == null || !Number.isFinite(internal) || !Number.isFinite(target) || target <= start) return undefined;
+  return Math.max(0, Math.min(100, Math.round(((internal - start) / (target - start)) * 100)));
+};

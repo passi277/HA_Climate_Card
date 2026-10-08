@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.46.0 – Steckdosen & Grillthermometer
+- Neue **Modern Plug Card** (`custom:ha-plug-card`): Steckdosen als Kacheln mit Schalter (Ausschalten mit Rückfrage), aktueller Leistung, Verbrauch und Kosten heute/Monat, 24-h-Verlauf, Warnungen bei Überlast/Überhitzung/Neustart nötig und Gerätetemperatur ab 60 °C, Wächter „läuft nicht?“ (z. B. Kühlschrank) – Messwerte automatisch über das Gerät
+- Neue **Modern Grill Card** (`custom:ha-grill-card`) für Meater: Ring Kern- gegen Zieltemperatur, Gargut, Kochstatus, Restzeit und „fertig um“, Garraum- und Spitzentemperatur, Verlauf seit Kochbeginn, Hinweis „herausnehmen und ruhen lassen“; inaktive Sonden kompakt
+
 ## 1.45.1 – Zigbee-Netzkarte neu gestaltet
 - Network Card: Netzwerkkarte im Radar-Look – Geräte als runde Symbole mit Statusring (LQI-Farbe, offline grau, Punkt bei schwachem Akku) und LQI-Abzeichen, Endgeräte gleichmäßig außen nach Router gruppiert, Router mittig darüber, pulsierender Coordinator
 - Gebogene Verbindungen in LQI-Farben mit animiertem „Datenfluss“ zum Coordinator; Querverbindungen erst beim Antippen

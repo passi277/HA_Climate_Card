@@ -1258,3 +1258,44 @@ export interface NetworkCardConfig {
   /** Zigbee2MQTT: Basis-Topic für die Netzwerkkarte (Standard zigbee2mqtt) */
   z2m_topic?: string;
 }
+
+export interface PlugEntityConfig {
+  /** switch.* (Steckdose/Relais) */
+  entity: string;
+  name?: string;
+  icon?: string;
+  /** Leistung/Energie überschreiben (sonst über das Gerät) */
+  power?: string;
+  energy?: string;
+  /** Ausschalten mit Rückfrage (Standard wie Karte) */
+  confirm_off?: boolean;
+  /** Warnung „läuft nicht“: an, aber länger als alert_minutes unter alert_below Watt (z. B. Kühlschrank) */
+  alert_below?: number;
+  alert_minutes?: number;
+}
+
+export interface PlugCardConfig {
+  type: string;
+  title?: string;
+  entities: (string | PlugEntityConfig)[];
+  /** Strompreis je kWh (Standard 0,30) */
+  price?: number;
+  currency?: string;
+  /** Ausschalten mit Rückfrage (Standard an) */
+  confirm_off?: boolean;
+  /** Leistungsverlauf zeigen (Standard an) */
+  show_graph?: boolean;
+  /** Kacheln je Zeile (Standard 2, bei einer Steckdose 1) */
+  columns?: number;
+}
+
+export interface GrillCardConfig {
+  type: string;
+  title?: string;
+  /** Je Sonde eine beliebige Entität (sonst alle Meater-Sonden) */
+  entities?: string[];
+  /** Temperaturverlauf zeigen (Standard an) */
+  show_graph?: boolean;
+  /** Inaktive Sonden ausblenden (Standard nein – sie erscheinen kompakt) */
+  hide_idle?: boolean;
+}

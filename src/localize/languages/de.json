@@ -1710,5 +1710,54 @@
     "i_wifi": "WLAN (alle Geräte über den Router)",
     "wired": "Auch LAN-Geräte zeigen",
     "z2m_topic": "Zigbee2MQTT-Topic (Standard zigbee2mqtt)"
+  },
+  "plug": {
+    "title": "Steckdosen",
+    "on": "an",
+    "off": "Aus",
+    "today": "Heute",
+    "month": "Monat",
+    "sure": "Aus?",
+    "unavailable": "Nicht erreichbar",
+    "idle": "Läuft nicht? unter {w} W seit"
+  },
+  "plug_editor": {
+    "title": "Titel",
+    "entities": "Steckdosen / Schalter",
+    "price": "Strompreis (€/kWh)",
+    "columns": "Spalten",
+    "confirm_off": "Ausschalten mit Rückfrage",
+    "show_graph": "Leistungsverlauf (24 h)",
+    "hint": "Leistung, Verbrauch, Temperatur und Warnungen (Überlast, Überhitzung) werden über das Gerät gefunden. Warnung „läuft nicht“ (z. B. Kühlschrank) per YAML:"
+  },
+  "grill": {
+    "title": "Grillthermometer",
+    "target": "Ziel",
+    "internal": "Kern",
+    "ambient": "Garraum",
+    "left": "Noch",
+    "ready_at": "fertig",
+    "running": "Läuft seit",
+    "take_out": "Jetzt herausnehmen und ruhen lassen!",
+    "overcooked": "Übergart – sofort herausnehmen!",
+    "no_probes": "Keine Sonde gefunden",
+    "all_idle": "Keine Sonde aktiv",
+    "probe_active": "Sonde aktiv",
+    "probes_active": "Sonden aktiv",
+    "in_charger": "im Ladegerät / inaktiv",
+    "phase_idle": "Bereit",
+    "phase_configured": "Eingestellt",
+    "phase_cooking": "Gart",
+    "phase_ready": "Ziel erreicht",
+    "phase_resting": "Ruht",
+    "phase_done": "Fertig",
+    "phase_over": "Übergart"
+  },
+  "grill_editor": {
+    "title": "Titel",
+    "entities": "Sonden (je eine Temperatur, leer = alle Meater)",
+    "show_graph": "Temperaturverlauf",
+    "hide_idle": "Inaktive Sonden ausblenden",
+    "hint": "Kern-, Garraum-, Ziel- und Spitzentemperatur, Kochstatus, Gargut und Restzeit werden je Sonde über das Gerät gefunden."
   }
 }

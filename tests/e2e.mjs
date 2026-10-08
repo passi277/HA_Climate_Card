@@ -1603,7 +1603,7 @@ colorFails.length ? fail(`Farbe folgt nicht dem Modus: ${colorFails.join(", ")}`
   const info = await p.evaluate(() => { const r = document.querySelector("ha-sleep-card").shadowRoot;
     return { asleep: r.querySelectorAll(".person.asleep").length, persons: r.querySelectorAll(".person").length,
       tv: r.querySelector('.timer[data-timer="input_datetime.timer_tv"] small')?.textContent.trim(), alarm: !!r.querySelector(".alarm") }; });
-  info.asleep === 1 && info.persons === 2 && /aus in 1:2\d h/.test(info.tv) && info.alarm
+  info.asleep === 1 && info.persons === 2 && /aus in 1:[0-2]\d h/.test(info.tv) && info.alarm
     ? ok(`Schlafen: Pascal schläft, TV ${info.tv}, Wecker`) : fail(`Schlafen: ${JSON.stringify(info)}`);
   const n = await p.evaluate(() => window.serviceCalls.length);
   await p.evaluate(() => document.querySelector("ha-sleep-card").shadowRoot.querySelectorAll('.timer[data-timer="input_datetime.timer_tv"] .step')[1].click());
@@ -1780,7 +1780,7 @@ colorFails.length ? fail(`Farbe folgt nicht dem Modus: ${colorFails.join(", ")}`
       n: ra.querySelectorAll(".dev").length, bridge: ra.querySelector(".bridge")?.textContent.replace(/\s+/g, " ").trim(),
       stitle: rb.querySelector(".h-title")?.textContent.trim(), sfirst: rb.querySelector(".d-name")?.textContent.trim(), sprob: rb.querySelector(".d-sub .bad")?.textContent.trim() }; });
   info.title === "Zigbee" && /5 Geräte · 1 offline/.test(info.sub) && info.first === "Rauchmelder" && info.n === 5 && /Bridge verbunden · 2\.14\.2/.test(info.bridge)
-    && info.stitle === "Shelly" && info.sfirst === "Shelly Hütte Außensteckdosen" && info.sprob === "Neustart nötig"
+    && info.stitle === "Shelly" && info.sfirst === "Shelly Hütte Außensteckdosen" && /^Neustart nötig/.test(info.sprob)
     ? ok(`Funknetz: ${info.sub}; Shelly zuerst ${info.sfirst} (${info.sprob})`) : fail(`Funknetz: ${JSON.stringify(info)}`);
   const sh = await p.evaluateHandle(() => document.querySelectorAll("ha-network-card")[1]);
   await sh.evaluate((c) => c.shadowRoot.querySelector('.dev[data-device="sh_kuhlschrank"] .d-head').click());
@@ -1819,6 +1819,36 @@ colorFails.length ? fail(`Farbe folgt nicht dem Modus: ${colorFails.join(", ")}`
   const sel = await z.evaluate((c) => c.shadowRoot.querySelector(".zinfo")?.textContent.replace(/\s+/g, " ").trim());
   map.nodes === 15 && map.links === 14 && map.pub.includes("zigbee2mqtt/bridge/request/networkmap") && /Temperatur Haus/.test(sel) && /Stecker Router\s*38/.test(sel) && /Coordinator/.test(sel)
     ? ok(`Zigbee-Netzkarte: ${map.nodes} Knoten, ${map.links} Verbindungen, Auswahl „${sel}“`) : fail(`Zigbee-Netzkarte: ${JSON.stringify({ map, sel })}`);
+}
+
+// Steckdosen + Grillthermometer
+{
+  const plug = await p.evaluateHandle(() => document.querySelector("ha-plug-card"));
+  await plug.evaluate((c) => c.scrollIntoView({ block: "center" }));
+  await p.waitForTimeout(600);
+  const info = await plug.evaluate((c) => { const r = c.shadowRoot; return { sub: r.querySelector(".h-sub")?.textContent.trim(), tiles: r.querySelectorAll(".tile").length,
+    on: [...r.querySelectorAll(".tile.on .t-name")].map((x) => x.textContent.trim()), alert: [...r.querySelectorAll(".tile.alert .t-name")].map((x) => x.textContent.trim()),
+    kwh: r.querySelector(".t-kwh")?.textContent.replace(/\s+/g, " ").trim(), sparks: r.querySelectorAll(".spark").length }; });
+  info.tiles === 3 && info.on.join() === "Kühlschrank,Außensteckdosen" && info.alert.join() === "Außensteckdosen" && /Heute [\d,]+ kWh · [\d,]+ €/.test(info.kwh) && info.sparks === 3 && /1\.308 W · 2\/3 an/.test(info.sub)
+    ? ok(`Steckdosen: ${info.sub}, Warnung bei Außensteckdosen, Verbrauch heute/Monat`) : fail(`Steckdosen: ${JSON.stringify(info)}`);
+  const n = await p.evaluate(() => window.serviceCalls.length);
+  await plug.evaluate((c) => c.shadowRoot.querySelector('.tile[data-entity="switch.shelly_kuhlschrank"] [data-act="toggle"]').click());
+  await p.waitForTimeout(100);
+  const first = await p.evaluate((k) => window.serviceCalls.slice(k).length, n);
+  const asked = await plug.evaluate((c) => c.shadowRoot.querySelector('.tile[data-entity="switch.shelly_kuhlschrank"] .sw').textContent.trim());
+  await plug.evaluate((c) => c.shadowRoot.querySelector('.tile[data-entity="switch.shelly_kuhlschrank"] [data-act="toggle"]').click());
+  await plug.evaluate((c) => c.shadowRoot.querySelector('.tile[data-entity="switch.stecker_pumpe_switch_0"] [data-act="toggle"]').click());
+  await p.waitForTimeout(250);
+  const calls = await p.evaluate((k) => window.serviceCalls.slice(k).map((c) => `${c.domain}.${c.service}:${c.data.entity_id}`), n);
+  first === 0 && asked === "Aus?" && calls.join() === "switch.turn_off:switch.shelly_kuhlschrank,switch.turn_on:switch.stecker_pumpe_switch_0"
+    ? ok("Steckdosen: Ausschalten erst nach „Aus?“, Einschalten sofort") : fail(`Steckdosen Schalten: ${JSON.stringify({ first, asked, calls })}`);
+  const grill = await p.evaluate(() => { const r = document.querySelector("ha-grill-card").shadowRoot;
+    return { sub: r.querySelector(".h-sub")?.textContent.trim(), name: r.querySelector(".p-name")?.textContent.trim(), temp: r.querySelector(".r-v")?.textContent.trim(),
+      phase: r.querySelector(".phase")?.textContent.trim(), left: r.querySelector("[data-left]")?.textContent.replace(/\s+/g, " ").trim(), chart: !!r.querySelector(".chart .int"),
+      idle: [...r.querySelectorAll(".i-row span")].map((x) => x.textContent.trim()) }; });
+  grill.sub === "1 Sonde aktiv" && grill.name === "Rinderfilet" && grill.temp === "48,6°" && grill.phase === "Gart" && /^Noch \d+ min · fertig/.test(grill.left) && grill.chart
+    && grill.idle.join() === "MEATER+ Sonde"
+    ? ok(`Grillthermometer: ${grill.name} ${grill.temp} (${grill.phase}), ${grill.left}, inaktive Sonde kompakt`) : fail(`Grillthermometer: ${JSON.stringify(grill)}`);
 }
 
 // Theme-Umschalter

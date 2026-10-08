@@ -702,6 +702,24 @@
       "button.shelly_hutte_ausensteckdosen_reboot": { state: "unknown", attributes: { friendly_name: "Shelly Außensteckdosen Reboot", device_class: "restart" } },
       "switch.shelly_licht": { state: "off", attributes: { friendly_name: "Shelly Licht" } },
       "sensor.shelly_licht_hutte_switch_0_device_temperature": { state: "41.5", attributes: { friendly_name: "Shelly Licht Hütte Switch 0 device temperature", device_class: "temperature", unit_of_measurement: "°C" } },
+      // Steckdosen mit Leistung und Verbrauch
+      "sensor.shelly_kuhlschrank_energy": { state: "412.6", attributes: { friendly_name: "Shelly Kühlschrank energy", device_class: "energy", unit_of_measurement: "kWh", state_class: "total_increasing" } },
+      "binary_sensor.shelly_kuhlschrank_overpowering": { state: "off", attributes: { friendly_name: "Shelly Kühlschrank overpowering", device_class: "problem" } },
+      "sensor.shelly_hutte_ausensteckdosen_switch_0_power": { state: "1240", attributes: { friendly_name: "Außensteckdosen power", device_class: "power", unit_of_measurement: "W" } },
+      "sensor.shelly_hutte_ausensteckdosen_switch_0_energy": { state: "88.2", attributes: { friendly_name: "Außensteckdosen energy", device_class: "energy", unit_of_measurement: "kWh", state_class: "total_increasing" } },
+      "binary_sensor.shelly_hutte_ausensteckdosen_switch_0_overpowering": { state: "on", attributes: { friendly_name: "Überlast", device_class: "problem" } },
+      "switch.stecker_pumpe_switch_0": { state: "off", attributes: { friendly_name: "Stecker Pumpe" } },
+      "sensor.stecker_pumpe_switch_0_power": { state: "0", attributes: { friendly_name: "Stecker Pumpe Leistung", device_class: "power", unit_of_measurement: "W" } },
+      "sensor.stecker_pumpe_switch_0_energy": { state: "35.0", attributes: { friendly_name: "Stecker Pumpe Energie", device_class: "energy", unit_of_measurement: "kWh", state_class: "total_increasing" } },
+      // Grillthermometer: zweite Meater-Sonde gart gerade
+      "sensor.meater_2_innentemperatur": { state: "48.6", attributes: { friendly_name: "Meater 2 Innentemperatur", device_class: "temperature", unit_of_measurement: "°C" } },
+      "sensor.meater_2_umgebungstemperatur": { state: "142", attributes: { friendly_name: "Meater 2 Umgebungstemperatur", device_class: "temperature", unit_of_measurement: "°C" } },
+      "sensor.meater_2_soll_temperatur": { state: "56", attributes: { friendly_name: "Meater 2 Soll-Temperatur", device_class: "temperature", unit_of_measurement: "°C" } },
+      "sensor.meater_2_spitzentemperatur": { state: "48.6", attributes: { friendly_name: "Meater 2 Spitzentemperatur", device_class: "temperature", unit_of_measurement: "°C" } },
+      "sensor.meater_2_kochstatus": { state: "started", attributes: { friendly_name: "Meater 2 Kochstatus", device_class: "enum" } },
+      "sensor.meater_2_kocht": { state: "Rinderfilet", attributes: { friendly_name: "Meater 2 Kocht" } },
+      "sensor.meater_2_verbleibende_zeit": { state: new Date(Date.now() + 23 * 60000).toISOString(), attributes: { friendly_name: "Meater 2 Verbleibende Zeit", device_class: "timestamp" } },
+      "sensor.meater_2_verstrichene_zeit": { state: new Date(Date.now() - 72 * 60000).toISOString(), attributes: { friendly_name: "Meater 2 Verstrichene Zeit", device_class: "timestamp" } },
       // TP-Link-Clients mit WLAN-Signal (wie im Garten)
       "device_tracker.tp_shelly_kuhlschrank": { state: "home", attributes: { friendly_name: "shelly_kuehlschrank", host_name: "shelly_kuehlschrank", ip: "192.168.0.211", mac: "34-B7-DA-00-00-01", connection: "host", band: "2G", signal: -60, source_type: "router" } },
       "device_tracker.tp_goat": { state: "home", attributes: { friendly_name: "goat", host_name: "goat", ip: "192.168.0.120", mac: "EC-30-8E-82-A0-94", connection: "host", band: "2G", signal: -81, source_type: "router" } },
@@ -748,6 +766,8 @@
         ...(/_(linkquality|battery)$/.test(id) ? { entity_category: "diagnostic" } : {}) } : {}),
       ...(/^\w+\.zigbee2mqtt_bridge_/.test(id) ? { device_id: "z2m_bridge", platform: "mqtt" } : {}),
       ...(/^device_tracker\.tp_/.test(id) ? { platform: "tplink_router" } : {}),
+      ...(/^\w+\.stecker_pumpe_/.test(id) ? { device_id: "sh_pumpe", platform: "shelly" } : {}),
+      ...(/^sensor\.meater_2_/.test(id) ? { device_id: "dev_meater2", platform: "meater" } : {}),
       ...(/^\w+\.shelly_(kuhlschrank|hutte_ausensteckdosen|licht)/.test(id) ? { device_id: "sh_" + id.match(/shelly_(kuhlschrank|hutte_ausensteckdosen|licht)/)[1], platform: "shelly",
         ...(/_(rssi|uptime|reboot|firmware|restart_required|overheating|device_temperature)$/.test(id) ? { entity_category: "diagnostic" } : {}) } : {}),
       ...(/^device_tracker\.fb_/.test(id) ? { platform: "fritz" } : {}),
@@ -767,6 +787,8 @@
         area_id: i < 2 ? "hutte" : null, sw_version: "1.0." + i, identifiers: [["mqtt", "zigbee2mqtt_0xa4c13" + i]] }])),
       sh_kuhlschrank: { id: "sh_kuhlschrank", name: "Shelly Kühlschrank", model: "Shelly Plug E", manufacturer: "Shelly", sw_version: "20230913-113610/v1.14.0-gcb84623", area_id: "hutte", connections: [["mac", "34b7da000001"]] },
       sh_hutte_ausensteckdosen: { id: "sh_hutte_ausensteckdosen", name: "Shelly Hütte Außensteckdosen", model: "Shelly 1PM Gen3", manufacturer: "Shelly", area_id: "hutte" },
+      sh_pumpe: { id: "sh_pumpe", name: "Stecker Pumpe", model: "Shelly Outdoor Plug S Gen3", manufacturer: "Shelly" },
+      dev_meater2: { id: "dev_meater2", name: "MEATER 2+ Sonde", model: "Meater 2 Plus" },
       sh_licht: { id: "sh_licht", name: "Shelly Licht Hütte", model: "Shelly 1 Mini Gen3", manufacturer: "Shelly" },
       dev_fritz: { id: "dev_fritz", name: "FRITZ!Box 7690" }, dev_tplink: { id: "dev_tplink", name: "TP-Link Router" },
       dev_sb_garten: { id: "dev_sb_garten", name: "Solarbank 3 E2700 Pro", via_device_id: "dev_sys_garten" }, dev_sys_garten: { id: "dev_sys_garten", name: "System Solix Garten" },
@@ -1165,6 +1187,25 @@
           }
           return out;
         }
+        // Steckdosen: Kühlschrank taktet (20 min an / 40 min aus), Außensteckdose seit 2 h an
+        if (msg.entity_ids.some((id) => /^sensor\.(shelly_kuhlschrank|shelly_hutte_ausensteckdosen_switch_0|stecker_pumpe_switch_0)_power$/.test(id))) {
+          const now = Date.now() / 1000;
+          for (const id of msg.entity_ids) out[id] = Array.from({ length: 145 }, (_, i) => {
+            const t = now - (144 - i) * 600, m = Math.floor(t / 60) % 60;
+            const v = id.includes("kuhlschrank") ? (m < 20 ? 68 + (i % 3) : 0.4) : id.includes("ausensteckdosen") ? (i > 132 ? 1240 : i > 60 && i < 80 ? 400 : 0) : 0;
+            return { s: String(v), lu: t };
+          });
+          return out;
+        }
+        // Grillthermometer: Kern steigt seit 72 min, Garraum um 140 °C
+        if (msg.entity_ids.some((id) => /^sensor\.meater_2_/.test(id))) {
+          const now = Date.now() / 1000;
+          for (const id of msg.entity_ids) out[id] = Array.from({ length: 37 }, (_, i) => {
+            const t = now - (36 - i) * 120, f = i / 36;
+            return { s: String(id.includes("umgebung") ? +(138 + 6 * Math.sin(i / 3)).toFixed(1) : +(8 + 40.6 * Math.pow(f, 0.8)).toFixed(1)), lu: t };
+          });
+          return out;
+        }
         // Temperatur-Überwachung: Tagesgang um den aktuellen Wert, Wetter über das Attribut
         if (msg.entity_ids.some((id) => /device_temperature$|^sensor\.temperatur_haus_temperature$|^weather\./.test(id))) {
           const now = Date.now() / 1000;
@@ -1349,6 +1390,10 @@
         { entity: "sensor.shelly_hutte_ausensteckdosen_switch_0_device_temperature", name: "Außensteckdose" }, { entity: "sensor.shelly_licht_hutte_switch_0_device_temperature", name: "Licht Hütte" }] }],
       ["Funknetz – Zigbee2MQTT: Bridge, LQI, Akku, offline zuerst", { _net: true, integration: "zigbee2mqtt" }],
       ["Funknetz – Shelly: WLAN-Signal, Firmware-Update, Neustart nötig", { _net: true, integration: "shelly" }],
+      ["Steckdosen – Kühlschrank mit „läuft nicht“-Wächter, Außensteckdose mit Überlast, Pumpe aus; Verbrauch heute/Monat", { _plug: true, entities: [
+        { entity: "switch.shelly_kuhlschrank", name: "Kühlschrank", alert_below: 5, alert_minutes: 90 }, { entity: "switch.shelly_hutte_ausensteckdosen_switch_0", name: "Außensteckdosen" },
+        { entity: "switch.stecker_pumpe_switch_0", name: "Pumpe" }] }],
+      ["Grillthermometer – Meater: aktive Sonde mit Ring, Restzeit, Verlauf; zweite Sonde im Ladegerät", { _grill: true }],
       ["Funknetz – WLAN: alle Geräte über den Router (per MAC mit HA-Geräten verknüpft) + Kameras mit WLAN-Signal", { _net: true, integration: "wifi", max_items: 6 }],
       ["Wochenrückblick Energie – diese gegen letzte Woche, Kosten, Spitzentag, Anteil je Verbraucher", { _eweek: true, price: 0.3 }],
       ["Termine & Abfall – nächste Abholung je Tonne, Erinnerung am Vorabend, Termine aus mehreren Kalendern", { _agenda: true, waste: "calendar.abfall", calendars: ["calendar.familie", { entity: "calendar.arbeit", color: "#ab47bc" }] }],
@@ -1395,9 +1440,9 @@
         grid.appendChild(wrap);
         return;
       }
-      const { _overview, _light, _group, _cover, _coverGroup, _switchTime, _media, _room, _status, _vacuum, _presence, _alert, _energy, _irrigation, _pool, _camera, _cameraGroup, _select, _mower, _starlink, _llm, _hbat, _system, _weather, _agenda, _devstatus, _recipe, _scene, _sleep, _crooms, _eweek, _parcel, _router, _lock, _temp, _net, ...rest } = cfg;
+      const { _overview, _light, _group, _cover, _coverGroup, _switchTime, _media, _room, _status, _vacuum, _presence, _alert, _energy, _irrigation, _pool, _camera, _cameraGroup, _select, _mower, _starlink, _llm, _hbat, _system, _weather, _agenda, _devstatus, _recipe, _scene, _sleep, _crooms, _eweek, _parcel, _router, _lock, _temp, _net, _plug, _grill, ...rest } = cfg;
       const tag = _overview ? "ha-climate-overview-card" : _group ? "ha-light-group-card" : _light ? "ha-light-card"
-        : _cover ? "ha-cover-card" : _coverGroup ? "ha-cover-group-card" : _switchTime ? "ha-switch-time-card" : _media ? "ha-media-card" : _room ? "ha-room-card" : _status ? "ha-status-card" : _vacuum ? "ha-vacuum-card" : _presence ? "ha-presence-card" : _alert ? "ha-alert-card" : _energy ? "ha-energy-card" : _irrigation ? "ha-irrigation-card" : _pool ? "ha-pool-card" : _camera ? "ha-camera-card" : _cameraGroup ? "ha-camera-group-card" : _select ? "ha-select-card" : _mower ? "ha-mower-card" : _starlink ? "ha-starlink-card" : _llm ? "ha-llm-timeline-card" : _hbat ? "ha-home-battery-card" : _system ? "ha-system-card" : _weather ? "ha-weather-card" : _agenda ? "ha-agenda-card" : _devstatus ? "ha-device-status-card" : _recipe ? "ha-recipe-card" : _scene ? "ha-scene-card" : _sleep ? "ha-sleep-card" : _crooms ? "ha-climate-rooms-card" : _eweek ? "ha-energy-week-card" : _parcel ? "ha-parcel-card" : _router ? "ha-router-card" : _lock ? "ha-lock-card" : _temp ? "ha-temperature-card" : _net ? "ha-network-card" : "ha-climate-card";
+        : _cover ? "ha-cover-card" : _coverGroup ? "ha-cover-group-card" : _switchTime ? "ha-switch-time-card" : _media ? "ha-media-card" : _room ? "ha-room-card" : _status ? "ha-status-card" : _vacuum ? "ha-vacuum-card" : _presence ? "ha-presence-card" : _alert ? "ha-alert-card" : _energy ? "ha-energy-card" : _irrigation ? "ha-irrigation-card" : _pool ? "ha-pool-card" : _camera ? "ha-camera-card" : _cameraGroup ? "ha-camera-group-card" : _select ? "ha-select-card" : _mower ? "ha-mower-card" : _starlink ? "ha-starlink-card" : _llm ? "ha-llm-timeline-card" : _hbat ? "ha-home-battery-card" : _system ? "ha-system-card" : _weather ? "ha-weather-card" : _agenda ? "ha-agenda-card" : _devstatus ? "ha-device-status-card" : _recipe ? "ha-recipe-card" : _scene ? "ha-scene-card" : _sleep ? "ha-sleep-card" : _crooms ? "ha-climate-rooms-card" : _eweek ? "ha-energy-week-card" : _parcel ? "ha-parcel-card" : _router ? "ha-router-card" : _lock ? "ha-lock-card" : _temp ? "ha-temperature-card" : _net ? "ha-network-card" : _plug ? "ha-plug-card" : _grill ? "ha-grill-card" : "ha-climate-card";
       const card = document.createElement(tag);
       card.id = "card" + i;
       card.setConfig({ type: `custom:${tag}`, ...rest });

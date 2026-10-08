@@ -31,6 +31,8 @@ weiche Farbübergänge und Animationen. Ein HACS-Download, mehrere Karten:
 | **Modern Router Card** | `custom:ha-router-card` | Router (FRITZ!Box, TP-Link …): Durchsatz, Leitung, CPU/RAM, WLAN, Geräte im Netz, Neustart |
 | **Modern Lock Card** | `custom:ha-lock-card` | Türschloss / Nuki Opener: Auf/Ab, Öffnen mit Rückfrage, Ring to Open, Klingel, Akku, Verlauf mit Person |
 | **Modern Temperature Card** | `custom:ha-temperature-card` | Temperatur-Überwachung: Kacheln mit Trend, Min/Max, Grenzwert-Warnung, gemeinsamer Verlauf |
+| **Modern Plug Card** | `custom:ha-plug-card` | Steckdosen: An/Aus mit Rückfrage, Leistung, Verbrauch und Kosten heute/Monat, Verlauf, Überlast und „läuft nicht“ |
+| **Modern Grill Card** | `custom:ha-grill-card` | Grillthermometer (Meater): Kern gegen Ziel als Ring, Garraum, Restzeit, Kochstatus, Verlauf |
 | **Modern Network Card** | `custom:ha-network-card` | Funknetz (Zigbee2MQTT, ZHA, Shelly): Signal, Akku, zuletzt gesehen, Warnungen, Updates, Neustart |
 | **Modern Energy Week Card** | `custom:ha-energy-week-card` | Wochenrückblick Energie: diese gegen letzte Woche, Kosten, Verbraucher |
 | **Climate Overview** | `custom:ha-climate-overview-card` | alle Klimageräte auf einen Blick |
@@ -789,6 +791,40 @@ integration: zigbee2mqtt   # wifi | zha | shelly | …
 # confirm: false
 ```
 
+## Modern Plug Card (Steckdosen & Verbraucher)
+
+Je Steckdose eine Kachel mit **Schalter** (Ausschalten mit Rückfrage), **aktueller Leistung**, **Verbrauch und Kosten heute/Monat** (Langzeitstatistik) und
+**24-h-Leistungsverlauf**. Leistung, Energie, Gerätetemperatur und Warnungen (Überlast, Überhitzung, Neustart nötig) werden **über das Gerät** gefunden.
+Mit `alert_below`/`alert_minutes` warnt die Karte, wenn ein Gerät eingeschaltet ist, aber zu lange zu wenig Strom zieht (z. B. Kühlschrank defekt).
+
+```yaml
+type: custom:ha-plug-card
+title: Steckdosen
+entities:
+  - entity: switch.shelly_kuhlschrank
+    name: Kühlschrank
+    alert_below: 5        # Watt
+    alert_minutes: 90
+  - switch.stecker_pumpe_switch_0
+# price: 0.30
+# confirm_off: false
+# show_graph: false
+# columns: 2
+```
+
+## Modern Grill Card (Grillthermometer)
+
+Für **Meater** (und Sonden mit ähnlichen Sensoren): je aktiver Sonde ein **Ring Kern- gegen Zieltemperatur**, Gargut, **Kochstatus**,
+**Restzeit und „fertig um“**, „läuft seit“, Garraum- und Spitzentemperatur sowie ein **Verlauf** seit Kochbeginn. Ist das Ziel erreicht, blinkt
+„Jetzt herausnehmen und ruhen lassen!“. Sonden im Ladegerät erscheinen kompakt darunter. Ohne `entities` werden alle Meater-Sonden gefunden.
+
+```yaml
+type: custom:ha-grill-card
+# entities: [sensor.meater_probe_59b2b709_innentemperatur]   # je Sonde eine Entität
+# hide_idle: true
+# show_graph: false
+```
+
 ## Modern Energy Week Card (Wochenrückblick Energie)
 
 Verbrauch **dieser Woche gegen die Vorwoche** – fair bis zum gleichen Wochentag – mit Kosten, Ø pro Tag und Spitzentag, Balken Mo–So
@@ -1196,6 +1232,8 @@ glow, smooth color transitions, animations), shipped as a single HACS download:
 - `custom:ha-parcel-card` – parcels from 17TRACK: status, carrier, latest event, filters, add, track and archive
 - `custom:ha-lock-card` – door lock / Nuki Opener: lock, unlock and open with confirmation, Ring to Open, doorbell, battery, history with who unlocked
 - `custom:ha-temperature-card` – temperature monitor: tiles with trend, min/max and limit warnings (device temperatures from 60 °C), shared history chart
+- `custom:ha-plug-card` – plugs/consumers: switch with confirmation, power, energy and cost today/month, 24 h power history, overpower/overheat and “not running” warnings
+- `custom:ha-grill-card` – meat thermometer (Meater): internal vs. target ring, ambient, time left and ready time, cook state, history
 - `custom:ha-network-card` – radio network (Zigbee2MQTT, ZHA, Shelly): signal, battery, last seen, warnings, firmware updates, restart
 - `custom:ha-router-card` – router (FRITZ!Box, TP-Link …): online state, throughput, line, CPU/RAM, Wi-Fi switches with guest QR, devices on the network, reconnect/restart, firmware update
 - `custom:ha-energy-week-card` – energy week: this week vs. last week, cost, peak day, share per consumer, month view
