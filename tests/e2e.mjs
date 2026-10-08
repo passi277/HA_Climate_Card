@@ -1739,10 +1739,10 @@ colorFails.length ? fail(`Farbe folgt nicht dem Modus: ${colorFails.join(", ")}`
 {
   await p.waitForTimeout(300);
   const info = await p.evaluate(() => { const [a, b] = document.querySelectorAll("ha-lock-card"); const ra = a.shadowRoot, rb = b.shadowRoot;
-    return { sub: ra.querySelector(".h-sub")?.textContent.trim(), bat: ra.querySelector(".chip")?.textContent.trim(), door: ra.querySelector(".inf")?.textContent.trim(),
+    return { opRow: ra.querySelector("[data-opener] .o-text b")?.textContent.trim() === "Haustür unten", sub: ra.querySelector(".h-sub")?.textContent.trim(), bat: ra.querySelector(".chip")?.textContent.trim(), door: ra.querySelector(".inf")?.textContent.trim(),
       ev: [...ra.querySelectorAll(".ev")].map((e) => e.dataset.kind), who: ra.querySelector(".ev-text small")?.textContent.trim(),
       opener: [...rb.querySelectorAll(".act")].map((x) => x.dataset.act), obat: rb.querySelector(".chip.warn")?.textContent.trim(), oev: [...rb.querySelectorAll(".ev")].map((e) => e.dataset.kind) }; });
-  /^Aufgeschlossen/.test(info.sub) && info.bat === "78 %" && info.door === "Tür zu" && info.ev[0] === "unlocked" && info.who === "Pascal" && info.ev.length === 5
+  /^Aufgeschlossen · Tür zu/.test(info.sub) && info.bat === "Akku schwach" && info.door === "Tür zu" && info.opRow && info.ev[0] === "unlocked" && info.who === "Pascal" && info.ev.length === 5
     && info.opener.join() === "rto,open" && info.obat === "Akku schwach" && info.oev.join() === "rto_off,ring,rto_on"
     ? ok(`Schloss: ${info.sub}, Verlauf ${info.ev.join(">")} (${info.who}); Opener ${info.oev.join(">")}`) : fail(`Schloss: ${JSON.stringify(info)}`);
   const n = await p.evaluate(() => window.serviceCalls.length);
@@ -1753,11 +1753,15 @@ colorFails.length ? fail(`Farbe folgt nicht dem Modus: ${colorFails.join(", ")}`
   const first = await p.evaluate((k) => window.serviceCalls.slice(k).length, n);
   await card.evaluate((c) => c.shadowRoot.querySelector('[data-act="open"]').click());
   await card.evaluate((c) => c.shadowRoot.querySelector('[data-act="lock"]').click());
+  await card.evaluate((c) => c.shadowRoot.querySelector('[data-act="o-open"]').click());
+  await p.waitForTimeout(100);
+  const oAsk = await card.evaluate((c) => c.shadowRoot.querySelector('[data-act="o-open"]').textContent.trim());
+  await card.evaluate((c) => c.shadowRoot.querySelector('[data-act="o-open"]').click());
   await p.waitForTimeout(300);
   const calls = await p.evaluate((k) => window.serviceCalls.slice(k).map((c) => `${c.domain}.${c.service}:${c.data.entity_id}`), n);
   const after = await card.evaluate((c) => c.shadowRoot.querySelector(".h-sub").textContent.trim());
-  first === 0 && asked === "Sicher?" && calls.join() === "lock.open:lock.haustuer,lock.lock:lock.haustuer" && /^Abgeschlossen/.test(after)
-    ? ok("Schloss: Öffnen erst nach „Sicher?“, Abschließen sofort") : fail(`Schloss Aktionen: ${JSON.stringify({ first, asked, calls, after })}`);
+  first === 0 && asked === "Sicher?" && oAsk === "Sicher?" && calls.join() === "lock.open:lock.haustuer,lock.lock:lock.haustuer,lock.open:lock.klingel" && /^Abgeschlossen/.test(after)
+    ? ok("Schloss: Öffnen erst nach „Sicher?“, Abschließen sofort, Opener-Summer mit Rückfrage") : fail(`Schloss Aktionen: ${JSON.stringify({ first, asked, oAsk, calls, after })}`);
 }
 
 // Temperatur-Überwachung
@@ -1794,6 +1798,27 @@ colorFails.length ? fail(`Farbe folgt nicht dem Modus: ${colorFails.join(", ")}`
   const att = await sh.evaluate((c) => c.shadowRoot.querySelectorAll(".dev").length);
   first === 0 && calls.join() === "update.install:update.shelly_kuhlschrank_firmware" && body.some((b) => /Signal\s*-58 dBm/.test(b)) && body.some((b) => /Firmware\s*v1\.14\.0/.test(b)) && att === 2
     ? ok("Funknetz: Details, Update erst nach „Sicher?“, Filter Achtung") : fail(`Funknetz Aktionen: ${JSON.stringify({ first, calls, body, att })}`);
+}
+
+// Funknetz: WLAN-Modus und Zigbee-Netzkarte
+{
+  const wifi = await p.evaluate(() => { const r = document.querySelectorAll("ha-network-card")[2].shadowRoot;
+    r.querySelector(".more")?.click(); return new Promise((res) => setTimeout(() => res({ title: r.querySelector(".h-title")?.textContent.trim(), sub: r.querySelector(".h-sub")?.textContent.trim(),
+      names: [...r.querySelectorAll(".d-name")].map((n) => n.textContent.trim()), awaySub: [...r.querySelectorAll(".dev")].find((d) => /Anker/.test(d.textContent))?.querySelector(".d-sub")?.textContent.trim() }), 200)); });
+  wifi.title === "WLAN" && wifi.names.includes("Shelly Kühlschrank") && wifi.names.includes("goat") && wifi.names.includes("Tor") && !wifi.names.includes("Reolink")
+    && wifi.names.slice(-2).sort().join() === "Anker,S24-Ultra-von-Marcel" && /^nicht verbunden/.test(wifi.awaySub) && /verbunden/.test(wifi.sub)
+    ? ok(`Funknetz WLAN: ${wifi.names.length} Geräte (${wifi.sub}), Router-Clients + HA-Geräte, getrennte zuletzt`) : fail(`Funknetz WLAN: ${JSON.stringify(wifi)}`);
+  const z = await p.evaluateHandle(() => document.querySelector("ha-network-card"));
+  try { await p.evaluate(() => localStorage.removeItem("hcc-z2m-map:zigbee2mqtt")); } catch {}
+  await z.evaluate((c) => c.shadowRoot.querySelector('[data-act="map"]').click());
+  await p.waitForTimeout(800);
+  const map = await z.evaluate((c) => { const r = c.shadowRoot; return { nodes: r.querySelectorAll(".zmap .nd").length, links: r.querySelectorAll(".zmap .ln").length,
+    pub: window.serviceCalls.filter((x) => x.domain === "mqtt").map((x) => x.data.topic) }; });
+  await z.evaluate((c) => c.shadowRoot.querySelector('.zmap .nd[data-node="0xe2"]').dispatchEvent(new MouseEvent("click", { bubbles: true })));
+  await p.waitForTimeout(100);
+  const sel = await z.evaluate((c) => c.shadowRoot.querySelector(".map-sel")?.textContent.replace(/\s+/g, " ").trim());
+  map.nodes === 8 && map.links === 9 && map.pub.includes("zigbee2mqtt/bridge/request/networkmap") && /Temperatur Haus/.test(sel) && /Stecker Router 38/.test(sel)
+    ? ok(`Zigbee-Netzkarte: ${map.nodes} Knoten, ${map.links} Verbindungen, Auswahl „${sel}“`) : fail(`Zigbee-Netzkarte: ${JSON.stringify({ map, sel })}`);
 }
 
 // Theme-Umschalter

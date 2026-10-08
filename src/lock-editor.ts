@@ -18,6 +18,7 @@ export class HaLockCardEditor extends LitElement {
     return [
       { name: "entity", selector: { entity: { filter: { domain: "lock" } } } },
       { name: "name", selector: { text: {} } },
+      { name: "opener", selector: { entity: { filter: { domain: "lock" } } } },
       { type: "grid", name: "", schema: [
         { name: "history", selector: { boolean: {} } },
         { name: "confirm", selector: { boolean: {} } },
@@ -33,7 +34,7 @@ export class HaLockCardEditor extends LitElement {
   private _valueChanged(ev: CustomEvent): void {
     const v = ev.detail.value as Record<string, unknown>;
     const config: LockCardConfig = { ...this._config!, entity: String(v.entity ?? "") };
-    for (const k of ["name", "doorbell", "door"] as const) { if (v[k]) config[k] = String(v[k]); else delete config[k]; }
+    for (const k of ["name", "opener", "doorbell", "door"] as const) { if (v[k]) config[k] = String(v[k]); else delete config[k]; }
     for (const k of ["history", "confirm"] as const) { if (v[k] === false) config[k] = false; else delete config[k]; }
     const h = Number(v.history_hours);
     if (Number.isFinite(h) && h > 0 && h !== 48) config.history_hours = h; else delete config.history_hours;
@@ -44,7 +45,7 @@ export class HaLockCardEditor extends LitElement {
   protected render() {
     if (!this.hass || !this._config) return nothing;
     const c = this._config;
-    const data = { entity: c.entity ?? "", name: c.name ?? "", history: c.history !== false, confirm: c.confirm !== false,
+    const data = { entity: c.entity ?? "", name: c.name ?? "", opener: c.opener ?? "", history: c.history !== false, confirm: c.confirm !== false,
       history_hours: c.history_hours ?? 48, doorbell: c.doorbell ?? "", door: c.door ?? "" };
     return html`<ha-form .hass=${this.hass} .data=${data} .schema=${this._schema()}
       .computeLabel=${this._computeLabel} @value-changed=${this._valueChanged}></ha-form>

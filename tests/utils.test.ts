@@ -5,7 +5,7 @@ import {
   llmEvents, llmCategory, snapshotMediaId, dayGroups, homeBatteryFeatures, batteryEta, batteryStatusKey,
   nextPickups, eventStart, daysUntil, offlineDevices, platformName,
   routerFeatures, routerClients, clientIcon, formatKbit, wifiLabel,
-  lockFeatures, lockHistory, tempDefaults, tempLevel, tempStats, networkDevices, netIntegration, netSeverity, netIcon, lqiQuality,
+  lockFeatures, lockHistory, zigbeeLayout, normMac, tempDefaults, tempLevel, tempStats, networkDevices, netIntegration, netSeverity, netIcon, lqiQuality,
   sceneStyle, sceneLabel, sceneGroups, hueRoomLights, hueRooms, parcelStatus, parcelCarrier, parcelText, sortParcels, sceneActivated, mealieMinutes, formatMinutes, scaleIngredient, mealEntries, ymdLocal,
   minutesUntil, formatShortDuration, shiftTime, weekStart, monthStart, yearStart, monthlyTotals, dailyTotals, kwhFactor, percentChange,
   updateKind, pendingUpdates, updateName, resourceSensors, backupSensors, backupHealth, loadLevel, windDir, tempScale, weatherHint, weatherIcon,
@@ -1291,5 +1291,48 @@ describe("Schloss, Temperatur, Funknetz", () => {
     expect(netSeverity(z.find((d) => d.name === "Rauchmelder")!)).toBeGreaterThan(netSeverity(tuer));
     expect([lqiQuality(160), lqiQuality(120), lqiQuality(60), lqiQuality(20)]).toEqual(["very_good", "good", "fair", "weak"]);
     expect([netIcon("Ventil Volleyball"), netIcon("Rauchmelder"), netIcon("X", "TRETAKT smart plug")]).toEqual(["mdi:pipe-valve", "mdi:smoke-detector-variant", "mdi:power-socket-eu"]);
+  });
+  it("WLAN-Geräte aus dem Router mit HA-Geräten per MAC", () => {
+    const st = (id: string, s: string, a: Record<string, any> = {}) => entity(id, s, a);
+    const states = Object.fromEntries([
+      st("device_tracker.tp_plug", "home", { host_name: "shelly_kuehl", ip: "192.168.0.211", mac: "34-B7-DA-00-00-01", connection: "host", band: "2G", signal: -60 }),
+      st("device_tracker.tp_phone", "not_home", { host_name: "Handy", mac: "AA-00-00-00-00-02", connection: "host", band: "5G" }),
+      st("device_tracker.tp_cam", "home", { host_name: "Reolink", mac: "AA-00-00-00-00-03", connection: "wired" }),
+      st("switch.shelly_plug", "on"), st("update.shelly_plug_firmware", "on"),
+      st("sensor.blink_tor_wlan", "-71", { device_class: "signal_strength", unit_of_measurement: "dBm" }), st("camera.blink_tor", "idle"),
+    ].map((e) => [e.entity_id, e]));
+    const reg = (id: string, device: string | null, platform: string) => [id, { entity_id: id, device_id: device, platform }];
+    const entities = Object.fromEntries([reg("device_tracker.tp_plug", null, "tplink_router"), reg("device_tracker.tp_phone", null, "tplink_router"),
+      reg("device_tracker.tp_cam", null, "tplink_router"), reg("switch.shelly_plug", "s1", "shelly"), reg("update.shelly_plug_firmware", "s1", "shelly"),
+      reg("sensor.blink_tor_wlan", "b1", "blink"), reg("camera.blink_tor", "b1", "blink")]);
+    const devices = { s1: { id: "s1", name: "Shelly Kühlschrank", model: "Plug E", connections: [["mac", "34:b7:da:00:00:01"]] as [string, string][] }, b1: { id: "b1", name: "Tor" } };
+    expect(normMac("34-B7-DA-00-00-01")).toBe("34:b7:da:00:00:01");
+    const w = networkDevices(states, entities, devices, "wifi");
+    expect(w.map((d) => d.name).sort()).toEqual(["Handy", "Shelly Kühlschrank", "Tor"]);
+    expect(w.find((d) => d.name === "Shelly Kühlschrank")).toMatchObject({ signal: -60, signal_unit: "dBm", ip: "192.168.0.211", band: "2,4 GHz", update: "update.shelly_plug_firmware" });
+    expect(w.find((d) => d.name === "Handy")).toMatchObject({ away: true, offline: false });
+    expect(netSeverity(w.find((d) => d.name === "Handy")!)).toBe(-1);
+    expect(networkDevices(states, entities, devices, "wifi", {}, [], { wired: true }).length).toBe(4);
+    // Shelly-Modus: Signal aus dem Router, wenn der eigene Sensor fehlt
+    expect(networkDevices(states, entities, devices, "shelly")[0]).toMatchObject({ signal: -60, ip: "192.168.0.211" });
+  });
+  it("legt die Zigbee-Netzkarte aus", () => {
+    const N = (ieeeAddr: string, type: string) => ({ ieeeAddr, friendlyName: ieeeAddr, type });
+    const L = (s: string, t: string, lqi: number) => ({ source: { ieeeAddr: s }, target: { ieeeAddr: t }, lqi });
+    const m = zigbeeLayout({ nodes: [N("c", "Coordinator"), N("r", "Router"), N("e1", "EndDevice"), N("e2", "EndDevice")],
+      links: [L("r", "c", 150), L("c", "r", 120), L("e1", "r", 90), L("e1", "c", 30), L("e2", "c", 70)] });
+    expect(m.links.length).toBe(4);
+    expect(m.links.find((l) => [l.a, l.b].sort().join() === "c,r")!.lqi).toBe(150);
+    const by = Object.fromEntries(m.nodes.map((n) => [n.id, n]));
+    expect([by.c!.x, by.c!.y]).toEqual([0, 0]);
+    expect(by.e1!.parent).toBe("r");
+    expect(by.e2!.parent).toBe("c");
+    expect(Math.hypot(by.r!.x, by.r!.y)).toBeCloseTo(0.45);
+    expect(Math.hypot(by.e1!.x, by.e1!.y)).toBeCloseTo(0.86);
+  });
+  it("Schloss mit Opener im Verlauf", () => {
+    const h = lockHistory([{ when: 1, entity_id: "lock.o", state: "unlocked" }, { when: 2, entity_id: "lock.o", state: "open" }, { when: 3, entity_id: "lock.s", state: "locked" }],
+      { lock: "lock.s", opener: "lock.o" });
+    expect(h.map((e) => e.kind)).toEqual(["locked", "buzz", "rto_on"]);
   });
 });

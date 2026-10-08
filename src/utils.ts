@@ -2223,7 +2223,9 @@ export const sortParcels = (list: Parcel[], deliveredDays = 3, now = Date.now())
 const ROUTER_PLATFORMS = ["fritz", "tplink_router", "tplink_deco", "tplink_omada", "asuswrt", "netgear", "unifi", "openwrt", "luci", "ubus", "keenetic_ndms2", "tplink"];
 
 export interface RouterWifi { entity: string; label: string; guest: boolean; band?: string }
-export interface RouterClient { entity: string; name: string; ip?: string; mac?: string; wired?: boolean; connectedTo?: string; online: boolean; lastSeen?: string; band?: string }
+export interface RouterClient { entity: string; name: string; ip?: string; mac?: string; wired?: boolean; connectedTo?: string; online: boolean; lastSeen?: string; band?: string;
+  /** WLAN-Signal in dBm (TP-Link) */
+  signal?: number; ssid?: string }
 
 export interface RouterFeatures {
   platform?: string;
@@ -2320,7 +2322,9 @@ export const routerClients = (states: Record<string, HassEntity>, entities: Reco
       ip: a.ip ?? a.ip_address ?? undefined, mac: a.mac ?? undefined,
       wired: type ? /lan|wired|ethernet|kabel/.test(type) && !/wlan|wifi|wireless/.test(type) : undefined,
       connectedTo: a.connected_to ? String(a.connected_to) : undefined,
-      band: a.band ? String(a.band) : /5\s?g/.test(type) ? "5 GHz" : /2[.,]?4/.test(type) ? "2,4 GHz" : undefined,
+      band: a.band ? String(a.band).replace(/^2G$/i, "2,4 GHz").replace(/^5G$/i, "5 GHz").replace(/^6G$/i, "6 GHz") : /5\s?g/.test(type) ? "5 GHz" : /2[.,]?4/.test(type) ? "2,4 GHz" : undefined,
+      signal: Number.isFinite(Number(a.signal)) && a.signal != null && Number(a.signal) < 0 ? Number(a.signal) : undefined,
+      ssid: a.ssid ? String(a.ssid) : undefined,
       online: st.state === "home",
       lastSeen: a.last_time_reachable ?? a.last_seen ?? st.last_changed,
     });
@@ -2388,7 +2392,7 @@ export const lockFeatures = (states: Record<string, HassEntity>, entities: Recor
   };
 };
 
-export type LockEventKind = "locked" | "unlocked" | "open" | "jammed" | "ring" | "rto_on" | "rto_off" | "door_open" | "door_closed";
+export type LockEventKind = "locked" | "unlocked" | "open" | "jammed" | "ring" | "rto_on" | "rto_off" | "door_open" | "door_closed" | "buzz";
 
 export interface LockEvent {
   when: number;
@@ -2400,7 +2404,7 @@ export interface LockEvent {
 /** Logbuch-Einträge (logbook/get_events) zu einem Verlauf: neueste zuerst, Zwischenzustände weg */
 export const lockHistory = (rows: { when: number | string; entity_id?: string; state?: string; context_user_id?: string | null;
   context_name?: string; context_entity_id_name?: string; context_event_type?: string }[],
-  ids: { lock: string; doorbell?: string; ring_to_open?: string; door?: string },
+  ids: { lock: string; doorbell?: string; ring_to_open?: string; door?: string; opener?: string },
   persons: Record<string, string> = {}, opener = false): LockEvent[] => {
   const out: LockEvent[] = [];
   for (const r of rows) {
@@ -2409,6 +2413,9 @@ export const lockHistory = (rows: { when: number | string; entity_id?: string; s
     if (r.entity_id === ids.lock) {
       kind = r.state === "locked" ? (opener ? "rto_off" : "locked") : r.state === "unlocked" ? (opener ? "rto_on" : "unlocked")
         : r.state === "open" ? "open" : r.state === "jammed" ? "jammed" : undefined;
+    } else if (r.entity_id === ids.opener) {
+      // Zusätzlicher Nuki Opener: auf = Ring to Open an, öffnen = Summer
+      kind = r.state === "locked" ? "rto_off" : r.state === "unlocked" ? "rto_on" : r.state === "open" ? "buzz" : undefined;
     } else if (r.entity_id === ids.doorbell && r.state === "on") kind = "ring";
     else if (r.entity_id === ids.ring_to_open && !opener) kind = r.state === "on" ? "rto_on" : r.state === "off" ? "rto_off" : undefined;
     else if (r.entity_id === ids.door) kind = r.state === "on" ? "door_open" : r.state === "off" ? "door_closed" : undefined;
@@ -2478,6 +2485,14 @@ export interface NetDevice {
   /** Aktive Warnungen (Überhitzung, Neustart nötig …) */
   problems: string[];
   entities: string[];
+  /** Aus der Router-Liste (WLAN): IP, Band, SSID, Tracker */
+  ip?: string;
+  band?: string;
+  ssid?: string;
+  wired?: boolean;
+  tracker?: string;
+  /** Nur im Router bekannt und gerade nicht verbunden (z. B. Handy unterwegs) – kein Problem */
+  away?: boolean;
 }
 
 /** LQI-Qualität wie in Zigbee2MQTT üblich */
@@ -2508,9 +2523,7 @@ export const netIntegration = (entities: Record<string, EntityRegistryEntry> | u
 const PROBLEM_RE = /overheat|overpower|overcurrent|overvoltage|restart_required|überhitz|überlast|überstrom|überspann|neustart_erforderlich/i;
 
 /** Geräte einer Funk-Integration mit Signal, Akku, „zuletzt gesehen“, Update und Warnungen */
-export const networkDevices = (states: Record<string, HassEntity>, entities: Record<string, EntityRegistryEntry> | undefined,
-  devices: Record<string, DeviceRegistryEntry> | undefined, integration: string, areas: Record<string, { name: string }> = {},
-  exclude: string[] = []): NetDevice[] => {
+const groupByDevice = (states: Record<string, HassEntity>, entities: Record<string, EntityRegistryEntry> | undefined): Map<string, EntityRegistryEntry[]> => {
   const byDevice = new Map<string, EntityRegistryEntry[]>();
   for (const e of Object.values(entities ?? {})) {
     if (!e.device_id || !states[e.entity_id]) continue;
@@ -2518,57 +2531,140 @@ export const networkDevices = (states: Record<string, HassEntity>, entities: Rec
     list.push(e);
     byDevice.set(e.device_id, list);
   }
+  return byDevice;
+};
+
+/** Ein Gerät mit Signal, Akku, Updates, Warnungen aus seinen Entitäten */
+const buildNetDevice = (states: Record<string, HassEntity>, id: string, dev: DeviceRegistryEntry | undefined, ents: EntityRegistryEntry[],
+  areas: Record<string, { name: string }>): NetDevice => {
+  const name = (dev?.name_by_user || dev?.name || states[ents[0]!.entity_id]?.attributes.friendly_name || id).trim();
+  const st = (e: EntityRegistryEntry) => states[e.entity_id]!;
+  const num = (e?: EntityRegistryEntry) => { if (!e) return undefined; const n = Number(st(e).state); return Number.isFinite(n) ? n : undefined; };
+  const own = ents.filter((e) => !["battery_notes", "utility_meter", "template"].includes(e.platform ?? "") && !ROUTER_PLATFORMS.includes(e.platform ?? ""));
+  const sensor = (re: RegExp, keys: string[] = []) => own.find((e) => e.entity_id.startsWith("sensor.") && (keys.includes(e.translation_key ?? "") || re.test(e.entity_id)));
+  const lqi = sensor(/_(linkquality|lqi)$/, ["linkquality", "lqi"]);
+  const rssi = lqi ? undefined : own.find((e) => e.entity_id.startsWith("sensor.") && (/_rssi$/.test(e.entity_id) || e.translation_key === "rssi"
+    || st(e).attributes.device_class === "signal_strength"));
+  const bat = ents.find((e) => e.entity_id.startsWith("sensor.") && st(e).attributes.device_class === "battery" && st(e).attributes.unit_of_measurement === "%"
+    && e.platform !== "battery_notes") ?? ents.find((e) => e.entity_id.startsWith("sensor.") && /_battery_plus$/.test(e.entity_id));
+  const signalEnt = lqi ?? rssi;
+  const signal = num(signalEnt);
+  const unit = lqi ? "lqi" : rssi ? "dBm" : undefined;
+  const lastSeenEnt = sensor(/_last_seen$/, ["last_seen"]);
+  const lastSeen = lastSeenEnt && !UNAVAILABLE.includes(st(lastSeenEnt).state) ? Date.parse(st(lastSeenEnt).state)
+    : Math.max(...own.map((e) => Date.parse(st(e).last_updated)).filter(Number.isFinite));
+  const primary = own.filter((e) => !e.entity_category);
+  const offline = own.length ? (primary.length ? primary : own).every((e) => UNAVAILABLE.includes(st(e).state)) : false;
+  const upd = own.find((e) => e.entity_id.startsWith("update.") && !/beta/.test(e.entity_id) && e.translation_key !== "beta_firmware" && st(e).state === "on");
+  const reboot = own.find((e) => e.entity_id.startsWith("button.") && (st(e).attributes.device_class === "restart" || /_(reboot|restart|neu_starten)$/.test(e.entity_id)));
+  const temp = own.find((e) => e.entity_id.startsWith("sensor.") && /device_temperature/.test(e.entity_id + (e.translation_key ?? "")));
+  const power = own.find((e) => e.entity_id.startsWith("sensor.") && st(e).attributes.device_class === "power");
+  const uptime = sensor(/_uptime$/, ["uptime"]);
+  const upSince = uptime ? Date.parse(st(uptime).state) : NaN;
+  const problems = own.filter((e) => e.entity_id.startsWith("binary_sensor.") && st(e).state === "on"
+    && (PROBLEM_RE.test(e.entity_id) || ["problem", "heat", "safety"].includes(st(e).attributes.device_class)))
+    .map((e) => e.entity_id);
+  const areaId = dev?.area_id ?? ents.find((e) => e.area_id)?.area_id;
+  return {
+    id, name, model: dev?.model ?? undefined, manufacturer: dev?.manufacturer ?? undefined, firmware: dev?.sw_version ?? undefined,
+    area: areaId ? areas[areaId]?.name : undefined,
+    signal, signal_unit: unit, signal_entity: signalEnt?.entity_id,
+    quality: signal == null ? undefined : unit === "lqi" ? lqiQuality(signal) : wifiQuality(signal),
+    battery: num(bat), battery_entity: bat?.entity_id, last_seen: Number.isFinite(lastSeen) ? lastSeen : undefined, offline,
+    update: upd?.entity_id, reboot: reboot?.entity_id, temperature: temp ? num(temp) : undefined, power: num(power),
+    uptime_since: Number.isFinite(upSince) ? upSince : undefined, problems, entities: ents.map((e) => e.entity_id),
+  };
+};
+
+/** MAC-Adresse vereinheitlichen (aa:bb:cc:…) */
+export const normMac = (m?: string): string | undefined => {
+  const hex = (m ?? "").toLowerCase().replace(/[^0-9a-f]/g, "");
+  return hex.length === 12 ? hex.match(/../g)!.join(":") : undefined;
+};
+
+const deviceMac = (dev?: DeviceRegistryEntry): string | undefined =>
+  normMac(dev?.connections?.find(([t]) => t === "mac" || t === "network_mac")?.[1]);
+
+/** Alle Router-Clients (FRITZ!Box, TP-Link …) nach MAC */
+const routerClientsByMac = (states: Record<string, HassEntity>, entities: Record<string, EntityRegistryEntry> | undefined): Map<string, RouterClient> => {
+  const map = new Map<string, RouterClient>();
+  const platforms = new Set(Object.values(entities ?? {}).filter((e) => e.entity_id.startsWith("device_tracker.") && ROUTER_PLATFORMS.includes(e.platform ?? "")).map((e) => e.platform!));
+  for (const p of platforms) for (const c of routerClients(states, entities, p)) {
+    const mac = normMac(c.mac);
+    // online-Eintrag gewinnt, falls ein Gerät doppelt erfasst ist
+    if (mac && (!map.has(mac) || (c.online && !map.get(mac)!.online))) map.set(mac, c);
+  }
+  return map;
+};
+
+/** Router-Daten (IP, Band, Signal, verbunden) an ein Gerät hängen */
+const withClient = (d: NetDevice, c: RouterClient): NetDevice => {
+  const signal = d.signal ?? c.signal;
+  return { ...d, ip: c.ip, band: c.band, ssid: c.ssid, wired: c.wired, tracker: c.entity,
+    signal, signal_unit: d.signal_unit ?? (c.signal != null ? "dBm" : undefined), quality: d.quality ?? (signal != null ? wifiQuality(signal) : undefined),
+    last_seen: d.last_seen ?? (c.lastSeen ? Date.parse(c.lastSeen) : undefined) };
+};
+
+export const networkDevices = (states: Record<string, HassEntity>, entities: Record<string, EntityRegistryEntry> | undefined,
+  devices: Record<string, DeviceRegistryEntry> | undefined, integration: string, areas: Record<string, { name: string }> = {},
+  exclude: string[] = [], opts: { wired?: boolean } = {}): NetDevice[] => {
+  const byDevice = groupByDevice(states, entities);
+  const clients = routerClientsByMac(states, entities);
+  const skip = (id: string, name: string) => exclude.some((x) => x === id || x.toLowerCase() === name.toLowerCase());
   const out: NetDevice[] = [];
+  if (integration === "wifi") return wifiDevices(states, byDevice, devices, clients, areas, skip, opts.wired);
   for (const [id, ents] of byDevice) {
     const dev = devices?.[id];
     if (!netMember(dev, ents, integration)) continue;
     // Zigbee2MQTT-Bridge selbst ist kein Funkgerät
     if (dev?.identifiers?.some(([, x]) => /^zigbee2mqtt_bridge/.test(x)) || dev?.model === "Bridge") continue;
-    const name = (dev?.name_by_user || dev?.name || states[ents[0]!.entity_id]?.attributes.friendly_name || id).trim();
-    if (exclude.some((x) => x === id || x.toLowerCase() === name.toLowerCase())) continue;
-    const st = (e: EntityRegistryEntry) => states[e.entity_id]!;
-    const num = (e?: EntityRegistryEntry) => { if (!e) return undefined; const n = Number(st(e).state); return Number.isFinite(n) ? n : undefined; };
-    const own = ents.filter((e) => !["battery_notes", "utility_meter", "template"].includes(e.platform ?? ""));
-    const sensor = (re: RegExp, keys: string[] = []) => own.find((e) => e.entity_id.startsWith("sensor.") && (keys.includes(e.translation_key ?? "") || re.test(e.entity_id)));
-    const lqi = sensor(/_(linkquality|lqi)$/, ["linkquality", "lqi"]);
-    const rssi = lqi ? undefined : own.find((e) => e.entity_id.startsWith("sensor.") && (/_rssi$/.test(e.entity_id) || e.translation_key === "rssi"
-      || st(e).attributes.device_class === "signal_strength"));
-    const bat = ents.find((e) => e.entity_id.startsWith("sensor.") && st(e).attributes.device_class === "battery" && st(e).attributes.unit_of_measurement === "%"
-      && e.platform !== "battery_notes") ?? ents.find((e) => e.entity_id.startsWith("sensor.") && /_battery_plus$/.test(e.entity_id));
-    const signalEnt = lqi ?? rssi;
-    const signal = num(signalEnt);
-    const unit = lqi ? "lqi" : rssi ? "dBm" : undefined;
-    const lastSeenEnt = sensor(/_last_seen$/, ["last_seen"]);
-    const lastSeen = lastSeenEnt && !UNAVAILABLE.includes(st(lastSeenEnt).state) ? Date.parse(st(lastSeenEnt).state)
-      : Math.max(...own.map((e) => Date.parse(st(e).last_updated)).filter(Number.isFinite));
-    const primary = own.filter((e) => !e.entity_category);
-    const offline = (primary.length ? primary : own).every((e) => UNAVAILABLE.includes(st(e).state));
-    const upd = own.find((e) => e.entity_id.startsWith("update.") && !/beta/.test(e.entity_id) && e.translation_key !== "beta_firmware" && st(e).state === "on");
-    const reboot = own.find((e) => e.entity_id.startsWith("button.") && (st(e).attributes.device_class === "restart" || /_(reboot|restart|neu_starten)$/.test(e.entity_id)));
-    const temp = own.find((e) => e.entity_id.startsWith("sensor.") && /device_temperature/.test(e.entity_id + (e.translation_key ?? "")));
-    const tempV = temp ? num(temp) : undefined;
-    const power = own.find((e) => e.entity_id.startsWith("sensor.") && st(e).attributes.device_class === "power");
-    const uptime = sensor(/_uptime$/, ["uptime"]);
-    const upSince = uptime ? Date.parse(st(uptime).state) : NaN;
-    const problems = own.filter((e) => e.entity_id.startsWith("binary_sensor.") && st(e).state === "on"
-      && (PROBLEM_RE.test(e.entity_id) || ["problem", "heat", "safety"].includes(st(e).attributes.device_class)))
-      .map((e) => e.entity_id);
-    const areaId = dev?.area_id ?? ents.find((e) => e.area_id)?.area_id;
-    out.push({
-      id, name, model: dev?.model ?? undefined, manufacturer: dev?.manufacturer ?? undefined, firmware: dev?.sw_version ?? undefined,
-      area: areaId ? areas[areaId]?.name : undefined,
-      signal, signal_unit: unit, signal_entity: signalEnt?.entity_id,
-      quality: signal == null ? undefined : unit === "lqi" ? lqiQuality(signal) : wifiQuality(signal),
-      battery: num(bat), battery_entity: bat?.entity_id, last_seen: Number.isFinite(lastSeen) ? lastSeen : undefined, offline,
-      update: upd?.entity_id, reboot: reboot?.entity_id, temperature: tempV, power: num(power),
-      uptime_since: Number.isFinite(upSince) ? upSince : undefined, problems, entities: ents.map((e) => e.entity_id),
-    });
+    const d = buildNetDevice(states, id, dev, ents, areas);
+    if (skip(id, d.name)) continue;
+    const mac = deviceMac(dev);
+    const c = mac ? clients.get(mac) : undefined;
+    out.push(c ? withClient(d, c) : d);
+  }
+  return out;
+};
+
+/** WLAN: alle WLAN-Clients der Router, per MAC mit HA-Geräten verknüpft, plus HA-Geräte mit eigenem WLAN-Signal */
+const wifiDevices = (states: Record<string, HassEntity>, byDevice: Map<string, EntityRegistryEntry[]>, devices: Record<string, DeviceRegistryEntry> | undefined,
+  clients: Map<string, RouterClient>, areas: Record<string, { name: string }>, skip: (id: string, name: string) => boolean, wired = false): NetDevice[] => {
+  // HA-Geräte nach MAC (ohne die reinen Router-Tracker-Geräte und ohne Zigbee/Hue-Geräte ohne eigene Netzwerk-MAC)
+  const byMac = new Map<string, string>();
+  for (const [id, ents] of byDevice) {
+    const mac = deviceMac(devices?.[id]);
+    if (mac && ents.some((e) => !ROUTER_PLATFORMS.includes(e.platform ?? "") && !["battery_notes", "utility_meter", "template"].includes(e.platform ?? ""))) byMac.set(mac, id);
+  }
+  const out: NetDevice[] = [];
+  const used = new Set<string>();
+  for (const [mac, c] of clients) {
+    if (c.wired && !wired) continue;
+    const devId = byMac.get(mac);
+    let d: NetDevice;
+    if (devId) {
+      used.add(devId);
+      d = withClient(buildNetDevice(states, devId, devices?.[devId], byDevice.get(devId)!, areas), c);
+      d = { ...d, offline: d.offline || !c.online };
+    } else {
+      d = withClient({ id: c.entity, name: c.name, offline: false, away: !c.online, problems: [], entities: [c.entity] }, c);
+    }
+    if (!skip(d.id, d.name)) out.push(d);
+  }
+  // Geräte mit eigenem WLAN-Signal (z. B. Blink-Kameras, ESPHome), die der Router nicht zuordnen kann
+  for (const [id, ents] of byDevice) {
+    if (used.has(id)) continue;
+    const sig = ents.find((e) => e.entity_id.startsWith("sensor.") && states[e.entity_id]?.attributes.device_class === "signal_strength"
+      && states[e.entity_id]?.attributes.unit_of_measurement === "dBm");
+    if (!sig) continue;
+    const d = buildNetDevice(states, id, devices?.[id], ents, areas);
+    if (!skip(id, d.name)) out.push(d);
   }
   return out;
 };
 
 /** Wie dringend ein Gerät Aufmerksamkeit braucht (für die Sortierung; höher = wichtiger) */
-export const netSeverity = (d: NetDevice, lowBattery = 20): number =>
+export const netSeverity = (d: NetDevice, lowBattery = 20): number => d.away ? -1 :
   (d.offline ? 100 : 0) + (d.problems.length ? 50 : 0) + (d.quality === "weak" ? 30 : d.quality === "fair" ? 5 : 0)
   + (d.battery != null && d.battery <= lowBattery ? 20 : 0) + (d.update ? 3 : 0);
 
@@ -2589,4 +2685,70 @@ export const netIcon = (name: string, model = ""): string => {
   if (/steckdose|stecker|plug|socket/.test(s)) return "mdi:power-socket-eu";
   if (/repeater|router/.test(s)) return "mdi:access-point";
   return "mdi:chip";
+};
+
+// ---------- Zigbee-Netzkarte (Zigbee2MQTT networkmap, raw) ----------
+
+export interface ZNode { id: string; name: string; type: "Coordinator" | "Router" | "EndDevice"; x: number; y: number; parent?: string; lqi?: number }
+export interface ZLink { a: string; b: string; lqi: number }
+
+/** Netzwerkkarte von Zigbee2MQTT (Typ „raw“) als Kreis-Layout: Coordinator in der Mitte, Router innen, Endgeräte außen bei ihrem Elternteil */
+export const zigbeeLayout = (raw: { nodes?: any[]; links?: any[] } | undefined): { nodes: ZNode[]; links: ZLink[] } => {
+  const nodes = (raw?.nodes ?? []).map((n) => ({
+    id: String(n.ieeeAddr ?? n.ieee_address ?? n.id),
+    name: String(n.friendlyName ?? n.friendly_name ?? n.ieeeAddr ?? "?"),
+    type: (n.type === "Coordinator" || n.type === "Router" ? n.type : "EndDevice") as ZNode["type"],
+  }));
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const best = new Map<string, ZLink>();
+  for (const l of raw?.links ?? []) {
+    const a = String(l.source?.ieeeAddr ?? l.sourceIeeeAddr ?? l.source);
+    const b = String(l.target?.ieeeAddr ?? l.targetIeeeAddr ?? l.target);
+    const lqi = Number(l.lqi ?? l.linkquality ?? 0);
+    if (a === b || !byId.has(a) || !byId.has(b)) continue;
+    const key = [a, b].sort().join("|");
+    if (!best.has(key) || best.get(key)!.lqi < lqi) best.set(key, { a, b, lqi });
+  }
+  const links = [...best.values()];
+  const coord = nodes.find((n) => n.type === "Coordinator");
+  const routers = nodes.filter((n) => n.type === "Router");
+  const ends = nodes.filter((n) => n.type === "EndDevice");
+  const out = new Map<string, ZNode>();
+  if (coord) out.set(coord.id, { ...coord, x: 0, y: 0 });
+  const ang = new Map<string, number>();
+  routers.forEach((r, i) => {
+    const a = (i / Math.max(1, routers.length)) * 2 * Math.PI - Math.PI / 2;
+    ang.set(r.id, a);
+    const l = links.find((x) => coord && ((x.a === r.id && x.b === coord.id) || (x.b === r.id && x.a === coord.id)));
+    out.set(r.id, { ...r, x: Math.cos(a) * 0.45, y: Math.sin(a) * 0.45, parent: coord?.id, lqi: l?.lqi });
+  });
+  // Elternteil eines Endgeräts: Verbindung mit dem besten LQI zu Router/Coordinator
+  const info = ends.map((e) => {
+    const cands = links.filter((l) => (l.a === e.id || l.b === e.id) && byId.get(l.a === e.id ? l.b : l.a)!.type !== "EndDevice")
+      .sort((x, y) => y.lqi - x.lqi);
+    return { e, parent: cands[0] ? (cands[0].a === e.id ? cands[0].b : cands[0].a) : undefined, lqi: cands[0]?.lqi };
+  });
+  // Gruppen je Router (bei dessen Winkel) – Kinder des Coordinators und Einzelgänger in die Lücken dazwischen
+  const groups = new Map<string, typeof info>();
+  for (const x of info) {
+    const key = x.parent && ang.has(x.parent) ? x.parent : "_";
+    groups.set(key, [...(groups.get(key) ?? []), x]);
+  }
+  const step = Math.min(0.85, (2 * Math.PI) / Math.max(1, ends.length));
+  const free = groups.get("_") ?? [];
+  const gap = routers.length ? Math.PI / routers.length : 0;
+  free.forEach((x, i) => {
+    // gleichmäßig über den Kreis, um eine halbe Router-Teilung versetzt
+    const a = (i / Math.max(1, free.length)) * 2 * Math.PI - Math.PI / 2 + gap;
+    out.set(x.e.id, { ...x.e, x: Math.cos(a) * 0.86, y: Math.sin(a) * 0.86, parent: x.parent, lqi: x.lqi });
+  });
+  for (const [key, list] of groups) {
+    if (key === "_") continue;
+    const base = ang.get(key)!;
+    list.forEach((x, j) => {
+      const a = base + (j - (list.length - 1) / 2) * step;
+      out.set(x.e.id, { ...x.e, x: Math.cos(a) * 0.86, y: Math.sin(a) * 0.86, parent: x.parent, lqi: x.lqi });
+    });
+  }
+  return { nodes: [...out.values()], links };
 };

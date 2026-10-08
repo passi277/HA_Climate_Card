@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.45.0 – Schloss + Opener, WLAN-Geräte, Zigbee-Netzkarte
+- Lock Card: neue Option **`opener`** – Smart Lock und Nuki Opener in einer Karte (Ring to Open, Summer mit Rückfrage, Klingel aus dem Opener, beide Akkus, gemeinsamer Verlauf); Türstatus „Tür zu/offen“ im Kopf und farbig
+- Network Card: neuer Modus **`integration: wifi`** – alle WLAN-Geräte aus dem Router (FRITZ!Box, TP-Link …) mit IP, Band und Signal, per MAC mit den HA-Geräten verknüpft (Name, Bereich, Update, Neustart), dazu Geräte mit eigenem WLAN-Signal; nicht verbundene Geräte grau am Ende, `wired: true` zeigt auch LAN
+- Network Card: Shelly & Co. bekommen IP und WLAN-Signal aus dem Router, wenn ihr eigener Signal-Sensor deaktiviert ist
+- Network Card: **Zigbee-Netzkarte** für Zigbee2MQTT – Coordinator, Router und Endgeräte mit Verbindungen nach LQI, Gerät antippen zeigt seine Nachbarn
+
 ## 1.44.0 – Schloss, Temperatur-Überwachung, Funknetz
 - Neue **Modern Lock Card** (`custom:ha-lock-card`) für Türschlösser und Nuki Opener: Abschließen, Aufschließen/Öffnen mit Rückfrage, Ring to Open, Klingel („zuletzt geklingelt“), Türsensor, Akku und letzter Batteriewechsel, **Verlauf mit Person bzw. Automation** – Zubehör automatisch über das Gerät
 - Neue **Modern Temperature Card** (`custom:ha-temperature-card`): Temperaturen als Kacheln mit Trend/h, Min/Max und Mini-Verlauf, Grenzwert-Warnung (Gerätetemperaturen automatisch ab 60/80 °C, eigene Grenzen je Sensor), gemeinsamer 24-h-Verlauf; Wetter/Klima über Attribut

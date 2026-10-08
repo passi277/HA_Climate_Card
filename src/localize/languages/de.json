@@ -1607,7 +1607,8 @@
     "ev_rto_on": "Ring to Open an",
     "ev_rto_off": "Ring to Open aus",
     "ev_door_open": "Tür auf",
-    "ev_door_closed": "Tür zu"
+    "ev_door_closed": "Tür zu",
+    "ev_buzz": "Haustür geöffnet (Opener)"
   },
   "lock_editor": {
     "entity": "Schloss / Nuki Opener",
@@ -1617,7 +1618,8 @@
     "history_hours": "Verlauf (Stunden)",
     "doorbell": "Klingel-Sensor (sonst automatisch)",
     "door": "Türkontakt (sonst automatisch)",
-    "hint": "Klingel, Ring to Open, Akku und Türsensor werden über das Gerät gefunden. Im Verlauf steht, wer aufgeschlossen hat (Person oder Automation)."
+    "hint": "Klingel, Ring to Open, Akku und Türsensor werden über das Gerät gefunden. Im Verlauf steht, wer aufgeschlossen hat (Person oder Automation).",
+    "opener": "Zusätzlich Nuki Opener (Haustür unten)"
   },
   "temperature": {
     "title": "Temperaturen",
@@ -1677,7 +1679,21 @@
     "p_overpowering": "Überlast",
     "p_overcurrent": "Überstrom",
     "p_overvoltage": "Überspannung",
-    "p_restart_required": "Neustart nötig"
+    "p_restart_required": "Neustart nötig",
+    "wifi": "WLAN",
+    "map": "Netzwerkkarte",
+    "map_scanning": "Netz wird gescannt … (bis zu 1 min)",
+    "map_as_of": "Stand",
+    "map_refresh": "Neu scannen",
+    "map_no_mqtt": "Keine Verbindung zu Home Assistant",
+    "map_timeout": "Keine Antwort von Zigbee2MQTT – läuft die Bridge?",
+    "map_admin": "Die Netzwerkkarte braucht einen Administrator-Benutzer (MQTT)",
+    "map_empty": "Noch keine Karte – „Neu scannen“ tippen",
+    "end_device": "Endgerät",
+    "ip": "IP-Adresse",
+    "connection": "Verbindung",
+    "not_connected": "nicht verbunden",
+    "connected": "verbunden"
   },
   "network_editor": {
     "integration": "Integration",
@@ -1689,6 +1705,9 @@
     "i_zigbee2mqtt": "Zigbee2MQTT",
     "i_zha": "ZHA (Zigbee)",
     "i_shelly": "Shelly",
-    "hint": "Signal (Zigbee-LQI bzw. WLAN-dBm), Akku, Firmware-Updates und Warnungen werden über die Geräte erkannt. Probleme stehen oben."
+    "hint": "Signal (Zigbee-LQI bzw. WLAN-dBm), Akku, Firmware-Updates und Warnungen werden über die Geräte erkannt. Probleme stehen oben.",
+    "i_wifi": "WLAN (alle Geräte über den Router)",
+    "wired": "Auch LAN-Geräte zeigen",
+    "z2m_topic": "Zigbee2MQTT-Topic (Standard zigbee2mqtt)"
   }
 }

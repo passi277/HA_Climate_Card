@@ -702,6 +702,11 @@
       "button.shelly_hutte_ausensteckdosen_reboot": { state: "unknown", attributes: { friendly_name: "Shelly Außensteckdosen Reboot", device_class: "restart" } },
       "switch.shelly_licht": { state: "off", attributes: { friendly_name: "Shelly Licht" } },
       "sensor.shelly_licht_hutte_switch_0_device_temperature": { state: "41.5", attributes: { friendly_name: "Shelly Licht Hütte Switch 0 device temperature", device_class: "temperature", unit_of_measurement: "°C" } },
+      // TP-Link-Clients mit WLAN-Signal (wie im Garten)
+      "device_tracker.tp_shelly_kuhlschrank": { state: "home", attributes: { friendly_name: "shelly_kuehlschrank", host_name: "shelly_kuehlschrank", ip: "192.168.0.211", mac: "34-B7-DA-00-00-01", connection: "host", band: "2G", signal: -60, source_type: "router" } },
+      "device_tracker.tp_goat": { state: "home", attributes: { friendly_name: "goat", host_name: "goat", ip: "192.168.0.120", mac: "EC-30-8E-82-A0-94", connection: "host", band: "2G", signal: -81, source_type: "router" } },
+      "device_tracker.tp_anker": { state: "not_home", last_changed: new Date(Date.now() - 5 * 3600_000).toISOString(), attributes: { friendly_name: "Anker", host_name: "Anker", ip: "192.168.0.140", mac: "EC-30-8E-82-A0-99", connection: "host", band: "5G", source_type: "router" } },
+      "device_tracker.tp_reolink": { state: "home", attributes: { friendly_name: "Reolink", host_name: "Reolink", ip: "192.168.0.129", mac: "EC-71-DB-97-E0-22", connection: "wired", band: null, source_type: "router" } },
       "sensor.shelly_licht_hutte_rssi": { state: "-61", attributes: { friendly_name: "Shelly Licht Hütte Signalstärke", device_class: "signal_strength", unit_of_measurement: "dBm" } },
     };
     states["person.pascal"].attributes.user_id = "u_pascal";
@@ -742,6 +747,7 @@
       ...(/^\w+\.(tursensor_haus|temperatur_haus|ventil_volleyball|steckdose_repeater|rauchmelder)_?/.test(id) ? { device_id: "z2m_" + id.match(/\.(tursensor_haus|temperatur_haus|ventil_volleyball|steckdose_repeater|rauchmelder)/)[1], platform: "mqtt",
         ...(/_(linkquality|battery)$/.test(id) ? { entity_category: "diagnostic" } : {}) } : {}),
       ...(/^\w+\.zigbee2mqtt_bridge_/.test(id) ? { device_id: "z2m_bridge", platform: "mqtt" } : {}),
+      ...(/^device_tracker\.tp_/.test(id) ? { platform: "tplink_router" } : {}),
       ...(/^\w+\.shelly_(kuhlschrank|hutte_ausensteckdosen|licht)/.test(id) ? { device_id: "sh_" + id.match(/shelly_(kuhlschrank|hutte_ausensteckdosen|licht)/)[1], platform: "shelly",
         ...(/_(rssi|uptime|reboot|firmware|restart_required|overheating|device_temperature)$/.test(id) ? { entity_category: "diagnostic" } : {}) } : {}),
       ...(/^device_tracker\.fb_/.test(id) ? { platform: "fritz" } : {}),
@@ -759,7 +765,7 @@
         ["ventil_volleyball", "Ventil Volleyball", "Zigbee smart water valve", "SONOFF"], ["steckdose_repeater", "Steckdose Repeater", "TRETAKT smart plug", "IKEA"],
         ["rauchmelder", "Rauchmelder", "Smart smoke detector", "Aqara"]].map(([n, name, model, man], i) => ["z2m_" + n, { id: "z2m_" + n, name, model, manufacturer: man,
         area_id: i < 2 ? "hutte" : null, sw_version: "1.0." + i, identifiers: [["mqtt", "zigbee2mqtt_0xa4c13" + i]] }])),
-      sh_kuhlschrank: { id: "sh_kuhlschrank", name: "Shelly Kühlschrank", model: "Shelly Plug E", manufacturer: "Shelly", sw_version: "20230913-113610/v1.14.0-gcb84623", area_id: "hutte" },
+      sh_kuhlschrank: { id: "sh_kuhlschrank", name: "Shelly Kühlschrank", model: "Shelly Plug E", manufacturer: "Shelly", sw_version: "20230913-113610/v1.14.0-gcb84623", area_id: "hutte", connections: [["mac", "34b7da000001"]] },
       sh_hutte_ausensteckdosen: { id: "sh_hutte_ausensteckdosen", name: "Shelly Hütte Außensteckdosen", model: "Shelly 1PM Gen3", manufacturer: "Shelly", area_id: "hutte" },
       sh_licht: { id: "sh_licht", name: "Shelly Licht Hütte", model: "Shelly 1 Mini Gen3", manufacturer: "Shelly" },
       dev_fritz: { id: "dev_fritz", name: "FRITZ!Box 7690" }, dev_tplink: { id: "dev_tplink", name: "TP-Link Router" },
@@ -839,6 +845,17 @@
       config: { unit_system: { temperature: "°C" } },
       async callService(domain, service, data) {
         window.serviceCalls.push({ domain, service, data });
+        if (domain === "mqtt" && /bridge\/request\/networkmap$/.test(data.topic)) {
+          const N = (ieee, name, type) => ({ ieeeAddr: ieee, friendlyName: name, type });
+          const nodes = [N("0x00", "Coordinator", "Coordinator"), N("0xr1", "Steckdose Repeater", "Router"), N("0xr2", "Stecker Router", "Router"),
+            N("0xe1", "Türsensor Haus", "EndDevice"), N("0xe2", "Temperatur Haus", "EndDevice"), N("0xe3", "Ventil Volleyball", "EndDevice"), N("0xe4", "Vibration", "EndDevice"), N("0xe5", "Bewegungsmelder", "EndDevice")];
+          const L = (s, t, lqi, rel) => ({ source: { ieeeAddr: s }, target: { ieeeAddr: t }, lqi, relationship: rel });
+          const links = [L("0xr1", "0x00", 160, 2), L("0xr2", "0x00", 92, 2), L("0xr1", "0xr2", 70, 2), L("0xe1", "0xr1", 142, 1), L("0xe2", "0xr2", 38, 1),
+            L("0xe3", "0x00", 96, 1), L("0xe4", "0xr2", 120, 1), L("0xe5", "0xr1", 55, 1), L("0xe5", "0x00", 30, 2)];
+          const topic = data.topic.replace("request", "response");
+          setTimeout(() => window.mqttSubs?.[topic]?.({ topic, payload: JSON.stringify({ data: { type: "raw", routes: false, value: { nodes, links } }, status: "ok" }) }), 300);
+          return;
+        }
         if (domain === "llmvision" && service === "get_events") return { context: {}, response: { events: LLM_EVENTS } };
         if (domain === "seventeentrack") {
           log(`seventeentrack.${service} ${JSON.stringify(data)}`);
@@ -1074,6 +1091,7 @@
       },
       connection: {
         async subscribeMessage(cb, msg) {
+          if (msg.type === "mqtt/subscribe") { (window.mqttSubs ??= {})[msg.topic] = cb; return () => { delete window.mqttSubs[msg.topic]; }; }
           if (msg.entity_id === "weather.forecast_home") {
             const now = new Date(); now.setMinutes(0, 0, 0);
             const hourly = Array.from({ length: 30 }, (_, i) => {
@@ -1320,13 +1338,14 @@
         { name: "Schlafzimmer", ac: "climate.schlafzimmer" }] }],
       ["Router – FRITZ!Box: Durchsatz, Leitung, WLAN, Geräte im Netz, Neu verbinden/Neustart, FRITZ!OS-Update", { _router: true, entity: "binary_sensor.fritz_box_7690_verbindung" }],
       ["Router – TP-Link: CPU/RAM, Clients, WLAN inkl. Gast, Neustart", { _router: true, entity: "sensor.tp_link_router_total_clients", name: "TP-Link Garten" }],
-      ["Schloss – Nuki Smart Lock: Auf/Ab, Öffnen mit Rückfrage, Türsensor, Akku, Verlauf mit Person", { _lock: true, entity: "lock.haustuer" }],
+      ["Schloss – Nuki Smart Lock + Opener: Auf/Ab, Öffnen mit Rückfrage, Türsensor, Ring to Open, Akku, Verlauf mit Person", { _lock: true, entity: "lock.haustuer", opener: "lock.klingel", opener_name: "Haustür unten" }],
       ["Schloss – Nuki Opener: Ring to Open, Tür öffnen, Klingel", { _lock: true, entity: "lock.klingel", name: "Klingel" }],
       ["Temperatur-Überwachung – Hütte, Außen (Wetter), Gerätetemperaturen mit Warnung ab 60 °C", { _temp: true, title: "Temperaturen", entities: [
         { entity: "sensor.temperatur_haus_temperature", name: "Hütte innen" }, { entity: "weather.zuhause", attribute: "temperature", name: "Außen" },
         { entity: "sensor.shelly_hutte_ausensteckdosen_switch_0_device_temperature", name: "Außensteckdose" }, { entity: "sensor.shelly_licht_hutte_switch_0_device_temperature", name: "Licht Hütte" }] }],
       ["Funknetz – Zigbee2MQTT: Bridge, LQI, Akku, offline zuerst", { _net: true, integration: "zigbee2mqtt" }],
       ["Funknetz – Shelly: WLAN-Signal, Firmware-Update, Neustart nötig", { _net: true, integration: "shelly" }],
+      ["Funknetz – WLAN: alle Geräte über den Router (per MAC mit HA-Geräten verknüpft) + Kameras mit WLAN-Signal", { _net: true, integration: "wifi", max_items: 6 }],
       ["Wochenrückblick Energie – diese gegen letzte Woche, Kosten, Spitzentag, Anteil je Verbraucher", { _eweek: true, price: 0.3 }],
       ["Termine & Abfall – nächste Abholung je Tonne, Erinnerung am Vorabend, Termine aus mehreren Kalendern", { _agenda: true, waste: "calendar.abfall", calendars: ["calendar.familie", { entity: "calendar.arbeit", color: "#ab47bc" }] }],
       ["Gerätestatus – nicht erreichbare Geräte nach Integration, „seit …“, Entitäten, Neu laden", { _devstatus: true }],

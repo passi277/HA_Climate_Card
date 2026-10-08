@@ -730,11 +730,14 @@ entity: binary_sensor.fritz_box_7690_verbindung   # oder z. B. sensor.tp_link_ro
 
 Für Türschlösser und den **Nuki Opener**. Klingel, Ring to Open, Akku, Türsensor und letzter Batteriewechsel (Battery Notes) werden **über das Gerät** gefunden.
 Schloss: **Abschließen** sofort, **Aufschließen** und **Öffnen** mit Rückfrage („Sicher?“). Opener: **Ring to Open** an/aus und **Tür öffnen**.
+Mit `opener` erscheinen **Smart Lock und Opener in einer Karte**; der Türstatus („Tür zu/offen“) steht im Kopf.
 Der **Verlauf** (Logbuch) zeigt, wer auf- oder abgeschlossen hat – Person über den Benutzer oder Automation/Skript –, wann es geklingelt hat und wann die Tür offen war.
 
 ```yaml
 type: custom:ha-lock-card
-entity: lock.klingel
+entity: lock.zuhause          # Smart Lock (Türsensor wird automatisch gefunden)
+opener: lock.klingel          # optional: Nuki Opener dazu (Ring to Open, Summer, Klingel)
+# opener_name: Haustür unten
 # name: Haustür
 # history: false
 # history_hours: 48
@@ -771,11 +774,15 @@ entities:
 Alle Geräte einer Funk-Integration – **Zigbee2MQTT**, **ZHA** oder **Shelly** (ohne Angabe die mit den meisten Geräten) – mit **Signal** (Zigbee-LQI bzw. WLAN-dBm),
 **Akku**, Bereich, Modell, „zuletzt gesehen“, **Warnungen** (Überhitzung, Überlast, Neustart nötig) und **Firmware-Updates**. Offline-Geräte und Probleme stehen oben,
 Filter „Achtung“. Antippen zeigt Details mit **Update installieren**, **Neu starten** (beides mit Rückfrage) und „Gerät öffnen“. Bei Zigbee2MQTT zusätzlich
-Bridge-Status mit Version und **Anlernen** (permit join).
+Bridge-Status mit Version, **Anlernen** (permit join) und **Netzwerkkarte** (Coordinator, Router, Endgeräte, Linien nach LQI – über MQTT, braucht einen Administrator).
+`integration: wifi` zeigt **alle WLAN-Geräte** aus dem Router (FRITZ!Box, TP-Link …), per MAC mit den HA-Geräten verknüpft (Name, Bereich, Update, Neustart),
+plus Geräte mit eigenem WLAN-Signal (z. B. Blink); gerade nicht verbundene Geräte (Handy unterwegs) stehen grau am Ende.
 
 ```yaml
 type: custom:ha-network-card
-integration: zigbee2mqtt   # zha | shelly | …
+integration: zigbee2mqtt   # wifi | zha | shelly | …
+# wired: true              # wifi: auch LAN-Geräte
+# z2m_topic: zigbee2mqtt   # Netzwerkkarte: Basis-Topic
 # title: Zigbee
 # exclude: [Button Pumpe]
 # max_items: 8

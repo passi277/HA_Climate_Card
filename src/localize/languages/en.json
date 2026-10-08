@@ -1590,7 +1590,8 @@
     "ev_rto_on": "Ring to Open on",
     "ev_rto_off": "Ring to Open off",
     "ev_door_open": "Door opened",
-    "ev_door_closed": "Door closed"
+    "ev_door_closed": "Door closed",
+    "ev_buzz": "Building door opened (Opener)"
   },
   "lock_editor": {
     "entity": "Lock / Nuki Opener",
@@ -1600,7 +1601,8 @@
     "history_hours": "History (hours)",
     "doorbell": "Doorbell sensor (else automatic)",
     "door": "Door contact (else automatic)",
-    "hint": "Doorbell, Ring to Open, battery and door sensor are found via the device. The history shows who unlocked (person or automation)."
+    "hint": "Doorbell, Ring to Open, battery and door sensor are found via the device. The history shows who unlocked (person or automation).",
+    "opener": "Additional Nuki Opener (building door)"
   },
   "temperature": {
     "title": "Temperatures",
@@ -1660,7 +1662,21 @@
     "p_overpowering": "Overpower",
     "p_overcurrent": "Overcurrent",
     "p_overvoltage": "Overvoltage",
-    "p_restart_required": "Restart required"
+    "p_restart_required": "Restart required",
+    "wifi": "Wi-Fi",
+    "map": "Network map",
+    "map_scanning": "Scanning network … (up to 1 min)",
+    "map_as_of": "As of",
+    "map_refresh": "Rescan",
+    "map_no_mqtt": "No connection to Home Assistant",
+    "map_timeout": "No answer from Zigbee2MQTT – is the bridge running?",
+    "map_admin": "The network map needs an administrator user (MQTT)",
+    "map_empty": "No map yet – tap “Rescan”",
+    "end_device": "End device",
+    "ip": "IP address",
+    "connection": "Connection",
+    "not_connected": "not connected",
+    "connected": "connected"
   },
   "network_editor": {
     "integration": "Integration",
@@ -1672,6 +1688,9 @@
     "i_zigbee2mqtt": "Zigbee2MQTT",
     "i_zha": "ZHA (Zigbee)",
     "i_shelly": "Shelly",
-    "hint": "Signal (Zigbee LQI or Wi-Fi dBm), battery, firmware updates and warnings are detected via the devices. Problems are listed first."
+    "hint": "Signal (Zigbee LQI or Wi-Fi dBm), battery, firmware updates and warnings are detected via the devices. Problems are listed first.",
+    "i_wifi": "Wi-Fi (all devices via the router)",
+    "wired": "Also show wired devices",
+    "z2m_topic": "Zigbee2MQTT topic (default zigbee2mqtt)"
   }
 }

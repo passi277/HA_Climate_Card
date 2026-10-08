@@ -27,6 +27,7 @@ const EVENT_STYLE: Record<LockEventKind, [string, string]> = {
   rto_off: ["mdi:bell-off-outline", "#78909c"],
   door_open: ["mdi:door-open", "#1e88e5"],
   door_closed: ["mdi:door-closed", "#78909c"],
+  buzz: ["mdi:door-open", "#00897b"],
 };
 
 @customElement("ha-lock-card")
@@ -39,7 +40,7 @@ export class HaLockCard extends LitElement {
   private _confirmTimer?: number;
   private _loadTimer?: number;
   private _interval?: number;
-  private _cache?: { key: unknown; f: LockFeatures };
+  private _cache?: { key: unknown; f: LockFeatures; of: LockFeatures };
 
   public static getConfigElement(): HTMLElement {
     return document.createElement("ha-lock-card-editor");
@@ -81,17 +82,26 @@ export class HaLockCard extends LitElement {
   }
 
   private _f(): LockFeatures {
+    return this._feat().f;
+  }
+
+  /** Zubehör des Schlosses (f) und des zusätzlichen Openers (of) */
+  private _feat(): { f: LockFeatures; of: LockFeatures } {
     const hass = this.hass!;
-    if (this._cache && this._cache.key === hass.entities) return this._cache.f;
-    const auto = lockFeatures(hass.states, hass.entities, this._config!.entity);
-    const f = { ...auto, doorbell: this._config!.doorbell ?? auto.doorbell, door: this._config!.door ?? auto.door };
-    this._cache = { key: hass.entities, f };
-    return f;
+    if (this._cache && this._cache.key === hass.entities) return this._cache;
+    const c = this._config!;
+    const auto = lockFeatures(hass.states, hass.entities, c.entity);
+    const of = c.opener ? lockFeatures(hass.states, hass.entities, c.opener) : {};
+    // Klingel kommt beim Smart Lock meist vom Opener
+    const f = { ...auto, doorbell: c.doorbell ?? auto.doorbell ?? of.doorbell, door: c.door ?? auto.door };
+    this._cache = { key: hass.entities, f, of };
+    return this._cache;
   }
 
   private _ids(): string[] {
-    const f = this._f();
-    return [this._config!.entity, f.doorbell, f.ring_to_open, f.battery_low, f.battery, f.door, f.battery_replaced].filter((x): x is string => !!x);
+    const { f, of } = this._feat();
+    return [this._config!.entity, this._config!.opener, f.doorbell, f.ring_to_open, f.battery_low, f.battery, f.door, f.battery_replaced, of.battery_low]
+      .filter((x): x is string => !!x);
   }
 
   private get _opener(): boolean {
@@ -110,7 +120,7 @@ export class HaLockCard extends LitElement {
     if (!changed.has("hass") || !this.hass) return;
     const old = changed.get("hass") as HomeAssistant | undefined;
     const f = this._f();
-    const watch = [this._config!.entity, f.doorbell, f.ring_to_open, f.door].filter((x): x is string => !!x);
+    const watch = [this._config!.entity, this._config!.opener, f.doorbell, f.ring_to_open, f.door].filter((x): x is string => !!x);
     // Verlauf beim Start und nach jeder Änderung (kurz verzögert, bis das Logbuch geschrieben ist)
     if (!this._events && !this._loadTimer) this._loadHistory();
     else if (old && watch.some((id) => old.states[id] !== this.hass!.states[id])) {
@@ -124,7 +134,7 @@ export class HaLockCard extends LitElement {
     const c = this._config;
     if (!this.hass?.callWS || !c || c.history === false) return;
     const f = this._f();
-    const ids = [c.entity, f.doorbell, f.ring_to_open, f.door].filter((x): x is string => !!x);
+    const ids = [c.entity, c.opener, f.doorbell, f.ring_to_open, f.door].filter((x): x is string => !!x);
     try {
       const rows = await this.hass.callWS<any[]>({
         type: "logbook/get_events", start_time: new Date(Date.now() - (c.history_hours ?? 48) * 3_600_000).toISOString(),
@@ -134,7 +144,7 @@ export class HaLockCard extends LitElement {
       for (const st of Object.values(this.hass.states)) {
         if (st.entity_id.startsWith("person.") && st.attributes.user_id) persons[st.attributes.user_id] = st.attributes.friendly_name ?? st.entity_id;
       }
-      this._events = lockHistory(rows ?? [], { lock: c.entity, doorbell: f.doorbell, ring_to_open: f.ring_to_open, door: f.door }, persons, this._opener);
+      this._events = lockHistory(rows ?? [], { lock: c.entity, doorbell: f.doorbell, ring_to_open: f.ring_to_open, door: f.door, opener: c.opener }, persons, this._opener);
     } catch {
       this._events = [];
     }
@@ -144,10 +154,10 @@ export class HaLockCard extends LitElement {
     window.dispatchEvent(new CustomEvent("haptic", { detail: kind }));
   }
 
-  private async _call(service: string): Promise<void> {
+  private async _call(service: string, entity = this._config!.entity): Promise<void> {
     this._haptic("selection");
     try {
-      await this.hass!.callService("lock", service, { entity_id: this._config!.entity });
+      await this.hass!.callService("lock", service, { entity_id: entity });
     } catch (err: any) {
       this._haptic("failure");
       this.dispatchEvent(new CustomEvent("hass-notification", {
@@ -208,8 +218,15 @@ export class HaLockCard extends LitElement {
       : st?.state === "open" ? "mdi:door-open" : opener ? "mdi:door-closed-lock" : locked ? "mdi:lock" : "mdi:lock-open-variant";
     const name = c.name ?? st?.attributes.friendly_name ?? c.entity;
     const since = st && !na ? relTime(st.last_changed, lang) : "";
-    const sub = ringing ? this._t("ringing") : `${this._stateLabel(st, opener)}${since ? ` · ${since}` : ""}`;
-    const batLow = f.battery_low ? s[f.battery_low]?.state === "on" : false;
+    const doorTxt = f.door && s[f.door] && !UNAVAILABLE.includes(s[f.door]!.state) ? this._t(doorOpen ? "door_open" : "door_closed") : "";
+    const sub = ringing ? this._t("ringing") : [this._stateLabel(st, opener), doorTxt, since].filter(Boolean).join(" · ");
+    const { of } = this._feat();
+    const batLow = [f.battery_low, of.battery_low].some((id) => id && s[id]?.state === "on");
+    const batLowId = f.battery_low && s[f.battery_low]?.state === "on" ? f.battery_low : of.battery_low;
+    const op = c.opener ? s[c.opener] : undefined;
+    const opNa = !op || UNAVAILABLE.includes(op.state);
+    const opRto = op?.state === "unlocked";
+    const opName = c.opener_name ?? op?.attributes.friendly_name ?? c.opener;
     const batPct = f.battery ? Number(s[f.battery]?.state) : NaN;
     const lastRing = f.doorbell && s[f.doorbell] && !UNAVAILABLE.includes(s[f.doorbell]!.state) ? s[f.doorbell]!.last_changed : undefined;
     const replaced = f.battery_replaced ? s[f.battery_replaced]?.state : undefined;
@@ -243,14 +260,26 @@ export class HaLockCard extends LitElement {
         <button class="h-icon ${ringing || busy ? "pulse" : ""}" @click=${() => this._moreInfo(c.entity)} aria-label=${name}>
           <ha-icon .icon=${icon}></ha-icon></button>
         <span class="head-text"><span class="h-title">${name}</span><span class="h-sub">${sub}</span></span>
-        ${batLow ? html`<button class="chip warn" @click=${() => this._moreInfo(f.battery_low)}><ha-icon icon="mdi:battery-alert-variant-outline"></ha-icon>${this._t("battery_low")}</button>`
+        ${batLow ? html`<button class="chip warn" @click=${() => this._moreInfo(batLowId)}><ha-icon icon="mdi:battery-alert-variant-outline"></ha-icon>${this._t("battery_low")}</button>`
           : Number.isFinite(batPct) ? html`<button class="chip soft" @click=${() => this._moreInfo(f.battery)}><ha-icon .icon=${batteryIcon(batPct)}></ha-icon>${Math.round(batPct)} %</button>` : nothing}
       </div>
 
       <div class="acts">${actions}</div>
 
+      ${c.opener ? html`<div class="opener ${ringing ? "ring" : ""}" data-opener>
+        <span class="o-icon"><ha-icon .icon=${ringing ? "mdi:bell-ring" : opRto ? "mdi:bell-check" : "mdi:door-closed-lock"}></ha-icon></span>
+        <button class="o-text" @click=${() => this._moreInfo(c.opener)}><b>${opName}</b>
+          <small>${ringing ? this._t("ringing") : opNa ? this._t("unavailable") : this._t(opRto ? "rto_active" : "ready")}</small></button>
+        <button class="o-btn ${opRto ? "on" : ""}" data-act="o-rto" ?disabled=${opNa} aria-pressed=${opRto} title=${this._t("ring_to_open")}
+          @click=${() => this._call(opRto ? "lock" : "unlock", c.opener)}>
+          <ha-icon .icon=${opRto ? "mdi:bell-check" : "mdi:bell-off-outline"}></ha-icon><span>RTO</span></button>
+        <button class="o-btn main ${ask("o-open") ? "ask" : ""}" data-act="o-open" ?disabled=${opNa}
+          @click=${() => { if (this._confirmed("o-open")) this._call("open", c.opener); }}>
+          <ha-icon .icon=${ask("o-open") ? "mdi:alert-circle-outline" : "mdi:door-open"}></ha-icon><span>${ask("o-open") ? this._t("sure") : this._t("open")}</span></button>
+      </div>` : nothing}
+
       ${f.door || lastRing || replaced ? html`<div class="info">
-        ${f.door ? html`<button class="inf ${doorOpen ? "hot" : ""}" @click=${() => this._moreInfo(f.door)}>
+        ${f.door ? html`<button class="inf ${doorOpen ? "hot" : "shut"}" data-door=${doorOpen ? "open" : "closed"} @click=${() => this._moreInfo(f.door)}>
           <ha-icon .icon=${doorOpen ? "mdi:door-open" : "mdi:door-closed"}></ha-icon>${this._t(doorOpen ? "door_open" : "door_closed")}</button>` : nothing}
         ${lastRing ? html`<button class="inf" @click=${() => this._moreInfo(f.doorbell)}><ha-icon icon="mdi:bell-outline"></ha-icon>${this._t("last_ring")} ${relTime(lastRing, lang)}</button>` : nothing}
         ${replaced && !UNAVAILABLE.includes(replaced) ? html`<button class="inf" @click=${() => this._moreInfo(f.battery_replaced)}>
@@ -306,11 +335,27 @@ export class HaLockCard extends LitElement {
     .act[disabled] { cursor: default; opacity: 0.55; }
     .act.on[disabled] { opacity: 1; }
 
+    .opener { display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 10px; border-radius: 16px; background: rgba(127,127,127,0.07); }
+    .opener.ring { background: color-mix(in srgb, #fbc02d 18%, transparent); }
+    .o-icon { flex: none; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; color: #00897b; background: color-mix(in srgb, #00897b 14%, transparent); }
+    .opener.ring .o-icon { color: #f9a825; }
+    .o-icon ha-icon { --mdc-icon-size: 19px; }
+    .o-text { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 0; border: none; background: none; cursor: pointer; text-align: left; color: inherit; }
+    .o-text b { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .o-text small { font-size: 11.5px; color: var(--secondary-text-color); }
+    .o-btn { flex: none; display: inline-flex; align-items: center; gap: 4px; padding: 7px 11px; border: none; border-radius: 999px; cursor: pointer; font-size: 12.5px; font-weight: 700;
+      color: var(--secondary-text-color); background: rgba(127,127,127,0.12); }
+    .o-btn ha-icon { --mdc-icon-size: 17px; }
+    .o-btn.on { color: #fff; background: #fb8c00; }
+    .o-btn.main { color: #fff; background: #00897b; }
+    .o-btn.ask { background: #e53935; }
+    .o-btn[disabled] { opacity: 0.5; cursor: default; }
     .info { display: flex; flex-wrap: wrap; gap: 6px; }
     .inf { display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border: none; border-radius: 999px; cursor: pointer; font-size: 12px; font-weight: 600;
       color: var(--secondary-text-color); background: rgba(127,127,127,0.1); }
     .inf ha-icon { --mdc-icon-size: 15px; }
     .inf.hot { color: #fff; background: #1e88e5; }
+    .inf.shut { color: #2e7d32; background: color-mix(in srgb, #43a047 14%, transparent); }
 
     .hist { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: 14px; background: rgba(127,127,127,0.06); }
     .hist-head { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 700; color: var(--secondary-text-color); margin-bottom: 4px; }

@@ -26,6 +26,7 @@ export interface DeviceRegistryEntry {
   sw_version?: string | null;
   via_device_id?: string | null;
   identifiers?: [string, string][];
+  connections?: [string, string][];
 }
 
 export interface HomeAssistant {
@@ -1197,6 +1198,9 @@ export interface LockCardConfig {
   /** lock.* (Nuki Smart Lock, Nuki Opener, andere Schlösser) */
   entity: string;
   name?: string;
+  /** Zusätzlich ein Nuki Opener (Haustür unten): Ring to Open, Summer, Klingel */
+  opener?: string;
+  opener_name?: string;
   /** Verlauf der letzten Aktionen (Standard an) */
   history?: boolean;
   /** Stunden für den Verlauf (Standard 48) */
@@ -1249,4 +1253,8 @@ export interface NetworkCardConfig {
   max_items?: number;
   /** Neustart/Update mit Rückfrage (Standard an) */
   confirm?: boolean;
+  /** WLAN: auch per Kabel verbundene Geräte zeigen */
+  wired?: boolean;
+  /** Zigbee2MQTT: Basis-Topic für die Netzwerkkarte (Standard zigbee2mqtt) */
+  z2m_topic?: string;
 }
