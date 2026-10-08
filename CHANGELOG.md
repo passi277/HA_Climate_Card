@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.46.1 – Grill: Gargut & Ziel einstellen
+- Grill Card: erkennt auch eigene Sonden-Geräte (Kerntemperatur, Phase, Fortschritt, Restzeit in Minuten, Ziel erreicht); **Gargut-Auswahl** (z. B. Rehkeule, Pulled Pork) und **Zieltemperatur −/+** direkt in der Karte, auch vorab bei inaktiven Sonden
+- Neue Phasen „Heizt auf“, „Plateau (Stall)“ und „Fast fertig“, Fortschrittsbalken
+
 ## 1.46.0 – Steckdosen & Grillthermometer
 - Neue **Modern Plug Card** (`custom:ha-plug-card`): Steckdosen als Kacheln mit Schalter (Ausschalten mit Rückfrage), aktueller Leistung, Verbrauch und Kosten heute/Monat, 24-h-Verlauf, Warnungen bei Überlast/Überhitzung/Neustart nötig und Gerätetemperatur ab 60 °C, Wächter „läuft nicht?“ (z. B. Kühlschrank) – Messwerte automatisch über das Gerät
 - Neue **Modern Grill Card** (`custom:ha-grill-card`) für Meater: Ring Kern- gegen Zieltemperatur, Gargut, Kochstatus, Restzeit und „fertig um“, Garraum- und Spitzentemperatur, Verlauf seit Kochbeginn, Hinweis „herausnehmen und ruhen lassen“; inaktive Sonden kompakt

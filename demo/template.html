@@ -720,6 +720,13 @@
       "sensor.meater_2_kocht": { state: "Rinderfilet", attributes: { friendly_name: "Meater 2 Kocht" } },
       "sensor.meater_2_verbleibende_zeit": { state: new Date(Date.now() + 23 * 60000).toISOString(), attributes: { friendly_name: "Meater 2 Verbleibende Zeit", device_class: "timestamp" } },
       "sensor.meater_2_verstrichene_zeit": { state: new Date(Date.now() - 72 * 60000).toISOString(), attributes: { friendly_name: "Meater 2 Verstrichene Zeit", device_class: "timestamp" } },
+      // Eigene Sonde wie im Garten (Gargut + Zieltemperatur einstellbar), gerade inaktiv
+      "sensor.gm_plus_kerntemperatur": { state: "unknown", attributes: { friendly_name: "Meater plus Kerntemperatur", device_class: "temperature", unit_of_measurement: "°C" } },
+      "sensor.gm_plus_phase": { state: "unknown", attributes: { friendly_name: "Meater plus Phase", device_class: "enum", options: ["idle", "heating", "cooking", "stall", "near_done", "target_reached", "resting"] } },
+      "sensor.gm_plus_fortschritt": { state: "unknown", attributes: { friendly_name: "Meater plus Fortschritt", unit_of_measurement: "%" } },
+      "number.gm_plus_zieltemperatur": { state: "62.0", attributes: { friendly_name: "Meater plus Zieltemperatur", min: 30, max: 100, step: 1, unit_of_measurement: "°C" } },
+      "select.gm_plus_gargut": { state: "roe_deer_leg", attributes: { friendly_name: "Meater plus Gargut", options: ["custom", "beef_medium_rare", "pulled_pork", "roe_deer_leg", "chicken"] } },
+      "binary_sensor.gm_plus_ziel_erreicht": { state: "off", attributes: { friendly_name: "Meater plus Ziel erreicht" } },
       // TP-Link-Clients mit WLAN-Signal (wie im Garten)
       "device_tracker.tp_shelly_kuhlschrank": { state: "home", attributes: { friendly_name: "shelly_kuehlschrank", host_name: "shelly_kuehlschrank", ip: "192.168.0.211", mac: "34-B7-DA-00-00-01", connection: "host", band: "2G", signal: -60, source_type: "router" } },
       "device_tracker.tp_goat": { state: "home", attributes: { friendly_name: "goat", host_name: "goat", ip: "192.168.0.120", mac: "EC-30-8E-82-A0-94", connection: "host", band: "2G", signal: -81, source_type: "router" } },
@@ -768,6 +775,7 @@
       ...(/^device_tracker\.tp_/.test(id) ? { platform: "tplink_router" } : {}),
       ...(/^\w+\.stecker_pumpe_/.test(id) ? { device_id: "sh_pumpe", platform: "shelly" } : {}),
       ...(/^sensor\.meater_2_/.test(id) ? { device_id: "dev_meater2", platform: "meater" } : {}),
+      ...(/^\w+\.gm_plus_/.test(id) ? { device_id: "dev_gm_plus", platform: "garten" } : {}),
       ...(/^\w+\.shelly_(kuhlschrank|hutte_ausensteckdosen|licht)/.test(id) ? { device_id: "sh_" + id.match(/shelly_(kuhlschrank|hutte_ausensteckdosen|licht)/)[1], platform: "shelly",
         ...(/_(rssi|uptime|reboot|firmware|restart_required|overheating|device_temperature)$/.test(id) ? { entity_category: "diagnostic" } : {}) } : {}),
       ...(/^device_tracker\.fb_/.test(id) ? { platform: "fritz" } : {}),
@@ -789,6 +797,7 @@
       sh_hutte_ausensteckdosen: { id: "sh_hutte_ausensteckdosen", name: "Shelly Hütte Außensteckdosen", model: "Shelly 1PM Gen3", manufacturer: "Shelly", area_id: "hutte" },
       sh_pumpe: { id: "sh_pumpe", name: "Stecker Pumpe", model: "Shelly Outdoor Plug S Gen3", manufacturer: "Shelly" },
       dev_meater2: { id: "dev_meater2", name: "MEATER 2+ Sonde", model: "Meater 2 Plus" },
+      dev_gm_plus: { id: "dev_gm_plus", name: "Meater plus", model: "Sonde" },
       sh_licht: { id: "sh_licht", name: "Shelly Licht Hütte", model: "Shelly 1 Mini Gen3", manufacturer: "Shelly" },
       dev_fritz: { id: "dev_fritz", name: "FRITZ!Box 7690" }, dev_tplink: { id: "dev_tplink", name: "TP-Link Router" },
       dev_sb_garten: { id: "dev_sb_garten", name: "Solarbank 3 E2700 Pro", via_device_id: "dev_sys_garten" }, dev_sys_garten: { id: "dev_sys_garten", name: "System Solix Garten" },
@@ -1060,7 +1069,7 @@
           setTimeout(() => { const h = makeHass(); cards.forEach((c) => (c.hass = h)); }, 150);
           return;
         }
-        if (domain === "input_number" || domain === "number" || domain === "input_select" || domain === "script") {
+        if (domain === "input_number" || domain === "number" || domain === "input_select" || domain === "select" || domain === "script") {
           if (service === "set_value") states[data.entity_id] = { ...s, state: String(data.value) };
           if (service === "select_option") states[data.entity_id] = { ...s, state: data.option };
           setTimeout(() => { const h = makeHass(); cards.forEach((c) => (c.hass = h)); }, 150);

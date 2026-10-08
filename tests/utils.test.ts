@@ -1361,6 +1361,7 @@ describe("Schloss, Temperatur, Funknetz", () => {
       state: "sensor.meater_probe_a_kochstatus", remaining: "sensor.meater_probe_a_verbleibende_zeit" });
     expect(["started", "Ready For Resting", "resting", "finished", "OVERCOOK!", "not_started", "configured"].map(cookPhase))
       .toEqual(["cooking", "ready", "resting", "done", "over", "idle", "configured"]);
+    expect(["heating", "stall", "near_done", "target_reached", "idle", "unknown"].map(cookPhase)).toEqual(["heating", "stall", "near", "ready", "idle", "idle"]);
     expect([cookProgress(28, 56), cookProgress(60, 56), cookProgress(undefined, 56), cookProgress(30, 56, 4)]).toEqual([50, 100, undefined, 50]);
   });
 });

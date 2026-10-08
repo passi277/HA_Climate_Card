@@ -1734,7 +1734,10 @@
     "phase_ready": "Target reached",
     "phase_resting": "Resting",
     "phase_done": "Done",
-    "phase_over": "Overcooked"
+    "phase_over": "Overcooked",
+    "phase_heating": "Heating",
+    "phase_stall": "Stall",
+    "phase_near": "Almost done"
   },
   "grill_editor": {
     "title": "Title",

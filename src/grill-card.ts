@@ -16,7 +16,8 @@ import "./grill-editor";
   documentationURL: DOCS_URL,
 });
 
-const PHASE_COLOR: Record<CookPhase, string> = { idle: "#9e9e9e", configured: "#1e88e5", cooking: "#fb8c00", ready: "#e53935", resting: "#8e24aa", done: "#43a047", over: "#b71c1c" };
+const PHASE_COLOR: Record<CookPhase, string> = { idle: "#9e9e9e", configured: "#1e88e5", heating: "#ffa000", cooking: "#fb8c00", stall: "#6d4c41", near: "#f4511e",
+  ready: "#e53935", resting: "#8e24aa", done: "#43a047", over: "#b71c1c" };
 type Pts = { t: number; v: number }[];
 
 @customElement("ha-grill-card")
@@ -24,6 +25,7 @@ export class HaGrillCard extends LitElement {
   @property({ attribute: false }) hass?: HomeAssistant;
   @state() private _config?: GrillCardConfig;
   @state() private _hist: Record<string, Pts> = {};
+  @state() private _setup?: string;
   private _interval?: number;
   private _loadedFor?: string;
   private _cache?: { key: unknown; probes: MeatProbe[] };
@@ -145,6 +147,46 @@ export class HaGrillCard extends LitElement {
     if (id) this.dispatchEvent(new CustomEvent("hass-more-info", { detail: { entityId: id }, bubbles: true, composed: true }));
   }
 
+  /** Gargut-Bezeichnung (Übersetzung, sonst aus dem Schlüssel) */
+  private _foodLabel(v: string): string {
+    const key = `grill.food_${v}`;
+    const t = localize(this.hass, key);
+    if (t && t !== key) return t;
+    return v.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
+  }
+
+  private async _call(domain: string, service: string, data: Record<string, unknown>): Promise<void> {
+    window.dispatchEvent(new CustomEvent("haptic", { detail: "selection" }));
+    try {
+      await this.hass!.callService(domain, service, data);
+    } catch (err: any) {
+      this.dispatchEvent(new CustomEvent("hass-notification", {
+        detail: { message: `${localize(this.hass, "card.error")}: ${err?.message ?? err}` }, bubbles: true, composed: true,
+      }));
+    }
+  }
+
+  /** Gargut-Auswahl und Ziel ±1 (nur wenn die Sonde das anbietet) */
+  private _controls(p: MeatProbe) {
+    const s = this.hass!.states;
+    const food = p.food ? s[p.food] : undefined;
+    const tgt = p.target?.startsWith("number.") ? s[p.target] : undefined;
+    if (!food && !tgt) return nothing;
+    const tv = tgt ? Number(tgt.state) : NaN;
+    const step = Number(tgt?.attributes.step ?? 1) || 1;
+    const set = (d: number) => this._call("number", "set_value", { entity_id: p.target, value: Math.round((tv + d) * 10) / 10 });
+    return html`<div class="ctrl">
+      ${food ? html`<label class="food"><ha-icon icon="mdi:food-drumstick-outline"></ha-icon>
+        <select data-act="food" @change=${(e: Event) => this._call("select", "select_option", { entity_id: p.food, option: (e.target as HTMLSelectElement).value })}>
+          ${(food.attributes.options as string[] ?? []).map((o) => html`<option value=${o} ?selected=${o === food.state}>${this._foodLabel(o)}</option>`)}
+        </select></label>` : nothing}
+      ${tgt && Number.isFinite(tv) ? html`<span class="tgt-ctl">
+        <button data-act="tgt-down" @click=${() => set(-step)} aria-label="−"><ha-icon icon="mdi:minus"></ha-icon></button>
+        <span>${this._t("target")} <b>${this._fmt(tv)}°</b></span>
+        <button data-act="tgt-up" @click=${() => set(step)} aria-label="+"><ha-icon icon="mdi:plus"></ha-icon></button></span>` : nothing}
+    </div>`;
+  }
+
   private _ring(pct: number | undefined, color: string, internal?: number, target?: number) {
     const r = 46, c = 2 * Math.PI * r;
     const p = pct ?? 0;
@@ -183,12 +225,15 @@ export class HaGrillCard extends LitElement {
     const s = this.hass!.states;
     const lang = getLanguage(this.hass);
     const internal = this._num(p.internal), ambient = this._num(p.ambient), target = this._num(p.target), peak = this._num(p.peak);
-    const phase = cookPhase(p.state ? s[p.state]?.state : undefined);
+    const reached = p.reached ? s[p.reached]?.state === "on" : false;
+    const raw = cookPhase(p.state ? s[p.state]?.state : undefined);
+    const phase: CookPhase = reached && ["idle", "heating", "cooking", "stall", "near"].includes(raw) ? "ready" : raw;
     const color = PHASE_COLOR[phase];
-    const pct = cookProgress(internal, target);
+    const pct = this._num(p.progress) ?? cookProgress(internal, target);
     const doneAt = this._when(p.remaining, true);
     const started = this._started(p);
-    const cook = p.cook ? s[p.cook]?.state : undefined;
+    const foodSt = p.food ? s[p.food]?.state : undefined;
+    const cook = p.cook ? s[p.cook]?.state : foodSt && !UNAVAILABLE.includes(foodSt) && foodSt !== "custom" ? this._foodLabel(foodSt) : undefined;
     const cookName = cook && !UNAVAILABLE.includes(cook) && !/^(none|keine?|-)$/i.test(cook) ? cook : undefined;
     const stateText = p.state ? s[p.state]?.state : undefined;
     return html`<div class="probe ${phase}" style="--pc:${color}" data-probe=${p.device}>
@@ -203,6 +248,7 @@ export class HaGrillCard extends LitElement {
           ${doneAt != null && doneAt > Date.now() ? html`<span class="p-time" data-left><ha-icon icon="mdi:timer-sand"></ha-icon><span>${this._t("left")} <b>${this._dur(doneAt - Date.now())}</b>
             · ${this._t("ready_at")} ${new Date(doneAt).toLocaleTimeString(lang, { hour: "2-digit", minute: "2-digit" })}</span></span>` : nothing}
           ${started != null ? html`<span class="p-time"><ha-icon icon="mdi:clock-outline"></ha-icon><span>${this._t("running")} ${this._dur(Date.now() - started)}</span></span>` : nothing}
+          ${pct != null && pct >= 0 ? html`<span class="bar"><i style="width:${Math.min(100, pct)}%"></i></span>` : nothing}
           <span class="p-meta">
             ${ambient != null ? html`<button class="m" @click=${() => this._moreInfo(p.ambient)}><ha-icon icon="mdi:fire"></ha-icon>${this._fmt(ambient)}°</button>` : nothing}
             ${peak != null ? html`<button class="m" @click=${() => this._moreInfo(p.peak)}><ha-icon icon="mdi:arrow-collapse-up"></ha-icon>${this._fmt(peak)}°</button>` : nothing}
@@ -210,6 +256,7 @@ export class HaGrillCard extends LitElement {
           </span>
         </div>
       </div>
+      ${this._controls(p)}
       ${this._config?.show_graph === false ? nothing : this._chart(p, target)}
     </div>`;
   }
@@ -231,8 +278,19 @@ export class HaGrillCard extends LitElement {
       </div>
       ${active.map((p) => this._probe(p))}
       ${c.hide_idle || !idle.length ? nothing : html`<div class="idle">
-        ${idle.map((p) => html`<button class="i-row" data-probe=${p.device} @click=${() => this._moreInfo(p.internal)}>
-          <ha-icon icon="mdi:thermometer-probe-off"></ha-icon><span>${p.name}</span><small>${this._t("in_charger")}</small></button>`)}
+        ${idle.map((p) => {
+          const s = this.hass!.states;
+          const food = p.food ? s[p.food]?.state : undefined;
+          const tv = this._num(p.target);
+          const setupable = !!(p.food || p.target?.startsWith("number."));
+          const plan = [food && food !== "custom" && !UNAVAILABLE.includes(food) ? this._foodLabel(food) : "", tv != null ? `${this._t("target")} ${this._fmt(tv)}°` : ""].filter(Boolean).join(" · ");
+          const open = this._setup === p.device;
+          return html`<div class="i-wrap ${open ? "open" : ""}">
+            <button class="i-row" data-probe=${p.device} @click=${() => { if (setupable) this._setup = open ? undefined : p.device; else this._moreInfo(p.internal); }}>
+              <ha-icon icon="mdi:thermometer-probe-off"></ha-icon><span>${p.name}</span><small>${plan || this._t("in_charger")}</small>
+              ${setupable ? html`<ha-icon class="chev" icon="mdi:tune-variant"></ha-icon>` : nothing}</button>
+            ${open ? this._controls(p) : nothing}</div>`;
+        })}
       </div>`}
     </ha-card>`;
   }
@@ -286,7 +344,23 @@ export class HaGrillCard extends LitElement {
     .legend i { width: 12px; height: 3px; border-radius: 2px; }
     .legend i.int { background: var(--pc); } .legend i.amb { background: #ffb74d; } .legend i.tgt { background: #43a047; }
     .idle { display: flex; flex-direction: column; gap: 4px; }
-    .i-row { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: none; border-radius: 12px; cursor: pointer; text-align: left; color: var(--secondary-text-color);
+    .i-wrap { border-radius: 12px; }
+    .i-wrap.open { background: rgba(127,127,127,0.06); }
+    .i-wrap.open .ctrl { padding: 0 10px 10px; }
+    .i-row .chev { --mdc-icon-size: 16px; }
+    .bar { width: 100%; height: 5px; border-radius: 3px; background: rgba(127,127,127,0.16); overflow: hidden; margin-top: 2px; }
+    .bar i { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg, #ffb74d, var(--pc)); transition: width 0.8s var(--ease-out); }
+    .ctrl { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .food { flex: 1 1 160px; display: flex; align-items: center; gap: 6px; padding: 4px 4px 4px 10px; border-radius: 999px; background: rgba(127,127,127,0.12); }
+    .food ha-icon { --mdc-icon-size: 17px; color: var(--secondary-text-color); }
+    .food select { flex: 1; min-width: 0; padding: 5px 6px; border: none; border-radius: 999px; font: inherit; font-size: 13px; font-weight: 600;
+      color: var(--primary-text-color); background: transparent; cursor: pointer; }
+    .food select option { color: #000; }
+    .tgt-ctl { flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 3px; border-radius: 999px; font-size: 13px; background: rgba(127,127,127,0.12); }
+    .tgt-ctl button { width: 30px; height: 30px; border: none; border-radius: 50%; display: grid; place-items: center; cursor: pointer; color: var(--primary-text-color);
+      background: var(--card-background-color, #fff); box-shadow: 0 1px 3px rgba(0,0,0,0.15); }
+    .tgt-ctl button ha-icon { --mdc-icon-size: 16px; }
+    .i-row { width: 100%; display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: none; border-radius: 12px; cursor: pointer; text-align: left; color: var(--secondary-text-color);
       background: rgba(127,127,127,0.06); font-size: 13px; font-weight: 600; }
     .i-row span { flex: 1; color: var(--primary-text-color); }
     .i-row small { font-size: 11.5px; font-weight: 500; }

@@ -2831,6 +2831,12 @@ export interface MeatProbe {
   cook?: string;
   remaining?: string;
   elapsed?: string;
+  /** Fortschritt in % (falls die Integration ihn liefert) */
+  progress?: string;
+  /** Auswahl Gargut (select) */
+  food?: string;
+  /** Ziel erreicht (binary_sensor) */
+  reached?: string;
   entities: string[];
 }
 
@@ -2841,19 +2847,26 @@ export const meatProbes = (states: Record<string, HassEntity>, entities: Record<
   const wanted = anchors?.length ? new Set(anchors.map((a) => entities?.[a]?.device_id ?? a)) : undefined;
   const out: MeatProbe[] = [];
   for (const [id, ents] of byDevice) {
-    if (wanted ? !wanted.has(id) : !ents.some((e) => e.platform === platform)) continue;
-    const pick = (keys: string[], re: RegExp) => ents.find((e) => e.entity_id.startsWith("sensor.") && (keys.includes(e.translation_key ?? "") || re.test(e.entity_id)))?.entity_id;
+    // Meater-Integration oder eigene Sonden-Geräte (Kerntemperatur + Phase)
+    const own = ents.some((e) => /_kerntemperatur$/.test(e.entity_id)) && ents.some((e) => /_phase$/.test(e.entity_id));
+    if (wanted ? !wanted.has(id) : !ents.some((e) => e.platform === platform) && !own) continue;
+    const pick = (keys: string[], re: RegExp, domains = ["sensor"]) => ents.find((e) => domains.includes(e.entity_id.split(".")[0]!)
+      && (keys.includes(e.translation_key ?? "") || re.test(e.entity_id)))?.entity_id;
     const p: MeatProbe = {
       device: id,
       name: (devices?.[id]?.name_by_user || devices?.[id]?.name || String(states[ents[0]!.entity_id]?.attributes.friendly_name ?? id)).trim(),
       internal: pick(["internal"], /_(innentemperatur|internal|kerntemperatur)$/),
       ambient: pick(["ambient"], /_(umgebungstemperatur|ambient)$/),
-      target: pick(["cook_target_temp"], /_(soll_temperatur|zieltemperatur|target(_temp)?)$/),
+      // einstellbares Ziel (number) vor reinem Anzeigewert
+      target: pick([], /_(zieltemperatur|soll_temperatur|target(_temp)?)$/, ["number"]) ?? pick(["cook_target_temp"], /_(soll_temperatur|zieltemperatur|target(_temp)?)$/),
       peak: pick(["cook_peak_temp"], /_(spitzentemperatur|peak(_temp)?)$/),
-      state: pick(["cook_state"], /_(kochstatus|cook_state|status)$/),
+      state: pick(["cook_state"], /_(kochstatus|cook_state|phase|status)$/),
       cook: pick(["cook_name"], /_(kocht|cook_name|gericht)$/),
-      remaining: pick(["cook_time_remaining"], /_(verbleibende_zeit|time_remaining|remaining)$/),
+      remaining: pick(["cook_time_remaining"], /_(verbleibende_zeit|restzeit|time_remaining|remaining)$/),
       elapsed: pick(["cook_time_elapsed"], /_(verstrichene_zeit|time_elapsed|elapsed)$/),
+      progress: pick([], /_(fortschritt|progress)$/),
+      food: pick([], /_(gargut|food|meat)$/, ["select"]),
+      reached: pick([], /_(ziel_erreicht|target_reached)$/, ["binary_sensor"]),
       entities: ents.map((e) => e.entity_id),
     };
     if (p.internal) out.push(p);
@@ -2861,12 +2874,16 @@ export const meatProbes = (states: Record<string, HassEntity>, entities: Record<
   return out.sort((a, b) => a.name.localeCompare(b.name, "de"));
 };
 
-export type CookPhase = "idle" | "configured" | "cooking" | "ready" | "resting" | "done" | "over";
+export type CookPhase = "idle" | "configured" | "heating" | "cooking" | "stall" | "near" | "ready" | "resting" | "done" | "over";
 
 /** Kochstatus vereinheitlichen (Meater-Enum, deutsch und englisch) */
 export const cookPhase = (state?: string): CookPhase => {
   const s = (state ?? "").toLowerCase().replace(/[\s-]+/g, "_");
-  if (/not_started|nicht_gestartet|^$/.test(s)) return "idle";
+  if (/not_started|nicht_gestartet|^$|^idle$|unknown|unavailable/.test(s)) return "idle";
+  if (/target_reached|ziel_erreicht/.test(s)) return "ready";
+  if (/near_done|fast_fertig/.test(s)) return "near";
+  if (/stall|plateau/.test(s)) return "stall";
+  if (/heating|aufheiz/.test(s)) return "heating";
   if (/overcook|slightly_overdone|leicht_übergart|übergart|zu_lange/.test(s)) return "over";
   if (/ready_for_resting|ruhen_bereit|bereit_zum_ruhen/.test(s)) return "ready";
   if (/resting|ruht/.test(s)) return "resting";

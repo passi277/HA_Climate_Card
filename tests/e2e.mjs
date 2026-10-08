@@ -1847,8 +1847,21 @@ colorFails.length ? fail(`Farbe folgt nicht dem Modus: ${colorFails.join(", ")}`
       phase: r.querySelector(".phase")?.textContent.trim(), left: r.querySelector("[data-left]")?.textContent.replace(/\s+/g, " ").trim(), chart: !!r.querySelector(".chart .int"),
       idle: [...r.querySelectorAll(".i-row span")].map((x) => x.textContent.trim()) }; });
   grill.sub === "1 Sonde aktiv" && grill.name === "Rinderfilet" && grill.temp === "48,6°" && grill.phase === "Gart" && /^Noch \d+ min · fertig/.test(grill.left) && grill.chart
-    && grill.idle.join() === "MEATER+ Sonde"
-    ? ok(`Grillthermometer: ${grill.name} ${grill.temp} (${grill.phase}), ${grill.left}, inaktive Sonde kompakt`) : fail(`Grillthermometer: ${JSON.stringify(grill)}`);
+    && grill.idle.join() === "Meater plus,MEATER+ Sonde"
+    ? ok(`Grillthermometer: ${grill.name} ${grill.temp} (${grill.phase}), ${grill.left}, inaktive Sonden kompakt`) : fail(`Grillthermometer: ${JSON.stringify(grill)}`);
+  // Inaktive Sonde vorab einstellen: Gargut + Ziel
+  const g = await p.evaluateHandle(() => document.querySelector("ha-grill-card"));
+  const plan = await g.evaluate((c) => c.shadowRoot.querySelector('.i-row[data-probe="dev_gm_plus"] small')?.textContent.trim());
+  await g.evaluate((c) => c.shadowRoot.querySelector('.i-row[data-probe="dev_gm_plus"]').click());
+  await p.waitForTimeout(150);
+  const k = await p.evaluate(() => window.serviceCalls.length);
+  await g.evaluate((c) => c.shadowRoot.querySelector('[data-act="tgt-up"]').click());
+  await g.evaluate((c) => { const sel = c.shadowRoot.querySelector('select[data-act="food"]'); sel.value = "pulled_pork"; sel.dispatchEvent(new Event("change")); });
+  await p.waitForTimeout(300);
+  const gcalls = await p.evaluate((k) => window.serviceCalls.slice(k).map((c) => `${c.domain}.${c.service}:${c.data.value ?? c.data.option}`), k);
+  const plan2 = await g.evaluate((c) => c.shadowRoot.querySelector('.i-row[data-probe="dev_gm_plus"] small')?.textContent.trim());
+  plan === "Rehkeule · Ziel 62°" && gcalls.join() === "number.set_value:63,select.select_option:pulled_pork" && plan2 === "Pulled Pork · Ziel 63°"
+    ? ok(`Grillthermometer: Sonde vorab einstellen (${plan} → ${plan2})`) : fail(`Grill einstellen: ${JSON.stringify({ plan, gcalls, plan2 })}`);
 }
 
 // Theme-Umschalter

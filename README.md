@@ -817,6 +817,8 @@ entities:
 Für **Meater** (und Sonden mit ähnlichen Sensoren): je aktiver Sonde ein **Ring Kern- gegen Zieltemperatur**, Gargut, **Kochstatus**,
 **Restzeit und „fertig um“**, „läuft seit“, Garraum- und Spitzentemperatur sowie ein **Verlauf** seit Kochbeginn. Ist das Ziel erreicht, blinkt
 „Jetzt herausnehmen und ruhen lassen!“. Sonden im Ladegerät erscheinen kompakt darunter. Ohne `entities` werden alle Meater-Sonden gefunden.
+Eigene Sonden-Geräte mit `…_kerntemperatur`, `…_phase`, `…_fortschritt`, `…_restzeit`, `number.…_zieltemperatur` und `select.…_gargut` werden ebenfalls erkannt –
+dann lassen sich **Gargut und Zieltemperatur direkt in der Karte einstellen**, auch vorab bei inaktiven Sonden.
 
 ```yaml
 type: custom:ha-grill-card
