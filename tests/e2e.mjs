@@ -1812,12 +1812,12 @@ colorFails.length ? fail(`Farbe folgt nicht dem Modus: ${colorFails.join(", ")}`
   try { await p.evaluate(() => localStorage.removeItem("hcc-z2m-map:zigbee2mqtt")); } catch {}
   await z.evaluate((c) => c.shadowRoot.querySelector('[data-act="map"]').click());
   await p.waitForTimeout(800);
-  const map = await z.evaluate((c) => { const r = c.shadowRoot; return { nodes: r.querySelectorAll(".zmap .nd").length, links: r.querySelectorAll(".zmap .ln").length,
+  const map = await z.evaluate((c) => { const r = c.shadowRoot; return { nodes: r.querySelectorAll(".zwrap .zn").length, links: r.querySelectorAll(".zlinks .lk.tree").length,
     pub: window.serviceCalls.filter((x) => x.domain === "mqtt").map((x) => x.data.topic) }; });
-  await z.evaluate((c) => c.shadowRoot.querySelector('.zmap .nd[data-node="0xe2"]').dispatchEvent(new MouseEvent("click", { bubbles: true })));
+  await z.evaluate((c) => c.shadowRoot.querySelector('.zwrap .zn[data-node="0xe2"]').click());
   await p.waitForTimeout(100);
-  const sel = await z.evaluate((c) => c.shadowRoot.querySelector(".map-sel")?.textContent.replace(/\s+/g, " ").trim());
-  map.nodes === 8 && map.links === 9 && map.pub.includes("zigbee2mqtt/bridge/request/networkmap") && /Temperatur Haus/.test(sel) && /Stecker Router 38/.test(sel)
+  const sel = await z.evaluate((c) => c.shadowRoot.querySelector(".zinfo")?.textContent.replace(/\s+/g, " ").trim());
+  map.nodes === 15 && map.links === 14 && map.pub.includes("zigbee2mqtt/bridge/request/networkmap") && /Temperatur Haus/.test(sel) && /Stecker Router\s*38/.test(sel) && /Coordinator/.test(sel)
     ? ok(`Zigbee-Netzkarte: ${map.nodes} Knoten, ${map.links} Verbindungen, Auswahl „${sel}“`) : fail(`Zigbee-Netzkarte: ${JSON.stringify({ map, sel })}`);
 }
 

@@ -5,7 +5,7 @@ import {
   llmEvents, llmCategory, snapshotMediaId, dayGroups, homeBatteryFeatures, batteryEta, batteryStatusKey,
   nextPickups, eventStart, daysUntil, offlineDevices, platformName,
   routerFeatures, routerClients, clientIcon, formatKbit, wifiLabel,
-  lockFeatures, lockHistory, zigbeeLayout, normMac, tempDefaults, tempLevel, tempStats, networkDevices, netIntegration, netSeverity, netIcon, lqiQuality,
+  lockFeatures, lockHistory, zigbeeLayout, zigbeeRoute, normMac, tempDefaults, tempLevel, tempStats, networkDevices, netIntegration, netSeverity, netIcon, lqiQuality,
   sceneStyle, sceneLabel, sceneGroups, hueRoomLights, hueRooms, parcelStatus, parcelCarrier, parcelText, sortParcels, sceneActivated, mealieMinutes, formatMinutes, scaleIngredient, mealEntries, ymdLocal,
   minutesUntil, formatShortDuration, shiftTime, weekStart, monthStart, yearStart, monthlyTotals, dailyTotals, kwhFactor, percentChange,
   updateKind, pendingUpdates, updateName, resourceSensors, backupSensors, backupHealth, loadLevel, windDir, tempScale, weatherHint, weatherIcon,
@@ -1327,8 +1327,10 @@ describe("Schloss, Temperatur, Funknetz", () => {
     expect([by.c!.x, by.c!.y]).toEqual([0, 0]);
     expect(by.e1!.parent).toBe("r");
     expect(by.e2!.parent).toBe("c");
-    expect(Math.hypot(by.r!.x, by.r!.y)).toBeCloseTo(0.45);
-    expect(Math.hypot(by.e1!.x, by.e1!.y)).toBeCloseTo(0.86);
+    expect(Math.hypot(by.r!.x, by.r!.y)).toBeCloseTo(0.46);
+    expect(Math.hypot(by.e1!.x, by.e1!.y)).toBeCloseTo(0.84);
+    expect(Math.hypot(by.e2!.x, by.e2!.y)).toBeCloseTo(0.84);
+    expect(zigbeeRoute(m.nodes, "e1")).toEqual(["e1", "r", "c"]);
   });
   it("Schloss mit Opener im Verlauf", () => {
     const h = lockHistory([{ when: 1, entity_id: "lock.o", state: "unlocked" }, { when: 2, entity_id: "lock.o", state: "open" }, { when: 3, entity_id: "lock.s", state: "locked" }],

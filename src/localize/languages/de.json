@@ -1684,7 +1684,7 @@
     "map": "Netzwerkkarte",
     "map_scanning": "Netz wird gescannt … (bis zu 1 min)",
     "map_as_of": "Stand",
-    "map_refresh": "Neu scannen",
+    "map_refresh": "Scannen",
     "map_no_mqtt": "Keine Verbindung zu Home Assistant",
     "map_timeout": "Keine Antwort von Zigbee2MQTT – läuft die Bridge?",
     "map_admin": "Die Netzwerkkarte braucht einen Administrator-Benutzer (MQTT)",
@@ -1693,7 +1693,8 @@
     "ip": "IP-Adresse",
     "connection": "Verbindung",
     "not_connected": "nicht verbunden",
-    "connected": "verbunden"
+    "connected": "verbunden",
+    "end_devices": "Endgeräte"
   },
   "network_editor": {
     "integration": "Integration",

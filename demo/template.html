@@ -848,10 +848,14 @@
         if (domain === "mqtt" && /bridge\/request\/networkmap$/.test(data.topic)) {
           const N = (ieee, name, type) => ({ ieeeAddr: ieee, friendlyName: name, type });
           const nodes = [N("0x00", "Coordinator", "Coordinator"), N("0xr1", "Steckdose Repeater", "Router"), N("0xr2", "Stecker Router", "Router"),
-            N("0xe1", "Türsensor Haus", "EndDevice"), N("0xe2", "Temperatur Haus", "EndDevice"), N("0xe3", "Ventil Volleyball", "EndDevice"), N("0xe4", "Vibration", "EndDevice"), N("0xe5", "Bewegungsmelder", "EndDevice")];
+            N("0xe1", "Türsensor Haus", "EndDevice"), N("0xe2", "Temperatur Haus", "EndDevice"), N("0xe3", "Ventil Volleyball", "EndDevice"), N("0xe4", "Vibration", "EndDevice"), N("0xe5", "Bewegungsmelder", "EndDevice"),
+            N("0xr3", "Steckdose Pumpe", "Router"), N("0xe6", "Ventil Haus", "EndDevice"), N("0xe7", "Ventil Bananen", "EndDevice"), N("0xe8", "Schalter Wasser", "EndDevice"),
+            N("0xe9", "Rauchmelder", "EndDevice"), N("0xea", "Temperatur draußen", "EndDevice"), N("0xeb", "Türkontakt Schuppen", "EndDevice")];
           const L = (s, t, lqi, rel) => ({ source: { ieeeAddr: s }, target: { ieeeAddr: t }, lqi, relationship: rel });
           const links = [L("0xr1", "0x00", 160, 2), L("0xr2", "0x00", 92, 2), L("0xr1", "0xr2", 70, 2), L("0xe1", "0xr1", 142, 1), L("0xe2", "0xr2", 38, 1),
-            L("0xe3", "0x00", 96, 1), L("0xe4", "0xr2", 120, 1), L("0xe5", "0xr1", 55, 1), L("0xe5", "0x00", 30, 2)];
+            L("0xe3", "0x00", 96, 1), L("0xe4", "0xr2", 120, 1), L("0xe5", "0xr1", 55, 1), L("0xe5", "0x00", 30, 2),
+            L("0xr3", "0x00", 110, 2), L("0xr3", "0xr1", 64, 2), L("0xe6", "0xr3", 168, 1), L("0xe7", "0xr3", 132, 1), L("0xe8", "0xr3", 88, 1),
+            L("0xe9", "0xr1", 120, 1), L("0xea", "0x00", 47, 1), L("0xeb", "0xr2", 72, 1)];
           const topic = data.topic.replace("request", "response");
           setTimeout(() => window.mqttSubs?.[topic]?.({ topic, payload: JSON.stringify({ data: { type: "raw", routes: false, value: { nodes, links } }, status: "ok" }) }), 300);
           return;

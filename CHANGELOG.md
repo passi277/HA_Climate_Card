@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.45.1 – Zigbee-Netzkarte neu gestaltet
+- Network Card: Netzwerkkarte im Radar-Look – Geräte als runde Symbole mit Statusring (LQI-Farbe, offline grau, Punkt bei schwachem Akku) und LQI-Abzeichen, Endgeräte gleichmäßig außen nach Router gruppiert, Router mittig darüber, pulsierender Coordinator
+- Gebogene Verbindungen in LQI-Farben mit animiertem „Datenfluss“ zum Coordinator; Querverbindungen erst beim Antippen
+- Antippen zeigt den Weg zum Coordinator (hervorgehoben) und eine Info-Karte mit Nachbarn, LQI und Akku; Kopfzeile mit Routern, Endgeräten, Ø LQI und schwachen Verbindungen; Radar-Animation beim Scannen
+
 ## 1.45.0 – Schloss + Opener, WLAN-Geräte, Zigbee-Netzkarte
 - Lock Card: neue Option **`opener`** – Smart Lock und Nuki Opener in einer Karte (Ring to Open, Summer mit Rückfrage, Klingel aus dem Opener, beide Akkus, gemeinsamer Verlauf); Türstatus „Tür zu/offen“ im Kopf und farbig
 - Network Card: neuer Modus **`integration: wifi`** – alle WLAN-Geräte aus dem Router (FRITZ!Box, TP-Link …) mit IP, Band und Signal, per MAC mit den HA-Geräten verknüpft (Name, Bereich, Update, Neustart), dazu Geräte mit eigenem WLAN-Signal; nicht verbundene Geräte grau am Ende, `wired: true` zeigt auch LAN

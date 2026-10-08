@@ -1667,7 +1667,7 @@
     "map": "Network map",
     "map_scanning": "Scanning network … (up to 1 min)",
     "map_as_of": "As of",
-    "map_refresh": "Rescan",
+    "map_refresh": "Scan",
     "map_no_mqtt": "No connection to Home Assistant",
     "map_timeout": "No answer from Zigbee2MQTT – is the bridge running?",
     "map_admin": "The network map needs an administrator user (MQTT)",
@@ -1676,7 +1676,8 @@
     "ip": "IP address",
     "connection": "Connection",
     "not_connected": "not connected",
-    "connected": "connected"
+    "connected": "connected",
+    "end_devices": "end devices"
   },
   "network_editor": {
     "integration": "Integration",

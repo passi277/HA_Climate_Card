@@ -5,7 +5,7 @@ import { getLanguage, localize } from "./localize/localize";
 import { cardStyles } from "./styles";
 import { DOCS_URL } from "./shared";
 import { relTime } from "./components/camera-view";
-import { batteryIcon, clientIcon, lqiQuality, netIcon, netIntegration, netSeverity, networkDevices, platformName, UNAVAILABLE, zigbeeLayout, type NetDevice } from "./utils";
+import { batteryIcon, clientIcon, lqiQuality, netIcon, netIntegration, netSeverity, networkDevices, platformName, UNAVAILABLE, zigbeeLayout, zigbeeRoute, type NetDevice } from "./utils";
 import "./network-editor";
 
 (window as any).customCards = (window as any).customCards || [];
@@ -167,38 +167,78 @@ export class HaNetworkCard extends LitElement {
     const lang = getLanguage(this.hass);
     const { nodes, links } = zigbeeLayout(m?.data);
     const byId = new Map(nodes.map((n) => [n.id, n]));
+    // HA-Geräte (Name gleich) für Symbol, offline und Akku
+    const devs = new Map(this._devices().map((d) => [d.name.toLowerCase(), d]));
     const sel = this._mapSel ? byId.get(this._mapSel) : undefined;
+    const route = sel ? zigbeeRoute(nodes, sel.id) : [];
+    const onRoute = (a: string, b: string) => route.some((id, i) => (id === a && route[i + 1] === b) || (id === b && route[i + 1] === a));
     const selLinks = sel ? links.filter((l) => l.a === sel.id || l.b === sel.id).sort((a, b) => b.lqi - a.lqi) : [];
-    const short = (n: string) => (n.length > 14 ? `${n.slice(0, 13)}…` : n);
+    const P = (v: number) => ((v + 1.12) / 2.24) * 100;
+    const routers = nodes.filter((n) => n.type === "Router").length;
+    const ends = nodes.filter((n) => n.type === "EndDevice").length;
+    const lqis = nodes.map((n) => n.lqi).filter((x): x is number => x != null);
+    const avg = lqis.length ? Math.round(lqis.reduce((a, b) => a + b, 0) / lqis.length) : undefined;
+    const weak = lqis.filter((x) => x < 50).length;
+    const labels = nodes.length <= 9;
+    const typeName = (t: string) => (t === "EndDevice" ? this._t("end_device") : t);
     return html`<div class="map">
       <div class="map-head">
-        <span>${m?.loading ? html`<ha-icon class="spin" icon="mdi:loading"></ha-icon>${this._t("map_scanning")}`
-          : m?.at ? `${this._t("map_as_of")} ${relTime(new Date(m.at).toISOString(), lang)} · ${nodes.length} ${this._t("devices")}` : ""}</span>
-        <button class="btn" data-act="map-refresh" ?disabled=${m?.loading} @click=${() => this._loadMap()}><ha-icon icon="mdi:refresh"></ha-icon>${this._t("map_refresh")}</button>
+        <span class="map-stats">${m?.loading ? html`<ha-icon class="spin" icon="mdi:loading"></ha-icon>${this._t("map_scanning")}` : nodes.length ? html`
+          <span><i class="dot r"></i>${routers} Router</span><span><i class="dot e"></i>${ends} ${this._t("end_devices")}</span>
+          ${avg != null ? html`<span>Ø LQI <b style="color:${Q_COLOR[lqiQuality(avg)]}">${avg}</b></span>` : nothing}
+          ${weak ? html`<span class="bad">${weak} ${this._t("weak_signal")}</span>` : nothing}` : nothing}</span>
+        <button class="btn" data-act="map-refresh" ?disabled=${m?.loading} @click=${() => this._loadMap()}>
+          <ha-icon icon="mdi:radar"></ha-icon>${this._t("map_refresh")}</button>
       </div>
       ${m?.error ? html`<div class="map-err">${m.error}</div>` : nothing}
-      ${nodes.length ? html`<svg class="zmap" viewBox="-1.2 -1.2 2.4 2.4" role="img" aria-label=${this._t("map")}>
-        ${links.map((l) => {
-          const a = byId.get(l.a)!, b = byId.get(l.b)!;
-          const on = !sel || l.a === sel.id || l.b === sel.id;
-          const tree = a.parent === b.id || b.parent === a.id;
-          return svg`<line class="ln ${on ? "" : "dim"} ${tree ? "tree" : ""}" x1=${a.x} y1=${a.y} x2=${b.x} y2=${b.y} style="stroke:${Q_COLOR[lqiQuality(l.lqi)]}"></line>`;
-        })}
+      ${nodes.length ? html`<div class="zwrap ${sel ? "has-sel" : ""} ${m?.loading ? "scanning" : ""}" @click=${(e: Event) => { if (e.target === e.currentTarget) this._mapSel = undefined; }}>
+        <svg class="zlinks" viewBox="-1.12 -1.12 2.24 2.24" aria-hidden="true">
+          <circle class="ring" r="0.46"></circle><circle class="ring" r="0.84"></circle>
+          ${m?.loading ? svg`<g class="sweep"><path d="M0 0 L0 -1.05 A1.05 1.05 0 0 1 0.74 -0.74 Z"></path></g>` : nothing}
+          ${links.map((l) => {
+            const a = byId.get(l.a)!, b = byId.get(l.b)!;
+            const tree = a.parent === b.id || b.parent === a.id;
+            if (!tree && !(sel && (l.a === sel.id || l.b === sel.id))) return nothing;
+            // vom Kind zum Elternteil zeichnen, damit der „Datenfluss“ zum Coordinator läuft
+            const [from, to] = b.parent === a.id ? [b, a] : [a, b];
+            const mx = (from.x + to.x) / 2, my = (from.y + to.y) / 2;
+            const d = `M${from.x} ${from.y} Q${mx * 0.82} ${my * 0.82} ${to.x} ${to.y}`;
+            const hot = sel ? onRoute(l.a, l.b) || l.a === sel.id || l.b === sel.id : true;
+            const col = Q_COLOR[lqiQuality(l.lqi)];
+            return svg`<g class="lk ${tree ? "tree" : "side"} ${hot ? "" : "dim"} ${sel && onRoute(l.a, l.b) ? "route" : ""}" style="--lc:${col}">
+              <path class="glow" d=${d}></path><path class="core" d=${d}></path>${tree ? svg`<path class="flow" d=${d}></path>` : nothing}</g>`;
+          })}
+        </svg>
         ${nodes.map((n) => {
-          const r = n.type === "Coordinator" ? 0.1 : n.type === "Router" ? 0.065 : 0.045;
-          const col = n.type === "Coordinator" ? "var(--primary-color)" : n.type === "Router" ? "#1e88e5" : "#43a047";
-          return svg`<g class="nd ${sel?.id === n.id ? "sel" : ""}" data-node=${n.id} @click=${() => { this._mapSel = this._mapSel === n.id ? undefined : n.id; }}>
-            <circle cx=${n.x} cy=${n.y} r=${r} style="fill:${col}"></circle>
-            <text x=${n.x} y=${n.y + r + 0.07}>${short(n.name)}</text></g>`;
+          const dev = devs.get(n.name.toLowerCase());
+          const off = !!dev?.offline;
+          const low = dev?.battery != null && dev.battery <= LOW_BATTERY;
+          const q = n.lqi != null ? lqiQuality(n.lqi) : undefined;
+          const icon = n.type === "Coordinator" ? "mdi:zigbee" : n.type === "Router" && !dev ? "mdi:router-wireless" : netIcon(n.name, dev?.model);
+          const dim = sel && !route.includes(n.id) && !selLinks.some((l) => l.a === n.id || l.b === n.id);
+          const showLabel = labels || n.type === "Coordinator" || sel?.id === n.id;
+          return html`<button class="zn t-${n.type.toLowerCase()} ${n.y < -0.05 && n.type !== "Coordinator" ? "up" : ""} ${sel?.id === n.id ? "sel" : ""} ${dim ? "dim" : ""} ${off ? "off" : ""}" data-node=${n.id}
+            style="left:${P(n.x)}%;top:${P(n.y)}%;--qc:${off ? "#9e9e9e" : q ? Q_COLOR[q] : "var(--primary-color)"}"
+            @click=${(e: Event) => { e.stopPropagation(); this._haptic("selection"); this._mapSel = this._mapSel === n.id ? undefined : n.id; }}
+            aria-label=${n.name}>
+            <span class="zn-dot"><ha-icon .icon=${icon}></ha-icon>${low ? html`<i class="zn-bat"></i>` : nothing}
+              ${!showLabel && n.lqi != null ? html`<i class="zn-q">${n.lqi}</i>` : nothing}</span>
+            ${showLabel ? html`<span class="zn-lbl">${n.name}${n.lqi != null ? html` <b>${n.lqi}</b>` : nothing}</span>` : nothing}
+          </button>`;
         })}
-      </svg>
-      <div class="legend">
-        <span><i style="background:var(--primary-color)"></i>Coordinator</span><span><i style="background:#1e88e5"></i>Router</span>
-        <span><i style="background:#43a047"></i>${this._t("end_device")}</span>
-        <span><b style="background:${Q_COLOR.good}"></b>LQI ≥ 100</span><span><b style="background:${Q_COLOR.fair}"></b>50–99</span><span><b style="background:${Q_COLOR.weak}"></b>&lt; 50</span>
       </div>
-      ${sel ? html`<div class="map-sel"><b>${sel.name}</b> · ${sel.type === "EndDevice" ? this._t("end_device") : sel.type}
-        ${selLinks.map((l) => { const o = byId.get(l.a === sel.id ? l.b : l.a)!; return html`<span class="lk" style="--lc:${Q_COLOR[lqiQuality(l.lqi)]}">${o.name} <b>${l.lqi}</b></span>`; })}</div>` : nothing}`
+      ${sel ? html`<div class="zinfo">
+        <div class="zi-head"><span class="zi-icon"><ha-icon .icon=${sel.type === "Coordinator" ? "mdi:zigbee" : netIcon(sel.name, devs.get(sel.name.toLowerCase())?.model)}></ha-icon></span>
+          <span class="zi-text"><b>${sel.name}</b><small>${typeName(sel.type)}${devs.get(sel.name.toLowerCase())?.offline ? ` · ${this._t("offline")}` : ""}
+            ${devs.get(sel.name.toLowerCase())?.battery != null ? ` · ${this._t("battery")} ${Math.round(devs.get(sel.name.toLowerCase())!.battery!)} %` : ""}</small></span>
+          <button class="zi-x" @click=${() => { this._mapSel = undefined; }} aria-label="×"><ha-icon icon="mdi:close"></ha-icon></button></div>
+        ${route.length > 1 ? html`<div class="zi-route">${route.map((id, i) => html`${i ? html`<ha-icon icon="mdi:chevron-right"></ha-icon>` : nothing}<span>${byId.get(id)!.name}</span>`)}</div>` : nothing}
+        ${selLinks.length ? html`<div class="zi-links">${selLinks.map((l) => { const o = byId.get(l.a === sel.id ? l.b : l.a)!;
+          return html`<span class="lkchip" style="--lc:${Q_COLOR[lqiQuality(l.lqi)]}"><i></i>${o.name}<b>${l.lqi}</b></span>`; })}</div>` : nothing}
+      </div>` : html`<div class="legend">
+        <span><b style="background:${Q_COLOR.very_good}"></b>LQI ≥ 150</span><span><b style="background:${Q_COLOR.good}"></b>100–149</span>
+        <span><b style="background:${Q_COLOR.fair}"></b>50–99</span><span><b style="background:${Q_COLOR.weak}"></b>&lt; 50</span>
+        <span class="muted">${m?.at ? `${this._t("map_as_of")} ${relTime(new Date(m.at).toISOString(), lang)}` : ""}</span></div>`}`
       : !m?.loading && !m?.error ? html`<div class="empty">${this._t("map_empty")}</div>` : nothing}
     </div>`;
   }
@@ -377,28 +417,83 @@ export class HaNetworkCard extends LitElement {
     .inf.bad { color: #fff; background: #e53935; }
     .inf.on { color: #fff; background: #fb8c00; }
     .inf.sel { color: #fff; background: var(--primary-color); }
-    .map { display: flex; flex-direction: column; gap: 6px; padding: 10px; border-radius: 14px; background: rgba(127,127,127,0.06); animation: slide-in 0.25s var(--ease-out) both; }
-    .map-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--secondary-text-color); }
-    .map-head span { display: inline-flex; align-items: center; gap: 5px; }
+    .map { display: flex; flex-direction: column; gap: 8px; padding: 10px; border-radius: 18px; animation: slide-in 0.25s var(--ease-out) both;
+      background: radial-gradient(circle at 50% 46%, color-mix(in srgb, var(--primary-color) 10%, transparent), transparent 70%), rgba(127,127,127,0.06); }
+    .map-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .map-stats { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: 12px; font-weight: 600; color: var(--secondary-text-color); }
+    .map-stats span { display: inline-flex; align-items: center; gap: 5px; }
+    .map-stats .bad { color: #e53935; }
+    .map-stats .dot { width: 8px; height: 8px; border-radius: 50%; }
+    .map-stats .dot.r { background: #1e88e5; } .map-stats .dot.e { background: #26a69a; }
     .map-head ha-icon { --mdc-icon-size: 16px; }
+    .map-head .btn { flex: none; white-space: nowrap; }
     .spin { animation: spin 1s linear infinite; }
     .map-err { font-size: 12.5px; color: #e53935; }
-    .zmap { width: 100%; max-height: 420px; aspect-ratio: 1; }
-    .zmap .ln { stroke-width: 0.008; opacity: 0.35; transition: opacity 0.2s; }
-    .zmap .ln.tree { stroke-width: 0.016; opacity: 0.8; }
-    .zmap .ln.dim { opacity: 0.06; }
-    .zmap .nd { cursor: pointer; }
-    .zmap .nd circle { stroke: var(--card-background-color, #fff); stroke-width: 0.012; }
-    .zmap .nd.sel circle { stroke: var(--primary-text-color); stroke-width: 0.02; }
-    .zmap text { font-size: 0.055px; fill: var(--secondary-text-color); text-anchor: middle; pointer-events: none; }
-    .zmap .nd.sel text { fill: var(--primary-text-color); font-weight: 700; }
-    .map .legend { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 11px; color: var(--secondary-text-color); }
+    .zwrap { position: relative; width: 100%; max-width: 520px; margin: 0 auto; aspect-ratio: 1; }
+    .zlinks { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+    .zlinks .ring { fill: none; stroke: rgba(127,127,127,0.18); stroke-width: 0.004; stroke-dasharray: 0.012 0.02; }
+    .sweep { transform-origin: 0 0; animation: sweep 2.4s linear infinite; }
+    .sweep path { fill: color-mix(in srgb, var(--primary-color) 14%, transparent); }
+    @keyframes sweep { to { transform: rotate(360deg); } }
+    .lk path { fill: none; stroke: var(--lc); stroke-linecap: round; transition: opacity 0.3s; }
+    .lk .glow { stroke-width: 0.03; opacity: 0.12; }
+    .lk .core { stroke-width: 0.009; opacity: 0.75; }
+    .lk.side .core { stroke-dasharray: 0.015 0.02; opacity: 0.6; }
+    .lk .flow { stroke-width: 0.012; stroke: #fff; opacity: 0.55; stroke-dasharray: 0.006 0.07; animation: flow 1.8s linear infinite; }
+    @keyframes flow { to { stroke-dashoffset: -0.152; } }
+    .lk.dim { opacity: 0.12; }
+    .lk.route .core { stroke-width: 0.016; opacity: 1; }
+    .lk.route .glow { opacity: 0.3; }
+    .zn { position: absolute; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 0; border: none;
+      background: none; cursor: pointer; color: inherit; z-index: 1; transition: opacity 0.3s; -webkit-tap-highlight-color: transparent; }
+    .zn.up { flex-direction: column-reverse; }
+    .zn-dot { position: relative; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; color: #fff;
+      background: linear-gradient(145deg, color-mix(in srgb, var(--zc) 85%, #fff), var(--zc)); box-shadow: 0 0 0 2.5px var(--qc), 0 3px 10px rgba(0,0,0,0.25);
+      transition: transform 0.2s, box-shadow 0.2s; }
+    .zn-dot ha-icon { --mdc-icon-size: 17px; }
+    .zn.t-coordinator .zn-dot { width: 46px; height: 46px; --qc: color-mix(in srgb, var(--primary-color) 50%, transparent); }
+    .zn.t-coordinator .zn-dot ha-icon { --mdc-icon-size: 26px; }
+    .zn.t-coordinator .zn-dot::after { content: ""; position: absolute; inset: -6px; border-radius: 50%; border: 2px solid var(--primary-color); opacity: 0; animation: zpulse 2.6s ease-out infinite; }
+    @keyframes zpulse { 0% { transform: scale(0.8); opacity: 0.7; } 100% { transform: scale(1.7); opacity: 0; } }
+    .zn.t-coordinator { --zc: var(--primary-color); }
+    .zn.t-router { --zc: #1e88e5; }
+    .zn.t-router .zn-dot { width: 36px; height: 36px; }
+    .zn.t-enddevice { --zc: #26a69a; }
+    .zn.off { --zc: #9e9e9e; }
+    .zn.off .zn-dot { box-shadow: 0 0 0 2px #9e9e9e; opacity: 0.7; }
+    .zn-bat { position: absolute; right: -3px; top: -3px; width: 10px; height: 10px; border-radius: 50%; background: #fb8c00; box-shadow: 0 0 0 2px var(--card-background-color, #fff); }
+    .zn-q { position: absolute; left: 50%; bottom: -9px; transform: translateX(-50%); padding: 0 4px; border-radius: 999px; font-size: 9px; font-style: normal; font-weight: 800;
+      line-height: 13px; color: #fff; background: var(--qc); box-shadow: 0 0 0 1.5px var(--card-background-color, #fff); }
+    .zn.sel .zn-lbl { max-width: 150px; font-size: 11px; }
+    .zn-lbl { max-width: 96px; padding: 1px 6px; border-radius: 999px; font-size: 10px; font-weight: 600; line-height: 1.5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      color: var(--primary-text-color); background: color-mix(in srgb, var(--card-background-color, #fff) 82%, transparent); backdrop-filter: blur(4px); box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
+    .zn-lbl b { color: var(--qc); }
+    .zn:hover .zn-dot { transform: scale(1.08); }
+    .zn.sel { z-index: 2; }
+    .zn.sel .zn-dot { transform: scale(1.18); box-shadow: 0 0 0 3px var(--qc), 0 0 0 7px color-mix(in srgb, var(--qc) 30%, transparent), 0 4px 14px rgba(0,0,0,0.3); }
+    .zn.dim { opacity: 0.25; }
+    .zinfo { display: flex; flex-direction: column; gap: 6px; padding: 10px; border-radius: 14px; background: var(--card-background-color, #fff); box-shadow: 0 2px 10px rgba(0,0,0,0.12);
+      animation: slide-in 0.2s var(--ease-out) both; }
+    .zi-head { display: flex; align-items: center; gap: 8px; }
+    .zi-icon { flex: none; width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; color: #fff; background: var(--primary-color); }
+    .zi-icon ha-icon { --mdc-icon-size: 18px; }
+    .zi-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+    .zi-text b { font-size: 14px; }
+    .zi-text small { font-size: 11.5px; color: var(--secondary-text-color); }
+    .zi-x { border: none; background: none; cursor: pointer; color: var(--secondary-text-color); padding: 4px; }
+    .zi-x ha-icon { --mdc-icon-size: 18px; }
+    .zi-route { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; font-size: 12px; font-weight: 600; }
+    .zi-route ha-icon { --mdc-icon-size: 14px; color: var(--secondary-text-color); }
+    .zi-route span { padding: 2px 8px; border-radius: 999px; background: rgba(127,127,127,0.1); }
+    .zi-links { display: flex; flex-wrap: wrap; gap: 4px; }
+    .lkchip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 999px; font-size: 11.5px; background: color-mix(in srgb, var(--lc) 12%, transparent); }
+    .lkchip i { width: 7px; height: 7px; border-radius: 50%; background: var(--lc); }
+    .lkchip b { color: var(--lc); }
+    .map .legend { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: 11px; color: var(--secondary-text-color); }
     .map .legend span { display: inline-flex; align-items: center; gap: 4px; }
-    .map .legend i { width: 9px; height: 9px; border-radius: 50%; }
-    .map .legend b { width: 12px; height: 3px; border-radius: 2px; }
-    .map-sel { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: 12.5px; }
-    .lk { display: inline-flex; gap: 4px; padding: 2px 8px; border-radius: 999px; font-size: 11.5px; background: color-mix(in srgb, var(--lc) 14%, transparent); }
-    .lk b { color: var(--lc); }
+    .map .legend b { width: 14px; height: 4px; border-radius: 2px; }
+    .map .legend .muted { margin-left: auto; }
+    ha-card.anim-off .flow, ha-card.anim-reduced .flow, ha-card.anim-off .sweep { display: none; }
     .filters { display: inline-flex; align-self: flex-start; padding: 3px; border-radius: 999px; background: rgba(127,127,127,0.12); }
     .filters button { border: none; background: none; padding: 5px 12px; border-radius: 999px; cursor: pointer; font-size: 12px; font-weight: 700; color: var(--secondary-text-color); }
     .filters button.on { background: var(--card-background-color, #fff); color: var(--primary-text-color); box-shadow: 0 1px 3px rgba(0,0,0,0.15); }

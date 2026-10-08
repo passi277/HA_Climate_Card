@@ -2715,40 +2715,58 @@ export const zigbeeLayout = (raw: { nodes?: any[]; links?: any[] } | undefined):
   const ends = nodes.filter((n) => n.type === "EndDevice");
   const out = new Map<string, ZNode>();
   if (coord) out.set(coord.id, { ...coord, x: 0, y: 0 });
-  const ang = new Map<string, number>();
-  routers.forEach((r, i) => {
-    const a = (i / Math.max(1, routers.length)) * 2 * Math.PI - Math.PI / 2;
-    ang.set(r.id, a);
-    const l = links.find((x) => coord && ((x.a === r.id && x.b === coord.id) || (x.b === r.id && x.a === coord.id)));
-    out.set(r.id, { ...r, x: Math.cos(a) * 0.45, y: Math.sin(a) * 0.45, parent: coord?.id, lqi: l?.lqi });
-  });
+  const R1 = 0.46, RO = 0.84;
+  // Elternteil eines Routers: Coordinator, sonst der Router mit dem besten LQI
+  const rParent = new Map(routers.map((r) => {
+    const l = links.filter((x) => (x.a === r.id || x.b === r.id) && byId.get(x.a === r.id ? x.b : x.a)!.type !== "EndDevice")
+      .sort((x, y) => Number(y.a === coord?.id || y.b === coord?.id) - Number(x.a === coord?.id || x.b === coord?.id) || y.lqi - x.lqi)[0];
+    return [r.id, l ? { parent: l.a === r.id ? l.b : l.a, lqi: l.lqi } : undefined] as const;
+  }));
   // Elternteil eines Endgeräts: Verbindung mit dem besten LQI zu Router/Coordinator
   const info = ends.map((e) => {
     const cands = links.filter((l) => (l.a === e.id || l.b === e.id) && byId.get(l.a === e.id ? l.b : l.a)!.type !== "EndDevice")
       .sort((x, y) => y.lqi - x.lqi);
     return { e, parent: cands[0] ? (cands[0].a === e.id ? cands[0].b : cands[0].a) : undefined, lqi: cands[0]?.lqi };
   });
-  // Gruppen je Router (bei dessen Winkel) – Kinder des Coordinators und Einzelgänger in die Lücken dazwischen
-  const groups = new Map<string, typeof info>();
-  for (const x of info) {
-    const key = x.parent && ang.has(x.parent) ? x.parent : "_";
-    groups.set(key, [...(groups.get(key) ?? []), x]);
-  }
-  const step = Math.min(0.85, (2 * Math.PI) / Math.max(1, ends.length));
-  const free = groups.get("_") ?? [];
-  const gap = routers.length ? Math.PI / routers.length : 0;
-  free.forEach((x, i) => {
-    // gleichmäßig über den Kreis, um eine halbe Router-Teilung versetzt
-    const a = (i / Math.max(1, free.length)) * 2 * Math.PI - Math.PI / 2 + gap;
-    out.set(x.e.id, { ...x.e, x: Math.cos(a) * 0.86, y: Math.sin(a) * 0.86, parent: x.parent, lqi: x.lqi });
+  type Info = (typeof info)[number];
+  const isRouter = new Set(routers.map((r) => r.id));
+  const kids = new Map(routers.map((r) => [r.id, info.filter((x) => x.parent === r.id)]));
+  const free = info.filter((x) => !x.parent || !isRouter.has(x.parent));
+  // Reihenfolge am Außenring: je Router seine Kinder, dazwischen die direkten Kinder des Coordinators
+  const order: ({ router: string } | Info)[] = [];
+  const chunk = Math.ceil(free.length / Math.max(1, routers.length));
+  routers.forEach((r, i) => {
+    order.push({ router: r.id }, ...kids.get(r.id)!, ...free.slice(i * chunk, (i + 1) * chunk));
   });
-  for (const [key, list] of groups) {
-    if (key === "_") continue;
-    const base = ang.get(key)!;
-    list.forEach((x, j) => {
-      const a = base + (j - (list.length - 1) / 2) * step;
-      out.set(x.e.id, { ...x.e, x: Math.cos(a) * 0.86, y: Math.sin(a) * 0.86, parent: x.parent, lqi: x.lqi });
-    });
+  if (!routers.length) order.push(...free);
+  const slots = Math.max(1, info.length);
+  const angleOf = (k: number) => (k / slots) * 2 * Math.PI - Math.PI / 2;
+  let k = 0;
+  const rAngle = new Map<string, number>();
+  for (const item of order) {
+    if ("router" in item) {
+      const ch = kids.get(item.router)!;
+      // Router mittig über seinen Kindern (ohne Kinder: an der aktuellen Stelle)
+      rAngle.set(item.router, ch.length ? angleOf(k + (ch.length - 1) / 2) : angleOf(k - 0.5));
+      continue;
+    }
+    const a = angleOf(k++);
+    out.set(item.e.id, { ...item.e, x: Math.cos(a) * RO, y: Math.sin(a) * RO, parent: item.parent, lqi: item.lqi });
   }
+  // Router zu dicht beieinander? Dann gleichmäßig verteilen
+  const ra = routers.map((r) => rAngle.get(r.id)!);
+  const tooClose = ra.some((a, i) => ra.some((b, j) => i < j && Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b))) < 0.55));
+  routers.forEach((r, i) => {
+    const a = tooClose ? (i / routers.length) * 2 * Math.PI - Math.PI / 2 : rAngle.get(r.id)!;
+    out.set(r.id, { ...r, x: Math.cos(a) * R1, y: Math.sin(a) * R1, parent: rParent.get(r.id)?.parent, lqi: rParent.get(r.id)?.lqi });
+  });
   return { nodes: [...out.values()], links };
+};
+
+/** Weg eines Geräts bis zum Coordinator (über die Eltern) */
+export const zigbeeRoute = (nodes: ZNode[], id: string): string[] => {
+  const by = new Map(nodes.map((n) => [n.id, n]));
+  const path: string[] = [];
+  for (let cur = by.get(id); cur && !path.includes(cur.id) && path.length < 12; cur = cur.parent ? by.get(cur.parent) : undefined) path.push(cur.id);
+  return path;
 };
