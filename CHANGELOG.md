@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.46.2 – Schönerer Regen
+- Weather Card: Regen-Animation neu – einzelne, leicht schräge Tropfen in zwei Tiefenebenen statt Streifenmuster; bei Starkregen dichter, schneller und kräftiger
+
 ## 1.46.1 – Grill: Gargut & Ziel einstellen
 - Grill Card: erkennt auch eigene Sonden-Geräte (Kerntemperatur, Phase, Fortschritt, Restzeit in Minuten, Ziel erreicht); **Gargut-Auswahl** (z. B. Rehkeule, Pulled Pork) und **Zieltemperatur −/+** direkt in der Karte, auch vorab bei inaktiven Sonden
 - Neue Phasen „Heizt auf“, „Plateau (Stall)“ und „Fast fertig“, Fortschrittsbalken

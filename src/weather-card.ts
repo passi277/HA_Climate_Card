@@ -149,11 +149,25 @@ export class HaWeatherCard extends LitElement {
       ${showSun && w.clouds < 2 ? html`<span class="sun ${phase}" style="left:${pos.x}%;top:${Math.min(70, pos.y - 20)}%"></span>` : nothing}
       ${phase === "night" && (clear || w.clouds < 2) ? html`<span class="moon" style="left:${Math.min(80, Math.max(20, 100 - pos.x))}%"></span>` : nothing}
       ${w.clouds ? html`<span class="cloud c1"></span><span class="cloud c2"></span>${w.clouds > 1 ? html`<span class="cloud c3"></span><span class="cloud c4"></span>` : nothing}` : nothing}
-      ${w.rain ? html`<span class="rain"></span><span class="rain r2"></span>` : nothing}
+      ${w.rain ? this._renderRain(/pouring/.test(condition)) : nothing}
       ${w.snow ? html`<span class="snow"></span>` : nothing}
       ${w.fog ? html`<span class="fog"></span>` : nothing}
       ${thunder ? html`<span class="flash"></span>` : nothing}
     </div>`;
+  }
+
+  /** Einzelne Tropfen in zwei Ebenen (hinten dünn/langsam, vorne kräftiger); Positionen fest, damit nichts springt. */
+  private _renderRain(heavy: boolean) {
+    const n = heavy ? 46 : 26;
+    const drops = Array.from({ length: n }, (_, i) => {
+      const far = i % 3 !== 0;
+      const x = ((i * 61) % 104) - 2 + ((i * 7) % 5) * 0.6;
+      const dur = (far ? 0.95 : 0.7) + ((i * 13) % 7) * 0.05 - (heavy ? 0.15 : 0);
+      const delay = -(((i * 29) % 17) / 17) * dur;
+      const len = (far ? 12 : 18) + ((i * 11) % 5) * 2 + (heavy ? 6 : 0);
+      return html`<i class=${far ? "far" : ""} style="--x:${x.toFixed(1)}%;--t:${dur.toFixed(2)}s;--d:${delay.toFixed(2)}s;--l:${len}px"></i>`;
+    });
+    return html`<span class="rain ${heavy ? "heavy" : ""}">${drops}</span>`;
   }
 
   private _renderHint(condition: string) {
@@ -324,11 +338,16 @@ export class HaWeatherCard extends LitElement {
     .cloud.c3 { left: 30%; top: 8%; width: 150px; opacity: 0.85; animation-duration: 52s; animation-delay: -8s; }
     .cloud.c4 { left: 70%; top: 52%; width: 110px; opacity: 0.7; animation-duration: 70s; animation-delay: -35s; }
     @keyframes drift { from { translate: -30px 0; } 50% { translate: 30px 0; } to { translate: -30px 0; } }
-    .rain { position: absolute; inset: 0; opacity: 0.55;
-      background: repeating-linear-gradient(105deg, transparent 0 9px, rgba(220,235,255,0.75) 9px 10px, transparent 10px 22px);
-      background-size: 100% 60px; animation: fall 0.6s linear infinite; }
-    .rain.r2 { opacity: 0.35; background-size: 100% 44px; animation-duration: 0.45s; }
-    @keyframes fall { to { background-position: -12px 60px; } }
+    .rain { position: absolute; inset: -25% -12% -5%; transform: rotate(10deg); pointer-events: none; }
+    .rain i { position: absolute; top: 0; bottom: 0; left: var(--x); width: 2px; animation: drop var(--t) linear var(--d) infinite; will-change: transform; }
+    .rain i::after { content: ""; position: absolute; left: 0; top: 0; width: 1.5px; height: var(--l); border-radius: 1px;
+      background: linear-gradient(180deg, rgba(235,244,255,0), rgba(235,244,255,0.95)); }
+    .rain i.far { opacity: 0.55; }
+    .rain i.far::after { width: 1px; }
+    .rain.heavy i::after { width: 2px; }
+    .rain.heavy i.far { opacity: 0.65; }
+    .rain.heavy i.far::after { width: 1.2px; }
+    @keyframes drop { from { transform: translateY(-15%); } to { transform: translateY(100%); } }
     .snow { position: absolute; inset: 0; opacity: 0.9;
       background-image: radial-gradient(2px 2px at 10% 20%, #fff 60%, transparent), radial-gradient(2.5px 2.5px at 30% 60%, #fff 60%, transparent),
         radial-gradient(2px 2px at 55% 30%, #fff 60%, transparent), radial-gradient(3px 3px at 75% 70%, #fff 60%, transparent), radial-gradient(2px 2px at 90% 40%, #fff 60%, transparent);
