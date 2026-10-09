@@ -10,7 +10,7 @@ import {
   minutesUntil, formatShortDuration, shiftTime, weekStart, monthStart, yearStart, monthlyTotals, dailyTotals, kwhFactor, percentChange,
   updateKind, pendingUpdates, updateName, resourceSensors, backupSensors, backupHealth, loadLevel, windDir, tempScale, weatherHint, weatherIcon,
   starlinkFeatures, speedtestFeatures, formatRate, formatBytes, formatUptime, toMbit, pingQuality,
-  openContactsKey, powerOf, resolveContacts, secondsToDuration, stateIcon, temperatureOf, temperatureTint, trendSlope,
+  openContactsKey, powerOf, poolCareEntities, formatAmount, amountStep, maintenanceDue, stockLevel, resolveContacts, secondsToDuration, stateIcon, temperatureOf, temperatureTint, trendSlope,
 } from "../src/utils";
 import { formatAttribute, localize } from "../src/localize/localize";
 import type { HomeAssistant } from "../src/types";
@@ -1363,5 +1363,36 @@ describe("Schloss, Temperatur, Funknetz", () => {
       .toEqual(["cooking", "ready", "resting", "done", "over", "idle", "configured"]);
     expect(["heating", "stall", "near_done", "target_reached", "idle", "unknown"].map(cookPhase)).toEqual(["heating", "stall", "near", "ready", "idle", "idle"]);
     expect([cookProgress(28, 56), cookProgress(60, 56), cookProgress(undefined, 56), cookProgress(30, 56, 4)]).toEqual([50, 100, undefined, 50]);
+  });
+});
+
+describe("pool care (Smart Pool)", () => {
+  const reg = {
+    "select.sp_product": { entity_id: "select.sp_product", device_id: "pool1", platform: "smart_pool", translation_key: "dose_product" },
+    "number.sp_amount": { entity_id: "number.sp_amount", device_id: "pool1", platform: "smart_pool", translation_key: "dose_amount" },
+    "number.other_amount": { entity_id: "number.other_amount", device_id: "pool2", platform: "smart_pool", translation_key: "dose_amount" },
+    "switch.plug": { entity_id: "switch.plug", device_id: "pool1", platform: "shelly" },
+  };
+  it("finds entities by translation key on the first or chosen device", () => {
+    expect(poolCareEntities(reg)).toEqual({ dose_product: "select.sp_product", dose_amount: "number.sp_amount" });
+    expect(poolCareEntities(reg, "pool2")).toEqual({ dose_amount: "number.other_amount" });
+    expect(poolCareEntities(reg, undefined, { dose_amount: "number.x" }).dose_amount).toBe("number.x");
+    expect(poolCareEntities(undefined)).toEqual({});
+  });
+  it("formats amounts and steps", () => {
+    expect(formatAmount(70, "g", "de")).toBe("70 g");
+    expect(formatAmount(1600, "g", "de")).toBe("1,6 kg");
+    expect(formatAmount(2400, "ml", "en")).toBe("2.4 l");
+    expect([amountStep(30), amountStep(300), amountStep(3000)]).toEqual([5, 25, 100]);
+  });
+  it("computes maintenance due and stock level", () => {
+    const now = new Date(2026, 9, 9, 12);
+    expect(maintenanceDue("2026-07-11", "2026-10-09", now)).toEqual({ days: 0, progress: 1 });
+    expect(maintenanceDue("2026-10-01", "2026-12-30", now).days).toBe(82);
+    expect(maintenanceDue(undefined, "2026-10-01", now)).toEqual({ days: -8 });
+    expect(maintenanceDue("x", undefined, now)).toEqual({});
+    expect(stockLevel(184, 92)).toBe(0.5);
+    expect(stockLevel(1000, 92)).toBe(1);
+    expect(stockLevel(10, undefined)).toBe(1);
   });
 });

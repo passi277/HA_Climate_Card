@@ -33,6 +33,7 @@ weiche Farbübergänge und Animationen. Ein HACS-Download, mehrere Karten:
 | **Modern Temperature Card** | `custom:ha-temperature-card` | Temperatur-Überwachung: Kacheln mit Trend, Min/Max, Grenzwert-Warnung, gemeinsamer Verlauf |
 | **Modern Plug Card** | `custom:ha-plug-card` | Steckdosen: An/Aus mit Rückfrage, Leistung, Verbrauch und Kosten heute/Monat, Verlauf, Überlast und „läuft nicht“ |
 | **Modern Grill Card** | `custom:ha-grill-card` | Grillthermometer (Meater): Kern gegen Ziel als Ring, Garraum, Restzeit, Kochstatus, Verlauf |
+| **Modern Pool Care Card** | `custom:ha-pool-care-card` | Pool-Pflege zur Smart-Pool-Integration: Chemie-Tagebuch, Vorräte, Metall-Ex, Wartung & Aufgaben, Statistik |
 | **Modern Network Card** | `custom:ha-network-card` | Funknetz (Zigbee2MQTT, ZHA, Shelly): Signal, Akku, zuletzt gesehen, Warnungen, Updates, Neustart |
 | **Modern Energy Week Card** | `custom:ha-energy-week-card` | Wochenrückblick Energie: diese gegen letzte Woche, Kosten, Verbraucher |
 | **Climate Overview** | `custom:ha-climate-overview-card` | alle Klimageräte auf einen Blick |
@@ -812,6 +813,28 @@ entities:
 # columns: 2
 ```
 
+## Modern Pool Care Card (Pool-Pflege)
+
+Ergänzt die Pool Card um alles rund um die Pflege – für die Integration [Smart Pool](https://github.com/passi277/HA-Smart-Pool).
+**Alle Entitäten werden über das Smart-Pool-Gerät gefunden**, eine Konfiguration ist nicht nötig. Fünf Reiter:
+
+- **Chemie:** Pflegemittel wählen (Chlor, Chlor-Schock, pH-Minus, pH-Plus, Metall-Ex), Menge mit −/+ und „Empfehlung“, **Zugabe erfassen** (mit Rückfrage),
+  letzte Zugaben und der Hinweis „Redox-Sonde prüfen“ mit „Kalibriert“
+- **Vorrat:** Bestand je Mittel mit Füllstandsbalken (orange = knapp, Grenze aus der Integration), −/+ zum Nachtragen, Verbrauch der Saison
+- **Metall-Ex:** offene Menge nach dem Nachfüllen bzw. Countdown-Ring der laufenden Behandlung, „Metall-Ex zugegeben“, Nachfüllen in cm (≈ Liter) und Regen
+- **Wartung:** Rückspülen nach Pumpenstunden, Filtersand, Sonde und Dichtungen mit Fortschritt und „Erledigt“, offene Aufgaben zum Abhaken
+- **Statistik:** Solaranteil heute als Ring, Energie, Kosten, Badewetter, Stecker-Ausfälle und der Wochenbericht
+
+Punkte an den Reitern zeigen, wo etwas zu tun ist.
+
+```yaml
+type: custom:ha-pool-care-card
+# device: 8423abd33c2eb90f4f0ea2530e1381c9   # bei mehreren Pools
+# tabs: [chemistry, stock, metal, maintenance, stats]
+# default_tab: chemistry
+# entities: { dose_amount: number.mein_eigener_wert }   # Schlüssel = translation key
+```
+
 ## Modern Grill Card (Grillthermometer)
 
 Für **Meater** (und Sonden mit ähnlichen Sensoren): je aktiver Sonde ein **Ring Kern- gegen Zieltemperatur**, Gargut, **Kochstatus**,
@@ -1236,6 +1259,7 @@ glow, smooth color transitions, animations), shipped as a single HACS download:
 - `custom:ha-temperature-card` – temperature monitor: tiles with trend, min/max and limit warnings (device temperatures from 60 °C), shared history chart
 - `custom:ha-plug-card` – plugs/consumers: switch with confirmation, power, energy and cost today/month, 24 h power history, overpower/overheat and “not running” warnings
 - `custom:ha-grill-card` – meat thermometer (Meater): internal vs. target ring, ambient, time left and ready time, cook state, history
+- `custom:ha-pool-care-card` – pool care for the Smart Pool integration: chemical log with recommendation, stock, metal remover, maintenance & tasks, statistics (found via the device)
 - `custom:ha-network-card` – radio network (Zigbee2MQTT, ZHA, Shelly): signal, battery, last seen, warnings, firmware updates, restart
 - `custom:ha-router-card` – router (FRITZ!Box, TP-Link …): online state, throughput, line, CPU/RAM, Wi-Fi switches with guest QR, devices on the network, reconnect/restart, firmware update
 - `custom:ha-energy-week-card` – energy week: this week vs. last week, cost, peak day, share per consumer, month view

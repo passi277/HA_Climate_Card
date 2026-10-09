@@ -1299,3 +1299,20 @@ export interface GrillCardConfig {
   /** Inaktive Sonden ausblenden (Standard nein – sie erscheinen kompakt) */
   hide_idle?: boolean;
 }
+
+/** Pool-Pflege (Smart Pool): Chemie-Tagebuch, Vorräte, Metall-Ex, Wartung, Statistik */
+export type PoolCareTab = "chemistry" | "stock" | "metal" | "maintenance" | "stats";
+
+export interface PoolCareCardConfig {
+  type: string;
+  title?: string;
+  /** Gerät der Smart-Pool-Integration (sonst das erste gefundene) */
+  device?: string;
+  /** Reiter und Reihenfolge (Standard: alle) */
+  tabs?: PoolCareTab[];
+  default_tab?: PoolCareTab;
+  /** Einzelne Entitäten überschreiben, Schlüssel = translation_key (z. B. dose_amount) */
+  entities?: Record<string, string>;
+  animations?: "full" | "reduced" | "off";
+  [key: string]: unknown;
+}

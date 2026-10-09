@@ -2898,3 +2898,50 @@ export const cookProgress = (internal?: number, target?: number, start = 0): num
   if (internal == null || target == null || !Number.isFinite(internal) || !Number.isFinite(target) || target <= start) return undefined;
   return Math.max(0, Math.min(100, Math.round(((internal - start) / (target - start)) * 100)));
 };
+
+// ---------------------------------------------------------------- Pool-Pflege (Smart Pool)
+
+/** Entitäten der Smart-Pool-Integration nach translation_key – über das Gerät gefunden, einzeln überschreibbar. */
+export function poolCareEntities(
+  reg: Record<string, EntityRegistryEntry> | undefined,
+  device?: string,
+  overrides?: Record<string, string>,
+): Record<string, string> {
+  const list = Object.values(reg ?? {}).filter((e) => e.platform === "smart_pool" && e.translation_key);
+  const dev = device ?? list.find((e) => e.device_id)?.device_id ?? undefined;
+  const out: Record<string, string> = {};
+  for (const e of list) if (!dev || e.device_id === dev) out[e.translation_key!] = e.entity_id;
+  return { ...out, ...(overrides ?? {}) };
+}
+
+/** Menge mit Einheit, ab 1000 g/ml als kg/l („1,2 kg“). */
+export function formatAmount(value: number, unit: string, lang: string): string {
+  const big = Math.abs(value) >= 1000 && (unit === "g" || unit === "ml");
+  const v = big ? value / 1000 : value;
+  const u = big ? (unit === "g" ? "kg" : "l") : unit;
+  return `${v.toLocaleString(lang, { maximumFractionDigits: big ? 1 : 0 })} ${u}`;
+}
+
+/** Schrittweite für Mengen: fein bei kleinen, grob bei großen Werten. */
+export function amountStep(value: number): number {
+  return value < 100 ? 5 : value < 1000 ? 25 : 100;
+}
+
+/** Fälligkeit einer Wartung: Tage bis fällig (negativ = überfällig) und Fortschritt 0–1 seit dem letzten Mal. */
+export function maintenanceDue(last: string | undefined, next: string | undefined, now = new Date()): { days?: number; progress?: number } {
+  const day = (s: string) => { const [y, m, d] = s.slice(0, 10).split("-").map(Number); return new Date(y!, m! - 1, d!).getTime(); };
+  if (!next || !/^\d{4}-\d{2}-\d{2}/.test(next)) return {};
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const n = day(next);
+  const days = Math.round((n - today) / 86_400_000);
+  if (!last || !/^\d{4}-\d{2}-\d{2}/.test(last)) return { days };
+  const l = day(last);
+  const progress = n > l ? Math.min(1, Math.max(0, (today - l) / (n - l))) : 1;
+  return { days, progress };
+}
+
+/** Vorrat als Anteil: voll bei dem Vierfachen der Warngrenze. */
+export function stockLevel(stock: number, threshold: number | undefined): number {
+  if (!threshold || threshold <= 0) return stock > 0 ? 1 : 0;
+  return Math.min(1, Math.max(0, stock / (threshold * 4)));
+}

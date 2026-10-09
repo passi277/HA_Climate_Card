@@ -1864,6 +1864,48 @@ colorFails.length ? fail(`Farbe folgt nicht dem Modus: ${colorFails.join(", ")}`
     ? ok(`Grillthermometer: Sonde vorab einstellen (${plan} → ${plan2})`) : fail(`Grill einstellen: ${JSON.stringify({ plan, gcalls, plan2 })}`);
 }
 
+// Pool-Pflege (Smart Pool)
+{
+  const pc = await p.evaluateHandle(() => document.querySelector("ha-pool-care-card"));
+  await pc.evaluate((c) => c.scrollIntoView({ block: "center" }));
+  await p.waitForTimeout(400);
+  const chem = await pc.evaluate((c) => { const r = c.shadowRoot; return { sub: r.querySelector(".h-sub")?.textContent.trim(), tabs: r.querySelectorAll(".tab").length,
+    sel: r.querySelector(".prod.sel")?.dataset.product, prods: r.querySelectorAll(".prod").length, rec: r.querySelector(".rec")?.textContent.replace(/\s+/g, " ").trim(),
+    probe: !!r.querySelector(".note.warn"), log: r.querySelectorAll(".l-row").length, act: r.querySelector('[data-act="log_dose"] small')?.textContent.trim() }; });
+  chem.tabs === 5 && chem.sel === "chlorine" && chem.prods === 5 && chem.rec === "Empfehlung 30 g" && chem.probe && chem.log === 3 && chem.act === "30 g Chlor" && /Einwintern empfohlen · \d offen/.test(chem.sub)
+    ? ok(`Pool-Pflege Chemie: ${chem.sub}, Empfehlung, Sonden-Hinweis, ${chem.log} Zugaben`) : fail(`Pool-Pflege Chemie: ${JSON.stringify(chem)}`);
+  const n = await p.evaluate(() => window.serviceCalls.length);
+  await pc.evaluate((c) => c.shadowRoot.querySelector('[data-act="log_dose"]').click());
+  await p.waitForTimeout(100);
+  const asked = await pc.evaluate((c) => c.shadowRoot.querySelector('[data-act="log_dose"] b').textContent.trim());
+  const before = await p.evaluate((k) => window.serviceCalls.slice(k).length, n);
+  await pc.evaluate((c) => c.shadowRoot.querySelector('[data-act="log_dose"]').click());
+  await pc.evaluate((c) => c.shadowRoot.querySelector('.prod[data-product="ph_minus"]').click());
+  await p.waitForTimeout(200);
+  const calls = await p.evaluate((k) => window.serviceCalls.slice(k).map((c) => `${c.domain}.${c.service}:${c.data.entity_id}${c.data.option ? "=" + c.data.option : ""}`), n);
+  asked === "Sicher?" && before === 0 && calls.join() === "button.press:button.smart_pool_zugabe_erfassen,select.select_option:select.smart_pool_pflegemittel=ph_minus"
+    ? ok("Pool-Pflege: Zugabe erst nach „Sicher?“, Pflegemittel wählbar") : fail(`Pool-Pflege Zugabe: ${JSON.stringify({ asked, before, calls })}`);
+  const tab = async (t) => { await pc.evaluate((c, t) => c.shadowRoot.querySelector(`.tab[data-tab="${t}"]`).click(), t); await p.waitForTimeout(150); };
+  await tab("stock");
+  const stock = await pc.evaluate((c) => { const r = c.shadowRoot; return { rows: r.querySelectorAll(".s-row").length, low: [...r.querySelectorAll(".s-row.low")].map((x) => x.dataset.stock),
+    untracked: [...r.querySelectorAll(".s-row.untracked")].map((x) => x.dataset.stock), kg: r.querySelector('.s-row[data-stock="ph_minus"] .st-val')?.textContent.trim() }; });
+  stock.rows === 5 && stock.low.join() === "chlorine" && stock.untracked.join() === "shock,ph_plus" && stock.kg === "2,5 kg"
+    ? ok("Pool-Pflege Vorrat: Chlor knapp, Schock/pH-Plus nicht erfasst, pH-Minus 2,5 kg") : fail(`Pool-Pflege Vorrat: ${JSON.stringify(stock)}`);
+  await tab("metal");
+  const metal = await pc.evaluate((c) => [...c.shadowRoot.querySelector(".m-text").children].map((x) => x.textContent.trim()).join(" "));
+  /^20 ml offen für 300 l Frischwasser$/.test(metal) ? ok(`Pool-Pflege Metall-Ex: ${metal}`) : fail(`Pool-Pflege Metall-Ex: ${metal}`);
+  await tab("maintenance");
+  await p.waitForTimeout(200);
+  const maint = await pc.evaluate((c) => { const r = c.shadowRoot; return { due: [...r.querySelectorAll(".t-row.due")].map((x) => x.dataset.task), todos: r.querySelectorAll(".todo").length,
+    state: r.querySelector('.t-row[data-task="probe"] .s-state')?.textContent.trim(), small: r.querySelector('.t-row[data-task="probe"] small')?.textContent.trim() }; });
+  maint.due.join() === "probe" && maint.todos === 2 && maint.state === "fällig" && maint.small === "seit 3 Tagen fällig"
+    ? ok(`Pool-Pflege Wartung: Sonde ${maint.small}, ${maint.todos} offene Aufgaben`) : fail(`Pool-Pflege Wartung: ${JSON.stringify(maint)}`);
+  await tab("stats");
+  const stats = await pc.evaluate((c) => { const r = c.shadowRoot; return { share: r.querySelector(".solar .ring-in b")?.textContent.trim(), kpis: r.querySelectorAll(".kpi").length,
+    report: r.querySelectorAll(".r-grid span").length }; });
+  stats.share === "62" && stats.kpis === 4 && stats.report === 6 ? ok("Pool-Pflege Statistik: 62 % Solar, Kennzahlen, Wochenbericht") : fail(`Pool-Pflege Statistik: ${JSON.stringify(stats)}`);
+}
+
 // Theme-Umschalter
 await p.click('[data-theme="dark"]');
 (await p.evaluate(() => document.body.classList.contains("dark"))) ? ok("Dunkel-Modus umschaltbar") : fail("Dunkel-Modus");

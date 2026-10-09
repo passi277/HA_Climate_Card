@@ -551,6 +551,56 @@
       "sensor.pool_laufzeit": { state: "2.1", attributes: { friendly_name: "Pool Laufzeit heute", unit_of_measurement: "h" } },
       "sensor.pool_wassertemperatur": { state: "24.6", attributes: { friendly_name: "Pool Temperatur", unit_of_measurement: "°C", device_class: "temperature" } },
       "sensor.pool_ph_wert": { state: "6.92", attributes: { friendly_name: "Pool pH", unit_of_measurement: "pH" } },
+      // Smart Pool (Pool-Pflege-Karte) – Entitäten der Integration, über translation_key gefunden
+      "select.smart_pool_pflegemittel": { state: "chlorine", attributes: { friendly_name: "Smart Pool Pflegemittel", options: ["chlorine", "shock", "ph_minus", "ph_plus", "metal_ex"] } },
+      "number.smart_pool_zugabemenge": { state: "30", attributes: { friendly_name: "Smart Pool Zugabemenge", min: 0, max: 10000, step: 5, unit_of_measurement: "g" } },
+      "button.smart_pool_zugabe_erfassen": { state: "unknown", attributes: { friendly_name: "Smart Pool Zugabe erfassen" } },
+      "sensor.smart_pool_chlor_dosierung": { state: "30", attributes: { friendly_name: "Smart Pool Chlor-Dosierung", unit_of_measurement: "g" } },
+      "sensor.smart_pool_ph_minus_dosierung": { state: "0", attributes: { friendly_name: "Smart Pool pH-Minus-Dosierung", unit_of_measurement: "g" } },
+      "sensor.smart_pool_ph_plus_dosierung": { state: "0", attributes: { friendly_name: "Smart Pool pH-Plus-Dosierung", unit_of_measurement: "g" } },
+      "sensor.smart_pool_letzte_zugabe": { state: new Date(Date.now() - 26 * 3600e3).toISOString(), attributes: { friendly_name: "Smart Pool Letzte Zugabe", device_class: "timestamp",
+        log: [{ time: new Date(Date.now() - 26 * 3600e3).toISOString(), product: "chlorine", amount: 30 }, { time: new Date(Date.now() - 50 * 3600e3).toISOString(), product: "ph_minus", amount: 170 },
+          { time: new Date(Date.now() - 5 * 86400e3).toISOString(), product: "metal_ex", amount: 520 }] } },
+      "binary_sensor.smart_pool_sonde_prufen": { state: "on", attributes: { friendly_name: "Smart Pool Sonde prüfen", failed_checks: 2, last_redox_rise_mv: 8 } },
+      "button.smart_pool_sonde_kalibriert": { state: "unknown", attributes: { friendly_name: "Smart Pool Sonde kalibriert" } },
+      "number.smart_pool_vorrat_chlor_granulat": { state: "60", attributes: { friendly_name: "Smart Pool Vorrat Chlor", min: 0, max: 100000, step: 5, unit_of_measurement: "g" } },
+      "number.smart_pool_vorrat_chlor_schock": { state: "0", attributes: { friendly_name: "Smart Pool Vorrat Chlor-Schock", min: 0, max: 100000, step: 5, unit_of_measurement: "g" } },
+      "number.smart_pool_vorrat_ph_minus": { state: "2500", attributes: { friendly_name: "Smart Pool Vorrat pH-Minus", min: 0, max: 100000, step: 5, unit_of_measurement: "g" } },
+      "number.smart_pool_vorrat_ph_plus": { state: "0", attributes: { friendly_name: "Smart Pool Vorrat pH-Plus", min: 0, max: 100000, step: 5, unit_of_measurement: "g" } },
+      "number.smart_pool_vorrat_metall_ex": { state: "1000", attributes: { friendly_name: "Smart Pool Vorrat Metall-Ex", min: 0, max: 100000, step: 5, unit_of_measurement: "ml" } },
+      "binary_sensor.smart_pool_vorrat_knapp": { state: "on", attributes: { friendly_name: "Smart Pool Vorrat knapp", products: ["chlorine"],
+        stock: { chlorine: 60, ph_minus: 2500, metal_ex: 1000 }, thresholds: { chlorine: 92, shock: 310, ph_minus: 1032, ph_plus: 1032, metal_ex: 520 } } },
+      "sensor.smart_pool_verbrauch_chlor_granulat": { state: "420", attributes: { friendly_name: "Smart Pool Verbrauch Chlor", unit_of_measurement: "g" } },
+      "sensor.smart_pool_verbrauch_ph_minus": { state: "850", attributes: { friendly_name: "Smart Pool Verbrauch pH-Minus", unit_of_measurement: "g" } },
+      "sensor.smart_pool_verbrauch_metall_ex": { state: "1560", attributes: { friendly_name: "Smart Pool Verbrauch Metall-Ex", unit_of_measurement: "ml" } },
+      "sensor.smart_pool_metall_ex_dosierung": { state: "20", attributes: { friendly_name: "Smart Pool Metall-Ex-Dosierung", unit_of_measurement: "ml", fresh_water_liters: 300,
+        whole_pool_preventive_ml: 520, whole_pool_discoloured_ml: 1030, refill_cm: 2, surface_m2: 15 } },
+      "sensor.smart_pool_metall_ex_restzeit": { state: "0", attributes: { friendly_name: "Smart Pool Metall-Ex Restzeit", unit_of_measurement: "h", total_hours: 48 } },
+      "binary_sensor.smart_pool_metall_ex_behandlung": { state: "off", attributes: { friendly_name: "Smart Pool Metall-Ex-Behandlung" } },
+      "button.smart_pool_metall_ex_zugegeben": { state: "unknown", attributes: { friendly_name: "Smart Pool Metall-Ex zugegeben" } },
+      "number.smart_pool_nachfullmenge": { state: "2", attributes: { friendly_name: "Smart Pool Nachfüllmenge", min: 0.5, max: 30, step: 0.5, unit_of_measurement: "cm" } },
+      "button.smart_pool_nachgefullt": { state: "unknown", attributes: { friendly_name: "Smart Pool Nachgefüllt" } },
+      "sensor.smart_pool_regen_vorhersage_24_h": { state: "4.9", attributes: { friendly_name: "Smart Pool Regen-Vorhersage", unit_of_measurement: "mm", liters: 74 } },
+      "sensor.smart_pool_regen_letzte_24_h": { state: "0.2", attributes: { friendly_name: "Smart Pool Regen 24 h", unit_of_measurement: "mm" } },
+      "sensor.smart_pool_saison": { state: "winterize", attributes: { friendly_name: "Smart Pool Saison", next_sand: "2028-10-09",
+        next_probe: new Date(Date.now() - 3 * 86400e3).toISOString().slice(0, 10), next_seals: "2027-10-09" } },
+      "binary_sensor.smart_pool_wartung_fallig": { state: "on", attributes: { friendly_name: "Smart Pool Wartung fällig", tasks: ["probe"],
+        last_done: { sand: "2026-10-09", probe: new Date(Date.now() - 93 * 86400e3).toISOString().slice(0, 10), seals: "2026-10-09" } } },
+      "button.smart_pool_filtersand_gewechselt": { state: "unknown", attributes: { friendly_name: "Smart Pool Filtersand gewechselt" } },
+      "button.smart_pool_dichtungen_gepruft": { state: "unknown", attributes: { friendly_name: "Smart Pool Dichtungen geprüft" } },
+      "sensor.smart_pool_pumpenstunden_seit_ruckspulen": { state: "38.5", attributes: { friendly_name: "Smart Pool Pumpenstunden", unit_of_measurement: "h", interval_hours: 50 } },
+      "binary_sensor.smart_pool_ruckspulen_fallig": { state: "off", attributes: { friendly_name: "Smart Pool Rückspülen fällig" } },
+      "button.smart_pool_ruckgespult": { state: "unknown", attributes: { friendly_name: "Smart Pool Rückgespült" } },
+      "todo.smart_pool_aufgaben": { state: "2", attributes: { friendly_name: "Smart Pool Aufgaben" } },
+      "sensor.smart_pool_solaranteil_heute": { state: "62", attributes: { friendly_name: "Smart Pool Solaranteil", unit_of_measurement: "%" } },
+      "sensor.smart_pool_solarstrom_heute": { state: "2.4", attributes: { friendly_name: "Smart Pool Solarstrom", unit_of_measurement: "kWh" } },
+      "sensor.smart_pool_solar_ersparnis_heute": { state: "0.72", attributes: { friendly_name: "Smart Pool Solar-Ersparnis", unit_of_measurement: "EUR" } },
+      "sensor.smart_pool_energie_heute": { state: "3.9", attributes: { friendly_name: "Smart Pool Energie heute", unit_of_measurement: "kWh" } },
+      "sensor.smart_pool_kosten_heute": { state: "0.45", attributes: { friendly_name: "Smart Pool Kosten heute", unit_of_measurement: "EUR" } },
+      "sensor.smart_pool_badewetter": { state: "18", attributes: { friendly_name: "Smart Pool Badewetter", unit_of_measurement: "%", rating: "poor" } },
+      "sensor.smart_pool_pumpen_ausfalle_heute": { state: "1", attributes: { friendly_name: "Smart Pool Pumpen-Ausfälle" } },
+      "sensor.smart_pool_wochenbericht": { state: "KW 41 · 52,0 h Filter · 24,0 kWh (7,20 €) · 50 % Solar", attributes: { friendly_name: "Smart Pool Wochenbericht",
+        week: 41, runtime_hours: 52, energy_kwh: 24, cost: 7.2, solar_share: 50, ph_min: 7.1, ph_max: 7.3, orp_min: 520, orp_max: 560 } },
       "sensor.pool_redox": { state: "688", attributes: { friendly_name: "Pool Redox", unit_of_measurement: "mV" } },
       "sensor.pool_hinweis": { state: "pH-Wert zu niedrig: 310 g pH+ hinzufügen", attributes: { friendly_name: "Pool Hinweis" } },
       "sensor.pool_messung": { state: new Date(Date.now() - 95 * 60000).toISOString(), attributes: { friendly_name: "Pool letzte Messung", device_class: "timestamp" } },
@@ -767,6 +817,7 @@
         "device_tracker.ipad": ["dev_ipad", "fritz"] }[id]) : {}),
       ...(/^\w+\.starlink_/.test(id) ? { device_id: id.includes("camper") ? "dev_starlink_camper" : "dev_starlink", platform: "starlink",
         translation_key: { konnektivitat: "connection", ping: "ping", ping_drop_rate: "ping_drop_rate", downlink_durchsatz: "downlink_throughput", uplink_durchsatz: "uplink_throughput", download: "download", upload: "upload", letzter_neustart: "last_boot_time", beeintrachtigt: "currently_obstructed", heizung: "heating", ruhezustand: "power_save_idle", verstaut: "stowed", zeitplan_fur_ruhezustand: "sleep_schedule", neu_starten: "reboot" }[id.replace(/^\w+\.starlink_(camper_)?/, "")] } : {}),
+      ...(/^\w+\.smart_pool_/.test(id) ? { device_id: "dev_smart_pool", platform: "smart_pool", translation_key: {"select.smart_pool_pflegemittel": "dose_product", "number.smart_pool_zugabemenge": "dose_amount", "button.smart_pool_zugabe_erfassen": "log_dose", "sensor.smart_pool_chlor_dosierung": "chlorine_dose", "sensor.smart_pool_ph_minus_dosierung": "ph_minus_dose", "sensor.smart_pool_ph_plus_dosierung": "ph_plus_dose", "sensor.smart_pool_letzte_zugabe": "last_dose", "binary_sensor.smart_pool_sonde_prufen": "probe_check", "button.smart_pool_sonde_kalibriert": "probe_calibrated", "number.smart_pool_vorrat_chlor_granulat": "stock_chlorine", "number.smart_pool_vorrat_chlor_schock": "stock_shock", "number.smart_pool_vorrat_ph_minus": "stock_ph_minus", "number.smart_pool_vorrat_ph_plus": "stock_ph_plus", "number.smart_pool_vorrat_metall_ex": "stock_metal_ex", "binary_sensor.smart_pool_vorrat_knapp": "stock_low", "sensor.smart_pool_verbrauch_chlor_granulat": "consumption_chlorine", "sensor.smart_pool_verbrauch_ph_minus": "consumption_ph_minus", "sensor.smart_pool_verbrauch_metall_ex": "consumption_metal_ex", "sensor.smart_pool_metall_ex_dosierung": "metal_ex_dose", "sensor.smart_pool_metall_ex_restzeit": "metal_ex_remaining", "binary_sensor.smart_pool_metall_ex_behandlung": "metal_ex_active", "button.smart_pool_metall_ex_zugegeben": "metal_ex_added", "number.smart_pool_nachfullmenge": "refill_cm", "button.smart_pool_nachgefullt": "refilled", "sensor.smart_pool_regen_vorhersage_24_h": "rain_forecast_24h", "sensor.smart_pool_regen_letzte_24_h": "rain_last_24h", "sensor.smart_pool_saison": "season", "binary_sensor.smart_pool_wartung_fallig": "maintenance_due", "button.smart_pool_filtersand_gewechselt": "sand_changed", "button.smart_pool_dichtungen_gepruft": "seals_checked", "sensor.smart_pool_pumpenstunden_seit_ruckspulen": "backwash_hours", "binary_sensor.smart_pool_ruckspulen_fallig": "backwash_due", "button.smart_pool_ruckgespult": "backwash_done", "todo.smart_pool_aufgaben": "tasks", "sensor.smart_pool_solaranteil_heute": "solar_share_today", "sensor.smart_pool_solarstrom_heute": "solar_energy_today", "sensor.smart_pool_solar_ersparnis_heute": "solar_savings_today", "sensor.smart_pool_energie_heute": "energy_today", "sensor.smart_pool_kosten_heute": "cost_today", "sensor.smart_pool_badewetter": "swim_score", "sensor.smart_pool_pumpen_ausfalle_heute": "pump_outages_today", "sensor.smart_pool_wochenbericht": "weekly_report"}[id] } : {}),
       ...(/^\w+\.fritz_box_7690_/.test(id) ? { device_id: "dev_fritz", platform: "fritz" } : {}),
       ...(/^\w+\.haustuer_?/.test(id) || id === "lock.haustuer" ? { device_id: "dev_nuki_lock", platform: "nuki" } : {}),
       ...(/^\w+\.(tursensor_haus|temperatur_haus|ventil_volleyball|steckdose_repeater|rauchmelder)_?/.test(id) ? { device_id: "z2m_" + id.match(/\.(tursensor_haus|temperatur_haus|ventil_volleyball|steckdose_repeater|rauchmelder)/)[1], platform: "mqtt",
@@ -1166,6 +1217,9 @@
           };
           return msg.entity_ids.flatMap((id) => (ev[id] ?? []).map((e) => ({ ...e, entity_id: id }))).sort((x, y) => x.when - y.when);
         }
+        if (msg.type === "todo/item/list" && msg.entity_id === "todo.smart_pool_aufgaben") return { items: [
+          { uid: "t1", summary: "Einwintern: Rückspülen und Filter reinigen", status: "needs_action" },
+          { uid: "t2", summary: "Wartung: Redox-/pH-Sonde kalibrieren", status: "needs_action" }, { uid: "t3", summary: "Erledigt", status: "completed" }] };
         if (msg.type === "config_entries/get" && msg.domain === "seventeentrack") return [{ entry_id: "17track_demo", domain: "seventeentrack", state: "loaded" }];
         if (msg.type === "config_entries/get" && msg.domain === "mealie") return [{ entry_id: "mealie_demo", domain: "mealie", state: "loaded", title: "Mealie" }];
         if (msg.type === "energy/get_prefs") return { energy_sources: [], device_consumption: [{ stat_consumption: "sensor.monitor_1_energy" }, { stat_consumption: "sensor.monitor_2_energy" }, { stat_consumption: "sensor.whirlpool_energy", name: "Whirlpool" }] };
@@ -1403,6 +1457,7 @@
         { entity: "switch.shelly_kuhlschrank", name: "Kühlschrank", alert_below: 5, alert_minutes: 90 }, { entity: "switch.shelly_hutte_ausensteckdosen_switch_0", name: "Außensteckdosen" },
         { entity: "switch.stecker_pumpe_switch_0", name: "Pumpe" }] }],
       ["Grillthermometer – Meater: aktive Sonde mit Ring, Restzeit, Verlauf; zweite Sonde im Ladegerät", { _grill: true }],
+      ["Pool-Pflege – Smart Pool: Chemie-Tagebuch mit Empfehlung, Vorräte, Metall-Ex, Wartung mit Aufgaben, Statistik (alles über das Gerät)", { _poolCare: true }],
       ["Funknetz – WLAN: alle Geräte über den Router (per MAC mit HA-Geräten verknüpft) + Kameras mit WLAN-Signal", { _net: true, integration: "wifi", max_items: 6 }],
       ["Wochenrückblick Energie – diese gegen letzte Woche, Kosten, Spitzentag, Anteil je Verbraucher", { _eweek: true, price: 0.3 }],
       ["Termine & Abfall – nächste Abholung je Tonne, Erinnerung am Vorabend, Termine aus mehreren Kalendern", { _agenda: true, waste: "calendar.abfall", calendars: ["calendar.familie", { entity: "calendar.arbeit", color: "#ab47bc" }] }],
@@ -1449,9 +1504,9 @@
         grid.appendChild(wrap);
         return;
       }
-      const { _overview, _light, _group, _cover, _coverGroup, _switchTime, _media, _room, _status, _vacuum, _presence, _alert, _energy, _irrigation, _pool, _camera, _cameraGroup, _select, _mower, _starlink, _llm, _hbat, _system, _weather, _agenda, _devstatus, _recipe, _scene, _sleep, _crooms, _eweek, _parcel, _router, _lock, _temp, _net, _plug, _grill, ...rest } = cfg;
+      const { _overview, _light, _group, _cover, _coverGroup, _switchTime, _media, _room, _status, _vacuum, _presence, _alert, _energy, _irrigation, _pool, _camera, _cameraGroup, _select, _mower, _starlink, _llm, _hbat, _system, _weather, _agenda, _devstatus, _recipe, _scene, _sleep, _crooms, _eweek, _parcel, _router, _lock, _temp, _net, _plug, _grill, _poolCare, ...rest } = cfg;
       const tag = _overview ? "ha-climate-overview-card" : _group ? "ha-light-group-card" : _light ? "ha-light-card"
-        : _cover ? "ha-cover-card" : _coverGroup ? "ha-cover-group-card" : _switchTime ? "ha-switch-time-card" : _media ? "ha-media-card" : _room ? "ha-room-card" : _status ? "ha-status-card" : _vacuum ? "ha-vacuum-card" : _presence ? "ha-presence-card" : _alert ? "ha-alert-card" : _energy ? "ha-energy-card" : _irrigation ? "ha-irrigation-card" : _pool ? "ha-pool-card" : _camera ? "ha-camera-card" : _cameraGroup ? "ha-camera-group-card" : _select ? "ha-select-card" : _mower ? "ha-mower-card" : _starlink ? "ha-starlink-card" : _llm ? "ha-llm-timeline-card" : _hbat ? "ha-home-battery-card" : _system ? "ha-system-card" : _weather ? "ha-weather-card" : _agenda ? "ha-agenda-card" : _devstatus ? "ha-device-status-card" : _recipe ? "ha-recipe-card" : _scene ? "ha-scene-card" : _sleep ? "ha-sleep-card" : _crooms ? "ha-climate-rooms-card" : _eweek ? "ha-energy-week-card" : _parcel ? "ha-parcel-card" : _router ? "ha-router-card" : _lock ? "ha-lock-card" : _temp ? "ha-temperature-card" : _net ? "ha-network-card" : _plug ? "ha-plug-card" : _grill ? "ha-grill-card" : "ha-climate-card";
+        : _cover ? "ha-cover-card" : _coverGroup ? "ha-cover-group-card" : _switchTime ? "ha-switch-time-card" : _media ? "ha-media-card" : _room ? "ha-room-card" : _status ? "ha-status-card" : _vacuum ? "ha-vacuum-card" : _presence ? "ha-presence-card" : _alert ? "ha-alert-card" : _energy ? "ha-energy-card" : _irrigation ? "ha-irrigation-card" : _pool ? "ha-pool-card" : _camera ? "ha-camera-card" : _cameraGroup ? "ha-camera-group-card" : _select ? "ha-select-card" : _mower ? "ha-mower-card" : _starlink ? "ha-starlink-card" : _llm ? "ha-llm-timeline-card" : _hbat ? "ha-home-battery-card" : _system ? "ha-system-card" : _weather ? "ha-weather-card" : _agenda ? "ha-agenda-card" : _devstatus ? "ha-device-status-card" : _recipe ? "ha-recipe-card" : _scene ? "ha-scene-card" : _sleep ? "ha-sleep-card" : _crooms ? "ha-climate-rooms-card" : _eweek ? "ha-energy-week-card" : _parcel ? "ha-parcel-card" : _router ? "ha-router-card" : _lock ? "ha-lock-card" : _temp ? "ha-temperature-card" : _net ? "ha-network-card" : _plug ? "ha-plug-card" : _grill ? "ha-grill-card" : _poolCare ? "ha-pool-care-card" : "ha-climate-card";
       const card = document.createElement(tag);
       card.id = "card" + i;
       card.setConfig({ type: `custom:${tag}`, ...rest });

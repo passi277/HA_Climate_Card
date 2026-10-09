@@ -39,3 +39,4 @@ import "./temperature-card";
 import "./network-card";
 import "./plug-card";
 import "./grill-card";
+import "./pool-care-card";
