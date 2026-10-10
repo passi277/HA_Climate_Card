@@ -1,0 +1,1525 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HA Modern Home Cards – Demo</title>
+  <style>
+    :root {
+      --primary-color: #03a9f4; --primary-text-color: #212121; --secondary-text-color: #727272;
+      --card-background-color: #fff; --divider-color: rgba(0,0,0,0.12); --text-primary-color: #fff;
+      --warning-color: #ff9800; --error-color: #db4437;
+      font-family: Roboto, system-ui, sans-serif;
+    }
+    body { background: #f0f2f5; color: var(--primary-text-color); margin: 0; padding: 24px; }
+    body.dark {
+      --primary-text-color: #e1e1e1; --secondary-text-color: #9b9b9b; --card-background-color: #1c1c1c;
+      --divider-color: rgba(255,255,255,0.12); background: #111;
+    }
+    .tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; align-items: start; }
+    .toolbar { position: sticky; top: 0; z-index: 10; display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+      margin: -24px -24px 20px; padding: 12px 24px; background: color-mix(in srgb, var(--card-background-color) 85%, transparent);
+      backdrop-filter: blur(10px); border-bottom: 1px solid var(--divider-color); }
+    .brand { font-weight: 600; margin-right: auto; }
+    .seg { display: inline-flex; padding: 3px; border-radius: 999px; background: rgba(127,127,127,0.15); }
+    .seg button { border: none; background: transparent; color: var(--primary-text-color); font: inherit; font-size: 13px;
+      padding: 6px 14px; border-radius: 999px; cursor: pointer; }
+    .seg button[aria-pressed="true"] { background: var(--card-background-color); box-shadow: 0 1px 3px rgba(0,0,0,0.2); font-weight: 600; }
+    h2 { font-size: 14px; color: var(--secondary-text-color); margin: 0 0 6px; font-weight: 500; }
+    #log { font: 12px monospace; white-space: pre-wrap; margin-top: 16px; color: var(--secondary-text-color); }
+  </style>
+</head>
+<body>
+  <div class="toolbar" role="toolbar" aria-label="Demo-Einstellungen">
+    <span class="brand">HA Modern Home Cards · Demo</span>
+    <div class="seg" role="group" aria-label="Design">
+      <button data-theme="light">☀️ Hell</button><button data-theme="dark">🌙 Dunkel</button>
+    </div>
+    <div class="seg" role="group" aria-label="Sonnenstand">
+      <button data-sun="day">🌤 Tag</button><button data-sun="twilight">🌇 Dämmerung</button><button data-sun="night">🌙 Nacht</button>
+    </div>
+    <div class="seg" role="group" aria-label="Sprache">
+      <button data-lang="de">DE</button><button data-lang="en">EN</button>
+    </div>
+  </div>
+  <div class="grid" id="grid"></div>
+  <div id="log"></div>
+  <!-- Generiert von scripts/build-demo.mjs: Karte und Icons sind eingebettet, damit die Datei per Doppelklick funktioniert. -->
+  <script type="module">
+/*__CARD__*/
+  </script>
+  <script type="module">
+    const mdi = /*__ICONS__*/{};
+
+    // ---- Minimal-Stubs für HA-Elemente ----
+    const toKey = (name) => "mdi" + name.replace(/^mdi:/, "").split("-").map((p) => p[0].toUpperCase() + p.slice(1)).join("");
+    customElements.define("ha-icon", class extends HTMLElement {
+      static get observedAttributes() { return ["icon"]; }
+      set icon(v) { this._icon = v; this._r(); } get icon() { return this._icon; }
+      attributeChangedCallback() { this._icon = this.getAttribute("icon"); this._r(); }
+      connectedCallback() { this.style.display = "inline-flex"; this._r(); }
+      _r() {
+        const d = mdi[toKey(this._icon || "")] || "";
+        (this.shadowRoot || this.attachShadow({ mode: "open" })).innerHTML = `<svg viewBox="0 0 24 24" style="width:var(--mdc-icon-size,24px);height:var(--mdc-icon-size,24px);fill:currentColor"><path d="${d}"/></svg>`;
+      }
+    });
+    customElements.define("ha-card", class extends HTMLElement {
+      connectedCallback() {
+        Object.assign(this.style, { background: "var(--card-background-color)", borderRadius: "16px",
+          boxShadow: "0 2px 6px rgba(0,0,0,0.08)", border: "1px solid var(--divider-color)" });
+      }
+    });
+
+    const params = new URLSearchParams(location.search);
+    let lang = params.get("lang") || "de";
+    const setTheme = (dark) => {
+      document.body.classList.toggle("dark", dark);
+      document.querySelectorAll("[data-theme]").forEach((b) => b.setAttribute("aria-pressed", String((b.dataset.theme === "dark") === dark)));
+    };
+    const updateUrl = () => {
+      const q = new URLSearchParams();
+      if (document.body.classList.contains("dark")) q.set("dark", "1");
+      if (lang !== "de") q.set("lang", lang);
+      try { history.replaceState(null, "", q.toString() ? `?${q}` : location.pathname); } catch (e) { /* file:// */ }
+    };
+    const markLang = () => document.querySelectorAll("[data-lang]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.lang === lang)));
+    setTheme(!!params.get("dark") || (!params.has("dark") && matchMedia("(prefers-color-scheme: dark)").matches));
+    markLang();
+    document.querySelectorAll("[data-theme]").forEach((b) => b.addEventListener("click", () => { setTheme(b.dataset.theme === "dark"); updateUrl(); }));
+    const SUN = { day: { elevation: 20, azimuth: 237, rising: false }, twilight: { elevation: 1.5, azimuth: 262, rising: false },
+      night: { elevation: -25, azimuth: 330, rising: false } };
+    const markSun = () => document.querySelectorAll("[data-sun]").forEach((b) => b.setAttribute("aria-pressed",
+      String(SUN[b.dataset.sun].elevation === states["sun.sun"].attributes.elevation)));
+    document.querySelectorAll("[data-sun]").forEach((b) => b.addEventListener("click", () => {
+      const a = SUN[b.dataset.sun];
+      states["sun.sun"] = { ...states["sun.sun"], state: a.elevation > 0 ? "above_horizon" : "below_horizon",
+        attributes: { ...states["sun.sun"].attributes, ...a }, last_updated: new Date().toISOString() };
+      markSun();
+      const h = makeHass(); cards.forEach((c) => (c.hass = h));
+    }));
+    document.querySelectorAll("[data-lang]").forEach((b) => b.addEventListener("click", () => {
+      lang = b.dataset.lang; markLang(); updateUrl();
+      const h = makeHass(); cards.forEach((c) => (c.hass = h));
+    }));
+    const log = (m) => (document.getElementById("log").textContent += m + "\n");
+    window.serviceCalls = [];
+
+    const now = new Date().toISOString();
+    // Kamera-Platzhalterbilder (SVG-Szenen)
+    const camScene = (label, sky1, sky2, ground, extra = "") => "data:image/svg+xml;charset=utf-8," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180">
+      <defs><linearGradient id="s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${sky1}"/><stop offset="1" stop-color="${sky2}"/></linearGradient></defs>
+      <rect width="320" height="180" fill="url(#s)"/><circle cx="262" cy="34" r="16" fill="#fff6c8" opacity=".8"/>
+      <path d="M0 120 Q80 100 160 118 T320 112 V180 H0Z" fill="${ground}"/>${extra}
+      <text x="8" y="172" font-family="monospace" font-size="9" fill="#fff" opacity=".75">${label} · 04.10.2026 14:32:07</text></svg>`);
+    const HOUSE = '<rect x="40" y="70" width="90" height="60" fill="#b0855a"/><path d="M32 72 L85 38 L138 72Z" fill="#7a3b2e"/><rect x="74" y="98" width="20" height="32" fill="#4e342e"/><rect x="48" y="84" width="16" height="14" fill="#cfe8ff"/><rect x="104" y="84" width="16" height="14" fill="#cfe8ff"/>';
+    const PERSON = '<g transform="translate(200 92)"><circle cx="0" cy="0" r="7" fill="#f2c9a0"/><rect x="-7" y="8" width="14" height="24" rx="5" fill="#d84315"/><rect x="-6" y="31" width="5" height="16" fill="#263238"/><rect x="1" y="31" width="5" height="16" fill="#263238"/><rect x="-16" y="-12" width="32" height="64" fill="none" stroke="#ff1744" stroke-width="1.5"/></g>';
+    const TREE = (x) => `<rect x="${x - 3}" y="80" width="6" height="40" fill="#5d4037"/><circle cx="${x}" cy="72" r="20" fill="#2e7d32"/>`;
+    const CAR = '<g transform="translate(150 118)"><rect x="0" y="0" width="70" height="20" rx="6" fill="#1565c0"/><path d="M12 0 L22 -14 H50 L60 0Z" fill="#1976d2"/><circle cx="16" cy="22" r="7" fill="#212121"/><circle cx="54" cy="22" r="7" fill="#212121"/></g>';
+    const POOL = '<ellipse cx="170" cy="140" rx="110" ry="26" fill="#29b6f6"/><ellipse cx="170" cy="138" rx="100" ry="20" fill="#4fc3f7"/>';
+    const SHED = '<rect x="180" y="78" width="80" height="48" fill="#8d6e63"/><path d="M172 80 L220 56 L268 80Z" fill="#5d4037"/><rect x="210" y="96" width="20" height="30" fill="#3e2723"/>';
+    const states = {
+      // Router: FRITZ!Box (Zuhause) und TP-Link (Garten)
+      "binary_sensor.fritz_box_7690_verbindung": { state: "on", attributes: { friendly_name: "FRITZ!Box 7690 Verbindung", device_class: "connectivity" } },
+      "sensor.fritz_box_7690_download_durchsatz": { state: "1830.4", attributes: { friendly_name: "FRITZ!Box 7690 Download-Durchsatz", unit_of_measurement: "kB/s" } },
+      "sensor.fritz_box_7690_upload_durchsatz": { state: "212.7", attributes: { friendly_name: "FRITZ!Box 7690 Upload-Durchsatz", unit_of_measurement: "kB/s" } },
+      "sensor.fritz_box_7690_link_download_durchsatz": { state: "299132", attributes: { friendly_name: "FRITZ!Box 7690 Link-Download-Durchsatz", unit_of_measurement: "kbit/s" } },
+      "sensor.fritz_box_7690_link_upload_durchsatz": { state: "48534", attributes: { friendly_name: "FRITZ!Box 7690 Link-Upload-Durchsatz", unit_of_measurement: "kbit/s" } },
+      "sensor.fritz_box_7690_maximaler_download_durchsatz_der_verbindung": { state: "280064", attributes: { friendly_name: "FRITZ!Box 7690 Maximaler Download-Durchsatz", unit_of_measurement: "kbit/s" } },
+      "sensor.fritz_box_7690_download_leitungsdampfung": { state: "13", attributes: { friendly_name: "FRITZ!Box 7690 Download-Leitungsdämpfung", unit_of_measurement: "dB" } },
+      "sensor.fritz_box_7690_upload_leitungsdampfung": { state: "8", attributes: { friendly_name: "FRITZ!Box 7690 Upload-Leitungsdämpfung", unit_of_measurement: "dB" } },
+      "sensor.fritz_box_7690_gb_empfangen": { state: "200.2", attributes: { friendly_name: "FRITZ!Box 7690 GB empfangen", unit_of_measurement: "GB" } },
+      "sensor.fritz_box_7690_gb_gesendet": { state: "9.2", attributes: { friendly_name: "FRITZ!Box 7690 GB gesendet", unit_of_measurement: "GB" } },
+      "sensor.fritz_box_7690_letzter_neustart": { state: new Date(Date.now() - 6 * 86400_000 - 3 * 3600_000).toISOString(), attributes: { friendly_name: "FRITZ!Box 7690 Betriebszeit", device_class: "timestamp" } },
+      "sensor.fritz_box_7690_externe_ip": { state: "89.244.12.34", attributes: { friendly_name: "FRITZ!Box 7690 Externe IP" } },
+      "sensor.fritz_box_7690_externe_ipv6": { state: "2001:16b8:a033:ff91:b6fc:7dff:fe6e:766", attributes: { friendly_name: "FRITZ!Box 7690 Externe IPv6" } },
+      "switch.fritz_box_7690_wi_fi_main_2_4ghz": { state: "on", attributes: { friendly_name: "FRITZ!Box 7690 Wi-Fi Main 2.4Ghz" } },
+      "switch.fritz_box_7690_wi_fi_main_5ghz": { state: "on", attributes: { friendly_name: "FRITZ!Box 7690 Wi-Fi Main 5Ghz" } },
+      "switch.fritz_box_7690_wi_fi_guest": { state: "off", attributes: { friendly_name: "FRITZ!Box 7690 Wi-Fi Guest" } },
+      "button.fritz_box_7690_neu_starten": { state: "unknown", attributes: { friendly_name: "FRITZ!Box 7690 Neu starten", device_class: "restart" } },
+      "button.fritz_box_7690_neu_verbinden": { state: "unknown", attributes: { friendly_name: "FRITZ!Box 7690 Neu verbinden" } },
+      "update.fritz_box_7690_fritz_os": { state: "on", attributes: { friendly_name: "FRITZ!Box 7690 FRITZ!OS", installed_version: "8.02", latest_version: "8.03" } },
+      ...Object.fromEntries([["s26_ultra_von_pascal", "S26-Ultra-von-Pascal", "192.168.178.24", "WLAN", "home"], ["huebridge", "huebridge", "192.168.178.30", "LAN", "home"],
+        ["roborock_vacuum_a97", "roborock-vacuum-a97", "192.168.178.41", "WLAN", "home"], ["pc_pascal", "PC-Pascal", "192.168.178.20", "LAN", "home"],
+        ["bravia_tv", "BRAVIA-KD-65X85L", "192.168.178.35", "WLAN", "home"], ["orbi_satellit", "orbirbr20", "192.168.178.3", "LAN", "home"],
+        ["s24_ultra_von_marcel", "S24-Ultra-von-Marcel", "192.168.178.25", "WLAN", "not_home"]].map(([id, host, ip, type, st]) =>
+        [`device_tracker.fb_${id}`, { state: st, last_changed: new Date(Date.now() - 2 * 3600_000).toISOString(), attributes: { friendly_name: host, host_name: host, ip, mac: "AA:BB:CC:00:00:" + ip.slice(-2), connection_type: type, connected_to: type === "WLAN" && id.includes("roborock") ? "orbirbr20" : "fritz.box", last_time_reachable: new Date(Date.now() - 2 * 3600_000).toISOString(), source_type: "router" } }])),
+      "sensor.tp_link_router_cpu_used": { state: "17", attributes: { friendly_name: "TP-Link Router CPU used", unit_of_measurement: "%" } },
+      "sensor.tp_link_router_memory_used": { state: "50", attributes: { friendly_name: "TP-Link Router Memory used", unit_of_measurement: "%" } },
+      "sensor.tp_link_router_total_clients": { state: "14", attributes: { friendly_name: "TP-Link Router Total clients" } },
+      "sensor.tp_link_router_total_main_wifi_clients": { state: "12", attributes: { friendly_name: "TP-Link Router Total main wifi clients" } },
+      "sensor.tp_link_router_total_guest_wifi_clients": { state: "0", attributes: { friendly_name: "TP-Link Router Total guest wifi clients" } },
+      "sensor.tp_link_router_total_wired_clients": { state: "2", attributes: { friendly_name: "TP-Link Router Total wired clients" } },
+      "sensor.tp_link_router_wan_ipv4_address": { state: "100.109.196.198", attributes: { friendly_name: "TP-Link Router WAN IPv4 Address" } },
+      "sensor.tp_link_router_lan_ipv4_address": { state: "192.168.0.1", attributes: { friendly_name: "TP-Link Router LAN IPv4 Address" } },
+      "switch.tp_link_router_e_wan_connect": { state: "on", attributes: { friendly_name: "TP-Link Router E-WAN connect" } },
+      "switch.tp_link_router_wifi_2_4g": { state: "on", attributes: { friendly_name: "TP-Link Router WIFI 2.4G" } },
+      "switch.tp_link_router_wifi_5g": { state: "on", attributes: { friendly_name: "TP-Link Router WIFI 5G" } },
+      "switch.tp_link_router_guest_wifi_2_4g": { state: "off", attributes: { friendly_name: "TP-Link Router Guest WIFI 2.4G" } },
+      "switch.tp_link_router_router_data_fetching": { state: "on", attributes: { friendly_name: "TP-Link Router Router data fetching" } },
+      "button.tp_link_router_reboot": { state: "unknown", attributes: { friendly_name: "TP-Link Router Reboot" } },
+      "update.tp_link_router_update": { state: "off", attributes: { friendly_name: "TP-Link Router Update" } },
+      // Szenen (Hue-Räume) für die Szenen-Karte
+      "scene.tv_kaminfeuer": { state: new Date(Date.now() - 95 * 60000).toISOString(), attributes: { friendly_name: "tv Ambiente Kaminfeuer", group_name: "tv", name: "Ambiente Kaminfeuer" } },
+      "scene.tv_kerze": { state: "unknown", attributes: { friendly_name: "tv Kerze Ambiente", group_name: "tv", name: "Kerze Ambiente" } },
+      "scene.tv_nordlichter": { state: "unknown", attributes: { friendly_name: "tv Nordlichter", group_name: "tv", name: "Nordlichter" } },
+      "scene.tv_hell": { state: "unknown", attributes: { friendly_name: "tv Hell", group_name: "tv", name: "Hell" } },
+      "scene.tv_nachtlicht": { state: "unknown", attributes: { friendly_name: "tv Nachtlicht", group_name: "tv", name: "Nachtlicht" } },
+      "scene.tv_lesen": { state: "unknown", attributes: { friendly_name: "tv Lesen", group_name: "tv", name: "Lesen" } },
+      "scene.wohnzimmer_gedimmt": { state: new Date(Date.now() - 26 * 3600000).toISOString(), attributes: { friendly_name: "Wohnzimmer Gedimmt", group_name: "Wohnzimmer", name: "Gedimmt" } },
+      "scene.wohnzimmer_entspannen": { state: "unknown", attributes: { friendly_name: "Wohnzimmer Entspannen", group_name: "Wohnzimmer", name: "Entspannen" } },
+      "scene.wohnzimmer_sonnenuntergang": { state: "unknown", attributes: { friendly_name: "Wohnzimmer Sonnenuntergang Savanne", group_name: "Wohnzimmer", name: "Sonnenuntergang Savanne" } },
+      "scene.wohnzimmer_konzentrieren": { state: "unknown", attributes: { friendly_name: "Wohnzimmer Konzentrieren", group_name: "Wohnzimmer", name: "Konzentrieren" } },
+      "light.hue_tv": { state: "on", attributes: { friendly_name: "tv", is_hue_group: true, hue_type: "room", supported_color_modes: ["xy"], color_mode: "xy", brightness: 150, rgb_color: [255, 140, 60],
+        entity_id: ["light.tv_ambiente", "light.hue_play_gradient", "light.tv_spot_links", "light.tv_spot_rechts", "light.tv_couch"] } },
+      "light.hue_wohnzimmer": { state: "on", attributes: { friendly_name: "Wohnzimmer", is_hue_group: true, hue_type: "room", supported_color_modes: ["color_temp"], color_mode: "color_temp", brightness: 200, color_temp_kelvin: 2700,
+        entity_id: ["light.wohnzimmer_stehlampe", "light.wohnzimmer_decke"] } },
+      "light.tv_spot_links": { state: "off", attributes: { friendly_name: "Spot links", supported_color_modes: ["color_temp"] } },
+      "light.tv_spot_rechts": { state: "on", attributes: { friendly_name: "Spot rechts", supported_color_modes: ["color_temp"], color_mode: "color_temp", brightness: 120, color_temp_kelvin: 2400 } },
+      "light.tv_couch": { state: "on", attributes: { friendly_name: "Couch mitte", supported_color_modes: ["xy"], color_mode: "xy", brightness: 90, rgb_color: [255, 80, 20] } },
+      // 17TRACK
+      "sensor.17track_unterwegs": { state: "2", attributes: { friendly_name: "17Track Unterwegs", unit_of_measurement: "packages" } },
+      "sensor.17track_zugestellt": { state: "1", attributes: { friendly_name: "17Track Zugestellt", unit_of_measurement: "packages" } },
+      "sensor.17track_bereit_zur_abholung": { state: "1", attributes: { friendly_name: "17Track Bereit zur Abholung", unit_of_measurement: "packages" } },
+      "light.tv_ambiente": { state: "on", attributes: { friendly_name: "Ambiente Stripe", supported_color_modes: ["xy"], color_mode: "xy", brightness: 160, rgb_color: [255, 120, 40] } },
+      // Schlafen
+      "input_boolean.schlafen_pascal": { state: "on", last_changed: new Date(Date.now() - 80 * 60000).toISOString(), attributes: { friendly_name: "Schlafmodus Pascal" } },
+      "input_boolean.schalter_tv": { state: "on", attributes: { friendly_name: "TV-Timer aktiv" } },
+      "input_datetime.timer_tv": (() => { const d = new Date(Date.now() + 85 * 60000); return { state: "", attributes: { friendly_name: "TV aus um", has_date: false, has_time: true, hour: d.getHours(), minute: d.getMinutes() - (d.getMinutes() % 5), second: 0 } }; })(),
+      "input_boolean.schlafen_marcel": { state: "off", last_changed: new Date(Date.now() - 9 * 3600000).toISOString(), attributes: { friendly_name: "Schlafen Marcel" } },
+      "input_datetime.timer_klima_marcel": { state: "02:00:00", attributes: { friendly_name: "Klima aus um", has_date: false, has_time: true, hour: 2, minute: 0, second: 0 } },
+      "sensor.pascal_naechster_wecker": { state: (() => { const d = new Date(Date.now() + 86400000); d.setHours(6, 30, 0, 0); return d.toISOString(); })(), attributes: { friendly_name: "Nächster Wecker", device_class: "timestamp" } },
+      // Energie-Wochenrückblick (Zähler in kWh)
+      "sensor.monitor_1_energy": { state: "25.3", attributes: { friendly_name: "Monitor 1", unit_of_measurement: "kWh", device_class: "energy", state_class: "total_increasing" } },
+      "sensor.monitor_2_energy": { state: "22.2", attributes: { friendly_name: "Monitor 2", unit_of_measurement: "kWh", device_class: "energy", state_class: "total_increasing" } },
+      "sensor.whirlpool_energy": { state: "412.8", attributes: { friendly_name: "Whirlpool", unit_of_measurement: "kWh", device_class: "energy", state_class: "total_increasing" } },
+      "climate.wohnzimmer": { state: "cool", attributes: {
+        friendly_name: "Wohnzimmer", supported_features: 1 | 8 | 16 | 32 | 128 | 256 | 512,
+        hvac_modes: ["off", "auto", "cool", "heat", "dry", "fan_only"], hvac_action: "cooling",
+        current_temperature: 25.4, temperature: 22, min_temp: 16, max_temp: 31, target_temp_step: 0.5,
+        current_humidity: 54,
+        fan_modes: ["auto", "low", "medium", "high", "turbo"], fan_mode: "auto",
+        swing_modes: ["off", "vertical", "both"], swing_mode: "vertical",
+        swing_horizontal_modes: ["off", "on"], swing_horizontal_mode: "off",
+        preset_modes: ["none", "eco", "boost", "sleep"], preset_mode: "eco",
+      }},
+      "climate.buero": { state: "heat_cool", attributes: {
+        friendly_name: "Büro", supported_features: 2 | 4 | 8,
+        hvac_modes: ["off", "heat_cool", "heat", "cool"], hvac_action: "idle",
+        current_temperature: 21.1, target_temp_low: 20, target_temp_high: 24, min_temp: 16, max_temp: 30,
+        humidity: 45, min_humidity: 30, max_humidity: 70, current_humidity: 41,
+        fan_modes: ["auto", "low", "high"], fan_mode: "low",
+      }},
+      "climate.schlafzimmer": { state: "off", attributes: {
+        friendly_name: "Schlafzimmer", supported_features: 1 | 8,
+        hvac_modes: ["off", "cool", "heat"], hvac_action: "off",
+        current_temperature: 23.0, temperature: 20, min_temp: 16, max_temp: 30, fan_modes: ["auto", "low"], fan_mode: "auto",
+      }},
+      "climate.1ed763d9": { state: "cool", attributes: {
+        friendly_name: "Klima Schlafzimmer", supported_features: 953,
+        hvac_modes: ["auto", "cool", "dry", "fan_only", "heat", "off"], min_temp: 8, max_temp: 30, target_temp_step: 1,
+        fan_modes: ["auto", "low", "medium low", "medium", "medium high", "high"], fan_mode: "low",
+        preset_modes: ["eco", "away", "boost", "none", "sleep"], preset_mode: "none",
+        swing_modes: ["default", "full_swing", "fixed_upper", "fixed_upper_middle", "fixed_middle", "fixed_lower_middle", "fixed_lower", "swing_upper", "swing_upper_middle", "swing_middle", "swing_lower_middle", "swing_lower"],
+        swing_horizontal_modes: ["default", "full_swing", "left", "left_center", "center", "right_center", "right"],
+        current_temperature: 25, temperature: 23, swing_mode: "fixed_upper", swing_horizontal_mode: "full_swing",
+      }},
+      "switch.1ed763d9_frische_luft": { state: "off", attributes: { friendly_name: "Klima Schlafzimmer Frischluft" } },
+      "switch.1ed763d9_leise": { state: "on", attributes: { friendly_name: "Klima Schlafzimmer Leiser Modus" } },
+      "switch.1ed763d9_panel_leuchte": { state: "on", attributes: { friendly_name: "Klima Schlafzimmer Bedienfeld-Beleuchtung" } },
+      "switch.1ed763d9_xfan": { state: "off", attributes: { friendly_name: "Klima Schlafzimmer Zusatzlüfter" } },
+      "input_boolean.timer_klima_pascal": { state: "on", attributes: { friendly_name: "Sleeptimer Klima Pascal" } },
+      "input_datetime.timer_klima_pascal": { state: "23:30:00", attributes: { friendly_name: "Timer Klima Pascal", has_date: false, has_time: true, hour: 23, minute: 30, second: 0 } },
+      "climate.hmip_wth_2_wohnzimmer": { state: "heat", attributes: { friendly_name: "Wandthermostat Wohnzimmer", current_temperature: 26.8, current_humidity: 48 } },
+      "timer.klima_pascal": { state: "idle", attributes: { friendly_name: "Timer Klima Pascal", duration: "0:30:00" } },
+      "weather.zuhause": { state: "sunny", attributes: { friendly_name: "Zuhause", temperature: 19.5, temperature_unit: "°C" } },
+      "sensor.buero_feuchte": { state: "74", attributes: { unit_of_measurement: "%", device_class: "humidity" } },
+      "climate.heizung_mein_zimmer": { state: "auto", attributes: {
+        friendly_name: "Heizung mein Zimmer", supported_features: 401, hvac_modes: ["auto", "heat", "off"],
+        preset_modes: ["boost", "none"], preset_mode: "none", hvac_action: "heating", min_temp: 5, max_temp: 30.5,
+        target_temp_step: 0.5, current_temperature: 19.6, temperature: 21, current_humidity: 52,
+        current_schedule_profile: "P1", available_profiles: ["P1", "P2", "P3"],
+        schedule_data: Object.fromEntries(["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"].map((d, i) => [d, i < 5
+          ? { base_temperature: 17, periods: [{ starttime: "06:00", endtime: "09:00", temperature: 21 }, { starttime: "17:00", endtime: "22:00", temperature: 21 }] }
+          : { base_temperature: 21, periods: [{ starttime: "00:00", endtime: "06:00", temperature: 17 }, { starttime: "22:00", endtime: "24:00", temperature: 17 }] }])),
+      }},
+      "climate.wandthermostat_mein_zimmer": { state: "auto", attributes: { friendly_name: "Wandthermostat mein Zimmer", current_temperature: 19.6, current_humidity: 52 } },
+      "sensor.etrv_fenster_ventil_offnungsgrad": { state: "42", attributes: { friendly_name: "Heizkörper Fenster Ventil-Öffnungsgrad", unit_of_measurement: "%" } },
+      "sensor.etrv_tuer_ventil_offnungsgrad": { state: "18", attributes: { friendly_name: "Heizkörper Tür Ventil-Öffnungsgrad", unit_of_measurement: "%" } },
+      "sensor.etrv_fenster_betriebsspannungspegel": { state: "12", attributes: { friendly_name: "Heizkörper Fenster Betriebsspannungspegel", unit_of_measurement: "%" } },
+      "light.gaste_wc": { state: "on", attributes: { friendly_name: "Gäste WC", supported_color_modes: ["color_temp", "xy"], color_mode: "xy",
+        brightness: 166, hs_color: [304, 100], rgb_color: [255, 0, 238], min_color_temp_kelvin: 2202, max_color_temp_kelvin: 4000,
+        entity_id: ["light.gaste_wc_oben", "light.gaste_wc_unten", "light.gaste_wc_spiegel"], supported_features: 40 } },
+      "light.gaste_wc_oben": { state: "on", attributes: { friendly_name: "Gäste WC oben", supported_color_modes: ["color_temp", "xy"], color_mode: "xy", brightness: 255, hs_color: [346, 100], rgb_color: [255, 0, 57] } },
+      "light.gaste_wc_unten": { state: "on", attributes: { friendly_name: "Gäste WC unten", supported_color_modes: ["color_temp", "xy"], color_mode: "xy", brightness: 90, hs_color: [270, 100], rgb_color: [140, 0, 255] } },
+      "light.gaste_wc_spiegel": { state: "off", attributes: { friendly_name: "Gäste WC Spiegel", supported_color_modes: ["color_temp"] } },
+      "scene.gaste_wc_entspannen": { state: "unknown", attributes: { friendly_name: "Gäste WC Entspannen", group_name: "Gäste WC", name: "Entspannen" } },
+      "scene.gaste_wc_entspannen_2": { state: "unknown", attributes: { friendly_name: "Gäste WC Entspannen", group_name: "Gäste WC", name: "Entspannen" } },
+      "scene.gaste_wc_hell": { state: "unknown", attributes: { friendly_name: "Gäste WC Hell", group_name: "Gäste WC", name: "Hell" } },
+      "scene.gaste_wc_nachtlicht": { state: "unknown", attributes: { friendly_name: "Gäste WC Nachtlicht", group_name: "Gäste WC", name: "Nachtlicht" } },
+      "scene.gaste_wc_lesen": { state: "unknown", attributes: { friendly_name: "Gäste WC Lesen", group_name: "Gäste WC", name: "Lesen" } },
+      "binary_sensor.gaste_wc_bewegung": { state: "off", last_changed: new Date(Date.now() - 4 * 60000).toISOString(), attributes: { friendly_name: "Bewegung Gäste WC", device_class: "motion" } },
+      "sensor.gaste_wc_lux": { state: "86", attributes: { unit_of_measurement: "lx", device_class: "illuminance" } },
+      "light.hue_play_gradient": { state: "on", attributes: { friendly_name: "Hue play gradient TV", supported_color_modes: ["color_temp", "xy"], color_mode: "color_temp",
+        brightness: 200, color_temp_kelvin: 2700, min_color_temp_kelvin: 2000, max_color_temp_kelvin: 6535, effect: "off",
+        effect_list: ["off", "candle", "fire", "prism", "sparkle", "opal", "glisten", "underwater", "cosmos", "sunbeam", "enchant", "sunrise", "sunset"] } },
+      "light.carport_2": { state: "on", attributes: { friendly_name: "Carport", supported_color_modes: ["color_temp", "rgb"], color_mode: "rgb",
+        brightness: 180, rgb_color: [255, 120, 30], hs_color: [24, 88], min_color_temp_kelvin: 2000, max_color_temp_kelvin: 9009, effect: null,
+        effect_list: ["", ...["Aurora", "Autumn", "Breathe", "Candlelight", "Christmas", "Cocktail", "Fire", "Fireworks", "Firefly", "Forest", "Halloween",
+          "Lightning", "Meteor", "Ocean", "Party", "Rainbow", "Romantic", "Sakura", "Snowflake", "Sunrise", "Sunset", "Twinkle"]
+          .flatMap((n) => [n, `${n}-A`, `${n}-B`]), "Music: DayAndNight", "Music: Energic", "Music: PianoKeys", "Music: Rhythm", "Music: Spectrum"], supported_features: 44 } },
+      ...Object.fromEntries([[255, 60, 0], [255, 120, 30], [255, 190, 60], null, [180, 60, 255]].map((c, i) => [`light.carport_segment_00${i + 1}`,
+        { state: c ? "on" : "off", attributes: { friendly_name: `Carport Segment 00${i + 1}`, supported_color_modes: ["rgb"], color_mode: "rgb",
+          brightness: 200, ...(c ? { rgb_color: c } : {}) } }])),
+      "switch.carport_gradient_toggle": { state: "on", attributes: { friendly_name: "Carport Gradient", icon: "mdi:gradient-horizontal" } },
+      "switch.carport_power_switch": { state: "on", attributes: { friendly_name: "Carport Power Switch" } },
+      "button.carport_request_platform_api_state": { state: "unknown", attributes: { friendly_name: "Carport Request Platform API State" } },
+      "light.wohnzimmer_stehlampe": { state: "on", attributes: { friendly_name: "Stehlampe", supported_color_modes: ["color_temp", "xy"], color_mode: "xy",
+        brightness: 170, hs_color: [200, 90], rgb_color: [40, 170, 255], min_color_temp_kelvin: 2200, max_color_temp_kelvin: 6500,
+        effect: "off", effect_list: ["off", "candle", "fire", "prism", "sparkle"] } },
+      "light.wohnzimmer_decke": { state: "on", attributes: { friendly_name: "Deckenlicht", supported_color_modes: ["color_temp"], color_mode: "color_temp",
+        brightness: 230, color_temp_kelvin: 3000, min_color_temp_kelvin: 2200, max_color_temp_kelvin: 6500 } },
+      "light.wohnzimmer_regal": { state: "off", attributes: { friendly_name: "Regal", supported_color_modes: ["brightness"], color_mode: "brightness" } },
+      "light.wohnzimmer_lichterkette": { state: "on", attributes: { friendly_name: "Lichterkette", supported_color_modes: ["onoff"], color_mode: "onoff", icon: "mdi:string-lights" } },
+      "light.wohnzimmer_vitrine": { state: "unavailable", attributes: { friendly_name: "Vitrine", supported_color_modes: ["brightness"] } },
+      "input_boolean.wecker": { state: "on", attributes: { friendly_name: "Wecker", icon: "mdi:alarm" } },
+      "input_datetime.wecker_zeit": { state: "06:30:00", attributes: { friendly_name: "Weckzeit", has_date: false, has_time: true, hour: 6, minute: 30, second: 0 } },
+      "input_boolean.gartenbewaesserung": { state: "off", attributes: { friendly_name: "Gartenbewässerung" } },
+      "input_datetime.bewaesserung_start": (() => { const d = new Date(Date.now() + 86400000); return { state: "", attributes: {
+        friendly_name: "Bewässerung Start", has_date: true, has_time: true, year: d.getFullYear(), month: d.getMonth() + 1, day: d.getDate(), hour: 19, minute: 15, second: 0 } }; })(),
+      "remote.harmony_hub_wohnzimmer": { state: "on", attributes: { friendly_name: "Harmony Hub Wohnzimmer", supported_features: 4,
+        activity_list: ["Ps4", "Atmos", "PC wiedergeben", "Smart TV wiedergeben"], current_activity: "Smart TV wiedergeben", activity_starting: null,
+        devices_list: ["Philips AV-Switch", "Samsung 9.1.4", "Amazon Fire TV", "Google Multimedia-Player", "Sony TV Wohnzimmer"] } },
+      "media_player.fire_tv_wohnzimmer": { state: "playing", attributes: { friendly_name: "Fire TV Wohnzimmer", supported_features: 154509,
+        media_title: "Interstellar", media_artist: "Christopher Nolan", app_name: "Prime Video", media_duration: 10140, media_position: 4210,
+        media_position_updated_at: new Date().toISOString(), volume_level: 0.32, is_volume_muted: false,
+        source: "Prime Video", source_list: ["Prime Video", "Netflix", "YouTube", "Disney+", "Joyn", "ARD Mediathek"],
+        entity_picture: "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0b1a3a"/><stop offset="1" stop-color="#c98a3c"/></linearGradient></defs><rect width="64" height="64" fill="url(#g)"/><circle cx="40" cy="26" r="12" fill="#f6d28b" opacity=".9"/><circle cx="40" cy="26" r="16" fill="none" stroke="#f6d28b" stroke-width="1.5" opacity=".6"/></svg>') } },
+      // Sony Bravia meldet beim Schauen nur „on“ – mit Titel/Sender bzw. „Smart TV“ im App-Modus
+      "media_player.bravia_schlafzimmer": { state: "on", attributes: { friendly_name: "Bravia Schlafzimmer", device_class: "tv", assumed_state: true, supported_features: 155581,
+        media_content_type: "app", media_title: "Smart TV", volume_level: 0.04, is_volume_muted: false, source_list: ["HDMI 1", "HDMI 2", "HDMI 3 (eARC/ARC)", "HDMI 4", "AV"] } },
+      "media_player.atmos": { state: "on", attributes: { friendly_name: "ATMOS", supported_features: 154509, volume_level: 0.4, is_volume_muted: false,
+        source: "HDMI", source_list: ["HDMI", "TV ARC", "Bluetooth", "Optisch"], sound_mode: "Standard" } },
+      "light.licht_mein_zimmer": { state: "on", attributes: { friendly_name: "Licht mein Zimmer", supported_color_modes: ["color_temp", "xy"], color_mode: "color_temp",
+        brightness: 178, color_temp_kelvin: 2700, min_color_temp_kelvin: 2200, max_color_temp_kelvin: 6500, entity_id: ["light.nachtlicht", "light.deckenlampe_schlafzimmer"] } },
+      "light.nachtlicht": { state: "on", attributes: { friendly_name: "Nachtlicht", supported_color_modes: ["color_temp", "xy"], color_mode: "color_temp", brightness: 178, color_temp_kelvin: 2700 } },
+      "light.deckenlampe_schlafzimmer": { state: "on", attributes: { friendly_name: "Deckenlampe Schlafzimmer", supported_color_modes: ["color_temp"], color_mode: "color_temp", brightness: 178, color_temp_kelvin: 2700 } },
+      "binary_sensor.fenster_pascal_schreibtisch": { state: "on", attributes: { friendly_name: "Fenster Schreibtisch", device_class: "window" } },
+      "binary_sensor.fenster_pascal_tv": { state: "off", attributes: { friendly_name: "Fenster TV", device_class: "window" } },
+      "binary_sensor.tuerkontakt_pascal": { state: "off", attributes: { friendly_name: "Türkontakt mein Zimmer", device_class: "window" } },
+      "remote.harmony_schlafzimmer": { state: "on", attributes: { friendly_name: "Harmony Schlafzimmer", supported_features: 4,
+        activity_list: ["Klimaanlage", "Smart TV wiedergeben", "Tv"], current_activity: "Smart TV wiedergeben", devices_list: ["Sony TV (2)", "Proklima 23807891", "Bose Verstärker", "Sony TV"] } },
+      "sensor.heizkorperthermostat_mein_zimmer_battery_plus": { state: "8.0", attributes: { friendly_name: "Heizkörperthermostat mein Zimmer Batterie+", device_class: "battery",
+        unit_of_measurement: "%", device_name: "Heizkörperthermostat mein Zimmer", battery_type_and_quantity: "2× AA", battery_type: "AA", battery_quantity: 2, battery_low: true,
+        battery_last_replaced: new Date(Date.now() - 400 * 86400000).toISOString() } },
+      "binary_sensor.heizkorperthermostat_mein_zimmer_battery_plus_low": { state: "on", attributes: { friendly_name: "Heizkörperthermostat mein Zimmer Batterie fast leer", device_class: "battery" } },
+      "sensor.wandthermostat_mein_zimmer_battery_plus": { state: "62.5", attributes: { friendly_name: "Wandthermostat mein Zimmer Batterie+", device_class: "battery",
+        unit_of_measurement: "%", device_name: "Wandthermostat mein Zimmer", battery_type_and_quantity: "2× AAA", battery_type: "AAA", battery_quantity: 2, battery_low: false,
+        battery_last_replaced: new Date(Date.now() - 12 * 86400000).toISOString() } },
+      "sensor.wandthermostat_mein_zimmer_batterie": { state: "60", attributes: { friendly_name: "Wandthermostat mein Zimmer Batterie", device_class: "battery", unit_of_measurement: "%" } },
+      "sensor.turkontakt_mein_zimmer_battery_plus": { state: "34", attributes: { friendly_name: "Türkontakt mein Zimmer Batterie+", device_class: "battery",
+        unit_of_measurement: "%", device_name: "Türkontakt mein Zimmer", battery_type_and_quantity: "AAA", battery_low: false } },
+      "sensor.zimmer_schalter_battery_plus": { state: "91", attributes: { friendly_name: "Lichtschalter Batterie+", device_class: "battery",
+        unit_of_measurement: "%", device_name: "Lichtschalter", battery_type_and_quantity: "CR2032", battery_low: false } },
+      "vacuum.roborock_s8_maxv_ultra": { state: "cleaning", attributes: { friendly_name: "Roborock S8 MaxV Ultra", supported_features: 30524,
+        fan_speed: "balanced", fan_speed_list: ["quiet", "balanced", "turbo", "max", "max_plus", "off", "smart_mode", "custom"] } },
+      "sensor.roborock_batterie": { state: "82", attributes: { friendly_name: "Roborock S8 MaxV Ultra Batterie", device_class: "battery", unit_of_measurement: "%" } },
+      "sensor.roborock_aktueller_raum": { state: "Küche", attributes: { friendly_name: "Roborock S8 MaxV Ultra Aktueller Raum", device_class: "enum" } },
+      "sensor.roborock_reinigungsfortschritt": { state: "46", attributes: { friendly_name: "Roborock S8 MaxV Ultra Reinigungsfortschritt", unit_of_measurement: "%" } },
+      "sensor.roborock_staubsauger_fehler": { state: "none", attributes: { friendly_name: "Roborock S8 MaxV Ultra Staubsauger-Fehler" } },
+      "sensor.roborock_verbleibende_filterzeit": { state: "45.4", attributes: { friendly_name: "Roborock S8 MaxV Ultra Verbleibende Filterzeit", unit_of_measurement: "h" } },
+      "sensor.roborock_verbleibende_sensorzeit": { state: "-15.2", attributes: { friendly_name: "Roborock S8 MaxV Ultra Verbleibende Sensorzeit", unit_of_measurement: "h" } },
+      "sensor.roborock_verbleibende_zeit_der_seitenburste": { state: "23.7", attributes: { friendly_name: "Roborock S8 MaxV Ultra Verbleibende Zeit der Seitenbürste", unit_of_measurement: "h" } },
+      "select.roborock_reinigungsmodus": { state: "vac_and_mop", attributes: { friendly_name: "Roborock S8 MaxV Ultra Reinigungsmodus", options: ["vacuum", "mop", "vac_and_mop", "vac_then_mop"] } },
+      "select.roborock_wischmopp_intensitat": { state: "standard", attributes: { friendly_name: "Roborock S8 MaxV Ultra Wisch-Intensität", options: ["off", "mild", "standard", "intense"] } },
+      "select.roborock_ausgewahlte_karte": { state: "Wohnung", attributes: { friendly_name: "Roborock S8 MaxV Ultra Ausgewählte Karte", options: ["Wohnung"] } },
+      "button.roborock_alles": { state: "unknown", attributes: { friendly_name: "Roborock S8 MaxV Ultra Alles" } },
+      "button.roborock_kanten_flur": { state: "unknown", attributes: { friendly_name: "Roborock S8 MaxV Ultra Kanten flur" } },
+      "image.roborock_wohnung_custom": (() => {
+        // Grundriss wie die Roborock-Räume (Koordinaten des Roboters → Pixel über die Kalibrierung)
+        const rooms = { 16: ["Wohnzimmer teppich", 23300, 31200, 27000, 35000], 17: ["Marcel", 32950, 23600, 35250, 29100], 18: ["Küche", 25050, 24350, 27900, 27950],
+          19: ["Gäste WC", 32950, 29200, 34150, 30400], 20: ["Gästezimmer", 20000, 27950, 24600, 31650], 21: ["Wohnzimmer", 24450, 27900, 28500, 32650],
+          22: ["Pascal", 28950, 23600, 32800, 27400], 23: ["Flur", 28450, 27450, 33250, 31600], 24: ["Badezimmer", 28450, 27450, 31500, 29350] };
+        const px = (x) => 776 + (x - 25500) * 0.08, py = (y) => 908 - (y - 25500) * 0.08;
+        const colors = ["#7aa7d9", "#e8b26a", "#8fcf9a", "#d98fb4", "#b39ddb", "#80cbc4", "#ffcc80", "#90a4ae", "#a5d6a7"];
+        let body = "";
+        Object.values(rooms).forEach(([n, x0, y0, x1, y1], i) => {
+          body += `<rect x="${px(x0)}" y="${py(y1)}" width="${(x1 - x0) * 0.08}" height="${(y1 - y0) * 0.08}" fill="${colors[i]}" fill-opacity=".55" stroke="#455a64" stroke-width="6"/>`;
+        });
+        body += `<path d="M ${px(25400)} ${py(26600)} q 60 -80 120 0 t 120 0 t 120 -40" fill="none" stroke="#fff" stroke-width="5" stroke-dasharray="10 8" opacity=".8"/>`;
+        body += `<rect x="${px(31900) - 22}" y="${py(23900) - 12}" width="44" height="24" rx="6" fill="#263238"/>`;
+        body += `<circle cx="${px(26300)}" cy="${py(26400)}" r="22" fill="#fff" stroke="#26a69a" stroke-width="8"/><circle cx="${px(26300)}" cy="${py(26400) - 9}" r="5" fill="#26a69a"/>`;
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1150" viewBox="0 0 1800 1150"><rect width="1800" height="1150" fill="#eef1f4"/>${body}</svg>`;
+        return { state: new Date().toISOString(), attributes: { friendly_name: "Roborock S8 MaxV Ultra Wohnung_custom",
+          entity_picture: "data:image/svg+xml," + encodeURIComponent(svg),
+          calibration_points: [{ vacuum: { x: 25500, y: 25500 }, map: { x: 776, y: 908 } }, { vacuum: { x: 35500, y: 25500 }, map: { x: 1576, y: 908 } }, { vacuum: { x: 25500, y: 35500 }, map: { x: 776, y: 108 } }],
+          rooms: Object.fromEntries(Object.entries(rooms).map(([id, [name, x0, y0, x1, y1]]) => [id, { number: Number(id), name, x0, y0, x1, y1 }])) } };
+      })(),
+      "sun.sun": { state: "above_horizon", attributes: { friendly_name: "Sun", elevation: 20, azimuth: 237, rising: false } },
+      "weather.garten": { state: "partlycloudy", attributes: { friendly_name: "Garten", temperature: 14 } },
+      "cover.rollos_pascal": { state: "open", attributes: { friendly_name: "Rollos Pascal", current_position: 46, supported_features: 15,
+        entity_id: ["cover.schreibtisch", "cover.tv"] } },
+      "cover.schreibtisch": { state: "open", attributes: { friendly_name: "Schreibtisch", device_class: "shutter", current_position: 29, supported_features: 15 } },
+      "cover.tv": { state: "open", attributes: { friendly_name: "TV", device_class: "shutter", current_position: 63, supported_features: 15 } },
+      "cover.mario": { state: "closed", attributes: { friendly_name: "Mario", device_class: "shutter", current_position: 0, supported_features: 15 } },
+      "cover.kuche": { state: "unavailable", attributes: { friendly_name: "Küche", device_class: "shutter", supported_features: 15 } },
+      "cover.buero_raffstore": { state: "open", attributes: { friendly_name: "Büro Raffstore", device_class: "blind", current_position: 70,
+        current_tilt_position: 40, supported_features: 255 } },
+      "cover.terrasse_markise": { state: "closed", attributes: { friendly_name: "Markise", device_class: "awning", supported_features: 3 } },
+      "sensor.wz_temp": { state: "25.1", attributes: { unit_of_measurement: "°C", device_class: "temperature" } },
+      "sensor.aussen": { state: "31.6", attributes: { unit_of_measurement: "°C", device_class: "temperature" } },
+      "sensor.klima_power": { state: "845", attributes: { unit_of_measurement: "W", device_class: "power" } },
+      "sensor.klima_energy": { state: "3.42", attributes: { unit_of_measurement: "kWh", device_class: "energy" } },
+      "binary_sensor.buero_fenster": { state: "on", attributes: { friendly_name: "Bürofenster", device_class: "window" } },
+      "binary_sensor.wz_fenster": { state: "off", attributes: { friendly_name: "Fenster Wohnzimmer", device_class: "window" } },
+      "binary_sensor.wz_balkontuer": { state: "on", attributes: { friendly_name: "Balkontür" } },
+      "binary_sensor.wz_dachfenster": { state: "off", attributes: { friendly_name: "Dachfenster" } },
+      "person.pascal": { state: "home", last_changed: new Date(Date.now() - 135 * 60000).toISOString(), attributes: { friendly_name: "Pascal", device_trackers: ["device_tracker.pascal_handy"],
+        entity_picture: "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 100"><defs><linearGradient id="p" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5d8bd6"/><stop offset="1" stop-color="#2c3e66"/></linearGradient></defs><rect width="80" height="100" fill="url(#p)"/><circle cx="40" cy="40" r="17" fill="#f1c9a5"/><path d="M23 36c0-12 8-19 17-19s17 7 17 19c-4-6-10-8-17-8s-13 2-17 8z" fill="#4a3426"/><path d="M8 100c2-22 15-32 32-32s30 10 32 32z" fill="#e0e6ef"/></svg>') } },
+      "person.marcel": { state: "not_home", last_changed: new Date(Date.now() - 40 * 60000).toISOString(), attributes: { friendly_name: "Marcel", device_trackers: ["device_tracker.marcels"] } },
+      "device_tracker.pascal_handy": { state: "home", attributes: { friendly_name: "Pascal S26" } },
+      "device_tracker.marcels": { state: "not_home", attributes: { friendly_name: "Marcel S24" } },
+      "sensor.pascal_handy_battery_level": { state: "68", attributes: { friendly_name: "Pascal S26 Battery level", device_class: "battery", unit_of_measurement: "%" } },
+      "sensor.pascal_handy_charger_type": { state: "ac", attributes: { friendly_name: "Pascal S26 Charger type", device_class: "enum" } },
+      "sensor.marcel_s24_battery_level": { state: "15", attributes: { friendly_name: "Marcel S24 Battery level", device_class: "battery", unit_of_measurement: "%" } },
+      "sensor.marcel_s24_charger_type": { state: "none", attributes: { friendly_name: "Marcel S24 Charger type", device_class: "enum" } },
+      "calendar.abfall": { state: "off", attributes: { friendly_name: "Abfallkalender", message: "Restmüll", all_day: true,
+        start_time: (() => { const d = new Date(Date.now() + 86400000); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} 00:00:00`; })() } },
+      "time.robo_ruhezeit_beginn": { state: "22:00:00", attributes: { friendly_name: "Bitte nicht stören Beginn" } },
+      "switch.robo_nicht_stoeren": { state: "on", attributes: { friendly_name: "Bitte nicht stören" } },
+      "sensor.solarbank_solar": { state: "1240", attributes: { friendly_name: "Solarleistung", unit_of_measurement: "W", device_class: "power" } },
+      "sensor.solarbank_laden": { state: "520", attributes: { friendly_name: "Aufladeleistung", unit_of_measurement: "W", device_class: "power" } },
+      "sensor.solarbank_entladen": { state: "0", attributes: { friendly_name: "Entladeleistung", unit_of_measurement: "W", device_class: "power" } },
+      "sensor.solarbank_ladestand": { state: "81", attributes: { friendly_name: "Ladestand", unit_of_measurement: "%", device_class: "battery" } },
+      "sensor.smart_meter_bezug": { state: "0", attributes: { friendly_name: "Netzbezug", unit_of_measurement: "W", device_class: "power" } },
+      "sensor.smart_meter_einspeisung": { state: "310", attributes: { friendly_name: "Einspeisung", unit_of_measurement: "W", device_class: "power" } },
+      "sensor.garten_hausbedarf": { state: "410", attributes: { friendly_name: "Hausbedarf", unit_of_measurement: "W", device_class: "power" } },
+      "sensor.kuehlschrank_power": { state: "87.7", attributes: { friendly_name: "Kühlschrank", unit_of_measurement: "W", device_class: "power" } },
+      "sensor.aussenstrom_power": { state: "7.7", attributes: { friendly_name: "Außenstrom", unit_of_measurement: "W", device_class: "power" } },
+      "sensor.pumpe_power": { state: "0", attributes: { friendly_name: "Pumpe", unit_of_measurement: "W", device_class: "power" } },
+      "sensor.pool_power": { state: "unavailable", attributes: { friendly_name: "Pool", unit_of_measurement: "W", device_class: "power" } },
+      "sensor.starlink_leistung": { state: "53.4", attributes: { friendly_name: "Starlink", unit_of_measurement: "W", device_class: "power" } },
+      "switch.pumpe": { state: "off", attributes: { friendly_name: "Stecker Pumpe" } },
+      "number.solarbank_kapazitaet": { state: "2688", attributes: { friendly_name: "Akku Kapazität", unit_of_measurement: "Wh" } },
+      "switch.hauswasserwerk": { state: "on", attributes: { friendly_name: "Hauswasserwerk" } },
+      "sensor.hauswasserwerk_power": { state: "642", attributes: { friendly_name: "Hauswasserwerk Leistung", unit_of_measurement: "W", device_class: "power" } },
+      "switch.ventil_rasen": { state: "on", attributes: { friendly_name: "Ventil Rasen" } },
+      "switch.ventil_beete": { state: "off", attributes: { friendly_name: "Ventil Beete" } },
+      "switch.ventil_hecke": { state: "off", attributes: { friendly_name: "Ventil Hecke" } },
+      "sensor.ventil_rasen_flow": { state: "0.84", attributes: { friendly_name: "Ventil Rasen Volumenstrom", unit_of_measurement: "m³/h", device_class: "volume_flow_rate" } },
+      "sensor.ventil_beete_flow": { state: "0", attributes: { friendly_name: "Ventil Beete Volumenstrom", unit_of_measurement: "m³/h", device_class: "volume_flow_rate" } },
+      "sensor.ventil_hecke_flow": { state: "0", attributes: { friendly_name: "Ventil Hecke Volumenstrom", unit_of_measurement: "m³/h", device_class: "volume_flow_rate" } },
+      "sensor.ventil_rasen_battery": { state: "93", attributes: { friendly_name: "Ventil Rasen Batterie", unit_of_measurement: "%", device_class: "battery" } },
+      "sensor.ventil_beete_battery": { state: "89", attributes: { friendly_name: "Ventil Beete Batterie", unit_of_measurement: "%", device_class: "battery" } },
+      "sensor.ventil_hecke_battery": { state: "14", attributes: { friendly_name: "Ventil Hecke Batterie", unit_of_measurement: "%", device_class: "battery" } },
+      // Mähroboter (Ecovacs GOAT): Entitäten am Gerät, Karte erkennt sie automatisch
+      "lawn_mower.goat_g1": { state: "docked", attributes: { friendly_name: "GOAT G1", supported_features: 7 } },
+      "sensor.goat_g1_battery_level": { state: "86", attributes: { friendly_name: "Batterie", unit_of_measurement: "%", device_class: "battery" } },
+      "sensor.goat_g1_error": { state: "0", attributes: { friendly_name: "Error", description: "NoError: Robot is operational" } },
+      "sensor.goat_g1_mowing_progress": { state: "unknown", attributes: { friendly_name: "Mowing progress", unit_of_measurement: "%" } },
+      "sensor.goat_g1_area_mowed": { state: "0.0", attributes: { friendly_name: "Area mowed", unit_of_measurement: "m²", device_class: "area" } },
+      "sensor.goat_g1_mowing_area": { state: "0.0", attributes: { friendly_name: "Mowing area", unit_of_measurement: "m²", device_class: "area" } },
+      "sensor.goat_g1_mowing_duration": { state: "0.0", attributes: { friendly_name: "Mowing duration", unit_of_measurement: "min", device_class: "duration" } },
+      "sensor.goat_g1_total_area_mowed": { state: "18420", attributes: { friendly_name: "Total area mowed", unit_of_measurement: "m²", device_class: "area", state_class: "total_increasing" } },
+      "sensor.goat_g1_total_mowing_duration": { state: "65.63", attributes: { friendly_name: "Total mowing duration", unit_of_measurement: "h", device_class: "duration" } },
+      "sensor.goat_g1_total_mowings": { state: "52", attributes: { friendly_name: "Total mowings" } },
+      "sensor.goat_g1_blade_lifespan": { state: "8.5", attributes: { friendly_name: "Blade lifespan", unit_of_measurement: "%" } },
+      "sensor.goat_g1_lens_brush_lifespan": { state: "64", attributes: { friendly_name: "Lens brush lifespan", unit_of_measurement: "%" } },
+      "sensor.goat_g1_wi_fi_rssi": { state: "71", attributes: { friendly_name: "Wi-Fi RSSI" } },
+      "sensor.goat_g1_wi_fi_ssid": { state: "Garten", attributes: { friendly_name: "Wi-Fi SSID" } },
+      "button.goat_g1_stop_mowing": { state: "unknown", attributes: { friendly_name: "Stop mowing" } },
+      "button.goat_g1_stop_debug_capture": { state: "unknown", attributes: { friendly_name: "Stop debug capture" } },
+      "button.goat_g1_refresh_state": { state: "unknown", attributes: { friendly_name: "Refresh state" } },
+      "select.goat_g1_mowing_efficiency": { state: "unknown", attributes: { friendly_name: "Mowing efficiency", options: ["Quick", "Delicate"] } },
+      "select.goat_g1_obstacle_avoidance": { state: "General", attributes: { friendly_name: "Obstacle avoidance", options: ["Short grass", "General", "Bumpy ground with tall grass"] } },
+      "number.goat_g1_rain_delay": { state: "180", attributes: { friendly_name: "Rain delay", min: 0, max: 1440, step: 1, unit_of_measurement: "min" } },
+      "switch.goat_g1_rain_sensor": { state: "on", attributes: { friendly_name: "Rain sensor" } },
+      "switch.goat_g1_ai_recognition": { state: "on", attributes: { friendly_name: "AI Recognition" } },
+      "switch.goat_g1_animal_protection": { state: "off", attributes: { friendly_name: "Animal protection" } },
+      "switch.goat_g1_border_switch": { state: "on", attributes: { friendly_name: "Border switch" } },
+      "switch.goat_g1_cross_map_border_warning": { state: "on", attributes: { friendly_name: "Cross map border warning" } },
+      "switch.goat_g1_safer_mode": { state: "off", attributes: { friendly_name: "Safer Mode" } },
+      "time.goat_g1_animal_protection_start": { state: "19:00:00", attributes: { friendly_name: "Animal protection start" } },
+      "time.goat_g1_animal_protection_end": { state: "07:00:00", attributes: { friendly_name: "Animal protection end" } },
+      "sensor.goat_g1_live_map": { state: "live", attributes: { friendly_name: "Live map", current_position: { x: 2, y: 0, a: 0, invalid: 0 }, info: { outline: [] }, trace: { path: [] } } },
+      "update.goat_g1_update": { state: "on", attributes: { friendly_name: "GOAT G1 Update", installed_version: "1.2.0", latest_version: "1.3.1" } },
+      "lawn_mower.goat_wiese": { state: "mowing", attributes: { friendly_name: "GOAT Wiese", supported_features: 7 } },
+      "sensor.goat_wiese_battery_level": { state: "64", attributes: { friendly_name: "Batterie", unit_of_measurement: "%", device_class: "battery" } },
+      "sensor.goat_wiese_error": { state: "0", attributes: { friendly_name: "Error", description: "NoError: Robot is operational" } },
+      "sensor.goat_wiese_mowing_progress": { state: "42", attributes: { friendly_name: "Mowing progress", unit_of_measurement: "%" } },
+      "sensor.goat_wiese_area_mowed": { state: "186.4", attributes: { friendly_name: "Area mowed", unit_of_measurement: "m²", device_class: "area" } },
+      "sensor.goat_wiese_mowing_area": { state: "450", attributes: { friendly_name: "Mowing area", unit_of_measurement: "m²", device_class: "area" } },
+      "sensor.goat_wiese_mowing_duration": { state: "38", attributes: { friendly_name: "Mowing duration", unit_of_measurement: "min", device_class: "duration" } },
+      "sensor.goat_wiese_total_area_mowed": { state: "18420", attributes: { friendly_name: "Total area mowed", unit_of_measurement: "m²", device_class: "area", state_class: "total_increasing" } },
+      "sensor.goat_wiese_total_mowing_duration": { state: "65.63", attributes: { friendly_name: "Total mowing duration", unit_of_measurement: "h", device_class: "duration" } },
+      "sensor.goat_wiese_total_mowings": { state: "52", attributes: { friendly_name: "Total mowings" } },
+      "sensor.goat_wiese_blade_lifespan": { state: "72", attributes: { friendly_name: "Blade lifespan", unit_of_measurement: "%" } },
+      "sensor.goat_wiese_lens_brush_lifespan": { state: "64", attributes: { friendly_name: "Lens brush lifespan", unit_of_measurement: "%" } },
+      "sensor.goat_wiese_wi_fi_rssi": { state: "71", attributes: { friendly_name: "Wi-Fi RSSI" } },
+      "sensor.goat_wiese_wi_fi_ssid": { state: "Garten", attributes: { friendly_name: "Wi-Fi SSID" } },
+      "button.goat_wiese_stop_mowing": { state: "unknown", attributes: { friendly_name: "Stop mowing" } },
+      "button.goat_wiese_stop_debug_capture": { state: "unknown", attributes: { friendly_name: "Stop debug capture" } },
+      "button.goat_wiese_refresh_state": { state: "unknown", attributes: { friendly_name: "Refresh state" } },
+      "select.goat_wiese_mowing_efficiency": { state: "Delicate", attributes: { friendly_name: "Mowing efficiency", options: ["Quick", "Delicate"] } },
+      "select.goat_wiese_obstacle_avoidance": { state: "General", attributes: { friendly_name: "Obstacle avoidance", options: ["Short grass", "General", "Bumpy ground with tall grass"] } },
+      "number.goat_wiese_rain_delay": { state: "180", attributes: { friendly_name: "Rain delay", min: 0, max: 1440, step: 1, unit_of_measurement: "min" } },
+      "switch.goat_wiese_rain_sensor": { state: "on", attributes: { friendly_name: "Rain sensor" } },
+      "switch.goat_wiese_ai_recognition": { state: "on", attributes: { friendly_name: "AI Recognition" } },
+      "switch.goat_wiese_animal_protection": { state: "off", attributes: { friendly_name: "Animal protection" } },
+      "switch.goat_wiese_border_switch": { state: "on", attributes: { friendly_name: "Border switch" } },
+      "switch.goat_wiese_cross_map_border_warning": { state: "on", attributes: { friendly_name: "Cross map border warning" } },
+      "switch.goat_wiese_safer_mode": { state: "off", attributes: { friendly_name: "Safer Mode" } },
+      "time.goat_wiese_animal_protection_start": { state: "19:00:00", attributes: { friendly_name: "Animal protection start" } },
+      "time.goat_wiese_animal_protection_end": { state: "07:00:00", attributes: { friendly_name: "Animal protection end" } },
+      "sensor.goat_wiese_live_map": { state: "live", attributes: { friendly_name: "Live map", current_position: { x: 13.2, y: 7.4, a: 90, invalid: 0 }, charge_positions: [{ x: 1, y: 1 }],
+        // wie beim echten GOAT: trace.path bleibt leer, die Punkte kommen über position_history
+        info: { outline: [[0, 0], [24, 0], [26, 6], [22, 14], [8, 15], [0, 10]] }, trace: { path: [] },
+        position_history: [[1, 1], [2, 2], [22, 2], [23, 4], [3, 4], [3, 6], [23, 6], [22, 8], [3, 8], [5, 10], [20, 10], [16, 12], [9, 12], [13.2, 7.4]].map(([x, y]) => ({ x, y, a: 0, invalid: 0 })) } },
+      // Starlink (Integration starlink) + Speedtest.net – deutsche Entitätsnamen wie im Garten
+      ...Object.fromEntries([["starlink", "Starlink", "on", "off", "off"], ["starlink_camper", "Starlink Camper", "on", "on", "on"]].flatMap(([p, n, online, obstructed, heating]) => [
+        [`binary_sensor.${p}_konnektivitat`, { state: online, attributes: { friendly_name: `${n} Konnektivität`, device_class: "connectivity" } }],
+        [`sensor.${p}_ping`, { state: p === "starlink" ? "27.93" : "61.2", attributes: { friendly_name: `${n} Ping`, unit_of_measurement: "ms", state_class: "measurement" } }],
+        [`sensor.${p}_ping_drop_rate`, { state: p === "starlink" ? "0.0" : "3.4", attributes: { friendly_name: `${n} Ping-Drop-Rate`, unit_of_measurement: "%" } }],
+        [`sensor.${p}_downlink_durchsatz`, { state: p === "starlink" ? "18.4391" : "0.139158", attributes: { friendly_name: `${n} Downlink-Durchsatz`, unit_of_measurement: "Mbit/s", device_class: "data_rate" } }],
+        [`sensor.${p}_uplink_durchsatz`, { state: p === "starlink" ? "2.1067" : "0.6438", attributes: { friendly_name: `${n} Uplink-Durchsatz`, unit_of_measurement: "Mbit/s", device_class: "data_rate" } }],
+        [`sensor.${p}_download`, { state: "938.3287", attributes: { friendly_name: `${n} Download`, unit_of_measurement: "GB", device_class: "data_size", state_class: "total_increasing" } }],
+        [`sensor.${p}_upload`, { state: "337.9507", attributes: { friendly_name: `${n} Upload`, unit_of_measurement: "GB", device_class: "data_size", state_class: "total_increasing" } }],
+        [`sensor.${p}_leistung`, { state: p === "starlink" ? "62.19" : "48.7", attributes: { friendly_name: `${n} Leistung`, unit_of_measurement: "W", device_class: "power" } }],
+        [`sensor.${p}_energie`, { state: "117.2746", attributes: { friendly_name: `${n} Energie`, unit_of_measurement: "kWh", device_class: "energy" } }],
+        [`sensor.${p}_letzter_neustart`, { state: new Date(Date.now() - (3 * 86400 + 7 * 3600 + 1200) * 1000).toISOString(), attributes: { friendly_name: `${n} Letzter Neustart`, device_class: "timestamp" } }],
+        [`sensor.${p}_azimut`, { state: "95.22", attributes: { friendly_name: `${n} Azimut`, unit_of_measurement: "°" } }],
+        [`binary_sensor.${p}_beeintrachtigt`, { state: obstructed, attributes: { friendly_name: `${n} Beeinträchtigt`, device_class: "problem" } }],
+        [`binary_sensor.${p}_heizung`, { state: heating, attributes: { friendly_name: `${n} Heizung` } }],
+        [`binary_sensor.${p}_ruhezustand`, { state: "off", attributes: { friendly_name: `${n} Ruhezustand` } }],
+        [`binary_sensor.${p}_update`, { state: "off", attributes: { friendly_name: `${n} Update`, device_class: "update" } }],
+        [`binary_sensor.${p}_thermische_drossel`, { state: "off", attributes: { friendly_name: `${n} Thermische Drossel`, device_class: "problem" } }],
+        [`binary_sensor.${p}_motoren_stecken_fest`, { state: "off", attributes: { friendly_name: `${n} Motoren stecken fest`, device_class: "problem" } }],
+        [`switch.${p}_verstaut`, { state: "off", attributes: { friendly_name: `${n} Verstaut`, device_class: "switch" } }],
+        [`switch.${p}_zeitplan_fur_ruhezustand`, { state: "off", attributes: { friendly_name: `${n} Zeitplan für Ruhezustand`, device_class: "switch" } }],
+        [`button.${p}_neu_starten`, { state: "unknown", attributes: { friendly_name: `${n} Neu starten`, device_class: "restart" } }],
+      ])),
+      ...Object.fromEntries([["download", "147.47", "Mbit/s"], ["upload", "49.74", "Mbit/s"], ["ping", "56", "ms"]].map(([k, v, u]) => [`sensor.speedtest_${k}`, { state: v,
+        last_updated: new Date(Date.now() - 25 * 60000).toISOString(),
+        attributes: { friendly_name: `SpeedTest ${k[0].toUpperCase()}${k.slice(1)}`, unit_of_measurement: u, device_class: k === "ping" ? "duration" : "data_rate", server_name: "Neumünster", server_country: "Germany" } }])),
+      // ECOVACS GOAT A1600 (goat_mower): Bereiche mit Umriss zum Antippen und goat_mower.mow_areas
+      "lawn_mower.goat_a1600": { state: "docked", attributes: { friendly_name: "GOAT A1600", supported_features: 7, job_area_ids: [], areas: { "1": "Vorgarten", "2": "Zeltplatz", "3": "Beet" } } },
+      "sensor.goat_a1600_battery": { state: "100", attributes: { friendly_name: "Akku", unit_of_measurement: "%", device_class: "battery" } },
+      "button.goat_a1600_end_job": { state: "unknown", attributes: { friendly_name: "Auftrag beenden" } },
+      "sensor.goat_a1600_live_map": { state: "2026-10-05T16:00:00+00:00", attributes: { friendly_name: "Live-Karte", current_position: { x: 500, y: 500, a: 90, invalid: 0 }, charge_positions: [{ x: 0, y: 0 }],
+        info: { outline: [[0, 0], [20000, 0], [20000, 9000], [0, 9000]], outlines: [[[0, 0], [20000, 0], [20000, 9000], [0, 9000]], [[22000, 0], [26000, 0], [26000, 4000], [22000, 4000]]] },
+        trace: { path: [], segments: [] }, position_history: [], no_go_zones: [], obstacles: [], channels: [], map_id: "1", revision: 3,
+        areas: [
+          { id: "1", name: "Vorgarten", points: [[0, 0], [12000, 0], [12000, 9000], [0, 9000]], area_m2: 108, label: [6000, 4500], separate_lawn: false },
+          { id: "3", name: "Beet", points: [[12000, 0], [20000, 0], [20000, 9000], [12000, 9000]], area_m2: 72, label: [16000, 4500], separate_lawn: false },
+          { id: "2", name: "Zeltplatz", points: [[22000, 0], [26000, 0], [26000, 4000], [22000, 4000]], area_m2: 16, label: [24000, 2000], separate_lawn: true },
+        ] } },
+      ...Object.fromEntries([["1", "Vorgarten", 6, 0.4, "normal"], ["2", "Zeltplatz", 5, 0.5, "flat"], ["3", "Beet", 7, 0.45, "tall_grass"]].flatMap(([id, name, h, v, o]) => [
+        [`number.goat_a1600_${name.toLowerCase()}_cutting_height`, { state: String(h), attributes: { friendly_name: `${name} Mähhöhe`, area_id: id, min: 3, max: 9, step: 1, unit_of_measurement: "cm" } }],
+        [`number.goat_a1600_${name.toLowerCase()}_mowing_speed`, { state: String(v), attributes: { friendly_name: `${name} Geschwindigkeit`, area_id: id, min: 0.4, max: 0.7, step: 0.05, unit_of_measurement: "m/s" } }],
+        [`select.goat_a1600_${name.toLowerCase()}_avoidance_mode`, { state: o, attributes: { friendly_name: `${name} Vermeidungsmodus`, area_id: id, options: ["flat", "normal", "tall_grass"] } }],
+      ])),
+      // Battery Notes: eigene Entitäten am Gerät, benannt nach dem Gerät („Wasser Hecke“), nicht nach dem Batteriesensor
+      "sensor.wasser_hecke_battery_type": { state: "4× AA", attributes: { friendly_name: "Wasser Hecke Batterie-Typ", battery_type: "AA", battery_quantity: 4 } },
+      "sensor.wasser_hecke_battery_last_replaced": { state: new Date(Date.now() - 190 * 86400000).toISOString(), attributes: { friendly_name: "Wasser Hecke Letzter Batteriewechsel", device_class: "timestamp" } },
+      "button.wasser_hecke_battery_replaced": { state: "unknown", attributes: { friendly_name: "Wasser Hecke Batterie ersetzt" } },
+      "sensor.wasser_rasen_battery_type": { state: "4× AA", attributes: { friendly_name: "Wasser Rasen Batterie-Typ", battery_type: "AA", battery_quantity: 4 } },
+      "sensor.wasser_rasen_battery_last_replaced": { state: new Date(Date.now() - 12 * 86400000).toISOString(), attributes: { friendly_name: "Wasser Rasen Letzter Batteriewechsel", device_class: "timestamp" } },
+      "button.wasser_rasen_battery_replaced": { state: "unknown", attributes: { friendly_name: "Wasser Rasen Batterie ersetzt" } },
+      "sensor.ventil_beete_menge": { state: "171", attributes: { friendly_name: "Ventil Beete Menge", unit_of_measurement: "L" } },
+      "timer.rasen": { state: "active", attributes: { friendly_name: "Rasen", icon: "mdi:grass", duration: "0:15:00", finishes_at: new Date(Date.now() + 485000).toISOString() } },
+      "timer.beete": { state: "idle", attributes: { friendly_name: "Beete", icon: "mdi:flower", duration: "0:10:00" } },
+      "timer.hecke": { state: "idle", attributes: { friendly_name: "Hecke", icon: "mdi:tree", duration: "0:05:00" } },
+      "input_number.rasen_dauer": { state: "15", attributes: { friendly_name: "Rasen Dauer", min: 1, max: 120, step: 1, unit_of_measurement: "min" } },
+      "input_number.beete_dauer": { state: "10", attributes: { friendly_name: "Beete Dauer", min: 1, max: 120, step: 1, unit_of_measurement: "min" } },
+      "input_number.hecke_dauer": { state: "5", attributes: { friendly_name: "Hecke Dauer", min: 1, max: 120, step: 1, unit_of_measurement: "min" } },
+      "sensor.smart_irrigation_rasen": { state: "521", attributes: { friendly_name: "Rasen Duration", unit_of_measurement: "s", bucket: -1.0, maximum_bucket: 24, size: 80, throughput: 5, multiplier: 1, eto: 1.34, last_calculated: new Date(Date.now() - 3600000).toISOString().slice(0, 19).replace('T', ' '), number_of_data_points: 12 } },
+      "sensor.smart_irrigation_beete": { state: "2100", attributes: { friendly_name: "Beete Duration", unit_of_measurement: "s", bucket: -12.4, maximum_bucket: 24, size: 120, throughput: 17, multiplier: 0.8, eto: 1.34, last_calculated: new Date(Date.now() - 3600000).toISOString().slice(0, 19).replace('T', ' '), number_of_data_points: 12 } },
+      "sensor.smart_irrigation_hecke": { state: "100", attributes: { friendly_name: "Hecke Duration", unit_of_measurement: "s", bucket: 0.6, maximum_bucket: 24, size: 30, throughput: 8, multiplier: 0.5, eto: 1.34, last_calculated: new Date(Date.now() - 3600000).toISOString().slice(0, 19).replace('T', ' '), number_of_data_points: 12 } },
+      "input_select.jahreszeiten": { state: "Sommer", attributes: { friendly_name: "Jahreszeiten", options: ["Sommer", "Winter"] } },
+      "sensor.dwd_warnstufe": { state: "0", attributes: { friendly_name: "DWD Warnstufe" } },
+      "binary_sensor.smart_bewaesserung_faellt_aus": { state: "off", attributes: { friendly_name: "Smart-Bewässerung fällt aus" } },
+      "input_text.bewaesserung_sperre_grund": { state: "Regen angesagt (6 mm)", attributes: { friendly_name: "Sperre Grund" } },
+      "input_text.bewaesserung_durchfluss": { state: "Gemessen 03.10.: Rasen 4.9 l/min; Beete 16.8 l/min; Hecke 7.5 l/min", attributes: { friendly_name: "Gemessener Durchfluss" } },
+      "input_select.bewaesserung_modus": { state: "Automatik", attributes: { friendly_name: "Bewässerung Modus", options: ["Aus", "Automatik", "Smart"] } },
+      "input_text.bewaesserung_letzter_lauf": { state: "03.10. 11:00: Rasen 13 min/64 l; Beete 10 min/52 l; Hecke 4 min/18 l", attributes: { friendly_name: "Letzter Lauf" } },
+      "switch.poolpumpe": { state: "on", attributes: { friendly_name: "Poolpumpe" } },
+      "sensor.poolpumpe_power": { state: "64", attributes: { friendly_name: "Poolpumpe Leistung", unit_of_measurement: "W", device_class: "power" } },
+      "input_select.pool_modus": { state: "Automatik", attributes: { friendly_name: "Pool Betrieb", options: ["Manuell", "Automatik", "Solar-Automatik", "Smart-Modus", "Neu-Befüllung (48h)", "Algen-Problem", "Aus"] } },
+      "input_datetime.pool_start": { state: "14:30:00", attributes: { friendly_name: "Pool Startzeit", has_time: true, has_date: false, hour: 14, minute: 30 } },
+      "input_number.pool_ziel": { state: "6", attributes: { friendly_name: "Pool Ziel-Laufzeit", min: 0, max: 24, step: 1, unit_of_measurement: "h" } },
+      "sensor.pool_empfehlung": { state: "8.9", attributes: { friendly_name: "Pool empfohlene Laufzeit", unit_of_measurement: "h" } },
+      "sensor.pool_laufzeit": { state: "2.1", attributes: { friendly_name: "Pool Laufzeit heute", unit_of_measurement: "h" } },
+      "sensor.pool_wassertemperatur": { state: "24.6", attributes: { friendly_name: "Pool Temperatur", unit_of_measurement: "°C", device_class: "temperature" } },
+      "sensor.pool_ph_wert": { state: "6.92", attributes: { friendly_name: "Pool pH", unit_of_measurement: "pH" } },
+      // Smart Pool (Pool-Pflege-Karte) – Entitäten der Integration, über translation_key gefunden
+      "select.smart_pool_pflegemittel": { state: "chlorine", attributes: { friendly_name: "Smart Pool Pflegemittel", options: ["chlorine", "shock", "ph_minus", "ph_plus", "metal_ex", "multitab"] } },
+      "number.smart_pool_zugabemenge": { state: "30", attributes: { friendly_name: "Smart Pool Zugabemenge", min: 0, max: 10000, step: 5, unit_of_measurement: "g" } },
+      "button.smart_pool_zugabe_erfassen": { state: "unknown", attributes: { friendly_name: "Smart Pool Zugabe erfassen" } },
+      "sensor.smart_pool_chlor_dosierung": { state: "30", attributes: { friendly_name: "Smart Pool Chlor-Dosierung", unit_of_measurement: "g" } },
+      "sensor.smart_pool_ph_minus_dosierung": { state: "0", attributes: { friendly_name: "Smart Pool pH-Minus-Dosierung", unit_of_measurement: "g" } },
+      "sensor.smart_pool_ph_plus_dosierung": { state: "0", attributes: { friendly_name: "Smart Pool pH-Plus-Dosierung", unit_of_measurement: "g" } },
+      "sensor.smart_pool_letzte_zugabe": { state: new Date(Date.now() - 26 * 3600e3).toISOString(), attributes: { friendly_name: "Smart Pool Letzte Zugabe", device_class: "timestamp",
+        log: [{ time: new Date(Date.now() - 26 * 3600e3).toISOString(), product: "chlorine", amount: 30 }, { time: new Date(Date.now() - 50 * 3600e3).toISOString(), product: "ph_minus", amount: 170 },
+          { time: new Date(Date.now() - 5 * 86400e3).toISOString(), product: "metal_ex", amount: 520 }] } },
+      "binary_sensor.smart_pool_sonde_prufen": { state: "on", attributes: { friendly_name: "Smart Pool Sonde prüfen", failed_checks: 2, last_redox_rise_mv: 8 } },
+      "button.smart_pool_sonde_kalibriert": { state: "unknown", attributes: { friendly_name: "Smart Pool Sonde kalibriert" } },
+      "number.smart_pool_vorrat_chlor_granulat": { state: "60", attributes: { friendly_name: "Smart Pool Vorrat Chlor", min: 0, max: 100000, step: 5, unit_of_measurement: "g" } },
+      "number.smart_pool_vorrat_chlor_schock": { state: "0", attributes: { friendly_name: "Smart Pool Vorrat Chlor-Schock", min: 0, max: 100000, step: 5, unit_of_measurement: "g" } },
+      "number.smart_pool_vorrat_ph_minus": { state: "2500", attributes: { friendly_name: "Smart Pool Vorrat pH-Minus", min: 0, max: 100000, step: 5, unit_of_measurement: "g" } },
+      "number.smart_pool_vorrat_ph_plus": { state: "0", attributes: { friendly_name: "Smart Pool Vorrat pH-Plus", min: 0, max: 100000, step: 5, unit_of_measurement: "g" } },
+      "number.smart_pool_vorrat_multitabs": { state: "6", attributes: { friendly_name: "Smart Pool Vorrat Multitabs", min: 0, max: 100000, step: 5, unit_of_measurement: "Tab" } },
+      "binary_sensor.smart_pool_multitab_fallig": { state: "on", attributes: { friendly_name: "Smart Pool Multitab fällig", tabs: 1,
+        next: new Date(Date.now() - 86400e3).toISOString(), last: new Date(Date.now() - 8 * 86400e3).toISOString() } },
+      "number.smart_pool_vorrat_metall_ex": { state: "1000", attributes: { friendly_name: "Smart Pool Vorrat Metall-Ex", min: 0, max: 100000, step: 5, unit_of_measurement: "ml" } },
+      "binary_sensor.smart_pool_vorrat_knapp": { state: "on", attributes: { friendly_name: "Smart Pool Vorrat knapp", products: ["chlorine"],
+        stock: { chlorine: 60, ph_minus: 2500, metal_ex: 1000, multitab: 6 }, thresholds: { chlorine: 92, shock: 310, ph_minus: 1032, ph_plus: 1032, metal_ex: 520, multitab: 2 } } },
+      "sensor.smart_pool_verbrauch_chlor_granulat": { state: "420", attributes: { friendly_name: "Smart Pool Verbrauch Chlor", unit_of_measurement: "g" } },
+      "sensor.smart_pool_verbrauch_ph_minus": { state: "850", attributes: { friendly_name: "Smart Pool Verbrauch pH-Minus", unit_of_measurement: "g" } },
+      "sensor.smart_pool_verbrauch_metall_ex": { state: "1560", attributes: { friendly_name: "Smart Pool Verbrauch Metall-Ex", unit_of_measurement: "ml" } },
+      "sensor.smart_pool_metall_ex_dosierung": { state: "20", attributes: { friendly_name: "Smart Pool Metall-Ex-Dosierung", unit_of_measurement: "ml", fresh_water_liters: 300,
+        whole_pool_preventive_ml: 520, whole_pool_discoloured_ml: 1030, refill_cm: 2, surface_m2: 15 } },
+      "sensor.smart_pool_metall_ex_restzeit": { state: "0", attributes: { friendly_name: "Smart Pool Metall-Ex Restzeit", unit_of_measurement: "h", total_hours: 48 } },
+      "binary_sensor.smart_pool_metall_ex_behandlung": { state: "off", attributes: { friendly_name: "Smart Pool Metall-Ex-Behandlung" } },
+      "button.smart_pool_metall_ex_zugegeben": { state: "unknown", attributes: { friendly_name: "Smart Pool Metall-Ex zugegeben" } },
+      "number.smart_pool_nachfullmenge": { state: "2", attributes: { friendly_name: "Smart Pool Nachfüllmenge", min: 0.5, max: 30, step: 0.5, unit_of_measurement: "cm" } },
+      "button.smart_pool_nachgefullt": { state: "unknown", attributes: { friendly_name: "Smart Pool Nachgefüllt" } },
+      "sensor.smart_pool_regen_vorhersage_24_h": { state: "4.9", attributes: { friendly_name: "Smart Pool Regen-Vorhersage", unit_of_measurement: "mm", liters: 74 } },
+      "sensor.smart_pool_regen_letzte_24_h": { state: "0.2", attributes: { friendly_name: "Smart Pool Regen 24 h", unit_of_measurement: "mm" } },
+      "sensor.smart_pool_saison": { state: "winterize", attributes: { friendly_name: "Smart Pool Saison", next_sand: "2028-10-09",
+        next_probe: new Date(Date.now() - 3 * 86400e3).toISOString().slice(0, 10), next_seals: "2027-10-09" } },
+      "binary_sensor.smart_pool_wartung_fallig": { state: "on", attributes: { friendly_name: "Smart Pool Wartung fällig", tasks: ["probe"],
+        last_done: { sand: "2026-10-09", probe: new Date(Date.now() - 93 * 86400e3).toISOString().slice(0, 10), seals: "2026-10-09" } } },
+      "button.smart_pool_filtersand_gewechselt": { state: "unknown", attributes: { friendly_name: "Smart Pool Filtersand gewechselt" } },
+      "button.smart_pool_dichtungen_gepruft": { state: "unknown", attributes: { friendly_name: "Smart Pool Dichtungen geprüft" } },
+      "sensor.smart_pool_pumpenstunden_seit_ruckspulen": { state: "38.5", attributes: { friendly_name: "Smart Pool Pumpenstunden", unit_of_measurement: "h", interval_hours: 50 } },
+      "binary_sensor.smart_pool_ruckspulen_fallig": { state: "off", attributes: { friendly_name: "Smart Pool Rückspülen fällig" } },
+      "button.smart_pool_ruckgespult": { state: "unknown", attributes: { friendly_name: "Smart Pool Rückgespült" } },
+      "todo.smart_pool_aufgaben": { state: "2", attributes: { friendly_name: "Smart Pool Aufgaben" } },
+      "sensor.smart_pool_solaranteil_heute": { state: "62", attributes: { friendly_name: "Smart Pool Solaranteil", unit_of_measurement: "%" } },
+      "sensor.smart_pool_solarstrom_heute": { state: "2.4", attributes: { friendly_name: "Smart Pool Solarstrom", unit_of_measurement: "kWh" } },
+      "sensor.smart_pool_solar_ersparnis_heute": { state: "0.72", attributes: { friendly_name: "Smart Pool Solar-Ersparnis", unit_of_measurement: "EUR" } },
+      "sensor.smart_pool_energie_heute": { state: "3.9", attributes: { friendly_name: "Smart Pool Energie heute", unit_of_measurement: "kWh" } },
+      "sensor.smart_pool_kosten_heute": { state: "0.45", attributes: { friendly_name: "Smart Pool Kosten heute", unit_of_measurement: "EUR" } },
+      "sensor.smart_pool_badewetter": { state: "18", attributes: { friendly_name: "Smart Pool Badewetter", unit_of_measurement: "%", rating: "poor" } },
+      "sensor.smart_pool_pumpen_ausfalle_heute": { state: "1", attributes: { friendly_name: "Smart Pool Pumpen-Ausfälle" } },
+      "sensor.smart_pool_wochenbericht": { state: "KW 41 · 52,0 h Filter · 24,0 kWh (7,20 €) · 50 % Solar", attributes: { friendly_name: "Smart Pool Wochenbericht",
+        week: 41, runtime_hours: 52, energy_kwh: 24, cost: 7.2, solar_share: 50, ph_min: 7.1, ph_max: 7.3, orp_min: 520, orp_max: 560 } },
+      "sensor.pool_redox": { state: "688", attributes: { friendly_name: "Pool Redox", unit_of_measurement: "mV" } },
+      "sensor.pool_hinweis": { state: "pH-Wert zu niedrig: 310 g pH+ hinzufügen", attributes: { friendly_name: "Pool Hinweis" } },
+      "sensor.pool_messung": { state: new Date(Date.now() - 95 * 60000).toISOString(), attributes: { friendly_name: "Pool letzte Messung", device_class: "timestamp" } },
+      "binary_sensor.pool_messung_alt": { state: "off", attributes: { friendly_name: "Messung veraltet", device_class: "problem" } },
+      "sensor.pool_qualitaet": { state: "check", attributes: { friendly_name: "Pool Wasserqualität", options: ["ok", "check", "critical"] } },
+      "sensor.pool_energie": { state: "0.14", attributes: { friendly_name: "Pool Energie heute", unit_of_measurement: "kWh" } },
+      "sensor.pool_kosten": { state: "0.04", attributes: { friendly_name: "Pool Kosten heute", unit_of_measurement: "EUR" } },
+      "sensor.pool_solar": { state: "52", attributes: { friendly_name: "Pool Solar", unit_of_measurement: "W" } },
+      "sensor.pool_ersparnis": { state: "0.02", attributes: { friendly_name: "Pool Ersparnis", unit_of_measurement: "€/h" } },
+      "input_boolean.pool_auto_aus": { state: "on", attributes: { friendly_name: "Auto-Aus bei Störung" } },
+      "binary_sensor.pool_rueckspuelen_faellig": { state: "off", attributes: { friendly_name: "Rückspülen fällig", device_class: "problem" } },
+      "sensor.pool_stunden_seit_rueckspuelen": { state: "38.4", attributes: { friendly_name: "Pumpenstunden seit Rückspülen", unit_of_measurement: "h", interval_hours: 50 } },
+      "sensor.pool_letztes_rueckspuelen": { state: new Date(Date.now() - 9 * 86400000).toISOString(), attributes: { friendly_name: "Letztes Rückspülen", device_class: "timestamp" } },
+      "button.pool_rueckgespuelt": { state: "unknown", attributes: { friendly_name: "Rückgespült" } },
+      "timer.pool_rueckspuelen": { state: "idle", attributes: { friendly_name: "Rückspülen", duration: "0:03:00" } },
+      "timer.pool_nachspuelen": { state: "idle", attributes: { friendly_name: "Nachspülen", duration: "0:01:00" } },
+      "camera.cam_haus": { state: "idle", attributes: { friendly_name: "Haus Standardauflösung", supported_features: 2, entity_picture: camScene("HAUS", "#7cb6e8", "#cfe6f7", "#6a9e4f", HOUSE + PERSON + TREE(280)) } },
+      "camera.cam_haus_tele": { state: "idle", attributes: { friendly_name: "Haus Tele", supported_features: 2, entity_picture: camScene("HAUS TELE", "#7cb6e8", "#cfe6f7", "#6a9e4f", '<g transform="translate(-260 -120) scale(2.4)">' + PERSON + '</g>') } },
+      "binary_sensor.cam_haus_person": { state: "on", attributes: { friendly_name: "Haus Person", device_class: "motion" } },
+      "binary_sensor.cam_haus_fahrzeug": { state: "off", attributes: { friendly_name: "Haus Fahrzeug", device_class: "motion" } },
+      "binary_sensor.cam_haus_tier": { state: "off", attributes: { friendly_name: "Haus Tier", device_class: "motion" } },
+      "binary_sensor.cam_haus_bewegung": { state: "on", attributes: { friendly_name: "Haus Bewegung", device_class: "motion" } },
+      "binary_sensor.cam_haus_schlafstatus": { state: "off", attributes: { friendly_name: "Haus Schlafstatus" } },
+      "sensor.cam_haus_batterie": { state: "86", attributes: { friendly_name: "Haus Batterie", unit_of_measurement: "%", device_class: "battery" } },
+      "sensor.cam_haus_batterietemperatur": { state: "12", attributes: { friendly_name: "Haus Batterietemperatur", unit_of_measurement: "°C", device_class: "temperature" } },
+      "sensor.cam_haus_wlan_signal": { state: "-61", attributes: { friendly_name: "Haus WLAN-Signal", unit_of_measurement: "dBm", device_class: "signal_strength" } },
+      "light.cam_haus_scheinwerfer": { state: "off", attributes: { friendly_name: "Haus Flutlicht", supported_color_modes: ["brightness"] } },
+      "light.cam_haus_status_led": { state: "on", attributes: { friendly_name: "Haus Status-LED", supported_color_modes: ["onoff"] } },
+      "siren.cam_haus_sirene": { state: "off", attributes: { friendly_name: "Haus Sirene" } },
+      "switch.cam_haus_pir_aktiviert": { state: "on", attributes: { friendly_name: "Haus PIR aktiviert" } },
+      "switch.cam_haus_automatisches_tracking": { state: "on", attributes: { friendly_name: "Haus Automatisches Tracking" } },
+      "select.cam_haus_ptz_voreinstellung": { state: "Haus", attributes: { friendly_name: "Haus PTZ-Voreinstellung", options: ["Haus", "Outdoor küche", "Zaun", "Pool", "Wachposition"] } },
+      "button.cam_haus_gehe_zu_startposition": { state: "unknown", attributes: { friendly_name: "Haus Gehe zu Startposition" } },
+      "button.cam_haus_setze_aktuelle_position_als_startposition": { state: "unknown", attributes: { friendly_name: "Haus Setze aktuelle Position als Startposition" } },
+      "button.cam_haus_ptz_links": { state: "unknown", attributes: { friendly_name: "Haus PTZ links" } },
+      "button.cam_haus_ptz_rechts": { state: "unknown", attributes: { friendly_name: "Haus PTZ rechts" } },
+      "button.cam_haus_ptz_auf": { state: "unknown", attributes: { friendly_name: "Haus PTZ aufwärts" } },
+      "button.cam_haus_ptz_ab": { state: "unknown", attributes: { friendly_name: "Haus PTZ abwärts" } },
+      "button.cam_haus_ptz_stopp": { state: "unknown", attributes: { friendly_name: "Haus PTZ-Stopp" } },
+      "script.cam_patrouille": { state: "off", attributes: { friendly_name: "Kamera Patrouille" } },
+      "camera.blink_tor": { state: "idle", attributes: { friendly_name: "Tor", supported_features: 0, entity_picture: camScene("TOR", "#90a4ae", "#cfd8dc", "#7a8f62", TREE(60) + TREE(260) + '<rect x="120" y="86" width="80" height="40" fill="none" stroke="#5d4037" stroke-width="5"/>') } },
+      "camera.blink_carport": { state: "idle", attributes: { friendly_name: "Carport", supported_features: 0, entity_picture: camScene("CARPORT", "#ffb74d", "#ffe0b2", "#8d8d8d", CAR + '<rect x="130" y="80" width="110" height="6" fill="#455a64"/>') } },
+      "camera.blink_pool": { state: "idle", attributes: { friendly_name: "Pool", supported_features: 0, entity_picture: camScene("POOL", "#81d4fa", "#e1f5fe", "#9ccc65", POOL + TREE(40)) } },
+      "camera.blink_schuppen": { state: "idle", attributes: { friendly_name: "Schuppen", supported_features: 0, entity_picture: camScene("SCHUPPEN", "#5c6bc0", "#9fa8da", "#558b2f", SHED + TREE(70)) } },
+      // Anker Solarbank 3 E2700 Pro (anker_solix) + System – deutsche Namen wie im Garten; „sonne“ = lädt bei Sonne
+      ...Object.fromEntries([["solarbank_3_e2700_pro", "system_solix_garten", 19, 510, "bypass_discharge", 62, 3, 7, -23, 85, 0], ["solarbank_sonne", "system_sonne", 64, 1720, "charge_bypass", 640, 352, 288, 420, 200, 0]]
+        .flatMap(([d, sys, soc, wh, st, solar, pv1, pv2, batt, home, grid]) => [
+          [`sensor.${d}_ladestand`, { state: String(soc), attributes: { friendly_name: "Ladestand", unit_of_measurement: "%", device_class: "battery" } }],
+          [`sensor.${d}_akkuenergie`, { state: String(wh), attributes: { friendly_name: "Akkuenergie", unit_of_measurement: "Wh", device_class: "energy_storage" } }],
+          [`number.${d}_akku_kapazitat`, { state: "2688", attributes: { friendly_name: "Akku Kapazität", unit_of_measurement: "Wh", device_class: "energy_storage", min: 0, max: 100000, step: 1 } }],
+          [`sensor.${d}_betriebszustand`, { state: st, attributes: { friendly_name: "Betriebszustand", device_class: "enum" } }],
+          [`sensor.${d}_solarleistung`, { state: String(solar), attributes: { friendly_name: "Solarleistung", unit_of_measurement: "W", device_class: "power" } }],
+          [`sensor.${d}_solar_pv1`, { state: String(pv1), attributes: { friendly_name: "Solar PV1", name: "PV Outdoor-Küche links", unit_of_measurement: "W", device_class: "power" } }],
+          [`sensor.${d}_solar_pv2`, { state: String(pv2), attributes: { friendly_name: "Solar PV2", name: "PV Outdoor-Küche rechts", unit_of_measurement: "W", device_class: "power" } }],
+          [`sensor.${d}_solar_pv3`, { state: "0", attributes: { friendly_name: "Solar PV3", unit_of_measurement: "W", device_class: "power" } }],
+          [`sensor.${d}_akkuleistung`, { state: String(batt), attributes: { friendly_name: "Akkuleistung", unit_of_measurement: "W", device_class: "power" } }],
+          [`sensor.${d}_aufladeleistung`, { state: String(Math.max(0, batt)), attributes: { friendly_name: "Aufladeleistung", unit_of_measurement: "W", device_class: "power" } }],
+          [`sensor.${d}_entladeleistung`, { state: String(Math.max(0, -batt)), attributes: { friendly_name: "Entladeleistung", unit_of_measurement: "W", device_class: "power" } }],
+          [`sensor.${d}_ac_hausabgabe`, { state: String(home), attributes: { friendly_name: "AC Hausabgabe", unit_of_measurement: "W", device_class: "power" } }],
+          [`sensor.${d}_ac_steckdose`, { state: "0", attributes: { friendly_name: "AC Steckdose", unit_of_measurement: "W", device_class: "power" } }],
+          [`sensor.${d}_netzaufladung`, { state: String(grid), attributes: { friendly_name: "Netzaufladung", unit_of_measurement: "W", device_class: "power" } }],
+          [`sensor.${d}_heizleistung`, { state: "0", attributes: { friendly_name: "Heizleistung", unit_of_measurement: "W", device_class: "power" } }],
+          [`sensor.${d}_fehlercode`, { state: "0", attributes: { friendly_name: "Fehlercode" } }],
+          [`sensor.${d}_cloud_zustand`, { state: "online", attributes: { friendly_name: "Cloud Zustand", device_class: "enum" } }],
+          [`button.${d}_details_aktualisieren`, { state: "unknown", attributes: { friendly_name: "Details aktualisieren" } }],
+          [`sensor.${sys}_aktiver_benutzermodus`, { state: "smart", attributes: { friendly_name: "Aktiver Benutzermodus", device_class: "enum" } }],
+          [`sensor.${sys}_kostenersparnis`, { state: "551.63", attributes: { friendly_name: "Kostenersparnis", unit_of_measurement: "€" } }],
+          [`sensor.${sys}_co2_einsparung`, { state: "533.29", attributes: { friendly_name: "CO₂ Einsparung", unit_of_measurement: "kg" } }],
+          [`binary_sensor.${sys}_akkuheizung`, { state: "off", attributes: { friendly_name: "Akkuheizung", device_class: "heat" } }],
+          [`sensor.${sys}_solarerzeugung_tag`, { state: d.includes("sonne") ? "2.84" : "0.06", attributes: { friendly_name: "Solarerzeugung Tag", unit_of_measurement: "kWh", device_class: "energy" } }],
+          [`sensor.${sys}_solar_kostenersparnis_tag`, { state: d.includes("sonne") ? "1.02" : "0.38", attributes: { friendly_name: "Solar Kostenersparnis Tag", unit_of_measurement: "€" } }],
+        ])),
+      // System & Updates (Zuhause-HA): Updates, CPU/RAM, Backup, Dienste
+      "update.home_assistant_core_update": { state: "on", attributes: { friendly_name: "Home Assistant Core Update", title: "Home Assistant Core", installed_version: "2026.10.1", latest_version: "2026.10.2", supported_features: 29, release_url: "https://www.home-assistant.io/" } },
+      "update.mosquitto_broker_update": { state: "on", attributes: { friendly_name: "Mosquitto broker Update", installed_version: "6.5.1", latest_version: "6.5.2", supported_features: 29 } },
+      "update.matter_server_update": { state: "on", attributes: { friendly_name: "Matter Server Update", installed_version: "8.1.0", latest_version: "8.2.0", in_progress: true, update_percentage: 45, supported_features: 29 } },
+      "update.battery_notes_update": { state: "on", attributes: { friendly_name: "Battery Notes Update", installed_version: "v3.1.4", latest_version: "v3.2.0", supported_features: 23, release_url: "https://github.com/andrew-codechimp/HA-Battery-Notes/releases" } },
+      "update.spook_your_homie_update": { state: "on", attributes: { friendly_name: "Spook 👻 Your homie Update", installed_version: "v4.0.1", latest_version: "v4.1.0", supported_features: 23, release_url: "https://github.com/frenck/spook/releases" } },
+      "update.mushroom_update": { state: "on", attributes: { friendly_name: "Mushroom Update", installed_version: "v5.0.4", latest_version: "v5.1.0", supported_features: 23 } },
+      "update.hacs_update": { state: "off", attributes: { friendly_name: "HACS Update", installed_version: "2.0.5", latest_version: "2.0.5" } },
+      "update.home_assistant_operating_system_update": { state: "off", attributes: { friendly_name: "Home Assistant Operating System Update", installed_version: "17.0", latest_version: "17.0" } },
+      "sensor.home_assistant_core_cpu_percent": { state: "4.7", attributes: { friendly_name: "Home Assistant Core CPU Prozent", unit_of_measurement: "%" } },
+      "sensor.home_assistant_core_memory_percent": { state: "11.17", attributes: { friendly_name: "Home Assistant Core Arbeitsspeicher in Prozent", unit_of_measurement: "%" } },
+      "sensor.system_monitor_disk_use_percent": { state: "71.3", attributes: { friendly_name: "Speicher belegt", unit_of_measurement: "%" } },
+      "sensor.backup_backup_manager_zustand": { state: "idle", attributes: { friendly_name: "Backup Backup-Manager-Zustand" } },
+      "sensor.backup_letztes_erfolgreiches_automatisches_backup": { state: new Date(Date.now() - 5 * 3600_000).toISOString(), attributes: { friendly_name: "Letztes erfolgreiches automatisches Backup", device_class: "timestamp" } },
+      "sensor.backup_zuletzt_versuchtes_automatisches_backup": { state: new Date(Date.now() - 5 * 3600_000 - 120_000).toISOString(), attributes: { friendly_name: "Letztes versuchtes automatisches Backup", device_class: "timestamp" } },
+      "sensor.backup_nachstes_geplantes_automatisches_backup": { state: new Date(Date.now() + 19 * 3600_000).toISOString(), attributes: { friendly_name: "Nächstes geplantes automatisches Backup", device_class: "timestamp" } },
+      "binary_sensor.zigbee2mqtt_bridge_connection_state": { state: "on", attributes: { friendly_name: "Zigbee2MQTT Bridge", device_class: "connectivity" } },
+      "binary_sensor.mosquitto_broker_running": { state: "on", attributes: { friendly_name: "MQTT-Broker", device_class: "running" } },
+      // Wetter (met.no): Tages- und Stundenvorhersage über weather/subscribe_forecast
+      "weather.forecast_home": { state: "partlycloudy", attributes: { friendly_name: "Zuhause", temperature: 10.9, apparent_temperature: 8.6, dew_point: 10, temperature_unit: "°C", humidity: 93,
+        cloud_coverage: 42, uv_index: 2.4, pressure: 1012.9, pressure_unit: "hPa", wind_bearing: 82.8, wind_speed: 15.8, wind_gust_speed: 31, wind_speed_unit: "km/h", visibility_unit: "km", precipitation_unit: "mm", supported_features: 3 } },
+      // Termine & Gerätestatus
+      "calendar.familie": { state: "off", attributes: { friendly_name: "Familie" } },
+      "calendar.arbeit": { state: "off", attributes: { friendly_name: "Arbeit" } },
+      "light.couch_licht": { state: "unavailable", last_changed: new Date(Date.now() - 3 * 3600_000).toISOString(), attributes: { friendly_name: "Couch Licht" } },
+      "light.couch_links": { state: "unavailable", last_changed: new Date(Date.now() - 3 * 3600_000).toISOString(), attributes: { friendly_name: "Couch links" } },
+      "cover.kuche": { state: "unavailable", last_changed: new Date(Date.now() - 26 * 3600_000).toISOString(), attributes: { friendly_name: "Rollo Küche" } },
+      "button.kuche_my_position": { state: "unavailable", last_changed: new Date(Date.now() - 26 * 3600_000).toISOString(), attributes: { friendly_name: "Küche My position" } },
+      "sensor.meater_innentemperatur": { state: "unavailable", last_changed: new Date(Date.now() - 4 * 86400_000).toISOString(), attributes: { friendly_name: "Meater Innentemperatur" } },
+      "time.starlink_beginn_ruhezustand": { state: "unavailable", last_changed: new Date(Date.now() - 5 * 3600_000).toISOString(), attributes: { friendly_name: "Starlink Beginn Ruhezustand" } },
+      "sensor.meater_kochstatus": { state: "unavailable", last_changed: new Date(Date.now() - 4 * 86400_000).toISOString(), attributes: { friendly_name: "Meater Kochstatus" } },
+      "device_tracker.ipad": { state: "unavailable", attributes: { friendly_name: "iPad" } },
+      "calendar.llm_vision_timeline": { state: "off", attributes: { friendly_name: "LLM Vision Timeline", title: "Marcels Auto", description: "Ein blauer VW (Modell T-Roc) steht im Eingangsbereich.",
+        key_frame: "/media/llmvision/snapshots/auto-1.jpg", camera_name: "camera.blink_carport", icon: "mdi:timeline-outline" } },
+      ...Object.fromEntries(["tor", "carport", "pool", "schuppen"].flatMap((n, i) => [
+        [`binary_sensor.blink_${n}_bewegung`, { state: n === "carport" ? "on" : "off", attributes: { friendly_name: `${n} Bewegung`, device_class: "motion" } }],
+        [`binary_sensor.blink_${n}_batteriestand`, { state: n === "schuppen" ? "on" : "off", attributes: { friendly_name: `${n} Batteriestand`, device_class: "battery" } }],
+        [`sensor.blink_${n}_wlan_signalstarke`, { state: String([-52, -63, -71, -79][i]), attributes: { friendly_name: `${n} WLAN-Signalstärke`, unit_of_measurement: "dBm", device_class: "signal_strength" } }],
+        [`sensor.blink_${n}_temperatur`, { state: String([9.4, 14.1, 19.4, 11.7][i]), attributes: { friendly_name: `${n} Temperatur`, unit_of_measurement: "°C", device_class: "temperature" } }],
+        [`switch.blink_${n}_bewegungserkennung_der_kamera`, { state: n === "pool" ? "off" : "on", attributes: { friendly_name: `${n} Bewegungserkennung der Kamera` } }],
+      ])),
+      "alarm_control_panel.blink_garten": { state: "armed_away", attributes: { friendly_name: "Blink Garten", status: "online" } },
+      "input_select.jahreszeit": { state: "Sommer", attributes: { friendly_name: "Jahreszeiten", options: ["Sommer", "Winter"], icon: "mdi:sun-snowflake-variant" } },
+      "input_select.pascal_dashboard": { state: "Garten", attributes: { friendly_name: "Pascal Dashboard", options: ["Zuhause", "Garten"] } },
+      "input_select.bewaesserung_rasen_status": { state: "gestoppt", attributes: { friendly_name: "Bewässerung Rasen Status", options: ["gestartet", "pausiert", "gestoppt"] } },
+      "select.defekter_modus": { state: "unavailable", attributes: { friendly_name: "Lüftung Stufe", options: ["Niedrig", "Mittel", "Hoch"] } },
+      "lock.klingel": { state: "locked", attributes: { friendly_name: "Klingel", supported_features: 1 } },
+      "binary_sensor.klingel_klingelaktion": { state: "off", attributes: { friendly_name: "Klingel Klingelaktion" } },
+      "binary_sensor.klingel_batterie": { state: "on", attributes: { friendly_name: "Klingel Batteriestand", device_class: "battery" } },
+      // Nuki Smart Lock mit Türsensor
+      "lock.haustuer": { state: "unlocked", last_changed: new Date(Date.now() - 12 * 60000).toISOString(), attributes: { friendly_name: "Haustür", supported_features: 1 } },
+      "binary_sensor.haustuer_tur": { state: "off", attributes: { friendly_name: "Haustür Tür", device_class: "door" } },
+      "sensor.haustuer_batterie": { state: "78", attributes: { friendly_name: "Haustür Batterie", device_class: "battery", unit_of_measurement: "%" } },
+      // Zigbee2MQTT: Bridge + Geräte (LQI, Akku), Rauchmelder offline
+      "sensor.zigbee2mqtt_bridge_version": { state: "2.14.2", attributes: { friendly_name: "Zigbee2MQTT Bridge Version" } },
+      "switch.zigbee2mqtt_bridge_permit_join": { state: "off", attributes: { friendly_name: "Zigbee2MQTT Bridge Permit join" } },
+      ...Object.fromEntries([["tursensor_haus", "Türsensor Haus", 142, 87, "binary_sensor", "contact", "off"], ["temperatur_haus", "Temperatur Haus", 38, 15, "sensor", "temperature", "21.4"],
+        ["ventil_volleyball", "Ventil Volleyball", 96, 64, "switch", null, "off"], ["steckdose_repeater", "Steckdose Repeater", 188, null, "switch", null, "on"],
+        ["rauchmelder", "Rauchmelder", null, 90, "binary_sensor", "smoke", "unavailable"]].flatMap(([n, name, lqi, bat, dom, dc, st]) => [
+        [`${dom}.${n}${dc ? "_" + dc : ""}`, { state: st, attributes: { friendly_name: `${name}${dc === "temperature" ? " Temperatur" : ""}`, ...(dc ? { device_class: dc } : {}), ...(dc === "temperature" ? { unit_of_measurement: "°C" } : {}) } }],
+        [`sensor.${n}_linkquality`, { state: lqi == null ? "unavailable" : String(lqi), attributes: { friendly_name: `${name} Linkquality`, unit_of_measurement: "lqi", state_class: "measurement" } }],
+        ...(bat != null ? [[`sensor.${n}_battery`, { state: st === "unavailable" ? "unavailable" : String(bat), attributes: { friendly_name: `${name} Batterie`, device_class: "battery", unit_of_measurement: "%" } }]] : []),
+      ])),
+      // Shelly: Kühlschrank (Update), Außensteckdosen (warm, schwaches WLAN, Neustart nötig), Licht Hütte
+      "switch.shelly_kuhlschrank": { state: "on", attributes: { friendly_name: "Steckdose Kühlschrank" } },
+      "sensor.shelly_kuhlschrank_power": { state: "68.4", attributes: { friendly_name: "Shelly Kühlschrank power", device_class: "power", unit_of_measurement: "W" } },
+      "sensor.shelly_kuhlschrank_rssi": { state: "-58", attributes: { friendly_name: "Shelly Kühlschrank Signalstärke", device_class: "signal_strength", unit_of_measurement: "dBm" } },
+      "sensor.shelly_kuhlschrank_uptime": { state: new Date(Date.now() - 3 * 86400000).toISOString(), attributes: { friendly_name: "Shelly Kühlschrank Betriebszeit", device_class: "timestamp" } },
+      "update.shelly_kuhlschrank_firmware": { state: "on", attributes: { friendly_name: "Shelly Kühlschrank Firmware", installed_version: "1.14.0", latest_version: "1.15.0" } },
+      "update.shelly_kuhlschrank_beta_firmware": { state: "on", attributes: { friendly_name: "Shelly Kühlschrank Beta-Firmware", latest_version: "1.16.0-beta1" } },
+      "button.shelly_kuhlschrank_reboot": { state: "unknown", attributes: { friendly_name: "Shelly Kühlschrank Reboot", device_class: "restart" } },
+      "switch.shelly_hutte_ausensteckdosen_switch_0": { state: "on", attributes: { friendly_name: "Außensteckdosen Hütte" } },
+      "sensor.shelly_hutte_ausensteckdosen_switch_0_device_temperature": { state: "64.2", attributes: { friendly_name: "Shelly Hütte Außensteckdosen Switch 0 device temperature", device_class: "temperature", unit_of_measurement: "°C" } },
+      "sensor.shelly_hutte_ausensteckdosen_rssi": { state: "-77", attributes: { friendly_name: "Shelly Außensteckdosen Signalstärke", device_class: "signal_strength", unit_of_measurement: "dBm" } },
+      "binary_sensor.shelly_hutte_ausensteckdosen_restart_required": { state: "on", attributes: { friendly_name: "Neustart erforderlich" } },
+      "binary_sensor.shelly_hutte_ausensteckdosen_switch_0_overheating": { state: "off", attributes: { friendly_name: "Überhitzung", device_class: "problem" } },
+      "button.shelly_hutte_ausensteckdosen_reboot": { state: "unknown", attributes: { friendly_name: "Shelly Außensteckdosen Reboot", device_class: "restart" } },
+      "switch.shelly_licht": { state: "off", attributes: { friendly_name: "Shelly Licht" } },
+      "sensor.shelly_licht_hutte_switch_0_device_temperature": { state: "41.5", attributes: { friendly_name: "Shelly Licht Hütte Switch 0 device temperature", device_class: "temperature", unit_of_measurement: "°C" } },
+      // Steckdosen mit Leistung und Verbrauch
+      "sensor.shelly_kuhlschrank_energy": { state: "412.6", attributes: { friendly_name: "Shelly Kühlschrank energy", device_class: "energy", unit_of_measurement: "kWh", state_class: "total_increasing" } },
+      "binary_sensor.shelly_kuhlschrank_overpowering": { state: "off", attributes: { friendly_name: "Shelly Kühlschrank overpowering", device_class: "problem" } },
+      "sensor.shelly_hutte_ausensteckdosen_switch_0_power": { state: "1240", attributes: { friendly_name: "Außensteckdosen power", device_class: "power", unit_of_measurement: "W" } },
+      "sensor.shelly_hutte_ausensteckdosen_switch_0_energy": { state: "88.2", attributes: { friendly_name: "Außensteckdosen energy", device_class: "energy", unit_of_measurement: "kWh", state_class: "total_increasing" } },
+      "binary_sensor.shelly_hutte_ausensteckdosen_switch_0_overpowering": { state: "on", attributes: { friendly_name: "Überlast", device_class: "problem" } },
+      "switch.stecker_pumpe_switch_0": { state: "off", attributes: { friendly_name: "Stecker Pumpe" } },
+      "sensor.stecker_pumpe_switch_0_power": { state: "0", attributes: { friendly_name: "Stecker Pumpe Leistung", device_class: "power", unit_of_measurement: "W" } },
+      "sensor.stecker_pumpe_switch_0_energy": { state: "35.0", attributes: { friendly_name: "Stecker Pumpe Energie", device_class: "energy", unit_of_measurement: "kWh", state_class: "total_increasing" } },
+      // Grillthermometer: zweite Meater-Sonde gart gerade
+      "sensor.meater_2_innentemperatur": { state: "48.6", attributes: { friendly_name: "Meater 2 Innentemperatur", device_class: "temperature", unit_of_measurement: "°C" } },
+      "sensor.meater_2_umgebungstemperatur": { state: "142", attributes: { friendly_name: "Meater 2 Umgebungstemperatur", device_class: "temperature", unit_of_measurement: "°C" } },
+      "sensor.meater_2_soll_temperatur": { state: "56", attributes: { friendly_name: "Meater 2 Soll-Temperatur", device_class: "temperature", unit_of_measurement: "°C" } },
+      "sensor.meater_2_spitzentemperatur": { state: "48.6", attributes: { friendly_name: "Meater 2 Spitzentemperatur", device_class: "temperature", unit_of_measurement: "°C" } },
+      "sensor.meater_2_kochstatus": { state: "started", attributes: { friendly_name: "Meater 2 Kochstatus", device_class: "enum" } },
+      "sensor.meater_2_kocht": { state: "Rinderfilet", attributes: { friendly_name: "Meater 2 Kocht" } },
+      "sensor.meater_2_verbleibende_zeit": { state: new Date(Date.now() + 23 * 60000).toISOString(), attributes: { friendly_name: "Meater 2 Verbleibende Zeit", device_class: "timestamp" } },
+      "sensor.meater_2_verstrichene_zeit": { state: new Date(Date.now() - 72 * 60000).toISOString(), attributes: { friendly_name: "Meater 2 Verstrichene Zeit", device_class: "timestamp" } },
+      // Eigene Sonde wie im Garten (Gargut + Zieltemperatur einstellbar), gerade inaktiv
+      "sensor.gm_plus_kerntemperatur": { state: "unknown", attributes: { friendly_name: "Meater plus Kerntemperatur", device_class: "temperature", unit_of_measurement: "°C" } },
+      "sensor.gm_plus_phase": { state: "unknown", attributes: { friendly_name: "Meater plus Phase", device_class: "enum", options: ["idle", "heating", "cooking", "stall", "near_done", "target_reached", "resting"] } },
+      "sensor.gm_plus_fortschritt": { state: "unknown", attributes: { friendly_name: "Meater plus Fortschritt", unit_of_measurement: "%" } },
+      "number.gm_plus_zieltemperatur": { state: "62.0", attributes: { friendly_name: "Meater plus Zieltemperatur", min: 30, max: 100, step: 1, unit_of_measurement: "°C" } },
+      "select.gm_plus_gargut": { state: "roe_deer_leg", attributes: { friendly_name: "Meater plus Gargut", options: ["custom", "beef_medium_rare", "pulled_pork", "roe_deer_leg", "chicken"] } },
+      "binary_sensor.gm_plus_ziel_erreicht": { state: "off", attributes: { friendly_name: "Meater plus Ziel erreicht" } },
+      // TP-Link-Clients mit WLAN-Signal (wie im Garten)
+      "device_tracker.tp_shelly_kuhlschrank": { state: "home", attributes: { friendly_name: "shelly_kuehlschrank", host_name: "shelly_kuehlschrank", ip: "192.168.0.211", mac: "34-B7-DA-00-00-01", connection: "host", band: "2G", signal: -60, source_type: "router" } },
+      "device_tracker.tp_goat": { state: "home", attributes: { friendly_name: "goat", host_name: "goat", ip: "192.168.0.120", mac: "EC-30-8E-82-A0-94", connection: "host", band: "2G", signal: -81, source_type: "router" } },
+      "device_tracker.tp_anker": { state: "not_home", last_changed: new Date(Date.now() - 5 * 3600_000).toISOString(), attributes: { friendly_name: "Anker", host_name: "Anker", ip: "192.168.0.140", mac: "EC-30-8E-82-A0-99", connection: "host", band: "5G", source_type: "router" } },
+      "device_tracker.tp_reolink": { state: "home", attributes: { friendly_name: "Reolink", host_name: "Reolink", ip: "192.168.0.129", mac: "EC-71-DB-97-E0-22", connection: "wired", band: null, source_type: "router" } },
+      "sensor.shelly_licht_hutte_rssi": { state: "-61", attributes: { friendly_name: "Shelly Licht Hütte Signalstärke", device_class: "signal_strength", unit_of_measurement: "dBm" } },
+    };
+    states["person.pascal"].attributes.user_id = "u_pascal";
+    for (const [id, s] of Object.entries(states)) Object.assign(s, { entity_id: id, last_changed: s.last_changed ?? now, last_updated: now });
+
+    // Simuliert, was das Gerät nach einer Änderung als Aktion meldet
+    const deriveAction = (mode, a) => {
+      if (!("hvac_action" in a)) return undefined;
+      const cur = a.current_temperature;
+      const tgt = a.temperature;
+      switch (mode) {
+        case "off": return "off";
+        case "heat": return cur < tgt ? "heating" : "idle";
+        case "cool": return cur > tgt ? "cooling" : "idle";
+        case "dry": return "drying";
+        case "fan_only": return "fan";
+        case "heat_cool": return cur < a.target_temp_low ? "heating" : cur > a.target_temp_high ? "cooling" : "idle";
+        case "auto": return tgt == null ? "idle" : cur < tgt - 0.5 ? "heating" : cur > tgt + 0.5 ? "cooling" : "idle";
+        default: return a.hvac_action;
+      }
+    };
+    const cards = [];
+    const entities = Object.fromEntries(Object.keys(states).map((id) => [id, { entity_id: id,
+      device_id: /^(lock|binary_sensor)\.klingel/.test(id) ? "dev_opener" : /marcel(s|_s24)/.test(id) ? "dev_phone_m" : /pascal_handy/.test(id) ? "dev_phone_p" : /roborock/.test(id) && !id.startsWith("image.") ? "dev_robo" : id.includes("1ed763d9") ? "dev_gree" : /^(light|switch|button)\.carport_/.test(id) && !id.includes("segment") ? "dev_govee" : null,
+      ...(/_mein_zimmer_batter|zimmer_schalter_batter|turkontakt_mein_zimmer_batter/.test(id) ? { device_id: id.replace(/^\w+\.|_battery_plus.*|_batterie$/g, "") } : {}),
+      ...(/^\w+\.(cam_haus|blink_(tor|carport|pool|schuppen))/.test(id) ? { device_id: id.match(/^\w+\.(cam_haus|blink_(tor|carport|pool|schuppen))/)[1], platform: id.includes("blink") ? "blink" : "reolink" } : {}),
+      ...(/^(sensor|button)\.(ventil|wasser)_(hecke|rasen)_batter/.test(id) ? { device_id: "dev_ventil_" + id.match(/_(hecke|rasen)_/)[1], ...(id.includes("wasser_") ? { platform: "battery_notes" } : {}) } : {}),
+      ...(/^\w+\.(solarbank_3_e2700_pro|solarbank_sonne|system_solix_garten|system_sonne)_/.test(id) ? { device_id: /solarbank_sonne|system_sonne/.test(id) ? (id.includes("system_") ? "dev_sys_sonne" : "dev_sb_sonne") : (id.includes("system_") ? "dev_sys_garten" : "dev_sb_garten"), platform: "anker_solix" } : {}),
+      ...({ "light.couch_licht": ["dev_couch", "hue"], "light.couch_links": ["dev_couch", "hue"], "cover.kuche": ["dev_rollo_kueche", "bosch_shc"],
+        "button.kuche_my_position": ["dev_rollo_kueche", "bosch_shc"], "sensor.meater_innentemperatur": ["dev_meater", "meater"], "sensor.meater_kochstatus": ["dev_meater", "meater"],
+        "device_tracker.ipad": ["dev_ipad", "fritz"] }[id] ? (([d, pf]) => ({ device_id: d, platform: pf }))({ "light.couch_licht": ["dev_couch", "hue"], "light.couch_links": ["dev_couch", "hue"], "cover.kuche": ["dev_rollo_kueche", "bosch_shc"],
+        "button.kuche_my_position": ["dev_rollo_kueche", "bosch_shc"], "sensor.meater_innentemperatur": ["dev_meater", "meater"], "sensor.meater_kochstatus": ["dev_meater", "meater"],
+        "device_tracker.ipad": ["dev_ipad", "fritz"] }[id]) : {}),
+      ...(/^\w+\.starlink_/.test(id) ? { device_id: id.includes("camper") ? "dev_starlink_camper" : "dev_starlink", platform: "starlink",
+        translation_key: { konnektivitat: "connection", ping: "ping", ping_drop_rate: "ping_drop_rate", downlink_durchsatz: "downlink_throughput", uplink_durchsatz: "uplink_throughput", download: "download", upload: "upload", letzter_neustart: "last_boot_time", beeintrachtigt: "currently_obstructed", heizung: "heating", ruhezustand: "power_save_idle", verstaut: "stowed", zeitplan_fur_ruhezustand: "sleep_schedule", neu_starten: "reboot" }[id.replace(/^\w+\.starlink_(camper_)?/, "")] } : {}),
+      ...(/^\w+\.smart_pool_/.test(id) ? { device_id: "dev_smart_pool", platform: "smart_pool", translation_key: {"select.smart_pool_pflegemittel": "dose_product", "number.smart_pool_zugabemenge": "dose_amount", "button.smart_pool_zugabe_erfassen": "log_dose", "sensor.smart_pool_chlor_dosierung": "chlorine_dose", "sensor.smart_pool_ph_minus_dosierung": "ph_minus_dose", "sensor.smart_pool_ph_plus_dosierung": "ph_plus_dose", "sensor.smart_pool_letzte_zugabe": "last_dose", "binary_sensor.smart_pool_sonde_prufen": "probe_check", "button.smart_pool_sonde_kalibriert": "probe_calibrated", "number.smart_pool_vorrat_chlor_granulat": "stock_chlorine", "number.smart_pool_vorrat_chlor_schock": "stock_shock", "number.smart_pool_vorrat_ph_minus": "stock_ph_minus", "number.smart_pool_vorrat_ph_plus": "stock_ph_plus", "number.smart_pool_vorrat_metall_ex": "stock_metal_ex", "number.smart_pool_vorrat_multitabs": "stock_multitab", "binary_sensor.smart_pool_multitab_fallig": "multitab_due", "binary_sensor.smart_pool_vorrat_knapp": "stock_low", "sensor.smart_pool_verbrauch_chlor_granulat": "consumption_chlorine", "sensor.smart_pool_verbrauch_ph_minus": "consumption_ph_minus", "sensor.smart_pool_verbrauch_metall_ex": "consumption_metal_ex", "sensor.smart_pool_metall_ex_dosierung": "metal_ex_dose", "sensor.smart_pool_metall_ex_restzeit": "metal_ex_remaining", "binary_sensor.smart_pool_metall_ex_behandlung": "metal_ex_active", "button.smart_pool_metall_ex_zugegeben": "metal_ex_added", "number.smart_pool_nachfullmenge": "refill_cm", "button.smart_pool_nachgefullt": "refilled", "sensor.smart_pool_regen_vorhersage_24_h": "rain_forecast_24h", "sensor.smart_pool_regen_letzte_24_h": "rain_last_24h", "sensor.smart_pool_saison": "season", "binary_sensor.smart_pool_wartung_fallig": "maintenance_due", "button.smart_pool_filtersand_gewechselt": "sand_changed", "button.smart_pool_dichtungen_gepruft": "seals_checked", "sensor.smart_pool_pumpenstunden_seit_ruckspulen": "backwash_hours", "binary_sensor.smart_pool_ruckspulen_fallig": "backwash_due", "button.smart_pool_ruckgespult": "backwash_done", "todo.smart_pool_aufgaben": "tasks", "sensor.smart_pool_solaranteil_heute": "solar_share_today", "sensor.smart_pool_solarstrom_heute": "solar_energy_today", "sensor.smart_pool_solar_ersparnis_heute": "solar_savings_today", "sensor.smart_pool_energie_heute": "energy_today", "sensor.smart_pool_kosten_heute": "cost_today", "sensor.smart_pool_badewetter": "swim_score", "sensor.smart_pool_pumpen_ausfalle_heute": "pump_outages_today", "sensor.smart_pool_wochenbericht": "weekly_report"}[id] } : {}),
+      ...(/^\w+\.fritz_box_7690_/.test(id) ? { device_id: "dev_fritz", platform: "fritz" } : {}),
+      ...(/^\w+\.haustuer_?/.test(id) || id === "lock.haustuer" ? { device_id: "dev_nuki_lock", platform: "nuki" } : {}),
+      ...(/^\w+\.(tursensor_haus|temperatur_haus|ventil_volleyball|steckdose_repeater|rauchmelder)_?/.test(id) ? { device_id: "z2m_" + id.match(/\.(tursensor_haus|temperatur_haus|ventil_volleyball|steckdose_repeater|rauchmelder)/)[1], platform: "mqtt",
+        ...(/_(linkquality|battery)$/.test(id) ? { entity_category: "diagnostic" } : {}) } : {}),
+      ...(/^\w+\.zigbee2mqtt_bridge_/.test(id) ? { device_id: "z2m_bridge", platform: "mqtt" } : {}),
+      ...(/^device_tracker\.tp_/.test(id) ? { platform: "tplink_router" } : {}),
+      ...(/^\w+\.stecker_pumpe_/.test(id) ? { device_id: "sh_pumpe", platform: "shelly" } : {}),
+      ...(/^sensor\.meater_2_/.test(id) ? { device_id: "dev_meater2", platform: "meater" } : {}),
+      ...(/^\w+\.gm_plus_/.test(id) ? { device_id: "dev_gm_plus", platform: "garten" } : {}),
+      ...(/^\w+\.shelly_(kuhlschrank|hutte_ausensteckdosen|licht)/.test(id) ? { device_id: "sh_" + id.match(/shelly_(kuhlschrank|hutte_ausensteckdosen|licht)/)[1], platform: "shelly",
+        ...(/_(rssi|uptime|reboot|firmware|restart_required|overheating|device_temperature)$/.test(id) ? { entity_category: "diagnostic" } : {}) } : {}),
+      ...(/^device_tracker\.fb_/.test(id) ? { platform: "fritz" } : {}),
+      ...(/^\w+\.tp_link_router_/.test(id) ? { device_id: "dev_tplink", platform: "tplink_router" } : {}),
+      ...(/^sensor\.speedtest_/.test(id) ? { device_id: "dev_speedtest", platform: "speedtestdotnet", translation_key: id.replace("sensor.speedtest_", "") } : {}),
+      ...(/^\w+\.goat_(g1|wiese|a1600)/.test(id) ? { device_id: "dev_" + id.match(/goat_(g1|wiese|a1600)/)[0] } : {}),
+      area_id: /heizung_mein_zimmer|etrv_|wandthermostat_mein|_mein_zimmer_batter|zimmer_schalter_batter|turkontakt_mein_zimmer_batter/.test(id) ? "mein_zimmer" : null }]));
+    const devices = { cam_haus: { id: "cam_haus", name: "Haus" }, blink_tor: { id: "blink_tor", name: "Tor" }, blink_carport: { id: "blink_carport", name: "Carport" },
+      blink_pool: { id: "blink_pool", name: "Pool" }, blink_schuppen: { id: "blink_schuppen", name: "Schuppen" }, dev_opener: { id: "dev_opener", name: "Klingel", model: "Nuki Opener" }, dev_gree: { id: "dev_gree", name: "Klima Schlafzimmer" }, dev_govee: { id: "dev_govee", name: "Carport" },
+      dev_ventil_hecke: { id: "dev_ventil_hecke", name: "Ventil Hecke" }, dev_ventil_rasen: { id: "dev_ventil_rasen", name: "Ventil Rasen" },
+      dev_couch: { id: "dev_couch", name: "Couch Lightstrip" }, dev_rollo_kueche: { id: "dev_rollo_kueche", name: "Rollo Küche" }, dev_meater: { id: "dev_meater", name: "MEATER+ Sonde" }, dev_ipad: { id: "dev_ipad", name: "iPad" },
+      dev_nuki_lock: { id: "dev_nuki_lock", name: "Haustür", model: "Nuki Smart Lock 4.0", manufacturer: "Nuki" },
+      z2m_bridge: { id: "z2m_bridge", name: "Zigbee2MQTT Bridge", model: "Bridge", identifiers: [["mqtt", "zigbee2mqtt_bridge_0x00124b"]] },
+      ...Object.fromEntries([["tursensor_haus", "Türsensor Haus", "Contact sensor", "eWeLink"], ["temperatur_haus", "Temperatur Haus", "Temperature and humidity sensor", "Tuya"],
+        ["ventil_volleyball", "Ventil Volleyball", "Zigbee smart water valve", "SONOFF"], ["steckdose_repeater", "Steckdose Repeater", "TRETAKT smart plug", "IKEA"],
+        ["rauchmelder", "Rauchmelder", "Smart smoke detector", "Aqara"]].map(([n, name, model, man], i) => ["z2m_" + n, { id: "z2m_" + n, name, model, manufacturer: man,
+        area_id: i < 2 ? "hutte" : null, sw_version: "1.0." + i, identifiers: [["mqtt", "zigbee2mqtt_0xa4c13" + i]] }])),
+      sh_kuhlschrank: { id: "sh_kuhlschrank", name: "Shelly Kühlschrank", model: "Shelly Plug E", manufacturer: "Shelly", sw_version: "20230913-113610/v1.14.0-gcb84623", area_id: "hutte", connections: [["mac", "34b7da000001"]] },
+      sh_hutte_ausensteckdosen: { id: "sh_hutte_ausensteckdosen", name: "Shelly Hütte Außensteckdosen", model: "Shelly 1PM Gen3", manufacturer: "Shelly", area_id: "hutte" },
+      sh_pumpe: { id: "sh_pumpe", name: "Stecker Pumpe", model: "Shelly Outdoor Plug S Gen3", manufacturer: "Shelly" },
+      dev_meater2: { id: "dev_meater2", name: "MEATER 2+ Sonde", model: "Meater 2 Plus" },
+      dev_gm_plus: { id: "dev_gm_plus", name: "Meater plus", model: "Sonde" },
+      sh_licht: { id: "sh_licht", name: "Shelly Licht Hütte", model: "Shelly 1 Mini Gen3", manufacturer: "Shelly" },
+      dev_fritz: { id: "dev_fritz", name: "FRITZ!Box 7690" }, dev_tplink: { id: "dev_tplink", name: "TP-Link Router" },
+      dev_sb_garten: { id: "dev_sb_garten", name: "Solarbank 3 E2700 Pro", via_device_id: "dev_sys_garten" }, dev_sys_garten: { id: "dev_sys_garten", name: "System Solix Garten" },
+      dev_sb_sonne: { id: "dev_sb_sonne", name: "Solarbank Hütte", via_device_id: "dev_sys_sonne" }, dev_sys_sonne: { id: "dev_sys_sonne", name: "System Hütte" } };
+    const ymd = (offset) => { const d = new Date(Date.now() + offset * 86400000); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+    // LLM Vision: Ereignisse wie llmvision.get_events (Bilder über media_source/resolve_media)
+    const FOX = '<g transform="translate(70 112)"><ellipse cx="0" cy="0" rx="16" ry="8" fill="#e65100"/><circle cx="16" cy="-6" r="6" fill="#e65100"/><path d="M-16 0 L-30 -6 L-28 4Z" fill="#ffcc80"/></g>';
+    const llmAgo = (min) => { const d = new Date(Date.now() - min * 60000); return d.toISOString(); };
+    const LLM_EVENTS = [
+      ["Marcels Auto", "Ein blauer VW (Modell T-Roc) steht im Eingangsbereich.", 6, "auto-1", "camera.blink_carport"],
+      ["Paketbote an der Tür", "Ein Zusteller in gelber Jacke legt ein Paket vor die Haustür.", 95, "paket-1", "camera.cam_haus"],
+      ["Mann im Garten", "Eine Person im schwarzen ärmellosen Shirt und hellen Shorts geht neben der Hütte im Garten.", 190, "person-1", "camera.cam_haus"],
+      ["Keine Aktivität", "Auf den Bildern ist keine Bewegung zu erkennen.", 260, "", "camera.blink_tor"],
+      ["🦊 Unbekanntes Tier", "Ein dunkles Tier steht im Hintergrund links neben dem Holzzaun. (Kamera Eingang)", 60 * 21, "tier-1", "camera.blink_tor"],
+      ["Marcels Auto", "Das Auto von Marcel steht im Gartenbereich der Überwachungskamera.", 60 * 27, "auto-2", "camera.blink_carport"],
+      ["🦊 Unbekanntes Tier", "Ein kleines Tier bewegt sich im Hintergrund in der Nähe des Zauns. (Kamera Eingang)", 60 * 46, "tier-2", "camera.blink_schuppen"],
+      ["Unbekannte Pflanze", "Auf den Kamerabildern ist lediglich die Nahaufnahme von Blättern und Ästen zu sehen.", 60 * 52, "", "camera.blink_pool"],
+    ].map(([title, description, min, img, cam], i) => ({ uid: `llm-${i}`, title, description, start: llmAgo(min), end: llmAgo(min - 1),
+      key_frame: img ? `/media/llmvision/snapshots/${img}.jpg` : "", camera_name: cam, category: "", label: "" }));
+    const LLM_IMAGES = {
+      "auto-1": camScene("CARPORT", "#ffb74d", "#ffe0b2", "#8d8d8d", CAR), "auto-2": camScene("CARPORT", "#90caf9", "#e3f2fd", "#8d8d8d", CAR),
+      "paket-1": camScene("HAUS", "#7cb6e8", "#cfe6f7", "#6a9e4f", HOUSE + PERSON + '<rect x="120" y="118" width="18" height="14" fill="#a1887f"/>'),
+      "person-1": camScene("HAUS", "#7cb6e8", "#cfe6f7", "#6a9e4f", SHED + PERSON + TREE(60)),
+      "tier-1": camScene("TOR", "#37474f", "#546e7a", "#33691e", TREE(250) + FOX), "tier-2": camScene("SCHUPPEN", "#263238", "#455a64", "#33691e", SHED + FOX),
+    };
+    // Mealie: Rezepte und Essensplan wie mealie.get_recipes / get_recipe / get_mealplan
+    const RECIPES = [
+      { recipe_id: "r1", slug: "rindergulasch", name: "Rindergulasch", description: "Klassisches Rindergulasch, das am nächsten Tag noch besser schmeckt.", total_time: "3 hours", prep_time: "30 minutes", perform_time: "2 hours 30 minutes",
+        recipe_servings: 6, rating: 5, tags: [{ name: "Schmorgericht" }, { name: "High Protein" }],
+        ingredients: ["1 kg Rindergulasch", "1 kg Zwiebeln", "3 EL Tomatenmark", "3 EL Paprika edelsüß", "2 Knoblauchzehen", "500 ml Rinderfond", "Salz"].map((d) => ({ display: d, note: d, quantity: 0 })),
+        instructions: ["Zwiebeln in Streifen schneiden, Fleisch trocken tupfen.", "Fleisch portionsweise kräftig anbraten.", "Zwiebeln goldbraun schmoren, Tomatenmark mitrösten.", "Mit Fond ablöschen und 2,5 Stunden schmoren."].map((text) => ({ text })) },
+      { recipe_id: "r2", slug: "spaghetti-carbonara", name: "Spaghetti Carbonara", description: "Mit Guanciale, Eigelb und Pecorino – ohne Sahne.", total_time: "25 minutes", prep_time: "10 minutes", perform_time: "15 minutes",
+        recipe_servings: 2, rating: 4, tags: [{ name: "Pasta" }, { name: "Schnell" }],
+        ingredients: ["200 g Spaghetti", "80 g Guanciale", "3 Eigelb", "40 g Pecorino", "½ TL Pfeffer"].map((d) => ({ display: d, note: d, quantity: 0 })),
+        instructions: ["Spaghetti kochen.", "Guanciale knusprig braten.", "Eigelb mit Pecorino verrühren, alles abseits der Hitze vermengen."].map((text) => ({ text })) },
+      { recipe_id: "r3", slug: "ofengemuese", name: "Ofengemüse mit Feta", total_time: "45 minutes", recipe_servings: 4, rating: null, tags: [{ name: "Vegetarisch" }], ingredients: [], instructions: [] },
+      { recipe_id: "r4", slug: "linsencurry", name: "Rotes Linsencurry", total_time: "35 minutes", recipe_servings: 4, rating: 4, tags: [{ name: "Vegan" }], ingredients: [], instructions: [] },
+    ];
+    // 17TRACK: Sendungen wie seventeentrack.get_packages
+    const hAgo = (h) => new Date(Date.now() - h * 3600000).toISOString();
+    const PACKAGES = [
+      { tracking_number: "00340434469856658870", friendly_name: "", status: "Delivered", info_text: "The shipment has been successfully delivered", location: "DE", timestamp: hAgo(5), origin_country: "Germany", destination_country: "Germany" },
+      { tracking_number: "00340434886291589635", friendly_name: "Sensoren", status: "In Transit", info_text: "Arrived at the parcel center", location: "Mannheim", timestamp: hAgo(3), origin_country: "Germany", destination_country: "Germany" },
+      { tracking_number: "DE5922818887", friendly_name: "Steckdosen", status: "Not Found", info_text: null, location: "", timestamp: null, origin_country: "Unknown", destination_country: "Unknown" },
+      { tracking_number: "1Z999AA10123456784", friendly_name: "Ersatzakku", status: "Ready to be picked up", info_text: "Ready for pickup at access point", location: "Packstation 112", timestamp: hAgo(1), origin_country: "Netherlands", destination_country: "Germany" },
+      { tracking_number: "H1001234567890123456", friendly_name: "Buch", status: "In Transit", info_text: "Out for delivery", location: "Mannheim", timestamp: hAgo(0.5), origin_country: "Germany", destination_country: "Germany" },
+      { tracking_number: "00340434000000000001", friendly_name: "Alte Lieferung", status: "Delivered", info_text: "Delivered", location: "DE", timestamp: hAgo(24 * 9) },
+    ];
+    const MEALPLAN = [
+      { mealplan_id: "m1", mealplan_date: ymd(0), entry_type: "dinner", title: "", recipe: RECIPES[1] },
+      { mealplan_id: "m2", mealplan_date: ymd(1), entry_type: "lunch", title: "", recipe: RECIPES[3] },
+      { mealplan_id: "m3", mealplan_date: ymd(2), entry_type: "dinner", title: "", recipe: RECIPES[0] },
+    ];
+    const makeHass = () => ({
+      async callApi(method, path) {
+        if (path.startsWith("calendars/calendar.familie")) {
+          const at = (d, h, m = 0) => { const x = new Date(); x.setDate(x.getDate() + d); x.setHours(h, m, 0, 0); return x.toISOString(); };
+          return [{ summary: "Zahnarzt", start: { dateTime: at(0, 23, 30) }, end: { dateTime: at(0, 23, 59) }, location: "Praxis Dr. Weber" },
+            { summary: "Geburtstag Oma", start: { date: ymd(2) }, end: { date: ymd(3) } }, { summary: "Grillen im Garten", start: { dateTime: at(4, 18) }, end: { dateTime: at(4, 22) } }];
+        }
+        if (path.startsWith("calendars/calendar.arbeit")) {
+          const at = (d, h, m = 0) => { const x = new Date(); x.setDate(x.getDate() + d); x.setHours(h, m, 0, 0); return x.toISOString(); };
+          return [{ summary: "Team-Meeting", start: { dateTime: at(1, 9, 30) }, end: { dateTime: at(1, 10, 30) } }, { summary: "Urlaub", start: { date: ymd(6) }, end: { date: ymd(9) } }];
+        }
+        if (path === "config/core/check_config") { await new Promise((r) => setTimeout(r, 400)); return { result: "valid", errors: null }; }
+        if (path.startsWith("calendars/calendar.llm_vision_timeline")) return LLM_EVENTS.map((e) => ({ summary: e.title, description: e.description, start: { dateTime: e.start }, end: { dateTime: e.end }, uid: e.uid }));
+        if (path.startsWith("calendars/calendar.abfall")) return [
+          { summary: "Restmüll", start: { date: ymd(1) }, end: { date: ymd(2) } },
+          { summary: "Altpapier", start: { date: ymd(1) }, end: { date: ymd(2) } },
+          { summary: "Gelber Sack", start: { date: ymd(4) }, end: { date: ymd(5) } },
+        ];
+        return [];
+      },
+      states: { ...states }, entities, devices, areas: { hutte: { area_id: "hutte", name: "Hütte" } }, language: lang, locale: { language: lang },
+      services: { homematicip_local: { enable_away_mode_by_duration: {}, disable_away_mode: {} }, blink: { trigger_camera: {} }, ecovacs_goat_g1: { request_live_position_stream: {}, refresh_state: {} }, goat_mower: { mow_areas: {} }, llmvision: { get_events: {} } },
+      config: { unit_system: { temperature: "°C" } },
+      async callService(domain, service, data) {
+        window.serviceCalls.push({ domain, service, data });
+        if (domain === "mqtt" && /bridge\/request\/networkmap$/.test(data.topic)) {
+          const N = (ieee, name, type) => ({ ieeeAddr: ieee, friendlyName: name, type });
+          const nodes = [N("0x00", "Coordinator", "Coordinator"), N("0xr1", "Steckdose Repeater", "Router"), N("0xr2", "Stecker Router", "Router"),
+            N("0xe1", "Türsensor Haus", "EndDevice"), N("0xe2", "Temperatur Haus", "EndDevice"), N("0xe3", "Ventil Volleyball", "EndDevice"), N("0xe4", "Vibration", "EndDevice"), N("0xe5", "Bewegungsmelder", "EndDevice"),
+            N("0xr3", "Steckdose Pumpe", "Router"), N("0xe6", "Ventil Haus", "EndDevice"), N("0xe7", "Ventil Bananen", "EndDevice"), N("0xe8", "Schalter Wasser", "EndDevice"),
+            N("0xe9", "Rauchmelder", "EndDevice"), N("0xea", "Temperatur draußen", "EndDevice"), N("0xeb", "Türkontakt Schuppen", "EndDevice")];
+          const L = (s, t, lqi, rel) => ({ source: { ieeeAddr: s }, target: { ieeeAddr: t }, lqi, relationship: rel });
+          const links = [L("0xr1", "0x00", 160, 2), L("0xr2", "0x00", 92, 2), L("0xr1", "0xr2", 70, 2), L("0xe1", "0xr1", 142, 1), L("0xe2", "0xr2", 38, 1),
+            L("0xe3", "0x00", 96, 1), L("0xe4", "0xr2", 120, 1), L("0xe5", "0xr1", 55, 1), L("0xe5", "0x00", 30, 2),
+            L("0xr3", "0x00", 110, 2), L("0xr3", "0xr1", 64, 2), L("0xe6", "0xr3", 168, 1), L("0xe7", "0xr3", 132, 1), L("0xe8", "0xr3", 88, 1),
+            L("0xe9", "0xr1", 120, 1), L("0xea", "0x00", 47, 1), L("0xeb", "0xr2", 72, 1)];
+          const topic = data.topic.replace("request", "response");
+          setTimeout(() => window.mqttSubs?.[topic]?.({ topic, payload: JSON.stringify({ data: { type: "raw", routes: false, value: { nodes, links } }, status: "ok" }) }), 300);
+          return;
+        }
+        if (domain === "llmvision" && service === "get_events") return { context: {}, response: { events: LLM_EVENTS } };
+        if (domain === "seventeentrack") {
+          log(`seventeentrack.${service} ${JSON.stringify(data)}`);
+          if (service === "get_packages") return { context: {}, response: { packages: PACKAGES.map((p) => ({ ...p })) } };
+          if (service === "add_package") PACKAGES.push({ tracking_number: data.package_tracking_number, friendly_name: data.package_friendly_name, status: "Not Found", info_text: null, location: "", timestamp: null });
+          if (service === "archive_package") { const i = PACKAGES.findIndex((p) => p.tracking_number === data.package_tracking_number); if (i >= 0) PACKAGES.splice(i, 1); }
+          return;
+        }
+        if (domain === "mealie") {
+          log(`mealie.${service} ${JSON.stringify(data)}`);
+          if (service === "get_mealplan") return { context: {}, response: { mealplan: MEALPLAN.filter((m) => (!data.start_date || m.mealplan_date >= data.start_date) && (!data.end_date || m.mealplan_date <= data.end_date)) } };
+          if (service === "get_recipes") {
+            const q = String(data.search_terms ?? "").toLowerCase();
+            return { context: {}, response: { recipes: { items: RECIPES.filter((r) => !q || r.name.toLowerCase().includes(q)).slice(0, data.result_limit ?? 10) } } };
+          }
+          if (service === "get_recipe") return { context: {}, response: { recipe: RECIPES.find((r) => r.slug === data.recipe_id || r.recipe_id === data.recipe_id) } };
+          if (service === "set_mealplan" || service === "set_random_mealplan") {
+            const recipe = RECIPES.find((r) => r.recipe_id === data.recipe_id) ?? RECIPES[(MEALPLAN.length * 3) % RECIPES.length];
+            MEALPLAN.push({ mealplan_id: `m${MEALPLAN.length + 1}`, mealplan_date: data.date ?? ymd(0), entry_type: data.entry_type ?? "dinner", title: "", recipe });
+          }
+          return;
+        }
+        if (domain === "todo" || (domain === "light" && Array.isArray(data.entity_id) && service === "turn_off" && data.entity_id.some((id) => !states[id]))) { log(`${domain}.${service} ${JSON.stringify(data)}`); return; }
+        log(`${domain}.${service} ${JSON.stringify(data)}`);
+        const s = states[data.entity_id];
+        if (domain === "light" || domain === "scene") {
+          if (domain === "light") for (const id of [].concat(data.entity_id)) {
+            const s = states[id];
+            let st = s.state;
+            const a = { ...s.attributes };
+            if (service === "toggle") st = st === "on" ? "off" : "on";
+            if (service === "turn_off") st = "off";
+            if (service === "turn_on") {
+              st = "on";
+              if (data.brightness_pct != null && a.supported_color_modes?.some((m) => m !== "onoff")) a.brightness = Math.round((data.brightness_pct / 100) * 255);
+              if (data.hs_color) { a.hs_color = data.hs_color; const c = `hsl(${data.hs_color[0]},100%,50%)`; const el = document.createElement("div"); el.style.color = c; document.body.appendChild(el); a.rgb_color = getComputedStyle(el).color.match(/\d+/g).slice(0, 3).map(Number); el.remove(); a.color_mode = "xy"; a.color_temp_kelvin = null; }
+              if (data.color_temp_kelvin) { a.color_temp_kelvin = data.color_temp_kelvin; a.color_mode = "color_temp"; delete a.rgb_color; }
+              if (data.rgb_color) { a.rgb_color = data.rgb_color; a.color_mode = "rgb"; }
+              if ((data.hs_color || data.rgb_color || data.color_temp_kelvin) && !data.effect && a.effect_list?.includes("")) a.effect = null;
+              if (data.effect) a.effect = data.effect;
+              if (a.brightness == null && a.supported_color_modes?.some((m) => m !== "onoff")) a.brightness = 200;
+            }
+            states[id] = { ...s, state: st, attributes: a, last_updated: new Date().toISOString() };
+          }
+          setTimeout(() => { const h = makeHass(); cards.forEach((c) => (c.hass = h)); }, 150);
+          return;
+        }
+        if (domain === "cover") {
+          const recomputeGroups = () => {
+            for (const [gid, g] of Object.entries(states)) {
+              if (!gid.startsWith("cover.") || !Array.isArray(g.attributes.entity_id)) continue;
+              const ps = g.attributes.entity_id.map((m) => states[m]?.attributes.current_position).filter((v) => v != null);
+              const avg = ps.length ? Math.round(ps.reduce((a, b) => a + b, 0) / ps.length) : 0;
+              const ms = g.attributes.entity_id.map((m) => states[m]?.state);
+              const st = ms.includes("opening") ? "opening" : ms.includes("closing") ? "closing" : avg > 0 ? "open" : "closed";
+              states[gid] = { ...g, state: st, attributes: { ...g.attributes, current_position: avg }, last_updated: new Date().toISOString() };
+            }
+          };
+          const refresh = () => { recomputeGroups(); const h = makeHass(); cards.forEach((c) => (c.hass = h)); };
+          for (let id of [].concat(data.entity_id)) {
+            const ids = Array.isArray(states[id]?.attributes.entity_id) ? states[id].attributes.entity_id : [id];
+            for (const cid of ids) {
+              const c = states[cid];
+              if (!c || c.state === "unavailable") continue;
+              const a = { ...c.attributes };
+              const cur = a.current_position ?? (c.state === "open" ? 100 : 0);
+              if (service === "set_cover_tilt_position") { a.current_tilt_position = data.tilt_position; states[cid] = { ...c, attributes: a, last_updated: new Date().toISOString() }; continue; }
+              if (service === "stop_cover") { states[cid] = { ...c, state: cur > 0 ? "open" : "closed", last_updated: new Date().toISOString() }; continue; }
+              const target = service === "open_cover" ? 100 : service === "close_cover" ? 0 : data.position;
+              if (target == null || target === cur) continue;
+              // wie echte Rollläden: Position erst am Ende der Fahrt (Fahrzeit ~4 s für 0 → 100 %)
+              states[cid] = { ...c, state: target > cur ? "opening" : "closing", last_updated: new Date().toISOString() };
+              setTimeout(() => {
+                const s2 = states[cid];
+                if (s2.state !== "opening" && s2.state !== "closing") return;
+                const a2 = { ...s2.attributes };
+                if (a2.current_position != null || a.current_position != null) a2.current_position = target;
+                states[cid] = { ...s2, state: target > 0 ? "open" : "closed", attributes: a2, last_updated: new Date().toISOString() };
+                refresh();
+              }, Math.max(600, Math.abs(target - cur) * 40));
+            }
+          }
+          setTimeout(refresh, 150);
+          return;
+        }
+        if (domain === "vacuum" || domain === "select") {
+          const v = states[data.entity_id];
+          const map = { start: "cleaning", pause: "paused", stop: "idle", return_to_base: "returning" };
+          if (domain === "vacuum" && map[service]) states[data.entity_id] = { ...v, state: map[service] };
+          if (service === "send_command") states[data.entity_id] = { ...v, state: "cleaning" };
+          if (service === "set_fan_speed") states[data.entity_id] = { ...v, attributes: { ...v.attributes, fan_speed: data.fan_speed } };
+          if (service === "select_option") states[data.entity_id] = { ...v, state: data.option };
+          setTimeout(() => { const h = makeHass(); cards.forEach((c) => (c.hass = h)); }, 150);
+          return;
+        }
+        if (domain === "remote") {
+          const r = states[data.entity_id];
+          if (service === "turn_on" && data.activity) {
+            states[data.entity_id] = { ...r, state: "on", attributes: { ...r.attributes, activity_starting: data.activity } };
+            setTimeout(() => { const r2 = states[data.entity_id]; states[data.entity_id] = { ...r2, attributes: { ...r2.attributes, current_activity: data.activity, activity_starting: null } };
+              const h = makeHass(); cards.forEach((c) => (c.hass = h)); }, 900);
+          } else if (service === "turn_off") {
+            states[data.entity_id] = { ...r, state: "off", attributes: { ...r.attributes, current_activity: "PowerOff" } };
+          } else if (service === "turn_on") {
+            states[data.entity_id] = { ...r, state: "on", attributes: { ...r.attributes, current_activity: r.attributes.activity_list[0] } };
+          }
+          setTimeout(() => { const h = makeHass(); cards.forEach((c) => (c.hass = h)); }, 150);
+          return;
+        }
+        if (domain === "media_player") {
+          const m = states[data.entity_id];
+          const a = { ...m.attributes };
+          let st = m.state;
+          if (service === "media_play_pause") { st = st === "playing" ? "paused" : "playing"; a.media_position_updated_at = new Date().toISOString(); }
+          if (service === "volume_set") a.volume_level = data.volume_level;
+          if (service === "volume_up") a.volume_level = Math.min(1, (a.volume_level ?? 0) + 0.02);
+          if (service === "volume_down") a.volume_level = Math.max(0, (a.volume_level ?? 0) - 0.02);
+          if (service === "volume_mute") a.is_volume_muted = data.is_volume_muted;
+          if (service === "select_source") a.source = data.source;
+          if (service === "turn_off") st = "off";
+          if (service === "turn_on") st = "on";
+          states[data.entity_id] = { ...m, state: st, attributes: a, last_updated: new Date().toISOString() };
+          setTimeout(() => { const h = makeHass(); cards.forEach((c) => (c.hass = h)); }, 150);
+          return;
+        }
+        if (domain === "timer") {
+          const toSecs = (d) => (d ? d.split(":").reduce((a, v) => a * 60 + Number(v), 0) : 0);
+          const secs = s.state === "paused" && !data.duration ? toSecs(s.attributes.remaining) : toSecs(data.duration ?? s.attributes.duration);
+          states[data.entity_id] = service === "start"
+            ? { ...s, state: "active", attributes: { ...s.attributes, ...(data.duration ? { duration: data.duration } : {}), finishes_at: new Date(Date.now() + secs * 1000).toISOString() } }
+            : service === "pause"
+            ? { ...s, state: "paused", attributes: { ...s.attributes, remaining: new Date(Math.max(0, new Date(s.attributes.finishes_at) - Date.now())).toISOString().slice(11, 19), finishes_at: undefined } }
+            : { ...s, state: "idle", attributes: { ...s.attributes, finishes_at: undefined } };
+          setTimeout(() => { const h = makeHass(); cards.forEach((c) => (c.hass = h)); }, 150);
+          return;
+        }
+        if (domain === "time") {
+          states[data.entity_id] = { ...s, state: data.time };
+          setTimeout(() => { const h = makeHass(); cards.forEach((c) => (c.hass = h)); }, 150);
+          return;
+        }
+        if (domain === "lock") {
+          if (service !== "open") states[data.entity_id] = { ...s, state: service === "lock" ? "locked" : "unlocked", last_changed: new Date().toISOString() };
+          setTimeout(() => { const h = makeHass(); cards.forEach((c) => (c.hass = h)); }, 150);
+          return;
+        }
+        if (domain === "ecovacs_goat_g1") return;
+        if (domain === "goat_mower" && service === "mow_areas") {
+          states[data.entity_id] = { ...states[data.entity_id], state: "mowing", attributes: { ...states[data.entity_id].attributes, job_area_ids: data.area_ids } };
+          setTimeout(() => { const h = makeHass(); cards.forEach((c) => (c.hass = h)); }, 150);
+          return;
+        }
+        if (domain === "lawn_mower") {
+          const next = { start_mowing: "mowing", pause: "paused", dock: "returning" }[service];
+          if (next) states[data.entity_id] = { ...states[data.entity_id], state: next };
+          setTimeout(() => { const h = makeHass(); cards.forEach((c) => (c.hass = h)); }, 150);
+          return;
+        }
+        if (domain === "button" && /_battery_replaced$/.test(data.entity_id)) {
+          const last = data.entity_id.replace(/^button\./, "sensor.").replace(/_replaced$/, "_last_replaced");
+          if (states[last]) states[last] = { ...states[last], state: new Date().toISOString() };
+          setTimeout(() => { const h = makeHass(); cards.forEach((c) => (c.hass = h)); }, 150);
+          return;
+        }
+        if (domain === "button" || domain === "blink") return;
+        if (domain === "alarm_control_panel" || domain === "siren") {
+          states[data.entity_id] = { ...s, state: service === "alarm_arm_away" ? "armed_away" : service === "alarm_disarm" ? "disarmed" : service === "turn_on" ? "on" : "off" };
+          setTimeout(() => { const h = makeHass(); cards.forEach((c) => (c.hass = h)); }, 150);
+          return;
+        }
+        if (domain === "script" && /pool_(rueck|nach)spuelen/.test(data.entity_id)) {
+          const tid = data.entity_id.includes("rueck") ? "timer.pool_rueckspuelen" : "timer.pool_nachspuelen";
+          const t = states[tid];
+          const secs = t.attributes.duration.split(":").reduce((a, v) => a * 60 + Number(v), 0);
+          states[tid] = { ...t, state: "active", attributes: { ...t.attributes, finishes_at: new Date(Date.now() + secs * 1000).toISOString() } };
+          setTimeout(() => { const h = makeHass(); cards.forEach((c) => (c.hass = h)); }, 150);
+          return;
+        }
+        if (domain === "input_number" || domain === "number" || domain === "input_select" || domain === "select" || domain === "script") {
+          if (service === "set_value") states[data.entity_id] = { ...s, state: String(data.value) };
+          if (service === "select_option") states[data.entity_id] = { ...s, state: data.option };
+          setTimeout(() => { const h = makeHass(); cards.forEach((c) => (c.hass = h)); }, 150);
+          return;
+        }
+        if (domain === "homeassistant" && (service === "restart" || service === "reload_all" || service === "reload_config_entry")) return;
+        if (domain === "update" && service === "install") {
+          const u = states[data.entity_id];
+          states[data.entity_id] = { ...u, attributes: { ...u.attributes, in_progress: true, update_percentage: 10 } };
+          setTimeout(() => { const h = makeHass(); cards.forEach((c) => (c.hass = h)); }, 100);
+          setTimeout(() => {
+            states[data.entity_id] = { ...u, state: "off", attributes: { ...u.attributes, in_progress: false, installed_version: u.attributes.latest_version } };
+            const h = makeHass(); cards.forEach((c) => (c.hass = h));
+          }, 1500);
+          return;
+        }
+        if (domain === "homeassistant" && service === "update_entity" && String(data.entity_id).startsWith("sensor.speedtest_")) {
+          setTimeout(() => {
+            const now = new Date().toISOString();
+            const vals = { download: (120 + Math.random() * 90).toFixed(2), upload: (30 + Math.random() * 25).toFixed(2), ping: String(Math.round(35 + Math.random() * 30)) };
+            for (const [k, v] of Object.entries(vals)) states[`sensor.speedtest_${k}`] = { ...states[`sensor.speedtest_${k}`], state: v, last_changed: now, last_updated: now };
+            const h = makeHass(); cards.forEach((c) => (c.hass = h));
+          }, 1500);
+          return;
+        }
+        if (domain === "homeassistant" || domain === "input_datetime") {
+          let st = s.state, attrs = s.attributes;
+          if (service === "toggle") st = st === "on" ? "off" : "on";
+          if (service === "turn_on") st = "on";
+          if (service === "turn_off") st = "off";
+          if (service === "set_datetime") {
+            const [date, time] = data.datetime ? data.datetime.split(" ") : [data.date, data.time];
+            if (time) { const [h, m] = time.split(":").map(Number); attrs = { ...attrs, hour: h, minute: m }; }
+            if (date) { const [y, mo, d] = date.split("-").map(Number); attrs = { ...attrs, year: y, month: mo, day: d }; }
+            st = [date, time].filter(Boolean).join(" ");
+          }
+          states[data.entity_id] = { ...s, state: st, attributes: attrs };
+          const flowId = data.entity_id.replace(/^switch\.(ventil_\w+)$/, "sensor.$1_flow");
+          if (flowId !== data.entity_id && states[flowId]) states[flowId] = { ...states[flowId], state: st === "on" ? "0.72" : "0" };
+          setTimeout(() => { const h = makeHass(); cards.forEach((c) => (c.hass = h)); }, 150);
+          return;
+        }
+        const attrs = { ...s.attributes };
+        let st = s.state;
+        if (service === "set_hvac_mode") st = data.hvac_mode;
+        if (service === "turn_off") st = "off";
+        if (service === "turn_on") st = attrs.hvac_modes.find((m) => m !== "off");
+        for (const k of ["temperature", "target_temp_low", "target_temp_high", "humidity", "fan_mode", "swing_mode", "swing_horizontal_mode", "preset_mode"]) {
+          if (k in data) attrs[k] = data[k];
+        }
+        if ("hvac_action" in attrs) attrs.hvac_action = deriveAction(st, attrs);
+        states[data.entity_id] = { ...s, state: st, attributes: attrs, last_updated: new Date().toISOString() };
+        setTimeout(() => { const h = makeHass(); cards.forEach((c) => (c.hass = h)); }, 150);
+      },
+      connection: {
+        async subscribeMessage(cb, msg) {
+          if (msg.type === "mqtt/subscribe") { (window.mqttSubs ??= {})[msg.topic] = cb; return () => { delete window.mqttSubs[msg.topic]; }; }
+          if (msg.entity_id === "weather.forecast_home") {
+            const now = new Date(); now.setMinutes(0, 0, 0);
+            const hourly = Array.from({ length: 30 }, (_, i) => {
+              const t = new Date(now.getTime() + i * 3600_000), h = t.getHours();
+              const rain = i >= 4 && i <= 8;
+              return { datetime: t.toISOString(), temperature: +(8 + 5 * Math.sin(((h - 9) / 24) * 2 * Math.PI) + (rain ? -1.5 : 0)).toFixed(1),
+                condition: rain ? (i === 6 ? "pouring" : "rainy") : h < 7 || h >= 20 ? "clear-night" : i < 4 ? "partlycloudy" : "cloudy",
+                precipitation: rain ? [0.4, 1.2, 2.6, 1.1, 0.3][i - 4] : 0, precipitation_probability: rain ? 70 + (i % 3) * 8 : 5, wind_speed: 14 + (i % 5) * 3, is_daytime: h >= 7 && h < 20 };
+            });
+            const conds = ["rainy", "partlycloudy", "sunny", "sunny", "cloudy", "lightning-rainy", "partlycloudy"];
+            const daily = conds.map((c, i) => ({ datetime: new Date(now.getTime() + i * 86400_000).toISOString(), condition: c,
+              temperature: [13, 15, 18, 19, 14, 12, 11][i], templow: [6, 5, 7, 9, 8, 4, -1][i], precipitation: [4.6, 0, 0, 0, 0.6, 9.2, 0.2][i], precipitation_probability: [80, 10, 0, 5, 30, 90, 20][i] }));
+            setTimeout(() => cb({ forecast: msg.forecast_type === "hourly" ? hourly : daily }), 50);
+            return () => {};
+          }
+          setTimeout(() => cb({ forecast: [{ condition: "sunny", temperature: 31, templow: 17, precipitation_probability: 10 }] }), 50);
+          return () => {};
+        },
+      },
+      async callWS(msg) {
+        const out = {};
+        if (msg.type === "media_source/resolve_media") {
+          const key = String(msg.media_content_id).replace(/^.*snapshots\//, "").replace(/\.jpg$/, "");
+          if (!LLM_IMAGES[key]) throw new Error("not found");
+          return { url: LLM_IMAGES[key], mime_type: "image/svg+xml" };
+        }
+        // Tageswerte der Energiekarte: Leistung seit 6 Uhr konstant auf dem aktuellen Wert
+        // Langzeitstatistik (Tagesmittel) seit 1. Januar des Vorjahres für Monat/Jahr/Gesamt
+        if (msg.type === "logbook/get_events") {
+          const ago = (min) => (Date.now() - min * 60000) / 1000;
+          const ev = {
+            "lock.haustuer": [{ when: ago(12), state: "unlocked", context_user_id: "u_pascal" }, { when: ago(9 * 60), state: "locked", context_name: "Automation Abends abschließen" },
+              { when: ago(10 * 60), state: "open", context_user_id: "u_pascal" }, { when: ago(26 * 60), state: "unlocked" }, { when: ago(27 * 60), state: "locked" }, { when: ago(30 * 60), state: "jammed" }],
+            "binary_sensor.haustuer_tur": [{ when: ago(10 * 60 - 1), state: "on" }, { when: ago(10 * 60 - 2), state: "off" }],
+            "lock.klingel": [{ when: ago(95), state: "unlocked", context_user_id: "u_pascal" }, { when: ago(80), state: "locked", context_name: "Ring to Open Timer" }],
+            "binary_sensor.klingel_klingelaktion": [{ when: ago(94), state: "on" }, { when: ago(93), state: "off" }],
+          };
+          return msg.entity_ids.flatMap((id) => (ev[id] ?? []).map((e) => ({ ...e, entity_id: id }))).sort((x, y) => x.when - y.when);
+        }
+        if (msg.type === "todo/item/list" && msg.entity_id === "todo.smart_pool_aufgaben") return { items: [
+          { uid: "t1", summary: "Einwintern: Rückspülen und Filter reinigen", status: "needs_action" },
+          { uid: "t2", summary: "Wartung: Redox-/pH-Sonde kalibrieren", status: "needs_action" }, { uid: "t3", summary: "Erledigt", status: "completed" }] };
+        if (msg.type === "config_entries/get" && msg.domain === "seventeentrack") return [{ entry_id: "17track_demo", domain: "seventeentrack", state: "loaded" }];
+        if (msg.type === "config_entries/get" && msg.domain === "mealie") return [{ entry_id: "mealie_demo", domain: "mealie", state: "loaded", title: "Mealie" }];
+        if (msg.type === "energy/get_prefs") return { energy_sources: [], device_consumption: [{ stat_consumption: "sensor.monitor_1_energy" }, { stat_consumption: "sensor.monitor_2_energy" }, { stat_consumption: "sensor.whirlpool_energy", name: "Whirlpool" }] };
+        // Wochenrückblick: Tagesverbrauch (change) je Zähler, vorhersagbar je Tag
+        if (msg.type === "recorder/statistics_during_period" && msg.types?.includes("change")) {
+          const start = new Date(msg.start_time), end = Math.min(Date.now(), new Date(msg.end_time).getTime());
+          const base = { "sensor.monitor_1_energy": 0.9, "sensor.monitor_2_energy": 0.6, "sensor.whirlpool_energy": 4.2 };
+          for (const id of msg.statistic_ids) {
+            const rows = [];
+            for (let d = new Date(start); d.getTime() < end; d.setDate(d.getDate() + 1)) {
+              const k = d.getDate();
+              rows.push({ start: d.getTime(), end: d.getTime() + 86400000, change: +((base[id] ?? 1) * (0.7 + ((k * 37) % 11) / 18) * (d.getDay() % 6 === 0 ? 1.35 : 1)).toFixed(3) });
+            }
+            out[id] = rows;
+          }
+          return out;
+        }
+        if (msg.type === "recorder/statistics_during_period") {
+          const end = new Date(msg.end_time).getTime();
+          for (const id of msg.statistic_ids) {
+            const rows = [];
+            const mean = Math.abs(Number(states[id]?.state) || 0) * 0.6;
+            for (let d = new Date(new Date().getFullYear() - 1, 0, 1); d.getTime() < end; d.setDate(d.getDate() + 1)) {
+              const n = new Date(d); n.setDate(n.getDate() + 1);
+              rows.push({ start: d.getTime(), end: n.getTime(), mean });
+            }
+            out[id] = rows;
+          }
+          return out;
+        }
+        // Steckdosen: Kühlschrank taktet (20 min an / 40 min aus), Außensteckdose seit 2 h an
+        if (msg.entity_ids.some((id) => /^sensor\.(shelly_kuhlschrank|shelly_hutte_ausensteckdosen_switch_0|stecker_pumpe_switch_0)_power$/.test(id))) {
+          const now = Date.now() / 1000;
+          for (const id of msg.entity_ids) out[id] = Array.from({ length: 145 }, (_, i) => {
+            const t = now - (144 - i) * 600, m = Math.floor(t / 60) % 60;
+            const v = id.includes("kuhlschrank") ? (m < 20 ? 68 + (i % 3) : 0.4) : id.includes("ausensteckdosen") ? (i > 132 ? 1240 : i > 60 && i < 80 ? 400 : 0) : 0;
+            return { s: String(v), lu: t };
+          });
+          return out;
+        }
+        // Grillthermometer: Kern steigt seit 72 min, Garraum um 140 °C
+        if (msg.entity_ids.some((id) => /^sensor\.meater_2_/.test(id))) {
+          const now = Date.now() / 1000;
+          for (const id of msg.entity_ids) out[id] = Array.from({ length: 37 }, (_, i) => {
+            const t = now - (36 - i) * 120, f = i / 36;
+            return { s: String(id.includes("umgebung") ? +(138 + 6 * Math.sin(i / 3)).toFixed(1) : +(8 + 40.6 * Math.pow(f, 0.8)).toFixed(1)), lu: t };
+          });
+          return out;
+        }
+        // Temperatur-Überwachung: Tagesgang um den aktuellen Wert, Wetter über das Attribut
+        if (msg.entity_ids.some((id) => /device_temperature$|^sensor\.temperatur_haus_temperature$|^weather\./.test(id))) {
+          const now = Date.now() / 1000;
+          for (const id of msg.entity_ids) {
+            const isW = id.startsWith("weather.");
+            const cur = isW ? Number(states[id]?.attributes.temperature ?? 14) : Number(states[id]?.state);
+            const amp = id.includes("device") ? 6 : isW ? 5 : 1.5;
+            out[id] = Array.from({ length: 49 }, (_, i) => {
+              const t = now - (48 - i) * 1800, h = new Date(t * 1000).getHours();
+              const v = +(cur + amp * (Math.sin(((h - 9) / 24) * 2 * Math.PI) - Math.sin(((new Date().getHours() - 9) / 24) * 2 * Math.PI))).toFixed(1);
+              return isW ? { s: "cloudy", lu: t, a: { temperature: v } } : { s: String(v), lu: t };
+            });
+          }
+          return out;
+        }
+        // Speedtest: 7 Tage, alle 3 h ein Test
+        if (msg.entity_ids.every((id) => id.startsWith("sensor.speedtest_"))) {
+          const now = Date.now() / 1000;
+          for (const id of msg.entity_ids) {
+            const base = id.endsWith("upload") ? 45 : 150;
+            out[id] = Array.from({ length: 56 }, (_, i) => ({ s: String(+(base * (0.82 + 0.18 * Math.sin(i / 2.6)) + (i % 7 === 3 ? -base * 0.35 : 0)).toFixed(2)), lu: now - (55 - i) * 3 * 3600 }));
+          }
+          return out;
+        }
+        // Solarbank: Ladestand und Solarleistung über 48 h (Tagesgang)
+        if (msg.entity_ids.some((id) => /solarbank_(3_e2700_pro|sonne)_(ladestand|solarleistung)$/.test(id))) {
+          const now = Date.now() / 1000;
+          for (const id of msg.entity_ids) {
+            out[id] = Array.from({ length: 97 }, (_, i) => {
+              const t = now - (96 - i) * 1800, hour = new Date(t * 1000).getHours() + new Date(t * 1000).getMinutes() / 60;
+              const sun = Math.max(0, Math.sin(((hour - 7) / 12) * Math.PI));
+              const v = id.endsWith("solarleistung") ? Math.round(sun * 720) : Math.round(Math.min(100, Math.max(8, 35 + 55 * Math.sin(((hour - 11) / 24) * 2 * Math.PI))));
+              return { s: String(v), lu: t };
+            });
+          }
+          return out;
+        }
+        // Pool-Werte: 48 h Verlauf mit Tagesgang
+        if (msg.no_attributes && msg.entity_ids.every((id) => /^sensor\.pool_(wassertemperatur|ph_wert|redox)$/.test(id))) {
+          const now = Date.now() / 1000;
+          for (const id of msg.entity_ids) {
+            const v = Number(states[id].state);
+            const amp = id.endsWith("redox") ? 40 : id.endsWith("ph_wert") ? 0.12 : 1.4;
+            out[id] = Array.from({ length: 49 }, (_, i) => ({ s: String(+(v + amp * Math.sin((i - 48) / 7.6) - amp * 0.3 * (48 - i) / 48).toFixed(2)), lu: now - (48 - i) * 3600 }));
+          }
+          return out;
+        }
+        if (msg.no_attributes) {
+          const t0 = new Date(); t0.setHours(6, 0, 0, 0);
+          for (const id of msg.entity_ids) out[id] = [{ s: states[id]?.state ?? "0", lu: Math.min(t0.getTime(), Date.now() - 3600000) / 1000 }];
+          return out;
+        }
+        const end = Date.now() / 1000, start = end - 24 * 3600;
+        // Wasserkonto der Smart-Zonen: 7 Tage, täglich verändert
+        if (msg.entity_ids.every((id) => id.startsWith("sensor.smart_irrigation"))) {
+          for (const id of msg.entity_ids) out[id] = Array.from({ length: 8 }, (_, i) => ({ s: states[id].state, lu: end - (7 - i) * 86400, a: { bucket: +(Math.sin(i / 1.5) * 4 - i * 0.6).toFixed(1) } }));
+          return out;
+        }
+        for (const id of msg.entity_ids) {
+          const arr = [];
+          for (let t = start, i = 0; t < end - 45 * 60; t += 1800, i++) {
+            const cur = 23 + 2.5 * Math.sin(i / 7) + Math.random() * 0.3;
+            arr.push(id.startsWith("climate")
+              ? { s: i > 40 ? "off" : "cool", lu: t, a: { current_temperature: +cur.toFixed(1), current_humidity: Math.round(55 + 8 * Math.sin(i / 5)), humidity: 50, temperature: i < 20 ? 23 : 22, hvac_action: cur > 23.5 && i <= 40 ? "cooling" : "idle" } }
+              : { s: (cur - 0.2).toFixed(1), lu: t });
+          }
+          // letzte 45 Minuten: dichter, Raum kühlt mit ca. 0,04 °/min ab (für die Ziel-Prognose)
+          const live = states[id];
+          const now = live?.attributes.current_temperature ?? Number(live?.state);
+          for (let m = 45; m >= 0; m -= 5) {
+            const v = +(now + m * 0.04).toFixed(1);
+            arr.push(id.startsWith("climate")
+              ? { s: live.state, lu: end - m * 60, a: { ...live.attributes, current_temperature: v } }
+              : { s: String(v), lu: end - m * 60 });
+          }
+          out[id] = arr;
+        }
+        return out;
+      },
+    });
+
+    const configs = [
+      ["Gree – Sleeptimer, Schnell-Timer, Lüften-Hinweis", { entity: "climate.1ed763d9", layout: "full", timer_switch: "input_boolean.timer_klima_pascal", timer_time: "input_datetime.timer_klima_pascal",
+        countdown_timer: "timer.klima_pascal", weather_entity: "weather.zuhause", outdoor_sensor: "weather.zuhause" }],
+      ["Gree – ausgeklappt (Dropdown bei Lamellen)", { entity: "climate.1ed763d9", layout: "full", start_expanded: true, outdoor_sensor: "sensor.aussen", show: { graph: true } }],
+      ["Voll – Ist-Temp vom Wandthermostat", { entity: "climate.wohnzimmer", layout: "full", show: { graph: true },
+        temperature_sensor: "climate.hmip_wth_2_wohnzimmer", contact_sensors: ["binary_sensor.wz_fenster", "binary_sensor.wz_balkontuer", "binary_sensor.wz_dachfenster"], start_expanded: true, outdoor_sensor: "sensor.aussen", power_sensor: "sensor.klima_power", energy_sensor: "sensor.klima_energy" }],
+      ["Voll – Bereich + Schimmelwarnung", { entity: "climate.buero", layout: "full", humidity_sensor: "sensor.buero_feuchte", outdoor_sensor: "sensor.aussen", start_expanded: true }],
+      ["Heizung – Homematic (Wochenprogramm, Ventile, Boost)", { entity: "climate.heizung_mein_zimmer", layout: "full",
+        temperature_sensor: "climate.wandthermostat_mein_zimmer", start_expanded: true, show: { graph: false } }],
+      ["Licht – Hue-Raum (Lampen, Szenen, Bewegung)", { _light: true, entity: "light.gaste_wc", motion_sensor: "binary_sensor.gaste_wc_bewegung",
+        illuminance_sensor: "sensor.gaste_wc_lux", start_expanded: true }],
+      ["Licht – Hue Play (Weißton, Effekte, kompakt)", { _light: true, entity: "light.hue_play_gradient", layout: "compact" }],
+      ["Licht – Govee-Streifen (Segmente, Szenen-Suche, Gradient)", { _light: true, entity: "light.carport_2", start_expanded: true }],
+      ["Licht-Gruppe – frei zusammengestellt (Farbe, Weißton, dimmbar, Ein/Aus)", { _group: true, title: "Wohnzimmer",
+        entities: ["light.wohnzimmer_stehlampe", "light.wohnzimmer_decke", "light.wohnzimmer_regal", "light.wohnzimmer_lichterkette", "light.wohnzimmer_vitrine"],
+        scenes: ["scene.gaste_wc_hell", "scene.gaste_wc_entspannen", "scene.gaste_wc_nachtlicht"] }],
+      ["Rollladen – Gruppe „Rollos Pascal“ (Fenster ziehen, Schnellwahl, Kontakt offen)", { _cover: true, entity: "cover.rollos_pascal", contact_sensors: ["binary_sensor.buero_fenster"], travel_time: 4, weather_entity: "weather.garten",
+        timer_switch: "input_boolean.wecker", timer_time: "input_datetime.wecker_zeit" }],
+      ["Rollladen – Raffstore mit Lamellen (kompakt)", { _cover: true, entity: "cover.buero_raffstore", layout: "compact", start_expanded: true, travel_time: 4 }],
+      ["Rollladen-Gruppe – frei zusammengestellt", { _coverGroup: true, title: "Rollläden", travel_time: 4,
+        entities: ["cover.schreibtisch", "cover.tv", "cover.mario", "cover.buero_raffstore", "cover.terrasse_markise", "cover.kuche"] }],
+      ["Schalter + Uhrzeit – Wecker", { _switchTime: true, switch_entity: "input_boolean.wecker", time_entity: "input_datetime.wecker_zeit" }],
+      ["Schalter + Datum/Uhrzeit – Bewässerung (Farbe, 1-min-Schritte)", { _switchTime: true, switch_entity: "input_boolean.gartenbewaesserung",
+        time_entity: "input_datetime.bewaesserung_start", icon: "mdi:sprinkler-variant", color: "#26a69a", minute_step: 1 }],
+      ["Medien – Harmony Hub (Aktivitäten, Fernbedienung) + Fire TV", { _media: true, entity: "remote.harmony_hub_wohnzimmer", media_player: "media_player.fire_tv_wohnzimmer",
+        timer_switch: "input_boolean.timer_klima_pascal", timer_time: "input_datetime.timer_klima_pascal" }],
+      ["Medien – Fernseher meldet nur „an“ (Sony Bravia)", { _media: true, entity: "media_player.bravia_schlafzimmer", name: "Bravia" }],
+      ["Medien – Soundbar (Media-Player, kompakt)", { _media: true, entity: "media_player.atmos", layout: "compact" }],
+      ["Raum-Kopf – Pascal (Chips, Hinweis Fenster offen + Klima läuft)", { _room: true, title: "Pascal", icon: "mdi:account", light: "light.licht_mein_zimmer",
+        contacts: [{ entity: "binary_sensor.fenster_pascal_schreibtisch", name: "Schreibtisch" }, { entity: "binary_sensor.fenster_pascal_tv", name: "TV" }],
+        temperature: "climate.heizung_mein_zimmer", humidity: "climate.heizung_mein_zimmer", climate: "climate.1ed763d9", media: "remote.harmony_schlafzimmer", trash: "calendar.abfall" }],
+      ["Energiefluss – Solarbank, Netz, Haus + Verbraucher (Konfiguration wie power-flow-card-plus)", { _energy: true, entities: {
+        battery: { entity: { production: "sensor.solarbank_laden", consumption: "sensor.solarbank_entladen" }, state_of_charge: "sensor.solarbank_ladestand", capacity: "number.solarbank_kapazitaet" },
+        solar: { entity: "sensor.solarbank_solar" }, home: { entity: "sensor.garten_hausbedarf" },
+        grid: { entity: { consumption: "sensor.smart_meter_bezug", production: "sensor.smart_meter_einspeisung" } },
+        individual: [{ entity: "sensor.kuehlschrank_power", name: "Kühlschrank", icon: "mdi:fridge" }, { entity: "sensor.aussenstrom_power", name: "Außenstrom", icon: "mdi:power-plug" },
+          { entity: "sensor.pumpe_power", name: "Pumpe", icon: "mdi:water-pump", switch: "switch.pumpe", display_zero: true }, { entity: "sensor.pool_power", name: "Pool", icon: "mdi:pool" },
+          { entity: "sensor.starlink_leistung", name: "Starlink", icon: "mdi:satellite-variant", color: "#049cdb" }] } }],
+      ["Bewässerung – Hauswasserwerk mit Ventilen, Timer, Laufzeit, Durchfluss (Wasser fließt animiert zur offenen Zone)", { _irrigation: true,
+        title: "Hauswasserwerk", pump: "switch.hauswasserwerk", pump_power: "sensor.hauswasserwerk_power", mode: "input_select.bewaesserung_modus",
+        start_time: "input_datetime.bewaesserung_start", last_run: "input_text.bewaesserung_letzter_lauf", smart_mode: "Smart", smart_max: 30, smart_min: 3,
+        smart: { calculate: "script.smart_berechnen", run: "script.smart_durchlauf", reset_buckets: true, skipped: "binary_sensor.smart_bewaesserung_faellt_aus",
+          skipped_reason: "input_text.bewaesserung_sperre_grund", season: "input_select.jahreszeiten", warning: "sensor.dwd_warnstufe", measured_flow: "input_text.bewaesserung_durchfluss" },
+        zones: [{ valve: "switch.ventil_rasen", timer: "timer.rasen", duration: "input_number.rasen_dauer", smart_duration: "sensor.smart_irrigation_rasen" },
+          { valve: "switch.ventil_beete", timer: "timer.beete", duration: "input_number.beete_dauer", volume: "sensor.ventil_beete_menge", smart_duration: "sensor.smart_irrigation_beete" },
+          { valve: "switch.ventil_hecke", timer: "timer.hecke", duration: "input_number.hecke_dauer", smart_duration: "sensor.smart_irrigation_hecke" }] }],
+      ["Pool – Filterpumpe, Wasserwerte mit Verlauf, Laufzeit, Modus, Pflege und Rückspülen (animiertes Becken)", { _pool: true,
+        pump: "switch.poolpumpe", pump_power: "sensor.poolpumpe_power", mode: "input_select.pool_modus", start_time: "input_datetime.pool_start",
+        target_runtime: "input_number.pool_ziel", recommended_runtime: "sensor.pool_empfehlung", runtime_today: "sensor.pool_laufzeit",
+        temperature: "sensor.pool_wassertemperatur", ph: "sensor.pool_ph_wert", orp: "sensor.pool_redox", guidance: "sensor.pool_hinweis",
+        last_measurement: "sensor.pool_messung", measurement_stale: "binary_sensor.pool_messung_alt", quality: "sensor.pool_qualitaet",
+        energy_today: "sensor.pool_energie", cost_today: "sensor.pool_kosten", solar_power: "sensor.pool_solar", solar_savings: "sensor.pool_ersparnis",
+        auto_off: "input_boolean.pool_auto_aus",
+        backwash: { due: "binary_sensor.pool_rueckspuelen_faellig", hours: "sensor.pool_stunden_seit_rueckspuelen", last: "sensor.pool_letztes_rueckspuelen",
+          done_button: "button.pool_rueckgespuelt", script: "script.pool_rueckspuelen_start", timer: "timer.pool_rueckspuelen" },
+        rinse: { script: "script.pool_nachspuelen_start", timer: "timer.pool_nachspuelen" } }],
+      ["Kamera – Reolink: Livebild, Erkennung, Licht, Sirene, Schwenken, Positionen, Tele-Linse (alles über das Gerät erkannt)", { _camera: true,
+        entity: "camera.cam_haus", lenses: [{ entity: "camera.cam_haus_tele", name: "Tele" }], patrol: "script.cam_patrouille" }],
+      ["Kamera – Blink: Standbild mit „Neues Bild“, Bewegung, Akku, WLAN", { _camera: true, entity: "camera.blink_pool" }],
+      ["Kameragruppe – Blink mit Scharf/Unscharf, Bewegung, Akku, Erkennung je Kamera", { _cameraGroup: true, title: "Blink Garten", alarm: "alarm_control_panel.blink_garten",
+        cameras: ["camera.blink_tor", "camera.blink_carport", "camera.blink_pool", "camera.blink_schuppen"] }],
+      ["Auswahl – Dropdowns als Leiste, Chips (mit Rückfrage bei „Aus“) und Kacheln, Symbole automatisch", { _select: true, title: "Modi",
+        entities: ["input_select.bewaesserung_modus", { entity: "input_select.pool_modus", confirm: ["Aus"] }, "input_select.jahreszeit",
+          { entity: "input_select.pascal_dashboard", layout: "tiles" }, "select.defekter_modus"] }],
+      ["Auswahl – kompaktes Dropdown", { _select: true, entities: [{ entity: "input_select.bewaesserung_rasen_status", layout: "dropdown" }] }],
+      ["Auswahl – Dropdown öffnet nach oben", { _select: true, name: "Dashboard Auswahl", layout: "dropdown", dropdown_direction: "up", entities: ["input_select.pascal_dashboard"] }],
+      ["Hinweis-Karte – erscheint nur, wenn etwas los ist (Fenster offen, Saugroboter putzt)", { _alert: true,
+        contacts: [{ entity: "binary_sensor.buero_fenster", name: "Büro" }, { entity: "binary_sensor.wz_balkontuer", name: "Balkontür" }, "binary_sensor.wz_fenster"],
+        alerts: [{ entity: "vacuum.roborock_s8_maxv_ultra", state: ["cleaning", "returning"], severity: "info", title: "Saugroboter putzt", icon: "mdi:robot-vacuum", navigation_path: "#roborock" },
+          { entity: "vacuum.roborock_s8_maxv_ultra", state: "error", severity: "error", title: "Saugroboter hat ein Problem", icon: "mdi:robot-vacuum-alert" }] }],
+      ["Raumkacheln – Tippen öffnet die Seite, lange drücken schaltet das Licht", { _tiles: [
+        { title: "Pascal", icon: "mdi:account", color: "#42a5f5", light: "light.licht_mein_zimmer", temperature: "climate.heizung_mein_zimmer", climate: "climate.1ed763d9", navigation_path: "#pascal" },
+        { title: "Wohnzimmer", icon: "mdi:sofa", color: "#fb8c00", temperature: "sensor.aussen", climate: "climate.wohnzimmer", contacts: ["binary_sensor.buero_fenster"], media: "remote.harmony_hub_wohnzimmer", navigation_path: "#wohnzimmer" },
+        { title: "Bad", icon: "mdi:bathtub", color: "#26c6da", humidity: "sensor.buero_feuchte", navigation_path: "#bad" },
+        { title: "Gäste WC", icon: "mdi:toilet", color: "#29b6f6", light: "light.gaste_wc", navigation_path: "#gaeste-wc" },
+        { title: "Saugroboter", icon: "mdi:robot-vacuum", color: "#ab47bc", chips: ["vacuum.roborock_s8_maxv_ultra"], navigation_path: "#roborock" },
+        { title: "Zuhause", icon: "mdi:home", color: "#78909c", trash: "calendar.abfall", navigation_path: "#zuhause" },
+      ] }],
+      ["Status – Batterien aus Bereich + Türkontakt + Einkaufsliste", { _status: true, areas: ["mein_zimmer"], shopping_list: true, expanded: true, contacts: [{ entity: "binary_sensor.tuerkontakt_pascal", name: "Tür" }] }],
+      ["Status – Battery Notes am Gerät (Typ, „gewechselt vor“, gedrückt halten = Wechsel eintragen)", { _status: true, title: "Ventile", batteries: ["sensor.ventil_hecke_battery", "sensor.ventil_rasen_battery", "sensor.ventil_beete_battery"], shopping_list: true, expanded: true }],
+      ["Rezepte & Essensplan (Mealie) – Woche, Zufällig, Suche, Rezept mit Portionen und Einkaufsliste", { _recipe: true }],
+      ["Rezepte ohne Essensplan (show_plan: false)", { _recipe: true, show_plan: false }],
+      ["Ambiente & Szenen – Hue-Räume wählen, Lampen automatisch aus dem Hue-Raum (Gruppe + aufklappbar), zuletzt aktivierte Szene", { _scene: true, rooms: ["tv", "Wohnzimmer", "Gäste WC"] }],
+      ["Pakete (17TRACK) – Status, Versender, letzte Meldung, Filter, + Paket, Verfolgen, Archivieren", { _parcel: true }],
+      ["Schlafen – Schlafmodus, Sleep-Timer mit Countdown, Klima, Wecker, „Gute Nacht“", { _sleep: true, persons: [
+        { name: "Pascal", color: "#1e88e5", sleep: "input_boolean.schlafen_pascal", alarm: "sensor.pascal_naechster_wecker",
+          timers: [{ name: "TV aus", switch: "input_boolean.schalter_tv", time: "input_datetime.timer_tv" }, { name: "Klima aus", switch: "input_boolean.timer_klima_pascal", time: "input_datetime.timer_klima_pascal" }],
+          climate: "climate.1ed763d9", lights: ["light.licht_mein_zimmer", "light.nachtlicht"], media: ["remote.harmony_hub_wohnzimmer"] },
+        { name: "Marcel", color: "#00897b", sleep: "input_boolean.schlafen_marcel", timers: [{ name: "Klima aus", time: "input_datetime.timer_klima_marcel" }], lights: ["light.deckenlampe_schlafzimmer"] }] }],
+      ["Klima 2.0 – alle Räume: Ist/Soll, Wochenprogramm, Klimaanlage, Fenster, Feuchte, Boost", { _crooms: true, rooms: [
+        { name: "Pascal", icon: "mdi:account", heating: "climate.heizung_mein_zimmer", ac: "climate.1ed763d9" },
+        { name: "Wohnzimmer", icon: "mdi:sofa", ac: "climate.wohnzimmer", temperature: "sensor.aussen" },
+        { name: "Büro", heating: "climate.buero", window: "binary_sensor.buero_fenster", humidity: "sensor.buero_feuchte" },
+        { name: "Schlafzimmer", ac: "climate.schlafzimmer" }] }],
+      ["Router – FRITZ!Box: Durchsatz, Leitung, WLAN, Geräte im Netz, Neu verbinden/Neustart, FRITZ!OS-Update", { _router: true, entity: "binary_sensor.fritz_box_7690_verbindung" }],
+      ["Router – TP-Link: CPU/RAM, Clients, WLAN inkl. Gast, Neustart", { _router: true, entity: "sensor.tp_link_router_total_clients", name: "TP-Link Garten" }],
+      ["Schloss – Nuki Smart Lock + Opener: Auf/Ab, Öffnen mit Rückfrage, Türsensor, Ring to Open, Akku, Verlauf mit Person", { _lock: true, entity: "lock.haustuer", opener: "lock.klingel", opener_name: "Haustür unten" }],
+      ["Schloss – Nuki Opener: Ring to Open, Tür öffnen, Klingel", { _lock: true, entity: "lock.klingel", name: "Klingel" }],
+      ["Temperatur-Überwachung – Hütte, Außen (Wetter), Gerätetemperaturen mit Warnung ab 60 °C", { _temp: true, title: "Temperaturen", entities: [
+        { entity: "sensor.temperatur_haus_temperature", name: "Hütte innen" }, { entity: "weather.zuhause", attribute: "temperature", name: "Außen" },
+        { entity: "sensor.shelly_hutte_ausensteckdosen_switch_0_device_temperature", name: "Außensteckdose" }, { entity: "sensor.shelly_licht_hutte_switch_0_device_temperature", name: "Licht Hütte" }] }],
+      ["Funknetz – Zigbee2MQTT: Bridge, LQI, Akku, offline zuerst", { _net: true, integration: "zigbee2mqtt" }],
+      ["Funknetz – Shelly: WLAN-Signal, Firmware-Update, Neustart nötig", { _net: true, integration: "shelly" }],
+      ["Steckdosen – Kühlschrank mit „läuft nicht“-Wächter, Außensteckdose mit Überlast, Pumpe aus; Verbrauch heute/Monat", { _plug: true, entities: [
+        { entity: "switch.shelly_kuhlschrank", name: "Kühlschrank", alert_below: 5, alert_minutes: 90 }, { entity: "switch.shelly_hutte_ausensteckdosen_switch_0", name: "Außensteckdosen" },
+        { entity: "switch.stecker_pumpe_switch_0", name: "Pumpe" }] }],
+      ["Grillthermometer – Meater: aktive Sonde mit Ring, Restzeit, Verlauf; zweite Sonde im Ladegerät", { _grill: true }],
+      ["Pool-Pflege – Smart Pool: Chemie-Tagebuch mit Empfehlung, Vorräte, Metall-Ex, Wartung mit Aufgaben, Statistik (alles über das Gerät)", { _poolCare: true }],
+      ["Funknetz – WLAN: alle Geräte über den Router (per MAC mit HA-Geräten verknüpft) + Kameras mit WLAN-Signal", { _net: true, integration: "wifi", max_items: 6 }],
+      ["Wochenrückblick Energie – diese gegen letzte Woche, Kosten, Spitzentag, Anteil je Verbraucher", { _eweek: true, price: 0.3 }],
+      ["Termine & Abfall – nächste Abholung je Tonne, Erinnerung am Vorabend, Termine aus mehreren Kalendern", { _agenda: true, waste: "calendar.abfall", calendars: ["calendar.familie", { entity: "calendar.arbeit", color: "#ab47bc" }] }],
+      ["Gerätestatus – nicht erreichbare Geräte nach Integration, „seit …“, Entitäten, Neu laden", { _devstatus: true }],
+      ["System & Updates – CPU/RAM/Speicher, Dienste, Updates mit Installieren, Backup, Neustart", { _system: true, services: ["binary_sensor.zigbee2mqtt_bridge_connection_state", { entity: "binary_sensor.mosquitto_broker_running", name: "MQTT" }] }],
+      ["Wetter – animierter Himmel, Hinweis „Regen ab …“, Stundenkurve, 7 Tage", { _weather: true, entity: "weather.forecast_home" }],
+      ["Hausakku – Anker Solarbank entlädt (Ring, Restzeit, Fluss Solar → Akku → Haus, PV-Module, Ersparnis, Verlauf)", { _hbat: true, entity: "sensor.solarbank_3_e2700_pro_ladestand" }],
+      ["Hausakku – lädt bei Sonne", { _hbat: true, entity: "sensor.solarbank_sonne_ladestand", show: { history: false } }],
+      ["KI-Timeline – LLM Vision: neuestes Ereignis mit Bild, Filter, Zeitleiste nach Tagen, Detail beim Antippen", { _llm: true, entity: "calendar.llm_vision_timeline" }],
+      ["Starlink + Speedtest – Live-Durchsatz, Ping, Speedtest mit Verlauf und „Jetzt testen“, Verstauen/Neustart", { _starlink: true, entity: "binary_sensor.starlink_konnektivitat", speedtest: "sensor.speedtest_download" }],
+      ["Starlink – Camper mit Sichtbehinderung und Heizung (ohne Speedtest)", { _starlink: true, entity: "binary_sensor.starlink_camper_konnektivitat", name: "Camper" }],
+      ["Mähroboter – mäht gerade (Live-Karte, Fortschritt, Statistik, Wartung, Einstellungen)", { _mower: true, entity: "lawn_mower.goat_wiese", name: "GOAT Wiese" }],
+      ["Mähroboter – in der Station (animierter Rasen, Messer fast verbraucht, Update)", { _mower: true, entity: "lawn_mower.goat_g1", name: "GOAT G1", settings_open: true }],
+      ["Mähroboter – GOAT A1600 (Bereiche antippen, „Ausgewählte mähen“)", { _mower: true, entity: "lawn_mower.goat_a1600", name: "GOAT A1600" }],
+      ["Licht – Gruppe mit Presets Hell / Warm / Gemütlich", { _light: true, entity: "light.licht_mein_zimmer", name: "Licht Zimmer", presets: "default", layout: "compact" }],
+      ["Schalter als Button – Monitore (nur Symbol + Text)", { _switchTime: true, switch_entity: "input_boolean.wecker", name: "Monitore", icon: "mdi:monitor-multiple", color: "#42a5f5", switch_style: "button" }],
+      ["Schalter + time-Entität – Saugroboter „Bitte nicht stören“ ab", { _switchTime: true, switch_entity: "switch.robo_nicht_stoeren", time_entity: "time.robo_ruhezeit_beginn", name: "Ruhezeit ab", icon: "mdi:sleep", color: "#5c6bc0" }],
+      ["Saugroboter – Roborock (Karte mit Räumen, Raumreinigung, Modi, Wartung)", { _vacuum: true, entity: "vacuum.roborock_s8_maxv_ultra" }],
+      ["Personen & Haustür – Handy-Akku, Nuki Opener (Halten zum Öffnen, Ring to Open)", { _presence: true, persons: ["person.pascal", "person.marcel"], lock: "lock.klingel", door_name: "Klingel" }],
+      ["Übersicht – mehrere Geräte", { _overview: true, title: "Klimaanlagen", entities: ["climate.1ed763d9", "climate.wohnzimmer", "climate.heizung_mein_zimmer", "climate.buero", "climate.schlafzimmer"] }],
+      ["Voll – Aus", { entity: "climate.schlafzimmer", layout: "full" }],
+      ["Kompakt – Kühlen", { entity: "climate.wohnzimmer", layout: "compact", outdoor_sensor: "sensor.aussen", power_sensor: "sensor.klima_power" }],
+      ["Kompakt – Bereich", { entity: "climate.buero", layout: "compact", window_sensor: "binary_sensor.buero_fenster" }],
+      ["Kompakt – Aus", { entity: "climate.schlafzimmer", layout: "compact" }],
+    ];
+
+    const hass = makeHass();
+    const grid = document.getElementById("grid");
+    configs.forEach(([title, cfg], i) => {
+      const wrap = document.createElement("div");
+      wrap.innerHTML = `<h2>${title}</h2>`;
+      if (cfg._tiles) {
+        const box = document.createElement("div");
+        box.className = "tiles";
+        cfg._tiles.forEach((t, j) => {
+          const card = document.createElement("ha-room-card");
+          card.id = `card${i}_${j}`;
+          card.setConfig({ type: "custom:ha-room-card", layout: "tile", ...t });
+          card.hass = hass;
+          box.appendChild(card);
+          cards.push(card);
+        });
+        wrap.appendChild(box);
+        grid.appendChild(wrap);
+        return;
+      }
+      const { _overview, _light, _group, _cover, _coverGroup, _switchTime, _media, _room, _status, _vacuum, _presence, _alert, _energy, _irrigation, _pool, _camera, _cameraGroup, _select, _mower, _starlink, _llm, _hbat, _system, _weather, _agenda, _devstatus, _recipe, _scene, _sleep, _crooms, _eweek, _parcel, _router, _lock, _temp, _net, _plug, _grill, _poolCare, ...rest } = cfg;
+      const tag = _overview ? "ha-climate-overview-card" : _group ? "ha-light-group-card" : _light ? "ha-light-card"
+        : _cover ? "ha-cover-card" : _coverGroup ? "ha-cover-group-card" : _switchTime ? "ha-switch-time-card" : _media ? "ha-media-card" : _room ? "ha-room-card" : _status ? "ha-status-card" : _vacuum ? "ha-vacuum-card" : _presence ? "ha-presence-card" : _alert ? "ha-alert-card" : _energy ? "ha-energy-card" : _irrigation ? "ha-irrigation-card" : _pool ? "ha-pool-card" : _camera ? "ha-camera-card" : _cameraGroup ? "ha-camera-group-card" : _select ? "ha-select-card" : _mower ? "ha-mower-card" : _starlink ? "ha-starlink-card" : _llm ? "ha-llm-timeline-card" : _hbat ? "ha-home-battery-card" : _system ? "ha-system-card" : _weather ? "ha-weather-card" : _agenda ? "ha-agenda-card" : _devstatus ? "ha-device-status-card" : _recipe ? "ha-recipe-card" : _scene ? "ha-scene-card" : _sleep ? "ha-sleep-card" : _crooms ? "ha-climate-rooms-card" : _eweek ? "ha-energy-week-card" : _parcel ? "ha-parcel-card" : _router ? "ha-router-card" : _lock ? "ha-lock-card" : _temp ? "ha-temperature-card" : _net ? "ha-network-card" : _plug ? "ha-plug-card" : _grill ? "ha-grill-card" : _poolCare ? "ha-pool-care-card" : "ha-climate-card";
+      const card = document.createElement(tag);
+      card.id = "card" + i;
+      card.setConfig({ type: `custom:${tag}`, ...rest });
+      card.hass = hass;
+      wrap.appendChild(card);
+      grid.appendChild(wrap);
+      cards.push(card);
+    });
+    markSun();
+    window.__ready = true;
+  </script>
+</body>
+</html>

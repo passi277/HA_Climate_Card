@@ -1,4 +1,4 @@
-export const CARD_VERSION = "1.0.0";
+export const CARD_VERSION = "1.47.2";
 
 export const ClimateFeature = {
   TARGET_TEMPERATURE: 1,
@@ -66,4 +66,14 @@ export const DEFAULT_SHOW = {
   humidity: true,
   sensors: true,
   graph: false,
+  shortcuts: true,
+  timer: true,
+  airflow: true,
+  hints: true,
 };
+
+/** Bereiche, die im vollen Layout immer sichtbar sind – der Rest liegt im ausklappbaren Teil. */
+export const PRIMARY_SECTIONS = ["modes", "fan", "timer", "countdown", "shortcuts"];
+
+/** Domains, die als Schalter-Buttons automatisch vom Klimagerät übernommen werden. */
+export const AUTO_SHORTCUT_DOMAINS = ["switch", "button"];
