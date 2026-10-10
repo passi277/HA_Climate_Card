@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.47.2 – Rückspülen fällig
+- Pool Card: Bei fälligem Rückspülen wurde der ganze Wartungsblock als orange Pille dargestellt (CSS-Klassen-Konflikt) – behoben
+- Pool Card und Pool Care Card zeigen den Grund, wenn das Rückspülen nach Tagen fällig ist („30 Tage seit Rückspülen (spätestens nach 14)“)
+
 ## 1.47.1 – Multitabs
 - Pool Care Card: **Multitabs** als Pflegemittel (in Tabs, Schritt 1, Empfehlung aus der Integration), Hinweis „Multitab fällig“ bzw. „Nächster Multitab“ im Reiter Chemie, Multitab-Vorrat
 

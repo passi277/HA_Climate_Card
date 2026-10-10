@@ -829,7 +829,8 @@
     "confirm": "Sicher? Nochmal tippen",
     "auto_off": "Auto-Aus bei Störung",
     "auto_off_hint": "schaltet ab, wenn die Pumpe nicht erreichbar ist",
-    "temp_short": "Temp."
+    "temp_short": "Temp.",
+    "backwash_days": "{d} Tage seit Rückspülen (spätestens nach {m})"
   },
   "pool_editor": {
     "title": "Titel",
@@ -1870,7 +1871,8 @@
     "multitab_due": "Multitab fällig",
     "multitab_next": "Nächster Multitab {d}",
     "multitab_where": "in Skimmer oder Dosierschwimmer",
-    "select": "Auswählen"
+    "select": "Auswählen",
+    "backwash_days": "{d} Tage seit Rückspülen (max. {m})"
   },
   "pool_care_editor": {
     "title": "Titel",

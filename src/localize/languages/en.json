@@ -812,7 +812,8 @@
     "confirm": "Sure? Tap again",
     "auto_off": "Auto-off on failure",
     "auto_off_hint": "turns off when the pump is unreachable",
-    "temp_short": "Temp."
+    "temp_short": "Temp.",
+    "backwash_days": "{d} days since backwash (at the latest after {m})"
   },
   "pool_editor": {
     "title": "Title",
@@ -1825,7 +1826,8 @@
     "multitab_due": "Multi tab due",
     "multitab_next": "Next multi tab {d}",
     "multitab_where": "into skimmer or floating dispenser",
-    "select": "Select"
+    "select": "Select",
+    "backwash_days": "{d} days since backwash (max. {m})"
   },
   "pool_care_editor": {
     "title": "Title",

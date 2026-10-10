@@ -495,14 +495,17 @@ export class HaPoolCard extends LitElement {
     const interval = b.interval ?? Number(this._st(b.hours)?.attributes.interval_hours) ?? undefined;
     const due = this._isOn(b.due) || (hours != null && !!interval && hours >= interval);
     const last = this._dateTime(this._st(b.last)?.state);
+    const dueAttr = (this._st(b.due)?.attributes ?? {}) as Record<string, any>;
     const autoOff = this._st(c.auto_off);
     return html`<div class="maint">
       <div class="sec-title"><ha-icon icon="mdi:wrench-outline"></ha-icon><span>${this._t("maintenance")}</span>
-        ${due ? html`<span class="due">${this._t("backwash_due")}</span>` : nothing}</div>
+        ${due ? html`<span class="due-badge">${this._t("backwash_due")}</span>` : nothing}</div>
       ${hours != null ? html`<div class="bw ${due ? "due" : ""}">
         <span class="bw-text">${this._fmt(hours)} h${interval ? html` <small>${this._t("of")} ${this._fmt(interval, 0)} h ${this._t("since_backwash")}</small>` : nothing}</span>
         ${interval ? html`<span class="bw-bar"><span style="width:${Math.min(100, (hours / interval) * 100)}%"></span></span>` : nothing}
         ${last ? html`<span class="bw-last">${this._t("last_backwash")} ${last}</span>` : nothing}
+        ${dueAttr.reason === "days" && dueAttr.days_since != null ? html`<span class="bw-last bw-why">${this._t("backwash_days")
+          .replace("{d}", String(dueAttr.days_since)).replace("{m}", String(dueAttr.max_days ?? ""))}</span>` : nothing}
       </div>` : nothing}
       ${b.script || r.script ? html`<div class="mt-btns">${b.script ? this._timerButton("backwash", b.script, b.timer) : nothing}${r.script ? this._timerButton("rinse", r.script, r.timer) : nothing}</div>` : nothing}
       <div class="mt-row">
@@ -710,13 +713,14 @@ export class HaPoolCard extends LitElement {
     .maint { display: flex; flex-direction: column; gap: 8px; }
     .sec-title { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--secondary-text-color); }
     .sec-title ha-icon { --mdc-icon-size: 16px; }
-    .due { margin-left: auto; padding: 2px 8px; border-radius: 999px; font-size: 11px; text-transform: none; letter-spacing: 0; color: #fff; background: #fb8c00; }
+    .due-badge { margin-left: auto; padding: 2px 8px; border-radius: 999px; font-size: 11px; text-transform: none; letter-spacing: 0; color: #fff; background: #fb8c00; }
     .bw { display: flex; flex-direction: column; gap: 4px; }
     .bw-text { font-size: 15px; font-weight: 700; }
     .bw-text small { font-size: 12.5px; font-weight: 500; color: var(--secondary-text-color); }
     .bw-bar { height: 6px; border-radius: 3px; background: rgba(127,127,127,0.18); overflow: hidden; }
     .bw-bar span { display: block; height: 100%; border-radius: 3px; background: var(--accent); transition: width 0.6s var(--ease-out); }
     .bw.due .bw-bar span { background: #fb8c00; }
+    .bw-last.bw-why { color: #fb8c00; font-weight: 600; }
     .bw-last { font-size: 12px; color: var(--secondary-text-color); }
     .mt-btns { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
     .mt-btn { position: relative; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: none; border-radius: var(--hcc-inner-radius, 14px); cursor: pointer;

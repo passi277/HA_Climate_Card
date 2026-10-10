@@ -440,13 +440,16 @@ export class HaPoolCareCard extends LitElement {
     const hours = this._num("backwash_hours");
     const interval = Number(this._st("backwash_hours")?.attributes.interval_hours ?? 0);
     const bwDue = this._on("backwash_due");
+    const bwAttr = (this._st("backwash_due")?.attributes ?? {}) as Record<string, any>;
+    const bwWhy = bwAttr.reason === "days" && bwAttr.days_since != null
+      ? this._t("backwash_days").replace("{d}", String(bwAttr.days_since)).replace("{m}", String(bwAttr.max_days ?? "")) : undefined;
     return html`
       <div class="tasks">
         ${hours != null ? html`<div class="t-row ${bwDue ? "due" : ""}" data-task="backwash">
           <span class="pi" style="--pc:#fb8c00"><ha-icon icon="mdi:water-sync"></ha-icon></span>
           <div class="s-main"><div class="s-head"><b>${this._t("backwash")}</b><span class="s-state">${bwDue ? this._t("due_now") : ""}</span></div>
             <div class="bar"><span style="width:${interval ? Math.min(1, hours / interval) * 100 : 0}%"></span></div>
-            <small>${interval ? this._t("hours_of").replace("{h}", this._fmt(hours, 1)).replace("{i}", this._fmt(interval, 0)) : `${this._fmt(hours, 1)} h`}</small></div>
+            <small class=${bwWhy ? "due-t" : ""}>${bwWhy ? bwWhy : interval ? this._t("hours_of").replace("{h}", this._fmt(hours, 1)).replace("{i}", this._fmt(interval, 0)) : `${this._fmt(hours, 1)} h`}</small></div>
           <button class="mini ${this._ask === "backwash_done" ? "ask" : ""}" data-act="backwash_done" @click=${() => this._press("backwash_done")}>
             ${this._ask === "backwash_done" ? this._t("sure") : this._t("done")}</button>
         </div>` : nothing}

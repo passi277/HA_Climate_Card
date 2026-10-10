@@ -1906,6 +1906,18 @@ colorFails.length ? fail(`Farbe folgt nicht dem Modus: ${colorFails.join(", ")}`
   stats.share === "62" && stats.kpis === 4 && stats.report === 6 ? ok("Pool-Pflege Statistik: 62 % Solar, Kennzahlen, Wochenbericht") : fail(`Pool-Pflege Statistik: ${JSON.stringify(stats)}`);
 }
 
+// Pool: Rückspülen nach Tagen fällig – Hinweis mit Grund, Block behält sein Aussehen
+{
+  const card = await p.evaluateHandle(() => document.querySelector("ha-pool-card"));
+  await card.evaluate((c) => { const h = c.hass; const id = "binary_sensor.pool_rueckspuelen_faellig";
+    c.hass = { ...h, states: { ...h.states, [id]: { ...h.states[id], state: "on", attributes: { ...h.states[id].attributes, reason: "days", days_since: 30, max_days: 14 } } } }; });
+  await p.waitForTimeout(300);
+  const bw = await card.evaluate((c) => { const r = c.shadowRoot; const b = r.querySelector(".bw");
+    return { badge: r.querySelector(".due-badge")?.textContent.trim(), why: r.querySelector(".bw-why")?.textContent.trim(), bg: getComputedStyle(b).backgroundColor, radius: getComputedStyle(b).borderRadius }; });
+  bw.badge === "Rückspülen fällig" && bw.why === "30 Tage seit Rückspülen (spätestens nach 14)" && bw.bg === "rgba(0, 0, 0, 0)" && bw.radius === "0px"
+    ? ok(`Pool: Rückspülen fällig mit Grund „${bw.why}“, Block unverändert`) : fail(`Pool Rückspülen fällig: ${JSON.stringify(bw)}`);
+}
+
 // Theme-Umschalter
 await p.click('[data-theme="dark"]');
 (await p.evaluate(() => document.body.classList.contains("dark"))) ? ok("Dunkel-Modus umschaltbar") : fail("Dunkel-Modus");
