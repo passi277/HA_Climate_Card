@@ -1865,7 +1865,12 @@
     "r_solar": "Solar",
     "ago_min": "vor {n} min",
     "today": "Heute",
-    "yesterday": "Gestern"
+    "yesterday": "Gestern",
+    "p_multitab": "Multitabs",
+    "multitab_due": "Multitab fällig",
+    "multitab_next": "Nächster Multitab {d}",
+    "multitab_where": "in Skimmer oder Dosierschwimmer",
+    "select": "Auswählen"
   },
   "pool_care_editor": {
     "title": "Titel",

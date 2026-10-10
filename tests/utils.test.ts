@@ -1383,6 +1383,8 @@ describe("pool care (Smart Pool)", () => {
     expect(formatAmount(70, "g", "de")).toBe("70 g");
     expect(formatAmount(1600, "g", "de")).toBe("1,6 kg");
     expect(formatAmount(2400, "ml", "en")).toBe("2.4 l");
+    expect(formatAmount(1, "Tab", "de")).toBe("1 Tab");
+    expect(formatAmount(6, "Tab", "de")).toBe("6 Tabs");
     expect([amountStep(30), amountStep(300), amountStep(3000)]).toEqual([5, 25, 100]);
   });
   it("computes maintenance due and stock level", () => {

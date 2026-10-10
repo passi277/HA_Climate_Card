@@ -20,7 +20,7 @@ export const POOL_CARE_TABS: PoolCareTab[] = ["chemistry", "stock", "metal", "ma
 const TAB_ICONS: Record<PoolCareTab, string> = {
   chemistry: "mdi:flask-outline", stock: "mdi:package-variant", metal: "mdi:magnet", maintenance: "mdi:wrench-outline", stats: "mdi:chart-donut",
 };
-const PRODUCTS = ["chlorine", "shock", "ph_minus", "ph_plus", "metal_ex"] as const;
+const PRODUCTS = ["chlorine", "shock", "ph_minus", "ph_plus", "metal_ex", "multitab"] as const;
 type Product = (typeof PRODUCTS)[number];
 const PRODUCT: Record<Product, { icon: string; color: string; unit: string; dose?: string }> = {
   chlorine: { icon: "mdi:shaker-outline", color: "#26c6da", unit: "g", dose: "chlorine_dose" },
@@ -28,6 +28,7 @@ const PRODUCT: Record<Product, { icon: string; color: string; unit: string; dose
   ph_minus: { icon: "mdi:arrow-down-circle-outline", color: "#e53935", unit: "g", dose: "ph_minus_dose" },
   ph_plus: { icon: "mdi:arrow-up-circle-outline", color: "#43a047", unit: "g", dose: "ph_plus_dose" },
   metal_ex: { icon: "mdi:magnet", color: "#8d6e63", unit: "ml", dose: "metal_ex_dose" },
+  multitab: { icon: "mdi:hockey-puck", color: "#7e57c2", unit: "Tab" },
 };
 const TASKS = [
   { key: "sand", button: "sand_changed", icon: "mdi:grain" },
@@ -251,7 +252,7 @@ export class HaPoolCareCard extends LitElement {
   // ---------- Darstellung ----------
 
   private _warnings(): number {
-    return ["probe_check", "stock_low", "maintenance_due", "backwash_due"].filter((k) => this._on(k)).length + (this._num("metal_ex_dose") ? 1 : 0);
+    return ["probe_check", "stock_low", "maintenance_due", "backwash_due", "multitab_due"].filter((k) => this._on(k)).length + (this._num("metal_ex_dose") ? 1 : 0);
   }
 
   protected render() {
@@ -287,7 +288,7 @@ export class HaPoolCareCard extends LitElement {
   }
 
   private _tabBadge(t: PoolCareTab): boolean {
-    if (t === "chemistry") return this._on("probe_check");
+    if (t === "chemistry") return this._on("probe_check") || this._on("multitab_due");
     if (t === "stock") return this._on("stock_low");
     if (t === "metal") return !!this._num("metal_ex_dose") || this._on("metal_ex_active");
     if (t === "maintenance") return this._on("maintenance_due") || this._on("backwash_due") || this._todos.length > 0;
@@ -296,7 +297,7 @@ export class HaPoolCareCard extends LitElement {
 
   private _stepper(key: string, unit: string, opts: { step?: number; label?: string } = {}) {
     const v = this._value(key) ?? 0;
-    const step = opts.step ?? amountStep(v);
+    const step = opts.step ?? (unit === "Tab" ? 1 : amountStep(v));
     return html`<div class="qty" data-num=${key}>
       <button class="st-btn" aria-label="−" ?disabled=${v <= 0} @click=${() => this._setNumber(key, Math.max(0, v - step))}><ha-icon icon="mdi:minus"></ha-icon></button>
       <button class="st-val" @click=${() => this._moreInfo(key)}>${opts.label ?? this._amount(v, unit)}</button>
@@ -317,7 +318,8 @@ export class HaPoolCareCard extends LitElement {
     const product = (this._st("dose_product")?.state ?? "chlorine") as Product;
     const meta = PRODUCT[product] ?? PRODUCT.chlorine;
     const amount = this._value("dose_amount") ?? 0;
-    const rec = meta.dose ? this._num(meta.dose) : undefined;
+    const tabs = Number(this._st("multitab_due")?.attributes.tabs) || undefined;
+    const rec = meta.dose ? this._num(meta.dose) : product === "multitab" ? tabs : undefined;
     const log = (this._st("last_dose")?.attributes.log ?? []) as { time: string; product: string; amount: number }[];
     const probe = this._on("probe_check");
     const rise = this._st("probe_check")?.attributes.last_redox_rise_mv;
@@ -338,6 +340,7 @@ export class HaPoolCareCard extends LitElement {
       ${probe ? html`<div class="note warn"><ha-icon icon="mdi:test-tube"></ha-icon><span><b>${this._t("probe_title")}</b>
         ${this._t("probe_text")}${rise != null ? ` (+${this._fmt(Number(rise), 0)} mV)` : ""}</span>
         <button class="mini" data-act="probe_calibrated" @click=${() => this._press("probe_calibrated")}>${this._ask === "probe_calibrated" ? this._t("sure") : this._t("calibrated")}</button></div>` : nothing}
+      ${this._multitabNote()}
       <div class="list">
         <div class="l-title">${this._t("recent")}</div>
         ${log.length ? log.slice(0, 5).map((r) => {
@@ -346,6 +349,21 @@ export class HaPoolCareCard extends LitElement {
             <span class="l-name">${this._pname(r.product)}</span><span class="l-val">${this._amount(r.amount, m.unit)}</span><span class="l-time">${this._ago(r.time)}</span></div>`;
         }) : html`<div class="l-empty">${this._t("none_logged")}</div>`}
       </div>`;
+  }
+
+  /** Multitab: fällig oder nächster Termin (erst nach dem ersten erfassten Tab) */
+  private _multitabNote() {
+    const st = this._st("multitab_due");
+    const next = st?.attributes.next as string | undefined;
+    if (!st || !next) return nothing;
+    const due = st.state === "on";
+    const d = new Date(next);
+    const when = d.toLocaleDateString(getLanguage(this.hass), { weekday: "short", day: "2-digit", month: "2-digit" });
+    const tabs = Number(st.attributes.tabs) || 1;
+    return html`<div class="note ${due ? "warn" : ""}" style="--nc:${due ? "#fb8c00" : "#7e57c2"}" data-multitab>
+      <ha-icon icon="mdi:hockey-puck"></ha-icon><span><b>${due ? this._t("multitab_due") : this._t("multitab_next").replace("{d}", when)}</b>
+      ${this._amount(tabs, "Tab")} ${this._t("multitab_where")}</span>
+      ${due ? html`<button class="mini" @click=${() => this._select("dose_product", "multitab")}>${this._t("select")}</button>` : nothing}</div>`;
   }
 
   private _renderStock() {
@@ -368,7 +386,7 @@ export class HaPoolCareCard extends LitElement {
             <div class="bar"><span style="width:${(isTracked ? stockLevel(v, thresholds[p]) : 0) * 100}%"></span></div>
             <small>${use ? `${this._t("season_use")} ${this._amount(use, m.unit)}` : " "}</small>
           </div>
-          ${this._stepper(key, m.unit, { step: 100 })}
+          ${this._stepper(key, m.unit, { step: m.unit === "Tab" ? 1 : 100 })}
         </div>`;
       })}
       ${lowList.length ? html`<div class="note warn"><ha-icon icon="mdi:cart-outline"></ha-icon><span>${this._t("shopping")}</span></div>` : nothing}

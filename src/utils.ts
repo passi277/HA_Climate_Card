@@ -2916,6 +2916,7 @@ export function poolCareEntities(
 
 /** Menge mit Einheit, ab 1000 g/ml als kg/l („1,2 kg“). */
 export function formatAmount(value: number, unit: string, lang: string): string {
+  if (unit === "Tab") return `${value.toLocaleString(lang, { maximumFractionDigits: 0 })} ${value === 1 ? "Tab" : "Tabs"}`;
   const big = Math.abs(value) >= 1000 && (unit === "g" || unit === "ml");
   const v = big ? value / 1000 : value;
   const u = big ? (unit === "g" ? "kg" : "l") : unit;

@@ -1820,7 +1820,12 @@
     "r_solar": "Solar",
     "ago_min": "{n} min ago",
     "today": "Today",
-    "yesterday": "Yesterday"
+    "yesterday": "Yesterday",
+    "p_multitab": "Multi tabs",
+    "multitab_due": "Multi tab due",
+    "multitab_next": "Next multi tab {d}",
+    "multitab_where": "into skimmer or floating dispenser",
+    "select": "Select"
   },
   "pool_care_editor": {
     "title": "Title",

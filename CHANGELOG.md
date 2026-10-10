@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.47.1 – Multitabs
+- Pool Care Card: **Multitabs** als Pflegemittel (in Tabs, Schritt 1, Empfehlung aus der Integration), Hinweis „Multitab fällig“ bzw. „Nächster Multitab“ im Reiter Chemie, Multitab-Vorrat
+
 ## 1.47.0 – Pool-Pflege
 - Neue **Modern Pool Care Card** (`custom:ha-pool-care-card`) für die Smart-Pool-Integration: Reiter Chemie (Pflegemittel, Menge mit Empfehlung, Zugabe erfassen, letzte Zugaben, Sonden-Hinweis), Vorrat (Füllstände, knapp, Saisonverbrauch), Metall-Ex (offene Menge, Countdown, Nachfüllen in cm/Liter, Regen), Wartung (Rückspülen, Sand, Sonde, Dichtungen, Aufgaben abhaken) und Statistik (Solaranteil, Energie, Kosten, Badewetter, Wochenbericht) – alle Entitäten automatisch über das Gerät
 

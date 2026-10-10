@@ -1871,8 +1871,8 @@ colorFails.length ? fail(`Farbe folgt nicht dem Modus: ${colorFails.join(", ")}`
   await p.waitForTimeout(400);
   const chem = await pc.evaluate((c) => { const r = c.shadowRoot; return { sub: r.querySelector(".h-sub")?.textContent.trim(), tabs: r.querySelectorAll(".tab").length,
     sel: r.querySelector(".prod.sel")?.dataset.product, prods: r.querySelectorAll(".prod").length, rec: r.querySelector(".rec")?.textContent.replace(/\s+/g, " ").trim(),
-    probe: !!r.querySelector(".note.warn"), log: r.querySelectorAll(".l-row").length, act: r.querySelector('[data-act="log_dose"] small')?.textContent.trim() }; });
-  chem.tabs === 5 && chem.sel === "chlorine" && chem.prods === 5 && chem.rec === "Empfehlung 30 g" && chem.probe && chem.log === 3 && chem.act === "30 g Chlor" && /Einwintern empfohlen · \d offen/.test(chem.sub)
+    probe: !!r.querySelector(".note.warn"), tab: r.querySelector("[data-multitab] b")?.textContent.trim(), log: r.querySelectorAll(".l-row").length, act: r.querySelector('[data-act="log_dose"] small')?.textContent.trim() }; });
+  chem.tabs === 5 && chem.sel === "chlorine" && chem.prods === 6 && chem.rec === "Empfehlung 30 g" && chem.probe && chem.log === 3 && chem.act === "30 g Chlor" && chem.tab === "Multitab fällig" && /Einwintern empfohlen · \d offen/.test(chem.sub)
     ? ok(`Pool-Pflege Chemie: ${chem.sub}, Empfehlung, Sonden-Hinweis, ${chem.log} Zugaben`) : fail(`Pool-Pflege Chemie: ${JSON.stringify(chem)}`);
   const n = await p.evaluate(() => window.serviceCalls.length);
   await pc.evaluate((c) => c.shadowRoot.querySelector('[data-act="log_dose"]').click());
@@ -1889,7 +1889,7 @@ colorFails.length ? fail(`Farbe folgt nicht dem Modus: ${colorFails.join(", ")}`
   await tab("stock");
   const stock = await pc.evaluate((c) => { const r = c.shadowRoot; return { rows: r.querySelectorAll(".s-row").length, low: [...r.querySelectorAll(".s-row.low")].map((x) => x.dataset.stock),
     untracked: [...r.querySelectorAll(".s-row.untracked")].map((x) => x.dataset.stock), kg: r.querySelector('.s-row[data-stock="ph_minus"] .st-val')?.textContent.trim() }; });
-  stock.rows === 5 && stock.low.join() === "chlorine" && stock.untracked.join() === "shock,ph_plus" && stock.kg === "2,5 kg"
+  stock.rows === 6 && stock.low.join() === "chlorine" && stock.untracked.join() === "shock,ph_plus" && stock.kg === "2,5 kg"
     ? ok("Pool-Pflege Vorrat: Chlor knapp, Schock/pH-Plus nicht erfasst, pH-Minus 2,5 kg") : fail(`Pool-Pflege Vorrat: ${JSON.stringify(stock)}`);
   await tab("metal");
   const metal = await pc.evaluate((c) => [...c.shadowRoot.querySelector(".m-text").children].map((x) => x.textContent.trim()).join(" "));
