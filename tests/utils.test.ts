@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { HassEntity } from "../src/types";
 import {
-  batteryHoursLeft, consumerGrid, formatHours, integratePower, statsEnergy, flowLpm, timerInfo, formatRemaining, rangeStatus, phDose, poolRuntimeRecommendation, cameraFeatures, wifiQuality, optionStyle, musicModes, isMusicEffect, energyFlows, formatPower, powerWatts, alertActive, batteryShoppingList, clockMinutes, upcomingPickups, wasteStyle, batteryIcon, doorDevices, doorKind, initials, isCharging, phoneSensors, brightnessPct, contactType, calibrationTransform, roomsFromMap, roomIcon, areaBatteries, batteryInfo, batteryNotesFor, mowerFeatures, mowerPhase, mapGeometry, mowerAreas, polygonSize, extendTrail, presetActive, presetData, DEFAULT_LIGHT_PRESETS, activityIcon, activityLabel, guessControlDevice, guessVolumeDevice, coverIcon, datetimeParts, nextOccurrence, coverPosition, skyPhase, sunPlacement, weatherOverlay, editorOptions, isNoEffect, lightEditorOptions, segmentIds, detectDeviceType, kelvinToRgb, lightColor, relatedScenes, supportsColor, supportsColorTemp, dewPoint, nextSwitch, parseSchedule, scheduleTempAt, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
+  batteryHoursLeft, consumerGrid, formatHours, integratePower, statsEnergy, flowLpm, timerInfo, formatRemaining, rangeStatus, phDose, poolRuntimeRecommendation, cameraFeatures, wifiQuality, optionStyle, musicModes, isMusicEffect, energyFlows, formatPower, powerWatts, alertActive, batteryShoppingList, clockMinutes, upcomingPickups, wasteStyle, batteryIcon, doorDevices, doorKind, initials, isCharging, phoneSensors, brightnessPct, contactType, calibrationTransform, roomsFromMap, roomIcon, areaBatteries, batteryInfo, batteryNotesFor, mowerFeatures, mowerPhase, mowerSummaryFeatures, nextRunTime, counterSince, mowerMood, mapGeometry, mowerAreas, polygonSize, extendTrail, presetActive, presetData, DEFAULT_LIGHT_PRESETS, activityIcon, activityLabel, guessControlDevice, guessVolumeDevice, coverIcon, datetimeParts, nextOccurrence, coverPosition, skyPhase, sunPlacement, weatherOverlay, editorOptions, isNoEffect, lightEditorOptions, segmentIds, detectDeviceType, kelvinToRgb, lightColor, relatedScenes, supportsColor, supportsColorTemp, dewPoint, nextSwitch, parseSchedule, scheduleTempAt, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
   llmEvents, llmCategory, snapshotMediaId, dayGroups, homeBatteryFeatures, batteryEta, batteryStatusKey,
   nextPickups, eventStart, daysUntil, offlineDevices, platformName,
   routerFeatures, routerClients, clientIcon, formatKbit, wifiLabel,
@@ -1457,5 +1457,50 @@ describe("solar forecast (Solcast)", () => {
     expect(f.api_limit).toBe("sensor.solcast_pv_forecast_max_api_abrufe");
     expect(f.last_update).toBe("sensor.solcast_pv_forecast_zeitpunkt_letzter_api_abruf");
     expect(solarForecastEntities(states, undefined, "sensor.solcast_2026-10-11").days).toEqual(["sensor.solcast_2026-10-11"]);
+  });
+});
+
+describe("mower summary", () => {
+  const st = (id: string, state: string, attributes: Record<string, unknown> = {}) => ({ entity_id: id, state, attributes, last_changed: "", last_updated: "" });
+  const list: [string, string, Record<string, unknown>?][] = [
+    ["lawn_mower.leo", "docked"], ["sensor.leo_batterie", "78", { device_class: "battery", unit_of_measurement: "%" }],
+    ["binary_sensor.leo_ladestatus", "on", { device_class: "battery_charging" }], ["binary_sensor.leo_regenpause", "off"],
+    ["sensor.leo_messer", "12.9", { friendly_name: "Leo Klinge", unit_of_measurement: "%" }],
+    ["sensor.leo_messer_restlaufzeit", "10.35", { friendly_name: "Leo Klinge Restlaufzeit", unit_of_measurement: "h", device_class: "duration" }],
+    ["sensor.leo_gemahte_flache", "0", { friendly_name: "Leo Gemähte Fläche", device_class: "area" }],
+    ["sensor.leo_auftragsflache", "0", { friendly_name: "Leo Auftragsfläche", device_class: "area" }],
+    ["sensor.leo_gemahte_flache_gesamt", "13757", { friendly_name: "Leo Gemähte Fläche gesamt", device_class: "area" }],
+    ["sensor.leo_mahdauer_gesamt", "71.7", { friendly_name: "Leo Mähdauer gesamt", device_class: "duration" }],
+    ["sensor.leo_mahvorgange", "63", { friendly_name: "Leo Mähvorgänge" }],
+    ["sensor.leo_nachster_lauf", "2030-01-01T08:00:00+00:00", { friendly_name: "Leo Nächster Lauf", device_class: "timestamp" }],
+  ];
+  const states = Object.fromEntries(list.map(([id, s, a]) => [id, st(id, s, a)])) as any;
+  const entities = Object.fromEntries(list.map(([id]) => [id, { entity_id: id, device_id: "leo" }])) as any;
+  it("finds charging, rain pause, blade and counters via the device", () => {
+    const f = mowerSummaryFeatures(states, entities, "lawn_mower.leo");
+    expect(f).toMatchObject({ battery: "sensor.leo_batterie", charging: "binary_sensor.leo_ladestatus", rain_pause: "binary_sensor.leo_regenpause",
+      blade: "sensor.leo_messer", blade_left: "sensor.leo_messer_restlaufzeit", area: "sensor.leo_gemahte_flache", session_area: "sensor.leo_auftragsflache",
+      total_area: "sensor.leo_gemahte_flache_gesamt", total_duration: "sensor.leo_mahdauer_gesamt", total_count: "sensor.leo_mahvorgange", next_run: "sensor.leo_nachster_lauf" });
+    expect(f.duration).toBeUndefined();
+  });
+  it("reads the next run from different entity types", () => {
+    const now = new Date(2026, 9, 11, 12, 0).getTime();
+    expect(nextRunTime(st("sensor.x", "2026-10-12T08:00:00+00:00") as any, now)?.toISOString()).toBe("2026-10-12T08:00:00.000Z");
+    expect(nextRunTime(st("sensor.x", "2026-10-10T08:00:00+00:00") as any, now)).toBeUndefined();
+    expect(nextRunTime(st("input_datetime.x", "2026-10-13 10:00:00", { has_date: true, has_time: true }) as any, now)?.getDate()).toBe(13);
+    const t = nextRunTime(st("input_datetime.x", "10:00:00", { has_date: false, has_time: true }) as any, now)!;
+    expect([t.getDate(), t.getHours()]).toEqual([12, 10]);
+    expect(nextRunTime(st("schedule.x", "off", { next_event: "2026-10-11T15:00:00" }) as any, now)?.getHours()).toBe(15);
+    expect(nextRunTime(st("calendar.x", "off", { start_time: "2026-10-14 09:30:00" }) as any, now)?.getDate()).toBe(14);
+    expect(nextRunTime(st("sensor.x", "unknown") as any, now)).toBeUndefined();
+  });
+  it("counts today's increase and derives the mood", () => {
+    expect(counterSince([{ v: 13345 }, { v: 13500 }], 13757)).toBe(412);
+    expect(counterSince([], 5)).toBeUndefined();
+    expect(mowerMood("docked", 78, true)).toBe("charging");
+    expect(mowerMood("docked", 100, true)).toBe("parked");
+    expect(mowerMood("docked", 100, false, true)).toBe("rain");
+    expect(mowerMood("mowing", 50)).toBe("mowing");
+    expect(mowerMood("unknown")).toBe("unknown");
   });
 });

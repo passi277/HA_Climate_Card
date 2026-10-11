@@ -801,6 +801,32 @@ export interface MowerCardConfig extends MowerFeatures {
   [key: string]: unknown;
 }
 
+export interface MowerSummaryCardConfig {
+  type: string;
+  /** lawn_mower.* */
+  entity: string;
+  name?: string;
+  /** Nächster geplanter Lauf: sensor (Zeitstempel), input_datetime, time, schedule oder calendar */
+  next_run?: string;
+  /** Messer-Warnung unter diesem Rest in % (Standard 15) */
+  blade_warn?: number;
+  /** animierte Szene ausblenden */
+  show_scene?: boolean;
+  battery?: string;
+  charging?: string;
+  rain_pause?: string;
+  blade?: string;
+  blade_left?: string;
+  total_area?: string;
+  total_duration?: string;
+  total_count?: string;
+  progress?: string;
+  session_area?: string;
+  error?: string;
+  animations?: "full" | "reduced" | "off";
+  [key: string]: unknown;
+}
+
 export interface StarlinkFeatures {
   online?: string;
   ping?: string;

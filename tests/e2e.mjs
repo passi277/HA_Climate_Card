@@ -1862,6 +1862,22 @@ colorFails.length ? fail(`Farbe folgt nicht dem Modus: ${colorFails.join(", ")}`
   const plan2 = await g.evaluate((c) => c.shadowRoot.querySelector('.i-row[data-probe="dev_gm_plus"] small')?.textContent.trim());
   plan === "Rehkeule · Ziel 62°" && gcalls.join() === "number.set_value:63,select.select_option:pulled_pork" && plan2 === "Pulled Pork · Ziel 63°"
     ? ok(`Grillthermometer: Sonde vorab einstellen (${plan} → ${plan2})`) : fail(`Grill einstellen: ${JSON.stringify({ plan, gcalls, plan2 })}`);
+  // Mäher-Kurzbericht: mäht (Fortschritt, heute aus Zählern) und lädt (Messer-Warnung, nächster Lauf)
+  const ms = await p.evaluate(() => [...document.querySelectorAll("ha-mower-summary-card")].map((c) => { const r = c.shadowRoot;
+    const t = (sel) => r.querySelector(sel)?.textContent.replace(/\s+/g, " ").trim();
+    return { chip: t(".chip"), ring: t(".r-in b"), scene: r.querySelector(".scene")?.className.replace(/\s+/g, " ").trim(), prog: t(".p-txt"),
+      today: t('[data-stat="today"] .s-v'), todaySub: t('[data-stat="today"] .s-s'), blade: t('[data-stat="blade"] .s-v'), bladeWarn: r.querySelector('[data-stat="blade"]').classList.contains("warn"),
+      bladeSub: t('[data-stat="blade"] .s-s'), next: t('[data-stat="next"] .s-v'), nextSub: t('[data-stat="next"] .s-s'), charging: !!r.querySelector(".ring.charging") }; }));
+  const [m0, m1] = ms;
+  // (die Mower-Card-Tests davor pausieren den GOAT Wiese)
+  const m0mow = m0?.chip === "Mäht" && m0.scene === "scene m-mowing" && m0.next === "läuft gerade";
+  const m0pause = m0?.chip === "Pausiert" && m0.scene === "scene m-paused" && m0.next === "–" && m0.nextSub === "kein Plan in HA";
+  (m0mow || m0pause) && m0.ring === "64%" && m0.prog === "Fortschritt 42 % · 186 von 450 m²" && m0.today === "186 m²"
+    && m0.todaySub === "38 min" && m0.blade === "72 %" && !m0.bladeWarn
+    ? ok(`Mäher-Kurzbericht ${m0.chip}: ${m0.today} heute, ${m0.prog}`) : fail(`Mäher-Kurzbericht mäht: ${JSON.stringify(m0)}`);
+  m1?.chip === "Lädt" && m1.scene === "scene m-charging" && m1.charging && m1.ring === "78%" && m1.today === "412 m²" && m1.todaySub === "2 h 6 min · 2 Läufe"
+    && m1.blade === "10 h" && m1.bladeWarn && m1.bladeSub === "Bald tauschen" && m1.next === "10:00" && /^morgen · in \d+ h$/.test(m1.nextSub) && !m1.prog
+    ? ok(`Mäher-Kurzbericht lädt: ${m1.today} (${m1.todaySub}), Messer ${m1.blade} – ${m1.bladeSub}, nächster Lauf ${m1.nextSub}`) : fail(`Mäher-Kurzbericht lädt: ${JSON.stringify(m1)}`);
 }
 
 // Pool-Pflege (Smart Pool)

@@ -1312,11 +1312,11 @@ export const mowerFeatures = (states: Record<string, HassEntity>, entities: Reco
     error: find("sensor", /error|fehler/),
     progress: find("sensor", /progress|fortschritt/),
     area: find("sensor", /area.?mowed|gemäht|gemaeht|mowed.?area/, TOTAL),
-    session_area: find("sensor", /mowing.?area|mähfläche|maehflaeche|zielfläche|task.?area/, TOTAL),
-    duration: find("sensor", /mowing.?(duration|time)|mähdauer|maehdauer|laufzeit/, TOTAL),
+    session_area: find("sensor", /mowing.?area|mähfläche|maehflaeche|zielfläche|task.?area|auftragsfl/, TOTAL),
+    duration: find("sensor", /mowing.?(duration|time)|mähdauer|maehdauer|laufzeit/, /total|gesamt|insgesamt|blade|messer|klinge|brush|bürste|trimmer|rest/),
     total_area: find("sensor", /(total|gesamt).*(area|fläche|flaeche)/),
     total_duration: find("sensor", /(total|gesamt).*(duration|time|dauer|zeit|stunden)/),
-    total_count: find("sensor", /(total|gesamt|anzahl).*(mowings|mähvorg|maehvorg|einsätze|cycles|count)/),
+    total_count: find("sensor", /(total|gesamt|anzahl).*(mowings|mähvorg|maehvorg|einsätze|cycles|count)/) ?? find("sensor", /mähvorgänge|maehvorgaenge|mahvorgange/),
     blade: find("sensor", /blade|messer|klinge/),
     brush: find("sensor", /brush|bürste|buerste/),
     wifi: ids.find((id) => id.startsWith("sensor.") && (dc(id) === "signal_strength" || /rssi|wlan|wifi|wi-fi/.test(name(id))) && !/ssid/.test(name(id))),
@@ -1350,6 +1350,67 @@ export const mowerPhase = (state?: string, errorCode?: string): MowerPhase => {
     case "error": return "error";
     default: return "unknown";
   }
+};
+
+/** Mäher-Kurzbericht: zusätzlich Ladezustand, Regenpause, Messer-Restlaufzeit und nächster geplanter Lauf über das Gerät */
+export const mowerSummaryFeatures = (states: Record<string, HassEntity>, entities: Record<string, EntityRegistryEntry> | undefined,
+  mower: string): Record<string, string | undefined> => {
+  const base = mowerFeatures(states, entities, mower);
+  const device = entities?.[mower]?.device_id;
+  if (!device) return base;
+  const ids = Object.values(entities!).filter((e) => e.device_id === device && e.entity_id !== mower && states[e.entity_id]).map((e) => e.entity_id).sort();
+  const name = (id: string) => `${id} ${states[id]?.attributes.friendly_name ?? ""}`.toLowerCase();
+  const dc = (id: string) => states[id]?.attributes.device_class;
+  const BLADE = /blade|messer|klinge/;
+  return {
+    ...base,
+    blade: ids.find((id) => id.startsWith("sensor.") && BLADE.test(name(id)) && states[id]?.attributes.unit_of_measurement === "%") ?? base.blade,
+    blade_left: ids.find((id) => id.startsWith("sensor.") && BLADE.test(name(id)) && (dc(id) === "duration" || /rest|remaining|left|verbleib/.test(name(id)))),
+    charging: ids.find((id) => id.startsWith("binary_sensor.") && (dc(id) === "battery_charging" || /charging|lädt|ladestatus/.test(name(id)))),
+    rain_pause: ids.find((id) => id.startsWith("binary_sensor.") && /rain|regen/.test(name(id))),
+    next_run: ids.find((id) => id.startsWith("sensor.") && dc(id) === "timestamp" && /next|nächst|naechst|schedule|zeitplan|geplant/.test(name(id))),
+  };
+};
+
+/**
+ * Nächster geplanter Zeitpunkt aus einer Entität: Zeitstempel-Sensor, input_datetime/datetime/time,
+ * Zeitplan-Helfer (`next_event`) oder Kalender (`start_time`). Vergangene Zeitpunkte zählen nicht.
+ */
+export const nextRunTime = (st: HassEntity | undefined, now = Date.now()): Date | undefined => {
+  if (!st) return undefined;
+  const domain = st.entity_id.split(".")[0];
+  const a = st.attributes;
+  const parse = (v: unknown): Date | undefined => {
+    if (v == null || v === "" || UNAVAILABLE.includes(String(v))) return undefined;
+    const d = new Date(String(v).includes("T") || String(v).includes("-") ? String(v).replace(" ", "T") : NaN);
+    return Number.isFinite(d.getTime()) ? d : undefined;
+  };
+  let d: Date | undefined;
+  if (domain === "schedule") d = parse(a.next_event);
+  else if (domain === "calendar") d = parse(a.start_time);
+  else if (domain === "time" || (domain === "input_datetime" && a.has_time && !a.has_date)) {
+    const m = /^(\d{1,2}):(\d{2})/.exec(st.state);
+    if (m) d = nextOccurrence(Number(m[1]) * 60 + Number(m[2]), undefined, now);
+  } else if (domain === "input_datetime" && a.has_date && !a.has_time) d = parse(`${st.state}T00:00:00`);
+  else d = parse(st.state);
+  return d && d.getTime() > now - 60_000 ? d : undefined;
+};
+
+/** Zuwachs eines Zählers seit Tagesbeginn aus dem Verlauf (erster Wert ab Mitternacht bis jetzt) */
+export const counterSince = (points: { v: number }[], current: number | undefined): number | undefined => {
+  const first = points.find((p) => Number.isFinite(p.v))?.v;
+  if (current == null || first == null) return undefined;
+  return Math.max(0, current - first);
+};
+
+export type MowerMood = "mowing" | "returning" | "paused" | "charging" | "parked" | "rain" | "error" | "unknown";
+
+/** Status für den Kurzbericht: Station wird je nach Akku/Regen zu „lädt“, „parkt“ oder „Regenpause“ */
+export const mowerMood = (phase: MowerPhase, battery?: number, charging?: boolean, rain?: boolean): MowerMood => {
+  if (phase !== "docked") return phase === "error" || phase === "mowing" || phase === "returning" || phase === "paused" ? phase : "unknown";
+  if (charging && (battery == null || battery < 100)) return "charging";
+  if (rain) return "rain";
+  return "parked";
 };
 
 export interface MapPoint { x: number; y: number; a?: number }

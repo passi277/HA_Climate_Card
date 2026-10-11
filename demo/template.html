@@ -443,6 +443,21 @@
       "time.goat_g1_animal_protection_end": { state: "07:00:00", attributes: { friendly_name: "Animal protection end" } },
       "sensor.goat_g1_live_map": { state: "live", attributes: { friendly_name: "Live map", current_position: { x: 2, y: 0, a: 0, invalid: 0 }, info: { outline: [] }, trace: { path: [] } } },
       "update.goat_g1_update": { state: "on", attributes: { friendly_name: "GOAT G1 Update", installed_version: "1.2.0", latest_version: "1.3.1" } },
+      // Mäher-Kurzbericht: Ecovacs GOAT wie im Garten (lädt nach dem Lauf, Messer fast verbraucht, nächster Lauf per input_datetime)
+      "lawn_mower.leopard": { state: "docked", attributes: { friendly_name: "Leopard", supported_features: 7 } },
+      "sensor.leopard_batterie": { state: "78", attributes: { friendly_name: "Leopard Batterie", unit_of_measurement: "%", device_class: "battery" } },
+      "binary_sensor.leopard_ladestatus": { state: "on", attributes: { friendly_name: "Leopard Ladestatus", device_class: "battery_charging" } },
+      "binary_sensor.leopard_regenpause": { state: "off", attributes: { friendly_name: "Leopard Regenpause" } },
+      "sensor.leopard_fehlercode": { state: "0", attributes: { friendly_name: "Leopard Fehlercode" } },
+      "sensor.leopard_gemahte_flache": { state: "0.0", attributes: { friendly_name: "Leopard Gemähte Fläche", unit_of_measurement: "m²", device_class: "area" } },
+      "sensor.leopard_auftragsflache": { state: "0.0", attributes: { friendly_name: "Leopard Auftragsfläche", unit_of_measurement: "m²", device_class: "area" } },
+      "sensor.leopard_gemahte_flache_gesamt": { state: "13757", attributes: { friendly_name: "Leopard Gemähte Fläche gesamt", unit_of_measurement: "m²", device_class: "area", state_class: "total_increasing" } },
+      "sensor.leopard_mahdauer_gesamt": { state: "71.77", attributes: { friendly_name: "Leopard Mähdauer gesamt", unit_of_measurement: "h", device_class: "duration", state_class: "total_increasing" } },
+      "sensor.leopard_mahvorgange": { state: "63", attributes: { friendly_name: "Leopard Mähvorgänge", state_class: "total_increasing" } },
+      "sensor.leopard_messer": { state: "12.9", attributes: { friendly_name: "Leopard Klinge", unit_of_measurement: "%" } },
+      "sensor.leopard_messer_restlaufzeit": { state: "10.35", attributes: { friendly_name: "Leopard Klinge Restlaufzeit", unit_of_measurement: "h", device_class: "duration" } },
+      "input_datetime.maher_nachster_lauf": { state: (() => { const d = new Date(Date.now() + 86400000); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} 10:00:00`; })(),
+        attributes: { friendly_name: "Mäher nächster Lauf", has_date: true, has_time: true } },
       "lawn_mower.goat_wiese": { state: "mowing", attributes: { friendly_name: "GOAT Wiese", supported_features: 7 } },
       "sensor.goat_wiese_battery_level": { state: "64", attributes: { friendly_name: "Batterie", unit_of_measurement: "%", device_class: "battery" } },
       "sensor.goat_wiese_error": { state: "0", attributes: { friendly_name: "Error", description: "NoError: Robot is operational" } },
@@ -861,6 +876,7 @@
       ...(/^\w+\.tp_link_router_/.test(id) ? { device_id: "dev_tplink", platform: "tplink_router" } : {}),
       ...(/^sensor\.speedtest_/.test(id) ? { device_id: "dev_speedtest", platform: "speedtestdotnet", translation_key: id.replace("sensor.speedtest_", "") } : {}),
       ...(/^\w+\.goat_(g1|wiese|a1600)/.test(id) ? { device_id: "dev_" + id.match(/goat_(g1|wiese|a1600)/)[0] } : {}),
+      ...(/^\w+\.leopard_?/.test(id) ? { device_id: "dev_leopard", platform: "ecovacs" } : {}),
       area_id: /heizung_mein_zimmer|etrv_|wandthermostat_mein|_mein_zimmer_batter|zimmer_schalter_batter|turkontakt_mein_zimmer_batter/.test(id) ? "mein_zimmer" : null }]));
     const devices = { cam_haus: { id: "cam_haus", name: "Haus" }, blink_tor: { id: "blink_tor", name: "Tor" }, blink_carport: { id: "blink_carport", name: "Carport" },
       blink_pool: { id: "blink_pool", name: "Pool" }, blink_schuppen: { id: "blink_schuppen", name: "Schuppen" }, dev_opener: { id: "dev_opener", name: "Klingel", model: "Nuki Opener" }, dev_gree: { id: "dev_gree", name: "Klima Schlafzimmer" }, dev_govee: { id: "dev_govee", name: "Carport" },
@@ -1321,6 +1337,13 @@
           }
           return out;
         }
+        // Mäher: Zählerstände ab Mitternacht (heute 2 Läufe, 412 m², 2,1 h)
+        if (msg.entity_ids.some((id) => /^sensor\.(leopard|goat_wiese)_(gemahte_flache_gesamt|mahdauer_gesamt|mahvorgange|total_)/.test(id))) {
+          const t0 = new Date(msg.start_time).getTime() / 1000;
+          const start = { gemahte_flache_gesamt: 13345, mahdauer_gesamt: 69.67, mahvorgange: 61, total_area_mowed: 18233.6, total_mowing_duration: 65.0, total_mowings: 52 };
+          for (const id of msg.entity_ids) { const k = Object.keys(start).find((x) => id.endsWith(x)); out[id] = k ? [{ s: String(start[k]), lu: t0 }] : []; }
+          return out;
+        }
         // Solcast gestern: Prognose am Tagesende 7,2 kWh, Ist-Ertrag steigt auf 6,8 kWh
         if (msg.entity_ids.some((id) => /^sensor\.solcast_pv_forecast_/.test(id))) {
           const t0 = new Date(msg.start_time).getTime() / 1000;
@@ -1505,6 +1528,8 @@
       ["KI-Timeline – LLM Vision: neuestes Ereignis mit Bild, Filter, Zeitleiste nach Tagen, Detail beim Antippen", { _llm: true, entity: "calendar.llm_vision_timeline" }],
       ["Starlink + Speedtest – Live-Durchsatz, Ping, Speedtest mit Verlauf und „Jetzt testen“, Verstauen/Neustart", { _starlink: true, entity: "binary_sensor.starlink_konnektivitat", speedtest: "sensor.speedtest_download" }],
       ["Starlink – Camper mit Sichtbehinderung und Heizung (ohne Speedtest)", { _starlink: true, entity: "binary_sensor.starlink_camper_konnektivitat", name: "Camper" }],
+      ["Mäher-Kurzbericht – mäht gerade (Fortschritt, heute gemäht, Messer)", { _mowsum: true, entity: "lawn_mower.goat_wiese", name: "GOAT Wiese" }],
+      ["Mäher-Kurzbericht – lädt nach dem Lauf, Messer fast verbraucht, nächster Lauf morgen", { _mowsum: true, entity: "lawn_mower.leopard", next_run: "input_datetime.maher_nachster_lauf" }],
       ["Mähroboter – mäht gerade (Live-Karte, Fortschritt, Statistik, Wartung, Einstellungen)", { _mower: true, entity: "lawn_mower.goat_wiese", name: "GOAT Wiese" }],
       ["Mähroboter – in der Station (animierter Rasen, Messer fast verbraucht, Update)", { _mower: true, entity: "lawn_mower.goat_g1", name: "GOAT G1", settings_open: true }],
       ["Mähroboter – GOAT A1600 (Bereiche antippen, „Ausgewählte mähen“)", { _mower: true, entity: "lawn_mower.goat_a1600", name: "GOAT A1600" }],
@@ -1540,9 +1565,9 @@
         grid.appendChild(wrap);
         return;
       }
-      const { _overview, _light, _group, _cover, _coverGroup, _switchTime, _media, _room, _status, _vacuum, _presence, _alert, _energy, _irrigation, _pool, _camera, _cameraGroup, _select, _mower, _starlink, _llm, _hbat, _system, _weather, _agenda, _devstatus, _recipe, _scene, _sleep, _crooms, _eweek, _parcel, _router, _lock, _temp, _net, _plug, _grill, _poolCare, _solar, ...rest } = cfg;
+      const { _overview, _light, _group, _cover, _coverGroup, _switchTime, _media, _room, _status, _vacuum, _presence, _alert, _energy, _irrigation, _pool, _camera, _cameraGroup, _select, _mower, _starlink, _llm, _hbat, _system, _weather, _agenda, _devstatus, _recipe, _scene, _sleep, _crooms, _eweek, _parcel, _router, _lock, _temp, _net, _plug, _grill, _poolCare, _solar, _mowsum, ...rest } = cfg;
       const tag = _overview ? "ha-climate-overview-card" : _group ? "ha-light-group-card" : _light ? "ha-light-card"
-        : _cover ? "ha-cover-card" : _coverGroup ? "ha-cover-group-card" : _switchTime ? "ha-switch-time-card" : _media ? "ha-media-card" : _room ? "ha-room-card" : _status ? "ha-status-card" : _vacuum ? "ha-vacuum-card" : _presence ? "ha-presence-card" : _alert ? "ha-alert-card" : _energy ? "ha-energy-card" : _irrigation ? "ha-irrigation-card" : _pool ? "ha-pool-card" : _camera ? "ha-camera-card" : _cameraGroup ? "ha-camera-group-card" : _select ? "ha-select-card" : _mower ? "ha-mower-card" : _starlink ? "ha-starlink-card" : _llm ? "ha-llm-timeline-card" : _hbat ? "ha-home-battery-card" : _system ? "ha-system-card" : _weather ? "ha-weather-card" : _agenda ? "ha-agenda-card" : _devstatus ? "ha-device-status-card" : _recipe ? "ha-recipe-card" : _scene ? "ha-scene-card" : _sleep ? "ha-sleep-card" : _crooms ? "ha-climate-rooms-card" : _eweek ? "ha-energy-week-card" : _parcel ? "ha-parcel-card" : _router ? "ha-router-card" : _lock ? "ha-lock-card" : _temp ? "ha-temperature-card" : _net ? "ha-network-card" : _plug ? "ha-plug-card" : _grill ? "ha-grill-card" : _poolCare ? "ha-pool-care-card" : _solar ? "ha-solar-forecast-card" : "ha-climate-card";
+        : _cover ? "ha-cover-card" : _coverGroup ? "ha-cover-group-card" : _switchTime ? "ha-switch-time-card" : _media ? "ha-media-card" : _room ? "ha-room-card" : _status ? "ha-status-card" : _vacuum ? "ha-vacuum-card" : _presence ? "ha-presence-card" : _alert ? "ha-alert-card" : _energy ? "ha-energy-card" : _irrigation ? "ha-irrigation-card" : _pool ? "ha-pool-card" : _camera ? "ha-camera-card" : _cameraGroup ? "ha-camera-group-card" : _select ? "ha-select-card" : _mower ? "ha-mower-card" : _starlink ? "ha-starlink-card" : _llm ? "ha-llm-timeline-card" : _hbat ? "ha-home-battery-card" : _system ? "ha-system-card" : _weather ? "ha-weather-card" : _agenda ? "ha-agenda-card" : _devstatus ? "ha-device-status-card" : _recipe ? "ha-recipe-card" : _scene ? "ha-scene-card" : _sleep ? "ha-sleep-card" : _crooms ? "ha-climate-rooms-card" : _eweek ? "ha-energy-week-card" : _parcel ? "ha-parcel-card" : _router ? "ha-router-card" : _lock ? "ha-lock-card" : _temp ? "ha-temperature-card" : _net ? "ha-network-card" : _plug ? "ha-plug-card" : _grill ? "ha-grill-card" : _mowsum ? "ha-mower-summary-card" : _poolCare ? "ha-pool-care-card" : _solar ? "ha-solar-forecast-card" : "ha-climate-card";
       const card = document.createElement(tag);
       card.id = "card" + i;
       card.setConfig({ type: `custom:${tag}`, ...rest });

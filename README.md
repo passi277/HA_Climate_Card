@@ -35,6 +35,7 @@ weiche Farbübergänge und Animationen. Ein HACS-Download, mehrere Karten:
 | **Modern Temperature Card** | `custom:ha-temperature-card` | Temperatur-Überwachung: Kacheln mit Trend, Min/Max, Grenzwert-Warnung, gemeinsamer Verlauf |
 | **Modern Plug Card** | `custom:ha-plug-card` | Steckdosen: An/Aus mit Rückfrage, Leistung, Verbrauch und Kosten heute/Monat, Verlauf, Überlast und „läuft nicht“ |
 | **Modern Grill Card** | `custom:ha-grill-card` | Grillthermometer (Meater): Kern gegen Ziel als Ring, Garraum, Restzeit, Kochstatus, Verlauf |
+| **Modern Mower Summary** | `custom:ha-mower-summary-card` | Mäher-Kurzbericht: Akkuring, animierter Status (mäht, lädt, parkt), heute gemäht, Messer, nächster Lauf |
 | **Modern Pool Care Card** | `custom:ha-pool-care-card` | Pool-Pflege zur Smart-Pool-Integration: Chemie-Tagebuch, Vorräte, Metall-Ex, Wartung & Aufgaben, Statistik |
 | **Modern Network Card** | `custom:ha-network-card` | Funknetz (Zigbee2MQTT, ZHA, Shelly): Signal, Akku, zuletzt gesehen, Warnungen, Updates, Neustart |
 | **Modern Energy Week Card** | `custom:ha-energy-week-card` | Wochenrückblick Energie: diese gegen letzte Woche, Kosten, Verbraucher |
@@ -475,6 +476,28 @@ name: GOAT G1
 # settings_open: true
 # live_stream: false   # Live-Position beim Mähen nicht anfordern (Standard: an, wenn die Integration es anbietet)
 # blade: sensor.ecovacs_goat_1_blade_lifespan   # Zuordnung überschreiben
+```
+
+## Modern Mower Summary (Mäher-Kurzbericht)
+
+Kompakter Überblick für einen `lawn_mower`: **Akkuring** (pulsiert beim Laden), Status-Chip und eine **animierte Szene** –
+mäht (Rasen zieht vorbei, Schnittgut fliegt), fährt zur Station, **lädt** (Blitz an der Station), **parkt** (zzz), Regenpause (Regen),
+pausiert oder Fehler. Darunter drei Kacheln:
+
+- **Heute gemäht** – Fläche, Mähdauer und Läufe seit Mitternacht, berechnet aus den Gesamtzählern (Gemähte Fläche/Mähdauer/Mähvorgänge gesamt)
+- **Messer** – Restlaufzeit in Stunden und Rest in %, rot mit „Bald tauschen“ unter `blade_warn` (Standard 15 %)
+- **Nächster Lauf** – aus `next_run`: Zeitstempel-Sensor, `input_datetime`/`time`, Zeitplan-Helfer (`schedule`) oder Kalender
+
+Während des Mähens erscheint ein Fortschrittsbalken (Prozent und m² vom Auftrag). Akku, Ladestatus, Regenpause, Messer und Zähler werden über
+das Gerät gefunden (z. B. Ecovacs GOAT) – jede Zuordnung lässt sich überschreiben.
+
+```yaml
+type: custom:ha-mower-summary-card
+entity: lawn_mower.aussen_leopard_2
+next_run: input_datetime.maher_nachster_lauf   # Mähplan liegt oft nur in der Hersteller-App
+# blade_warn: 20
+# show_scene: false
+# total_area: sensor.leopard_gemahte_flache_gesamt   # Zuordnung überschreiben
 ```
 
 ## Modern Starlink Card (Starlink & Speedtest)
@@ -1266,6 +1289,7 @@ glow, smooth color transitions, animations), shipped as a single HACS download:
 - `custom:ha-room-card` – room header with status chips (incl. waste collection from a calendar) and a "window open – A/C running" warning; `layout: tile` = room tile for overview pages (tap navigates, long press toggles the light)
 - `custom:ha-status-card` – batteries (per area, Battery Notes aware) and door/window contacts
 - `custom:ha-mower-card` – lawn mower with animated lawn or live map, controls, current run, statistics, blade wear and settings
+- `custom:ha-mower-summary-card` – mower at a glance: battery ring, animated status (mowing, charging, parked, rain pause), area mowed today, blade time left, next scheduled run
 - `custom:ha-starlink-card` – Starlink dish (status, live throughput, ping, packet loss, warnings, stow/reboot) plus external speed test with history and "run test now"
 - `custom:ha-llm-timeline-card` – LLM Vision timeline: latest event with snapshot, category/camera filters, day-grouped timeline and detail view
 - `custom:ha-home-battery-card` – home battery / solar storage (e.g. Anker Solarbank): charge ring with time left, animated solar → battery → home flow, PV strings, savings, history

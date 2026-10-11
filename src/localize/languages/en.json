@@ -1870,5 +1870,41 @@
     "tabs": "Tabs",
     "default_tab": "Start tab",
     "hint": "Entities are found automatically via the Smart Pool device. Override single ones in YAML under entities: (key = translation key, e.g. dose_amount)."
+  },
+  "mower_summary": {
+    "title": "Lawn mower",
+    "mood_mowing": "Mowing",
+    "mood_returning": "Returning to dock",
+    "mood_paused": "Paused",
+    "mood_charging": "Charging",
+    "mood_parked": "Parked in dock",
+    "mood_rain": "Rain pause",
+    "mood_error": "Error",
+    "mood_unknown": "Unavailable",
+    "battery": "Battery",
+    "today": "Mowed today",
+    "not_today": "not mowed yet today",
+    "run": "run",
+    "runs": "runs",
+    "blade": "Blade",
+    "blade_left": "Time left",
+    "blade_change": "Replace soon",
+    "next": "Next run",
+    "no_plan": "no schedule in HA",
+    "running_now": "running now",
+    "today_at": "today",
+    "tomorrow": "tomorrow",
+    "in": "in",
+    "days": "days",
+    "progress": "Progress",
+    "of": "of"
+  },
+  "mower_summary_editor": {
+    "entity": "Lawn mower (lawn_mower)",
+    "name": "Name",
+    "next_run": "Next run (timestamp, date/time, schedule or calendar)",
+    "blade_warn": "Blade warning below",
+    "show_scene": "Animated scene",
+    "hint": "Battery, charging, rain pause, blade and total counters are found via the device. \"Mowed today\" is derived from the total mowed area counter since midnight. If the schedule only lives in the vendor app, pick e.g. an input_datetime or schedule helper for \"Next run\"."
   }
 }

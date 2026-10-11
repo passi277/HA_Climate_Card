@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.49.0 – Mäher-Kurzbericht
+- Neue **Modern Mower Summary** (`custom:ha-mower-summary-card`): Akkuring (pulsiert beim Laden), Status mit animierter Szene (mäht, fährt zur Station, lädt, parkt, Regenpause, pausiert, Fehler), heute gemähte Fläche mit Mähdauer und Läufen (aus den Gesamtzählern seit Mitternacht), Messer-Restlaufzeit mit Warnung „Bald tauschen“, nächster geplanter Lauf (Zeitstempel, input_datetime, Zeitplan oder Kalender), Fortschritt beim Mähen – alles automatisch über das Gerät
+- Mower Card: „Mähvorgänge“ und „Auftragsfläche“ (Ecovacs, deutsch) werden erkannt; die Messer-Restlaufzeit wird nicht mehr als Mähdauer des Laufs angezeigt
+
 ## 1.48.0 – Solarprognose
 - Neue **Modern Solar Forecast Card** (`custom:ha-solar-forecast-card`) für Solcast PV Forecast: Ring Ist-Ertrag gegen Tagesprognose, „Noch … heute · Spitze …“, Jetzt-Leistung gegen Prognose, Trefferquote bisher, morgen mit Spanne (P10–P90), Tagesleiste aller Prognosetage, Tageskurve mit P10/P90-Band, Ist-Leistung, Spitze und Jetzt-Marker (Werte beim Antippen), Trefferquote gestern, letzte Aktualisierung und API-Abrufe – Zusatzwerte automatisch über das Solcast-Gerät
 

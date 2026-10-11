@@ -1915,5 +1915,41 @@
     "tabs": "Reiter",
     "default_tab": "Start-Reiter",
     "hint": "Die Entitäten werden automatisch über das Smart-Pool-Gerät gefunden. Einzelne lassen sich per YAML unter entities: überschreiben (Schlüssel = translation key, z. B. dose_amount)."
+  },
+  "mower_summary": {
+    "title": "Mähroboter",
+    "mood_mowing": "Mäht",
+    "mood_returning": "Fährt zur Station",
+    "mood_paused": "Pausiert",
+    "mood_charging": "Lädt",
+    "mood_parked": "Parkt in der Station",
+    "mood_rain": "Regenpause",
+    "mood_error": "Fehler",
+    "mood_unknown": "Nicht verfügbar",
+    "battery": "Akku",
+    "today": "Heute gemäht",
+    "not_today": "heute noch nicht gemäht",
+    "run": "Lauf",
+    "runs": "Läufe",
+    "blade": "Messer",
+    "blade_left": "Restlaufzeit",
+    "blade_change": "Bald tauschen",
+    "next": "Nächster Lauf",
+    "no_plan": "kein Plan in HA",
+    "running_now": "läuft gerade",
+    "today_at": "heute",
+    "tomorrow": "morgen",
+    "in": "in",
+    "days": "Tagen",
+    "progress": "Fortschritt",
+    "of": "von"
+  },
+  "mower_summary_editor": {
+    "entity": "Mähroboter (lawn_mower)",
+    "name": "Name",
+    "next_run": "Nächster Lauf (Zeitstempel, Datum/Zeit, Zeitplan oder Kalender)",
+    "blade_warn": "Messer-Warnung unter",
+    "show_scene": "Animierte Szene",
+    "hint": "Akku, Ladezustand, Regenpause, Messer und Gesamtzähler werden über das Gerät gefunden. „Heute gemäht“ wird aus dem Zähler „Gemähte Fläche gesamt“ seit Mitternacht berechnet. Liegt der Mähplan nur in der Hersteller-App, für „Nächster Lauf“ z. B. einen input_datetime oder Zeitplan-Helfer wählen."
   }
 }
