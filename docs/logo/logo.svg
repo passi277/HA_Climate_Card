@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1b2550"/>
+      <stop offset="1" stop-color="#0b1022"/>
+    </linearGradient>
+    <radialGradient id="halo" cx="0.5" cy="0.6" r="0.5">
+      <stop offset="0" stop-color="#ff8a4c" stop-opacity="0.38"/>
+      <stop offset="0.55" stop-color="#5b7cff" stop-opacity="0.12"/>
+      <stop offset="1" stop-color="#5b7cff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="ring" x1="0.1" y1="0.9" x2="1" y2="0.45">
+      <stop offset="0" stop-color="#ff7a45"/>
+      <stop offset="0.5" stop-color="#ab7bff"/>
+      <stop offset="1" stop-color="#29b6f6"/>
+    </linearGradient>
+    <linearGradient id="house" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#cfd8ff"/>
+    </linearGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="9" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <rect width="512" height="512" rx="112" fill="url(#halo)"/>
+
+  <!-- Haus-Silhouette -->
+  <path d="M256 92 L420 222 Q430 230 430 243 L430 404 Q430 428 406 428 L106 428 Q82 428 82 404 L82 243 Q82 230 92 222 Z"
+        fill="none" stroke="url(#house)" stroke-width="22" stroke-linejoin="round" opacity="0.95"/>
+
+  <!-- Ring-Regler: Spur + Wert (270°-Bogen) -->
+  <g transform="translate(256 302)">
+    <circle r="86" fill="none" stroke="#ffffff" stroke-opacity="0.12" stroke-width="22"
+            stroke-linecap="round" stroke-dasharray="405 540" transform="rotate(135)"/>
+    <circle r="86" fill="none" stroke="url(#ring)" stroke-width="22" filter="url(#glow)"
+            stroke-linecap="round" stroke-dasharray="290 540" transform="rotate(135)"/>
+    <!-- Knopf am Wertende -->
+    <circle cx="0" cy="0" r="15" fill="#ffffff" filter="url(#glow)" transform="rotate(328) translate(86 0)"/>
+    <!-- Innenfläche mit warmem Schein -->
+    <circle r="52" fill="#ffffff" fill-opacity="0.05"/>
+  </g>
+</svg>

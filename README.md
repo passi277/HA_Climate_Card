@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/logo/logo.png" alt="HA Modern Home Cards" width="160"></p>
+
 # HA Modern Home Cards
 
 Moderne Lovelace-Karten für Home Assistant im gemeinsamen Design – Ring-Regler, Glow,
