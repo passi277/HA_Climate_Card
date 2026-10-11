@@ -2946,3 +2946,93 @@ export function stockLevel(stock: number, threshold: number | undefined): number
   if (!threshold || threshold <= 0) return stock > 0 ? 1 : 0;
   return Math.min(1, Math.max(0, stock / (threshold * 4)));
 }
+
+// ---------- Solarprognose (Solcast) ----------
+
+export interface ForecastPoint { t: number; kw: number; p10?: number; p90?: number }
+export interface ForecastDay { id: string; date: string; t0: number; total: number; p10?: number; p90?: number; points: ForecastPoint[] }
+
+const kwhOf = (st: HassEntity | undefined): number | undefined => {
+  if (!st) return undefined;
+  const v = Number(st.state);
+  if (!Number.isFinite(v)) return undefined;
+  return /^Wh$/i.test(String(st.attributes.unit_of_measurement ?? "kWh")) ? v / 1000 : v;
+};
+
+/** Ein Prognosetag aus einem Solcast-Tagessensor (detailedForecast: Halbstunden in kW, dazu P10/P90). */
+export function forecastDay(st: HassEntity | undefined): ForecastDay | undefined {
+  const raw = st?.attributes.detailedForecast;
+  if (!st || !Array.isArray(raw) || !raw.length) return undefined;
+  const points: ForecastPoint[] = raw.map((p: any) => ({
+    t: Date.parse(p.period_start), kw: Math.max(0, Number(p.pv_estimate) || 0),
+    p10: Number.isFinite(Number(p.pv_estimate10)) ? Number(p.pv_estimate10) : undefined,
+    p90: Number.isFinite(Number(p.pv_estimate90)) ? Number(p.pv_estimate90) : undefined,
+  })).filter((p: ForecastPoint) => Number.isFinite(p.t)).sort((a: ForecastPoint, b: ForecastPoint) => a.t - b.t);
+  if (!points.length) return undefined;
+  const num = (k: string) => (Number.isFinite(Number(st.attributes[k])) ? Number(st.attributes[k]) : undefined);
+  const total = kwhOf(st) ?? forecastEnergy(points, Infinity);
+  return { id: st.entity_id, date: ymdLocal(new Date(points[0]!.t)), t0: points[0]!.t, total, p10: num("estimate10"), p90: num("estimate90"), points };
+}
+
+/** Länge eines Prognose-Intervalls in ms (Solcast: 30 min). */
+export const forecastStep = (points: ForecastPoint[]): number =>
+  points.length > 1 ? Math.max(60_000, points[1]!.t - points[0]!.t) : 1_800_000;
+
+/** Erwartete Energie in kWh vom Tagesbeginn bis `until` (anteilig im laufenden Intervall). */
+export function forecastEnergy(points: ForecastPoint[], until: number): number {
+  const step = forecastStep(points);
+  let kwh = 0;
+  for (const p of points) {
+    const end = Math.min(p.t + step, until);
+    if (end <= p.t) break;
+    kwh += p.kw * ((end - p.t) / 3_600_000);
+  }
+  return kwh;
+}
+
+/** Prognostizierte Leistung (kW) im Intervall, das `at` enthält. */
+export function forecastAt(points: ForecastPoint[], at: number): ForecastPoint | undefined {
+  const step = forecastStep(points);
+  return points.find((p) => at >= p.t && at < p.t + step);
+}
+
+/** Höchster Prognosewert des Tages. */
+export function forecastPeak(points: ForecastPoint[]): ForecastPoint | undefined {
+  return points.reduce<ForecastPoint | undefined>((m, p) => (p.kw > (m?.kw ?? 0) ? p : m), undefined);
+}
+
+/** Sichtbarer Bereich der Tageskurve: erste bis letzte Sonnenstunde, auf volle Stunden gerundet. */
+export function daylightRange(points: ForecastPoint[]): [number, number] | undefined {
+  const lit = points.filter((p) => p.kw > 0.001 || (p.p90 ?? 0) > 0.001);
+  if (!lit.length) return undefined;
+  const step = forecastStep(points);
+  const h = 3_600_000;
+  return [Math.floor(lit[0]!.t / h) * h, Math.ceil((lit[lit.length - 1]!.t + step) / h) * h];
+}
+
+/** Trefferquote Ist/Prognose in % (nur sinnvoll ab etwas Ertrag). */
+export const forecastAccuracy = (actualKwh: number | undefined, forecastKwh: number | undefined, min = 0.2): number | undefined =>
+  actualKwh != null && forecastKwh != null && forecastKwh >= min ? (actualKwh / forecastKwh) * 100 : undefined;
+
+/** Solcast-Entitäten am selben Gerät finden: Tagesprognosen (sortiert) und Zusatzwerte. */
+export function solarForecastEntities(states: Record<string, HassEntity>, entities: Record<string, EntityRegistryEntry> | undefined, anchor: string): {
+  days: string[]; power_now?: string; remaining?: string; api_used?: string; api_limit?: string; last_update?: string;
+} {
+  const dev = entities?.[anchor]?.device_id;
+  const ids = dev && entities ? Object.values(entities).filter((e) => e.device_id === dev && states[e.entity_id]).map((e) => e.entity_id) : [];
+  if (!ids.includes(anchor)) ids.unshift(anchor);
+  const key = (id: string) => `${entities?.[id]?.translation_key ?? ""} ${id} ${states[id]?.attributes.friendly_name ?? ""}`.toLowerCase();
+  const attr = (id: string, k: string) => states[id]?.attributes[k];
+  const find = (re: RegExp, extra: (id: string) => boolean = () => true) => ids.find((id) => id.startsWith("sensor.") && re.test(key(id)) && extra(id));
+  const days = ids.filter((id) => Array.isArray(attr(id, "detailedForecast")) && attr(id, "detailedForecast").length)
+    .map((id) => ({ id, t: Date.parse(attr(id, "detailedForecast")[0]?.period_start) }))
+    .filter((d) => Number.isFinite(d.t)).sort((a, b) => a.t - b.t).map((d) => d.id);
+  return {
+    days: days.length ? days : [anchor],
+    power_now: find(/power_now\b|aktuelle_leistung|current power|power now|leistung jetzt/, (id) => /^k?W$/.test(String(attr(id, "unit_of_measurement") ?? ""))),
+    remaining: find(/remaining|verbleibend/),
+    api_used: find(/api_counter|api_used|verwendete_api|api calls used|api.?abrufe? verwendet/),
+    api_limit: find(/api_limit|max_api|api limit|max\. api/),
+    last_update: find(/lastupdated|last_updated|letzter_api|letzte aktualisierung|last updated|zeitpunkt_letzter/),
+  };
+}

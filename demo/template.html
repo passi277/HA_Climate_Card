@@ -676,6 +676,30 @@
           [`sensor.${sys}_solarerzeugung_tag`, { state: d.includes("sonne") ? "2.84" : "0.06", attributes: { friendly_name: "Solarerzeugung Tag", unit_of_measurement: "kWh", device_class: "energy" } }],
           [`sensor.${sys}_solar_kostenersparnis_tag`, { state: d.includes("sonne") ? "1.02" : "0.38", attributes: { friendly_name: "Solar Kostenersparnis Tag", unit_of_measurement: "€" } }],
         ])),
+      // Solcast PV Forecast: heute (Sonne bis Mittag, dann Wolken), morgen und drei weitere Tage – Halbstunden in kW mit P10/P90
+      ...(() => {
+        const mk = (offset, peak, cloud) => {
+          const d0 = new Date(); d0.setHours(0, 0, 0, 0); d0.setDate(d0.getDate() + offset);
+          const pts = Array.from({ length: 48 }, (_, i) => {
+            const h = i / 2 + 0.25, sun = Math.max(0, Math.sin(((h - 7.5) / 11) * Math.PI));
+            const v = +(peak * sun * (1 - cloud * (h > 13 ? 0.55 : 0.1) * (0.6 + 0.4 * Math.sin(i)))).toFixed(4);
+            const past = offset === 0 && d0.getTime() + (i + 1) * 1800000 <= Date.now();
+            return { period_start: new Date(d0.getTime() + i * 1800000).toISOString(), pv_estimate: v,
+              pv_estimate10: past ? 0 : +(v * 0.55).toFixed(4), pv_estimate90: past ? 0 : +(Math.min(peak * 1.15, v * 1.18)).toFixed(4) };
+          });
+          const total = +pts.reduce((a, p) => a + p.pv_estimate * 0.5, 0).toFixed(4);
+          return { state: String(total), attributes: { unit_of_measurement: "kWh", device_class: "energy", estimate: total, estimate10: +(total * 0.6).toFixed(2), estimate90: +(total * 1.12).toFixed(2), detailedForecast: pts } };
+        };
+        const names = ["prognose_heute", "prognose_morgen", "prognose_tag_3", "prognose_tag_4", "prognose_tag_5"];
+        const cfg = [[1.25, 0.6], [1.22, 0.1], [0.9, 0.7], [1.15, 0.3], [0.7, 0.9]];
+        return Object.fromEntries([
+          ...names.map((n, i) => [`sensor.solcast_pv_forecast_${n}`, { ...mk(i, ...cfg[i]), attributes: { ...mk(i, ...cfg[i]).attributes, friendly_name: `Solcast PV Forecast ${n}` } }]),
+          ["sensor.solcast_pv_forecast_aktuelle_leistung", { state: "277", attributes: { friendly_name: "Solcast PV Forecast Aktuelle Leistung", unit_of_measurement: "W", device_class: "power" } }],
+          ["sensor.solcast_pv_forecast_verwendete_api_abrufe", { state: "4", attributes: { friendly_name: "Solcast PV Forecast Verwendete API-Abrufe" } }],
+          ["sensor.solcast_pv_forecast_max_api_abrufe", { state: "10", attributes: { friendly_name: "Solcast PV Forecast Max API-Abrufe" } }],
+          ["sensor.solcast_pv_forecast_zeitpunkt_letzter_api_abruf", { state: new Date(Date.now() - 47 * 60000).toISOString(), attributes: { friendly_name: "Solcast PV Forecast Zeitpunkt letzter API-Abruf", device_class: "timestamp" } }],
+        ]);
+      })(),
       // System & Updates (Zuhause-HA): Updates, CPU/RAM, Backup, Dienste
       "update.home_assistant_core_update": { state: "on", attributes: { friendly_name: "Home Assistant Core Update", title: "Home Assistant Core", installed_version: "2026.10.1", latest_version: "2026.10.2", supported_features: 29, release_url: "https://www.home-assistant.io/" } },
       "update.mosquitto_broker_update": { state: "on", attributes: { friendly_name: "Mosquitto broker Update", installed_version: "6.5.1", latest_version: "6.5.2", supported_features: 29 } },
@@ -822,6 +846,7 @@
         translation_key: { konnektivitat: "connection", ping: "ping", ping_drop_rate: "ping_drop_rate", downlink_durchsatz: "downlink_throughput", uplink_durchsatz: "uplink_throughput", download: "download", upload: "upload", letzter_neustart: "last_boot_time", beeintrachtigt: "currently_obstructed", heizung: "heating", ruhezustand: "power_save_idle", verstaut: "stowed", zeitplan_fur_ruhezustand: "sleep_schedule", neu_starten: "reboot" }[id.replace(/^\w+\.starlink_(camper_)?/, "")] } : {}),
       ...(/^\w+\.smart_pool_/.test(id) ? { device_id: "dev_smart_pool", platform: "smart_pool", translation_key: {"select.smart_pool_pflegemittel": "dose_product", "number.smart_pool_zugabemenge": "dose_amount", "button.smart_pool_zugabe_erfassen": "log_dose", "sensor.smart_pool_chlor_dosierung": "chlorine_dose", "sensor.smart_pool_ph_minus_dosierung": "ph_minus_dose", "sensor.smart_pool_ph_plus_dosierung": "ph_plus_dose", "sensor.smart_pool_letzte_zugabe": "last_dose", "binary_sensor.smart_pool_sonde_prufen": "probe_check", "button.smart_pool_sonde_kalibriert": "probe_calibrated", "number.smart_pool_vorrat_chlor_granulat": "stock_chlorine", "number.smart_pool_vorrat_chlor_schock": "stock_shock", "number.smart_pool_vorrat_ph_minus": "stock_ph_minus", "number.smart_pool_vorrat_ph_plus": "stock_ph_plus", "number.smart_pool_vorrat_metall_ex": "stock_metal_ex", "number.smart_pool_vorrat_multitabs": "stock_multitab", "binary_sensor.smart_pool_multitab_fallig": "multitab_due", "binary_sensor.smart_pool_vorrat_knapp": "stock_low", "sensor.smart_pool_verbrauch_chlor_granulat": "consumption_chlorine", "sensor.smart_pool_verbrauch_ph_minus": "consumption_ph_minus", "sensor.smart_pool_verbrauch_metall_ex": "consumption_metal_ex", "sensor.smart_pool_metall_ex_dosierung": "metal_ex_dose", "sensor.smart_pool_metall_ex_restzeit": "metal_ex_remaining", "binary_sensor.smart_pool_metall_ex_behandlung": "metal_ex_active", "button.smart_pool_metall_ex_zugegeben": "metal_ex_added", "number.smart_pool_nachfullmenge": "refill_cm", "button.smart_pool_nachgefullt": "refilled", "sensor.smart_pool_regen_vorhersage_24_h": "rain_forecast_24h", "sensor.smart_pool_regen_letzte_24_h": "rain_last_24h", "sensor.smart_pool_saison": "season", "binary_sensor.smart_pool_wartung_fallig": "maintenance_due", "button.smart_pool_filtersand_gewechselt": "sand_changed", "button.smart_pool_dichtungen_gepruft": "seals_checked", "sensor.smart_pool_pumpenstunden_seit_ruckspulen": "backwash_hours", "binary_sensor.smart_pool_ruckspulen_fallig": "backwash_due", "button.smart_pool_ruckgespult": "backwash_done", "todo.smart_pool_aufgaben": "tasks", "sensor.smart_pool_solaranteil_heute": "solar_share_today", "sensor.smart_pool_solarstrom_heute": "solar_energy_today", "sensor.smart_pool_solar_ersparnis_heute": "solar_savings_today", "sensor.smart_pool_energie_heute": "energy_today", "sensor.smart_pool_kosten_heute": "cost_today", "sensor.smart_pool_badewetter": "swim_score", "sensor.smart_pool_pumpen_ausfalle_heute": "pump_outages_today", "sensor.smart_pool_wochenbericht": "weekly_report"}[id] } : {}),
       ...(/^\w+\.fritz_box_7690_/.test(id) ? { device_id: "dev_fritz", platform: "fritz" } : {}),
+      ...(/^sensor\.solcast_pv_forecast_/.test(id) ? { device_id: "dev_solcast", platform: "solcast_solar" } : {}),
       ...(/^\w+\.haustuer_?/.test(id) || id === "lock.haustuer" ? { device_id: "dev_nuki_lock", platform: "nuki" } : {}),
       ...(/^\w+\.(tursensor_haus|temperatur_haus|ventil_volleyball|steckdose_repeater|rauchmelder)_?/.test(id) ? { device_id: "z2m_" + id.match(/\.(tursensor_haus|temperatur_haus|ventil_volleyball|steckdose_repeater|rauchmelder)/)[1], platform: "mqtt",
         ...(/_(linkquality|battery)$/.test(id) ? { entity_category: "diagnostic" } : {}) } : {}),
@@ -1296,6 +1321,13 @@
           }
           return out;
         }
+        // Solcast gestern: Prognose am Tagesende 7,2 kWh, Ist-Ertrag steigt auf 6,8 kWh
+        if (msg.entity_ids.some((id) => /^sensor\.solcast_pv_forecast_/.test(id))) {
+          const t0 = new Date(msg.start_time).getTime() / 1000;
+          for (const id of msg.entity_ids) out[id] = id.startsWith("sensor.solcast_") ? [{ s: "7.4", lu: t0 + 3600 }, { s: "7.21", lu: t0 + 20 * 3600 }]
+            : [{ s: "0", lu: t0 }, { s: "3.1", lu: t0 + 12 * 3600 }, { s: "6.8", lu: t0 + 19 * 3600 }];
+          return out;
+        }
         // Solarbank: Ladestand und Solarleistung über 48 h (Tagesgang)
         if (msg.entity_ids.some((id) => /solarbank_(3_e2700_pro|sonne)_(ladestand|solarleistung)$/.test(id))) {
           const now = Date.now() / 1000;
@@ -1468,6 +1500,7 @@
       ["System & Updates – CPU/RAM/Speicher, Dienste, Updates mit Installieren, Backup, Neustart", { _system: true, services: ["binary_sensor.zigbee2mqtt_bridge_connection_state", { entity: "binary_sensor.mosquitto_broker_running", name: "MQTT" }] }],
       ["Wetter – animierter Himmel, Hinweis „Regen ab …“, Stundenkurve, 7 Tage", { _weather: true, entity: "weather.forecast_home" }],
       ["Hausakku – Anker Solarbank entlädt (Ring, Restzeit, Fluss Solar → Akku → Haus, PV-Module, Ersparnis, Verlauf)", { _hbat: true, entity: "sensor.solarbank_3_e2700_pro_ladestand" }],
+      ["Solarprognose – Solcast: Ist gegen Prognose, Tageskurve mit Spanne und Ist-Leistung, 5 Tage, Trefferquote gestern", { _solar: true, entity: "sensor.solcast_pv_forecast_prognose_heute", solar: "sensor.solarbank_sonne_solarleistung", solar_today: "sensor.system_sonne_solarerzeugung_tag" }],
       ["Hausakku – lädt bei Sonne", { _hbat: true, entity: "sensor.solarbank_sonne_ladestand", show: { history: false } }],
       ["KI-Timeline – LLM Vision: neuestes Ereignis mit Bild, Filter, Zeitleiste nach Tagen, Detail beim Antippen", { _llm: true, entity: "calendar.llm_vision_timeline" }],
       ["Starlink + Speedtest – Live-Durchsatz, Ping, Speedtest mit Verlauf und „Jetzt testen“, Verstauen/Neustart", { _starlink: true, entity: "binary_sensor.starlink_konnektivitat", speedtest: "sensor.speedtest_download" }],
@@ -1507,9 +1540,9 @@
         grid.appendChild(wrap);
         return;
       }
-      const { _overview, _light, _group, _cover, _coverGroup, _switchTime, _media, _room, _status, _vacuum, _presence, _alert, _energy, _irrigation, _pool, _camera, _cameraGroup, _select, _mower, _starlink, _llm, _hbat, _system, _weather, _agenda, _devstatus, _recipe, _scene, _sleep, _crooms, _eweek, _parcel, _router, _lock, _temp, _net, _plug, _grill, _poolCare, ...rest } = cfg;
+      const { _overview, _light, _group, _cover, _coverGroup, _switchTime, _media, _room, _status, _vacuum, _presence, _alert, _energy, _irrigation, _pool, _camera, _cameraGroup, _select, _mower, _starlink, _llm, _hbat, _system, _weather, _agenda, _devstatus, _recipe, _scene, _sleep, _crooms, _eweek, _parcel, _router, _lock, _temp, _net, _plug, _grill, _poolCare, _solar, ...rest } = cfg;
       const tag = _overview ? "ha-climate-overview-card" : _group ? "ha-light-group-card" : _light ? "ha-light-card"
-        : _cover ? "ha-cover-card" : _coverGroup ? "ha-cover-group-card" : _switchTime ? "ha-switch-time-card" : _media ? "ha-media-card" : _room ? "ha-room-card" : _status ? "ha-status-card" : _vacuum ? "ha-vacuum-card" : _presence ? "ha-presence-card" : _alert ? "ha-alert-card" : _energy ? "ha-energy-card" : _irrigation ? "ha-irrigation-card" : _pool ? "ha-pool-card" : _camera ? "ha-camera-card" : _cameraGroup ? "ha-camera-group-card" : _select ? "ha-select-card" : _mower ? "ha-mower-card" : _starlink ? "ha-starlink-card" : _llm ? "ha-llm-timeline-card" : _hbat ? "ha-home-battery-card" : _system ? "ha-system-card" : _weather ? "ha-weather-card" : _agenda ? "ha-agenda-card" : _devstatus ? "ha-device-status-card" : _recipe ? "ha-recipe-card" : _scene ? "ha-scene-card" : _sleep ? "ha-sleep-card" : _crooms ? "ha-climate-rooms-card" : _eweek ? "ha-energy-week-card" : _parcel ? "ha-parcel-card" : _router ? "ha-router-card" : _lock ? "ha-lock-card" : _temp ? "ha-temperature-card" : _net ? "ha-network-card" : _plug ? "ha-plug-card" : _grill ? "ha-grill-card" : _poolCare ? "ha-pool-care-card" : "ha-climate-card";
+        : _cover ? "ha-cover-card" : _coverGroup ? "ha-cover-group-card" : _switchTime ? "ha-switch-time-card" : _media ? "ha-media-card" : _room ? "ha-room-card" : _status ? "ha-status-card" : _vacuum ? "ha-vacuum-card" : _presence ? "ha-presence-card" : _alert ? "ha-alert-card" : _energy ? "ha-energy-card" : _irrigation ? "ha-irrigation-card" : _pool ? "ha-pool-card" : _camera ? "ha-camera-card" : _cameraGroup ? "ha-camera-group-card" : _select ? "ha-select-card" : _mower ? "ha-mower-card" : _starlink ? "ha-starlink-card" : _llm ? "ha-llm-timeline-card" : _hbat ? "ha-home-battery-card" : _system ? "ha-system-card" : _weather ? "ha-weather-card" : _agenda ? "ha-agenda-card" : _devstatus ? "ha-device-status-card" : _recipe ? "ha-recipe-card" : _scene ? "ha-scene-card" : _sleep ? "ha-sleep-card" : _crooms ? "ha-climate-rooms-card" : _eweek ? "ha-energy-week-card" : _parcel ? "ha-parcel-card" : _router ? "ha-router-card" : _lock ? "ha-lock-card" : _temp ? "ha-temperature-card" : _net ? "ha-network-card" : _plug ? "ha-plug-card" : _grill ? "ha-grill-card" : _poolCare ? "ha-pool-care-card" : _solar ? "ha-solar-forecast-card" : "ha-climate-card";
       const card = document.createElement(tag);
       card.id = "card" + i;
       card.setConfig({ type: `custom:${tag}`, ...rest });

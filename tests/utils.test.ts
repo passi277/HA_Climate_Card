@@ -12,6 +12,7 @@ import {
   starlinkFeatures, speedtestFeatures, formatRate, formatBytes, formatUptime, toMbit, pingQuality,
   openContactsKey, powerOf, poolCareEntities, formatAmount, amountStep, maintenanceDue, stockLevel, resolveContacts, secondsToDuration, stateIcon, temperatureOf, temperatureTint, trendSlope,
 } from "../src/utils";
+import { daylightRange, forecastAccuracy, forecastAt, forecastDay, forecastEnergy, forecastPeak, solarForecastEntities } from "../src/utils";
 import { formatAttribute, localize } from "../src/localize/localize";
 import type { HomeAssistant } from "../src/types";
 
@@ -1396,5 +1397,65 @@ describe("pool care (Smart Pool)", () => {
     expect(stockLevel(184, 92)).toBe(0.5);
     expect(stockLevel(1000, 92)).toBe(1);
     expect(stockLevel(10, undefined)).toBe(1);
+  });
+});
+
+describe("solar forecast (Solcast)", () => {
+  const day = (date: string, kw: number[], extra: Record<string, any> = {}) => entity(`sensor.solcast_${date}`, String(kw.reduce((a, v) => a + v * 0.5, 0)), {
+    unit_of_measurement: "kWh", estimate10: 1, estimate90: 3,
+    detailedForecast: kw.map((v, i) => ({ period_start: new Date(`${date}T00:00:00`).getTime() + i * 1_800_000, pv_estimate: v, pv_estimate10: v * 0.5, pv_estimate90: v * 1.2 }))
+      .map((p) => ({ ...p, period_start: new Date(p.period_start).toISOString() })), ...extra });
+  // 48 Halbstunden, Sonne von 08:00 bis 12:00 mit 1 kW
+  const kw = Array.from({ length: 48 }, (_, i) => (i >= 16 && i < 24 ? 1 : 0));
+  const st = day("2026-10-11", kw);
+  it("parses the day with total and points", () => {
+    const d = forecastDay(st)!;
+    expect(d.date).toBe("2026-10-11");
+    expect(d.points).toHaveLength(48);
+    expect(d.total).toBe(4);
+    expect(d.p90).toBe(3);
+    expect(forecastDay(entity("sensor.x", "3", {}))).toBeUndefined();
+  });
+  it("integrates energy up to a moment, partial interval included", () => {
+    const d = forecastDay(st)!;
+    const t = (h: number, m = 0) => new Date(2026, 9, 11, h, m).getTime();
+    expect(forecastEnergy(d.points, t(8))).toBe(0);
+    expect(forecastEnergy(d.points, t(9, 15))).toBeCloseTo(1.25, 5);
+    expect(forecastEnergy(d.points, t(23))).toBeCloseTo(4, 5);
+    expect(forecastAt(d.points, t(10, 10))?.kw).toBe(1);
+    expect(forecastAt(d.points, t(13))?.kw).toBe(0);
+  });
+  it("finds peak and daylight range", () => {
+    const d = forecastDay(day("2026-10-11", kw.map((v, i) => (i === 20 ? 1.5 : v))))!;
+    expect(new Date(forecastPeak(d.points)!.t).getHours()).toBe(10);
+    const [a, b] = daylightRange(d.points)!;
+    expect(new Date(a).getHours()).toBe(8);
+    expect(new Date(b).getHours()).toBe(12);
+    expect(daylightRange(forecastDay(day("2026-10-11", kw.map(() => 0)))!.points)).toBeUndefined();
+  });
+  it("accuracy needs some forecast", () => {
+    expect(forecastAccuracy(3.6, 5.7)).toBeCloseTo(63.2, 1);
+    expect(forecastAccuracy(0.05, 0.1)).toBeUndefined();
+    expect(forecastAccuracy(undefined, 5)).toBeUndefined();
+  });
+  it("detects sibling Solcast entities on the device", () => {
+    const states = Object.fromEntries([
+      day("2026-10-12", kw, {}), day("2026-10-11", kw, {}),
+      entity("sensor.solcast_pv_forecast_aktuelle_leistung", "277", { unit_of_measurement: "W", friendly_name: "Solcast PV Forecast Aktuelle Leistung" }),
+      entity("sensor.solcast_pv_forecast_prognose_verbleibende_leistung_heute", "0.3", { unit_of_measurement: "kWh" }),
+      entity("sensor.solcast_pv_forecast_verwendete_api_abrufe", "2", {}),
+      entity("sensor.solcast_pv_forecast_max_api_abrufe", "10", {}),
+      entity("sensor.solcast_pv_forecast_zeitpunkt_letzter_api_abruf", "2026-10-11T14:51:34+00:00", { device_class: "timestamp" }),
+      entity("sensor.other", "1", { unit_of_measurement: "W" }),
+    ].map((e) => [e.entity_id, e]));
+    const reg = Object.fromEntries(Object.keys(states).map((id) => [id, { entity_id: id, device_id: id === "sensor.other" ? "x" : "solcast" }]));
+    const f = solarForecastEntities(states, reg, "sensor.solcast_2026-10-11");
+    expect(f.days).toEqual(["sensor.solcast_2026-10-11", "sensor.solcast_2026-10-12"]);
+    expect(f.power_now).toBe("sensor.solcast_pv_forecast_aktuelle_leistung");
+    expect(f.remaining).toBe("sensor.solcast_pv_forecast_prognose_verbleibende_leistung_heute");
+    expect(f.api_used).toBe("sensor.solcast_pv_forecast_verwendete_api_abrufe");
+    expect(f.api_limit).toBe("sensor.solcast_pv_forecast_max_api_abrufe");
+    expect(f.last_update).toBe("sensor.solcast_pv_forecast_zeitpunkt_letzter_api_abruf");
+    expect(solarForecastEntities(states, undefined, "sensor.solcast_2026-10-11").days).toEqual(["sensor.solcast_2026-10-11"]);
   });
 });

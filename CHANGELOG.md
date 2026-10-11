@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.48.0 – Solarprognose
+- Neue **Modern Solar Forecast Card** (`custom:ha-solar-forecast-card`) für Solcast PV Forecast: Ring Ist-Ertrag gegen Tagesprognose, „Noch … heute · Spitze …“, Jetzt-Leistung gegen Prognose, Trefferquote bisher, morgen mit Spanne (P10–P90), Tagesleiste aller Prognosetage, Tageskurve mit P10/P90-Band, Ist-Leistung, Spitze und Jetzt-Marker (Werte beim Antippen), Trefferquote gestern, letzte Aktualisierung und API-Abrufe – Zusatzwerte automatisch über das Solcast-Gerät
+
 ## 1.47.2 – Rückspülen fällig
 - Pool Card: Bei fälligem Rückspülen wurde der ganze Wartungsblock als orange Pille dargestellt (CSS-Klassen-Konflikt) – behoben
 - Pool Card und Pool Care Card zeigen den Grund, wenn das Rückspülen nach Tagen fällig ist („30 Tage seit Rückspülen (spätestens nach 14)“)

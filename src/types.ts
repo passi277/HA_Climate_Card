@@ -939,6 +939,34 @@ export interface HomeBatteryCardConfig extends HomeBatteryFeatures {
   [key: string]: unknown;
 }
 
+export interface SolarForecastShowConfig {
+  chart?: boolean;
+  days?: boolean;
+  stats?: boolean;
+}
+
+export interface SolarForecastCardConfig {
+  type: string;
+  /** Solcast-Tagesprognose „heute“ (detailedForecast) – weitere Tage werden über das Gerät erkannt */
+  entity: string;
+  name?: string;
+  /** Ist-Leistung der Anlage (W/kW), z.B. Solarbank Solarleistung */
+  solar?: string;
+  /** Ist-Ertrag heute (kWh, täglich zurückgesetzt) */
+  solar_today?: string;
+  /** Höchstens so viele Tage in der Tagesleiste (Standard 7) */
+  days?: number;
+  show?: SolarForecastShowConfig;
+  /** Zuordnung überschreiben */
+  power_now?: string;
+  remaining?: string;
+  api_used?: string;
+  api_limit?: string;
+  last_update?: string;
+  animations?: "full" | "reduced" | "off";
+  [key: string]: unknown;
+}
+
 export interface SystemCardConfig {
   type: string;
   name?: string;

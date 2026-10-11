@@ -537,6 +537,27 @@ entity: sensor.solarbank_3_e2700_pro_ladestand
 # solar: sensor.xyz          # Zuordnung überschreiben (home, battery_power, capacity, status, strings: […] …)
 ```
 
+## Modern Solar Forecast Card (Solarprognose, Solcast)
+
+Für die **Solcast PV Forecast**-Integration (`solcast_solar`, HACS): **Ring** mit dem Ist-Ertrag gegen die Tagesprognose, Kopfzeile mit
+dem, was als Nächstes zählt („Noch 0,3 kWh heute · Spitze 13:30“, abends „Morgen 8,1 kWh erwartet“), **Jetzt-Leistung** gegen die
+Prognose, **Trefferquote bisher** (Ist gegen die bis jetzt erwartete Energie) und morgen mit Spanne (P10–P90). Eine **Tagesleiste**
+zeigt alle Prognosetage als Balken; antippen wählt den Tag für die **Tageskurve**: geglättete Prognose mit **P10/P90-Band**, heute
+zusätzlich die echte Solarleistung, Spitzenwert und „jetzt“-Marker – Kurve antippen oder überfahren zeigt die Werte zur Uhrzeit.
+Unten **Trefferquote von gestern**, letzte Aktualisierung und **API-Abrufe**. Weitere Tage und Zusatzwerte werden über das Solcast-Gerät
+erkannt (deutsche und englische Namen).
+
+```yaml
+type: custom:ha-solar-forecast-card
+entity: sensor.solcast_pv_forecast_prognose_heute
+solar: sensor.solarbank_3_e2700_pro_solarleistung   # Ist-Leistung (optional)
+solar_today: sensor.solarerzeugung_tag              # Ist-Ertrag heute in kWh (optional)
+# name: Solarprognose
+# days: 7                # Tage in der Leiste
+# show: { stats: false } # days, chart, stats
+# power_now: sensor.xyz  # Zuordnung überschreiben (remaining, api_used, api_limit, last_update)
+```
+
 ## Modern System Card (System & Updates)
 
 Für die System-Seite: **CPU, RAM und Speicher** als Ringe (automatisch erkannt, z.B. `home_assistant_core_cpu_percent` oder der
@@ -1248,6 +1269,7 @@ glow, smooth color transitions, animations), shipped as a single HACS download:
 - `custom:ha-starlink-card` – Starlink dish (status, live throughput, ping, packet loss, warnings, stow/reboot) plus external speed test with history and "run test now"
 - `custom:ha-llm-timeline-card` – LLM Vision timeline: latest event with snapshot, category/camera filters, day-grouped timeline and detail view
 - `custom:ha-home-battery-card` – home battery / solar storage (e.g. Anker Solarbank): charge ring with time left, animated solar → battery → home flow, PV strings, savings, history
+- `custom:ha-solar-forecast-card` – Solcast solar forecast: actual vs. forecast ring, day strip, daily curve with P10/P90 band and actual power, yesterday’s accuracy, API usage
 - `custom:ha-system-card` – system & updates: CPU/RAM/disk rings, services, all pending updates with install and progress, backups, restart
 - `custom:ha-weather-card` – weather with animated sky, rain/frost hint, hourly curve and 7-day forecast
 - `custom:ha-agenda-card` – waste pickups per bin with reminder the evening before, plus a day-grouped agenda from several calendars

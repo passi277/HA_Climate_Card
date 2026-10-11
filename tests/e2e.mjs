@@ -1918,6 +1918,29 @@ colorFails.length ? fail(`Farbe folgt nicht dem Modus: ${colorFails.join(", ")}`
     ? ok(`Pool: Rückspülen fällig mit Grund „${bw.why}“, Block unverändert`) : fail(`Pool Rückspülen fällig: ${JSON.stringify(bw)}`);
 }
 
+// Solarprognose (Solcast)
+{
+  const sf = await p.evaluateHandle(() => document.querySelector("ha-solar-forecast-card"));
+  await sf.evaluate((c) => c.scrollIntoView({ block: "center" }));
+  await p.waitForTimeout(400);
+  const info = await sf.evaluate((c) => { const r = c.shadowRoot; return { sub: r.querySelector(".h-sub")?.textContent.trim(), days: r.querySelectorAll(".day").length,
+    sel: r.querySelector(".day.sel .d-name")?.textContent.trim(), fc: !!r.querySelector(".c-fc"), act: !!r.querySelector(".c-act"), tomorrow: r.querySelector('[data-fact="tomorrow"] b')?.textContent.trim(),
+    yesterday: r.querySelector('[data-chip="yesterday"] b')?.textContent.trim(), api: r.querySelector('[data-chip="api"] b')?.textContent.trim() }; });
+  info.days === 5 && info.sel === "Heute" && info.fc && info.act && /kWh$/.test(info.tomorrow ?? "") && info.yesterday === "94 %" && info.api === "4 / 10" && /kWh/.test(info.sub ?? "")
+    ? ok(`Solarprognose: ${info.sub}, 5 Tage, Kurve mit Ist, gestern 94 %`) : fail(`Solarprognose: ${JSON.stringify(info)}`);
+  await sf.evaluate((c) => c.shadowRoot.querySelector('.day[data-day="1"]').click());
+  await p.waitForTimeout(200);
+  const tm = await sf.evaluate((c) => { const r = c.shadowRoot; return { title: r.querySelector(".chart .sec-title span")?.textContent.trim(), act: !!r.querySelector(".c-act"), band: !!r.querySelector(".c-band") }; });
+  /Morgen$/.test(tm.title ?? "") && !tm.act && tm.band ? ok("Solarprognose: Morgen gewählt – Kurve mit Spanne, ohne Ist") : fail(`Solarprognose Morgen: ${JSON.stringify(tm)}`);
+  const svgBox = await sf.evaluate((c) => { const b = c.shadowRoot.querySelector(".c-svg").getBoundingClientRect(); return { x: b.x, y: b.y, w: b.width, h: b.height }; });
+  await p.mouse.move(svgBox.x + svgBox.w / 2, svgBox.y + svgBox.h / 2);
+  await p.waitForTimeout(150);
+  const ro = await sf.evaluate((c) => c.shadowRoot.querySelector(".readout.on")?.textContent.replace(/\s+/g, " ").trim());
+  /^\d{2}:\d{2} .*(W|kW)/.test(ro ?? "") ? ok(`Solarprognose: Wert unter dem Finger „${ro}“`) : fail(`Solarprognose Readout: ${ro}`);
+  await p.mouse.move(0, 0);
+  await sf.evaluate((c) => c.shadowRoot.querySelector('.day[data-day="0"]').click());
+}
+
 // Theme-Umschalter
 await p.click('[data-theme="dark"]');
 (await p.evaluate(() => document.body.classList.contains("dark"))) ? ok("Dunkel-Modus umschaltbar") : fail("Dunkel-Modus");
