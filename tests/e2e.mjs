@@ -372,8 +372,9 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
   await p.waitForTimeout(1500);
   const h0 = await p.evaluate((f) => eval(f)().querySelector(".shutter").getBoundingClientRect().height, `(${win})`);
   await p.evaluate(() => [...document.querySelector("ha-cover-card").shadowRoot.querySelectorAll(".cover-buttons .round")].at(-1).click());
-  await p.waitForTimeout(450);
-  const h1 = await p.evaluate((f) => eval(f)().querySelector(".shutter").getBoundingClientRect().height, `(${win})`);
+  // warten, bis die Fahrt sichtbar beginnt (auf der großen Demo-Seite startet sie teils verzögert)
+  let h1 = h0;
+  for (let i = 0; i < 20 && h1 <= h0; i++) { await p.waitForTimeout(100); h1 = await p.evaluate((f) => eval(f)().querySelector(".shutter").getBoundingClientRect().height, `(${win})`); }
   await p.waitForTimeout(450);
   const h2 = await p.evaluate((f) => eval(f)().querySelector(".shutter").getBoundingClientRect().height, `(${win})`);
   const full = await p.evaluate((f) => eval(f)().querySelector(".glass").getBoundingClientRect().height, `(${win})`);
@@ -1965,8 +1966,9 @@ colorFails.length ? fail(`Farbe folgt nicht dem Modus: ${colorFails.join(", ")}`
   await p.waitForTimeout(400);
   const info = await sf.evaluate((c) => { const r = c.shadowRoot; return { sub: r.querySelector(".h-sub")?.textContent.trim(), days: r.querySelectorAll(".day").length,
     sel: r.querySelector(".day.sel .d-name")?.textContent.trim(), fc: !!r.querySelector(".c-fc"), act: !!r.querySelector(".c-act"), tomorrow: r.querySelector('[data-fact="tomorrow"] b')?.textContent.trim(),
-    yesterday: r.querySelector('[data-chip="yesterday"] b')?.textContent.trim(), api: r.querySelector('[data-chip="api"] b')?.textContent.trim() }; });
-  info.days === 5 && info.sel === "Heute" && info.fc && info.act && /kWh$/.test(info.tomorrow ?? "") && info.yesterday === "94 %" && info.api === "4 / 10" && /kWh/.test(info.sub ?? "")
+    yesterday: r.querySelector('[data-chip="yesterday"] b')?.textContent.trim(), api: r.querySelector('[data-chip="api"] b')?.textContent.trim(),
+    cap: r.querySelector(".r-in .cap")?.textContent.trim(), acc: r.querySelector('[data-fact="accuracy"] small')?.textContent.trim() }; });
+  info.cap === "Tagesprognose" && /^der Prognose bis jetzt · [\d,]+ statt [\d,]+ kWh$/.test(info.acc ?? "") && info.days === 5 && info.sel === "Heute" && info.fc && info.act && /kWh$/.test(info.tomorrow ?? "") && info.yesterday === "94 %" && info.api === "4 / 10" && /kWh/.test(info.sub ?? "")
     ? ok(`Solarprognose: ${info.sub}, 5 Tage, Kurve mit Ist, gestern 94 %`) : fail(`Solarprognose: ${JSON.stringify(info)}`);
   await sf.evaluate((c) => c.shadowRoot.querySelector('.day[data-day="1"]').click());
   await p.waitForTimeout(200);

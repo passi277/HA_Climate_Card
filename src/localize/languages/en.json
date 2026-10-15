@@ -1187,12 +1187,13 @@
     "forecast_now": "forecast now",
     "of": "of {x}",
     "expected_so_far": "expected so far",
-    "so_far": "so far {a} of {f} kWh",
+    "so_far": "of forecast so far · {a} vs. {f} kWh",
     "chart": "Daily curve",
     "touch_hint": "Touch the curve for values",
     "yesterday": "Yesterday",
     "yesterday_detail": "actual {a} / forecast {f} kWh",
-    "updated": "Updated"
+    "updated": "Updated",
+    "day_forecast": "day forecast"
   },
   "solar_forecast_editor": {
     "entity": "Forecast today (Solcast)",

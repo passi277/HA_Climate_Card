@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.51.1 – Solarprognose eindeutiger
+- Solar Forecast Card: Ring zeigt „von … kWh Tagesprognose“, die Trefferquote „81 % – der Prognose bis jetzt · 3,1 statt 3,9 kWh“ (bisheriger Ertrag gegen die Prognose bis zu diesem Zeitpunkt, nicht gegen den ganzen Tag); Zusatzzeilen brechen bei schmaler Karte um statt abgeschnitten zu werden
+
 ## 1.51.0 – Boden & Regen
 - Neue **Modern Soil & Rain Card** (`custom:ha-soil-rain-card`): Bodenfeuchte als Erdsäule mit Wasserstand und Warnschwelle (−/+ direkt in der Karte), Status, Temperatur/Luftfeuchte/Batterie, 7-Tage-Verlauf; Regensensor mit animiertem Himmel, Bestätigung durch den Wetterdienst oder „vermutlich Tau“, Regen heute/gestern/erwartet/Wahrscheinlichkeit, Regensperre mit Grund, 48-h-Zeitleiste und Empfindlichkeit (−/+) – Zusatzwerte automatisch über das Gerät
 

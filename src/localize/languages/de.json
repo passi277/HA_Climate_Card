@@ -1204,12 +1204,13 @@
     "forecast_now": "Prognose jetzt",
     "of": "von {x}",
     "expected_so_far": "erwartet bisher",
-    "so_far": "Ist bisher {a} von {f} kWh",
+    "so_far": "der Prognose bis jetzt · {a} statt {f} kWh",
     "chart": "Tagesverlauf",
     "touch_hint": "Kurve antippen für Werte",
     "yesterday": "Gestern",
     "yesterday_detail": "Ist {a} / Prognose {f} kWh",
-    "updated": "Aktualisiert"
+    "updated": "Aktualisiert",
+    "day_forecast": "Tagesprognose"
   },
   "solar_forecast_editor": {
     "entity": "Prognose heute (Solcast)",

@@ -390,7 +390,7 @@ export class HaSolarForecastCard extends LitElement {
           ${this._ring(ringBase > 0 ? ringVal / ringBase : 0)}
           <span class="r-in"><b>${this._fmt(ringVal, 1)}<small>kWh</small></b>
             <span>${actualToday != null ? this._t("of", { x: this._energy(ringBase) }) : this._t("expected_so_far")}</span>
-            ${actualToday == null ? html`<span class="cap">${this._t("of", { x: this._energy(ringBase) })}</span>` : nothing}</span>
+            <span class="cap">${actualToday != null ? this._t("day_forecast") : this._t("of", { x: this._energy(ringBase) })}</span></span>
         </button>
         <div class="facts">
           <button class="fact" data-fact="now" @click=${() => this._moreInfo(c.solar ?? f.power_now)}>
@@ -446,7 +446,7 @@ export class HaSolarForecastCard extends LitElement {
     .fact > ha-icon { --mdc-icon-size: 26px; flex: none; }
     .fact span { display: flex; flex-direction: column; min-width: 0; }
     .fact b { font-size: clamp(15px, 4.6cqi, 19px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .fact small { font-size: 12px; color: var(--secondary-text-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .fact small { font-size: 12px; line-height: 1.3; color: var(--secondary-text-color); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 
     /* Tagesleiste */
     .days { display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); gap: 6px; }
