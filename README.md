@@ -36,6 +36,7 @@ weiche Farbübergänge und Animationen. Ein HACS-Download, mehrere Karten:
 | **Modern Plug Card** | `custom:ha-plug-card` | Steckdosen: An/Aus mit Rückfrage, Leistung, Verbrauch und Kosten heute/Monat, Verlauf, Überlast und „läuft nicht“ |
 | **Modern Grill Card** | `custom:ha-grill-card` | Grillthermometer (Meater): Kern gegen Ziel als Ring, Garraum, Restzeit, Kochstatus, Verlauf |
 | **Modern Mower Summary** | `custom:ha-mower-summary-card` | Mäher-Kurzbericht: Akkuring, animierter Status (mäht, lädt, parkt), heute gemäht, Messer, nächster Lauf |
+| **Modern Soil & Rain Card** | `custom:ha-soil-rain-card` | Boden & Regen: Bodenfeuchte mit Warnschwelle, Regensensor mit Bestätigung, Regensperre, Zeitleiste |
 | **Modern Pool Care Card** | `custom:ha-pool-care-card` | Pool-Pflege zur Smart-Pool-Integration: Chemie-Tagebuch, Vorräte, Metall-Ex, Wartung & Aufgaben, Statistik |
 | **Modern Network Card** | `custom:ha-network-card` | Funknetz (Zigbee2MQTT, ZHA, Shelly): Signal, Akku, zuletzt gesehen, Warnungen, Updates, Neustart |
 | **Modern Energy Week Card** | `custom:ha-energy-week-card` | Wochenrückblick Energie: diese gegen letzte Woche, Kosten, Verbraucher |
@@ -498,6 +499,35 @@ next_run: input_datetime.maher_nachster_lauf   # Mähplan liegt oft nur in der H
 # blade_warn: 20
 # show_scene: false
 # total_area: sensor.leopard_gemahte_flache_gesamt   # Zuordnung überschreiben
+```
+
+## Modern Soil & Rain Card (Boden & Regen)
+
+Für **Bodenfeuchte-Sensoren** und einen **Regensensor**:
+
+- **Boden** – Feuchte als Erdsäule mit Wasserstand und gestrichelter Warnschwelle, Status („Zu trocken – unter 20 %“), Temperatur,
+  Luftfeuchte und Batterie, **Warnschwelle per −/+** (number-Entität am Gerät) und 7-Tage-Verlauf mit Schwellenlinie
+- **Regen** – animierter Himmel (Sonne bzw. Regen), seit wann, **Bestätigung durch den Wetterdienst** (✓) oder „vermutlich Tau“ (?),
+  Regen heute/gestern/erwartet/Wahrscheinlichkeit, **Regensperre** mit Grund bzw. letztem Regen, **48-h-Zeitleiste** (Sensor und bestätigt)
+  und **Empfindlichkeit per −/+**
+
+Temperatur, Luftfeuchte, Batterie, „trocken“ und Warnschwelle bzw. Helligkeit, Batterie und Empfindlichkeit werden über das Gerät gefunden.
+
+```yaml
+type: custom:ha-soil-rain-card
+soil:
+  - entity: sensor.bodenfeuchtigkeits_sensor_bananen_soil_moisture
+    name: Bananen
+rain:
+  entity: sensor.regensensor_rainwater
+  confirmed: binary_sensor.regensensor_plausibel      # Regen vom Wetterdienst bestätigt
+  lock: binary_sensor.smarte_bewasserung_regensperre
+  lock_reason: sensor.smarte_bewasserung_sperrgrund
+  last_rain: input_datetime.bewasserung_letzter_regen
+  rain_today: sensor.smarte_bewasserung_regen_heute
+  forecast: sensor.smarte_bewasserung_regenvorhersage_24_h
+# days: 7          # Bodenfeuchte-Verlauf
+# rain_hours: 48   # Regen-Zeitleiste
 ```
 
 ## Modern Starlink Card (Starlink & Speedtest)
@@ -1291,6 +1321,7 @@ glow, smooth color transitions, animations), shipped as a single HACS download:
 - `custom:ha-status-card` – batteries (per area, Battery Notes aware) and door/window contacts
 - `custom:ha-mower-card` – lawn mower with animated lawn or live map, controls, current run, statistics, blade wear and settings
 - `custom:ha-mower-summary-card` – mower at a glance: battery ring, animated status (mowing, charging, parked, rain pause), area mowed today, blade time left, next scheduled run
+- `custom:ha-soil-rain-card` – soil & rain: soil moisture column with adjustable warning threshold and 7-day history, rain sensor with weather-service confirmation (dew vs. rain), rain amounts, irrigation rain lock and 48 h timeline
 - `custom:ha-starlink-card` – Starlink dish (status, live throughput, ping, packet loss, warnings, stow/reboot) plus external speed test with history and "run test now"
 - `custom:ha-llm-timeline-card` – LLM Vision timeline: latest event with snapshot, category/camera filters, day-grouped timeline and detail view
 - `custom:ha-home-battery-card` – home battery / solar storage (e.g. Anker Solarbank): charge ring with time left, animated solar → battery → home flow, PV strings, savings, history

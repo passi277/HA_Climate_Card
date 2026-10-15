@@ -42,3 +42,4 @@ import "./plug-card";
 import "./grill-card";
 import "./pool-care-card";
 import "./mower-summary-card";
+import "./soil-rain-card";

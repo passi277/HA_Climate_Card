@@ -1874,6 +1874,18 @@ colorFails.length ? fail(`Farbe folgt nicht dem Modus: ${colorFails.join(", ")}`
   const plan2 = await g.evaluate((c) => c.shadowRoot.querySelector('.i-row[data-probe="dev_gm_plus"] small')?.textContent.trim());
   plan === "Rehkeule · Ziel 62°" && gcalls.join() === "number.set_value:63,select.select_option:pulled_pork" && plan2 === "Pulled Pork · Ziel 63°"
     ? ok(`Grillthermometer: Sonde vorab einstellen (${plan} → ${plan2})`) : fail(`Grill einstellen: ${JSON.stringify({ plan, gcalls, plan2 })}`);
+  // Boden & Regen: Bananen zu trocken, Regensensor nass aber nicht bestätigt (Tau), Warnschwelle per +
+  const sr = await p.evaluate(() => { const r = document.querySelector("ha-soil-rain-card").shadowRoot; const t = (sel) => r.querySelector(sel)?.textContent.replace(/\s+/g, " ").trim();
+    return { sub: t(".h-sub"), val: t(".s-val"), pill: t(".s-pill"), sky: t(".sky-txt b"), dew: !!r.querySelector(".rain-box.r-dew"), facts: [...r.querySelectorAll(".fact b")].map((x) => x.textContent.trim()),
+      segs: r.querySelectorAll(".seg").length, conf: r.querySelectorAll(".seg.conf").length, chart: !!r.querySelector(".chart .line"), lock: t(".lock b") }; });
+  const k2 = await p.evaluate(() => window.serviceCalls.length);
+  await p.evaluate(() => document.querySelector("ha-soil-rain-card").shadowRoot.querySelector('.stp[data-step="number.boden_bananen_soil_warning"] [data-dir="1"]').click());
+  await p.waitForTimeout(150);
+  const srCall = await p.evaluate((k) => window.serviceCalls.slice(k).map((c) => `${c.domain}.${c.service}:${c.data.entity_id}=${c.data.value}`).join(), k2);
+  sr.sub === "Bananen zu trocken · Sensor nass, vermutlich Tau" && sr.val === "14 %" && sr.pill === "Zu trocken – unter 20 %" && sr.sky === "Es regnet" && sr.dew
+    && sr.facts.join() === "0,0 mm,3,4 mm,1,2 mm,35 %" && sr.segs === 4 && sr.conf === 1 && sr.chart && sr.lock === "Keine Regensperre"
+    && srCall === "number.set_value:number.boden_bananen_soil_warning=21"
+    ? ok(`Boden & Regen: ${sr.sub}, Zeitleiste ${sr.segs - sr.conf}+${sr.conf}, Schwelle + → 21`) : fail(`Boden & Regen: ${JSON.stringify({ ...sr, srCall })}`);
   // Mäher-Kurzbericht: mäht (Fortschritt, heute aus Zählern) und lädt (Messer-Warnung, nächster Lauf)
   const ms = await p.evaluate(() => [...document.querySelectorAll("ha-mower-summary-card")].map((c) => { const r = c.shadowRoot;
     const t = (sel) => r.querySelector(sel)?.textContent.replace(/\s+/g, " ").trim();

@@ -3097,3 +3097,60 @@ export function solarForecastEntities(states: Record<string, HassEntity>, entiti
     last_update: find(/lastupdated|last_updated|letzter_api|letzte aktualisierung|last updated|zeitpunkt_letzter/),
   };
 }
+
+// ---------- Boden & Regen ----------
+
+/** Bodenfeuchte-Sensor: Temperatur, Luftfeuchte, Batterie, „trocken“ und Warnschwelle über das Gerät */
+export const soilFeatures = (states: Record<string, HassEntity>, entities: Record<string, EntityRegistryEntry> | undefined,
+  soil: string): { temperature?: string; humidity?: string; battery?: string; dry?: string; warning?: string } => {
+  const device = entities?.[soil]?.device_id;
+  if (!device) return {};
+  const ids = Object.values(entities!).filter((e) => e.device_id === device && e.entity_id !== soil && states[e.entity_id]).map((e) => e.entity_id).sort();
+  const name = (id: string) => `${id} ${states[id]?.attributes.friendly_name ?? ""}`.toLowerCase();
+  const dc = (id: string) => states[id]?.attributes.device_class;
+  return {
+    temperature: ids.find((id) => id.startsWith("sensor.") && dc(id) === "temperature"),
+    humidity: ids.find((id) => id.startsWith("sensor.") && dc(id) === "humidity"),
+    battery: ids.find((id) => id.startsWith("sensor.") && dc(id) === "battery"),
+    dry: ids.find((id) => id.startsWith("binary_sensor.") && /dry|trocken/.test(name(id))),
+    warning: ids.find((id) => id.startsWith("number.") && /soil.?warn|warning|warnschwelle|schwelle/.test(name(id)) && !/calib|sampling/.test(name(id))),
+  };
+};
+
+/** Regensensor: Helligkeit, Batterie und Empfindlichkeit über das Gerät */
+export const rainFeatures = (states: Record<string, HassEntity>, entities: Record<string, EntityRegistryEntry> | undefined,
+  rain: string): { illuminance?: string; battery?: string; sensitivity?: string } => {
+  const device = entities?.[rain]?.device_id;
+  if (!device) return {};
+  const ids = Object.values(entities!).filter((e) => e.device_id === device && e.entity_id !== rain && states[e.entity_id]).map((e) => e.entity_id).sort();
+  const name = (id: string) => `${id} ${states[id]?.attributes.friendly_name ?? ""}`.toLowerCase();
+  const dc = (id: string) => states[id]?.attributes.device_class;
+  return {
+    illuminance: ids.find((id) => id.startsWith("sensor.") && dc(id) === "illuminance"),
+    battery: ids.find((id) => id.startsWith("sensor.") && dc(id) === "battery"),
+    sensitivity: ids.find((id) => id.startsWith("number.") && /sensitiv|empfindlich/.test(name(id))),
+  };
+};
+
+/** Regensensor-Zustand: raining/rain/wet/on → Regen; none/dry/off → trocken; sonst unbekannt */
+export const isRaining = (state?: string): boolean | undefined => {
+  const s = (state ?? "").toLowerCase();
+  if (["raining", "rain", "rainy", "wet", "on", "regen", "nass", "true"].includes(s)) return true;
+  if (["none", "dry", "off", "trocken", "false", "no_rain"].includes(s)) return false;
+  return undefined;
+};
+
+/** Zeitabschnitte aus einem Verlauf, in denen `test` zutrifft (für die Regen-Zeitleiste) */
+export const stateSegments = (points: { t: number; s: string }[], start: number, end: number,
+  test: (s: string) => boolean): { from: number; to: number }[] => {
+  const out: { from: number; to: number }[] = [];
+  const pts = [...points].sort((a, b) => a.t - b.t);
+  for (let i = 0; i < pts.length; i++) {
+    if (!test(pts[i]!.s)) continue;
+    const from = Math.max(start, pts[i]!.t), to = Math.min(end, pts[i + 1]?.t ?? end);
+    if (to <= from) continue;
+    const last = out[out.length - 1];
+    if (last && last.to >= from) last.to = Math.max(last.to, to); else out.push({ from, to });
+  }
+  return out;
+};

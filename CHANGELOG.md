@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.51.0 – Boden & Regen
+- Neue **Modern Soil & Rain Card** (`custom:ha-soil-rain-card`): Bodenfeuchte als Erdsäule mit Wasserstand und Warnschwelle (−/+ direkt in der Karte), Status, Temperatur/Luftfeuchte/Batterie, 7-Tage-Verlauf; Regensensor mit animiertem Himmel, Bestätigung durch den Wetterdienst oder „vermutlich Tau“, Regen heute/gestern/erwartet/Wahrscheinlichkeit, Regensperre mit Grund, 48-h-Zeitleiste und Empfindlichkeit (−/+) – Zusatzwerte automatisch über das Gerät
+
 ## 1.50.1
 - Pool Card: „Solar-Modus nicht aktiv“ erschien, wenn keine Betriebsart (`mode`) konfiguriert ist – der Hinweis kommt jetzt nur noch, wenn die Betriebsart bekannt ist und nicht auf Solar steht (auch „Solar-Automatik“ zählt als Solar)
 

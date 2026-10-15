@@ -443,6 +443,24 @@
       "time.goat_g1_animal_protection_end": { state: "07:00:00", attributes: { friendly_name: "Animal protection end" } },
       "sensor.goat_g1_live_map": { state: "live", attributes: { friendly_name: "Live map", current_position: { x: 2, y: 0, a: 0, invalid: 0 }, info: { outline: [] }, trace: { path: [] } } },
       "update.goat_g1_update": { state: "on", attributes: { friendly_name: "GOAT G1 Update", installed_version: "1.2.0", latest_version: "1.3.1" } },
+      // Boden & Regen: Bodenfeuchte-Sensor (Bananen, zu trocken) und Tuya-Regensensor (Tau, Wetterdienst sieht keinen Regen)
+      "sensor.boden_bananen_soil_moisture": { state: "14", attributes: { friendly_name: "Boden Bananen Feuchtigkeit", unit_of_measurement: "%", device_class: "moisture" } },
+      "sensor.boden_bananen_temperature": { state: "9.3", attributes: { friendly_name: "Boden Bananen Temperatur", unit_of_measurement: "°C", device_class: "temperature" } },
+      "sensor.boden_bananen_humidity": { state: "89", attributes: { friendly_name: "Boden Bananen Luftfeuchtigkeit", unit_of_measurement: "%", device_class: "humidity" } },
+      "sensor.boden_bananen_battery": { state: "100", attributes: { friendly_name: "Boden Bananen Batterie", unit_of_measurement: "%", device_class: "battery" } },
+      "binary_sensor.boden_bananen_dry": { state: "on", attributes: { friendly_name: "Boden Bananen Dry" } },
+      "number.boden_bananen_soil_warning": { state: "20", attributes: { friendly_name: "Boden Bananen Soil warning", min: 0, max: 100, step: 1, unit_of_measurement: "%" } },
+      "number.boden_bananen_soil_calibration": { state: "0", attributes: { friendly_name: "Boden Bananen Soil calibration", min: -30, max: 30, step: 1 } },
+      "sensor.regensensor_rainwater": { state: "raining", attributes: { friendly_name: "Regensensor Rainwater" }, last_changed: new Date(Date.now() - 95 * 60000).toISOString() },
+      "sensor.regensensor_illuminance": { state: "1240", attributes: { friendly_name: "Regensensor Beleuchtungsstärke", unit_of_measurement: "lx", device_class: "illuminance" } },
+      "sensor.regensensor_battery": { state: "75", attributes: { friendly_name: "Regensensor Batterie", unit_of_measurement: "%", device_class: "battery" } },
+      "number.regensensor_sensitivity": { state: "4", attributes: { friendly_name: "Regensensor Sensitivity", min: 0, max: 9, step: 1 } },
+      "binary_sensor.regensensor_plausibel": { state: "off", attributes: { friendly_name: "Regensensor plausibel", device_class: "moisture" } },
+      "binary_sensor.smarte_bewasserung_regensperre": { state: "off", attributes: { friendly_name: "Smarte Bewässerung Regensperre", device_class: "moisture" } },
+      "sensor.smarte_bewasserung_regen_heute": { state: "0.0", attributes: { friendly_name: "Regen heute", unit_of_measurement: "mm" } },
+      "sensor.smarte_bewasserung_regen_gestern": { state: "3.4", attributes: { friendly_name: "Regen gestern", unit_of_measurement: "mm" } },
+      "sensor.smarte_bewasserung_regenvorhersage_24_h": { state: "1.2", attributes: { friendly_name: "Regenvorhersage 24 h", unit_of_measurement: "mm" } },
+      "sensor.smarte_bewasserung_regenwahrscheinlichkeit_24_h": { state: "35", attributes: { friendly_name: "Regenwahrscheinlichkeit 24 h", unit_of_measurement: "%" } },
       // Mäher-Kurzbericht: Ecovacs GOAT wie im Garten (lädt nach dem Lauf, Messer fast verbraucht, nächster Lauf per input_datetime)
       "lawn_mower.leopard": { state: "docked", attributes: { friendly_name: "Leopard", supported_features: 7 } },
       "sensor.leopard_batterie": { state: "78", attributes: { friendly_name: "Leopard Batterie", unit_of_measurement: "%", device_class: "battery" } },
@@ -885,6 +903,8 @@
       ...(/^sensor\.speedtest_/.test(id) ? { device_id: "dev_speedtest", platform: "speedtestdotnet", translation_key: id.replace("sensor.speedtest_", "") } : {}),
       ...(/^\w+\.goat_(g1|wiese|a1600)/.test(id) ? { device_id: "dev_" + id.match(/goat_(g1|wiese|a1600)/)[0] } : {}),
       ...(/^\w+\.leopard_?/.test(id) ? { device_id: "dev_leopard", platform: "ecovacs" } : {}),
+      ...(/^\w+\.boden_bananen_/.test(id) ? { device_id: "dev_boden_bananen", platform: "mqtt" } : {}),
+      ...(/^\w+\.regensensor_(rainwater|illuminance|battery|sensitivity)$/.test(id) ? { device_id: "dev_regensensor", platform: "mqtt" } : {}),
       area_id: /heizung_mein_zimmer|etrv_|wandthermostat_mein|_mein_zimmer_batter|zimmer_schalter_batter|turkontakt_mein_zimmer_batter/.test(id) ? "mein_zimmer" : null }]));
     const devices = { cam_haus: { id: "cam_haus", name: "Haus" }, blink_tor: { id: "blink_tor", name: "Tor" }, blink_carport: { id: "blink_carport", name: "Carport" },
       blink_pool: { id: "blink_pool", name: "Pool" }, blink_schuppen: { id: "blink_schuppen", name: "Schuppen" }, dev_opener: { id: "dev_opener", name: "Klingel", model: "Nuki Opener" }, dev_gree: { id: "dev_gree", name: "Klima Schlafzimmer" }, dev_govee: { id: "dev_govee", name: "Carport" },
@@ -1345,6 +1365,17 @@
           }
           return out;
         }
+        // Boden & Regen: Bodenfeuchte 7 Tage (fällt, nach Gießen wieder hoch), Regensensor + Bestätigung 48 h
+        if (msg.entity_ids.includes("sensor.boden_bananen_soil_moisture") || msg.entity_ids.includes("sensor.regensensor_rainwater")) {
+          const now = Date.now() / 1000;
+          for (const id of msg.entity_ids) {
+            if (id === "sensor.boden_bananen_soil_moisture") out[id] = Array.from({ length: 85 }, (_, i) => ({ s: String(Math.round(i < 40 ? 42 - i * 0.6 : i < 44 ? 48 : 48 - (i - 44) * 0.82)), lu: now - (84 - i) * 7200 }));
+            else if (id === "sensor.regensensor_rainwater") out[id] = [{ s: "none", lu: now - 48 * 3600 }, { s: "raining", lu: now - 30 * 3600 }, { s: "none", lu: now - 26 * 3600 },
+              { s: "raining", lu: now - 8 * 3600 }, { s: "none", lu: now - 6.5 * 3600 }, { s: "raining", lu: now - 1.6 * 3600 }];
+            else if (id === "binary_sensor.regensensor_plausibel") out[id] = [{ s: "off", lu: now - 48 * 3600 }, { s: "on", lu: now - 29.5 * 3600 }, { s: "off", lu: now - 26 * 3600 }];
+          }
+          return out;
+        }
         // Mäher: Zählerstände ab Mitternacht (heute 2 Läufe, 412 m², 2,1 h)
         if (msg.entity_ids.some((id) => /^sensor\.(leopard|goat_wiese)_(gemahte_flache_gesamt|mahdauer_gesamt|mahvorgange|total_)/.test(id))) {
           const t0 = new Date(msg.start_time).getTime() / 1000;
@@ -1536,6 +1567,10 @@
       ["KI-Timeline – LLM Vision: neuestes Ereignis mit Bild, Filter, Zeitleiste nach Tagen, Detail beim Antippen", { _llm: true, entity: "calendar.llm_vision_timeline" }],
       ["Starlink + Speedtest – Live-Durchsatz, Ping, Speedtest mit Verlauf und „Jetzt testen“, Verstauen/Neustart", { _starlink: true, entity: "binary_sensor.starlink_konnektivitat", speedtest: "sensor.speedtest_download" }],
       ["Starlink – Camper mit Sichtbehinderung und Heizung (ohne Speedtest)", { _starlink: true, entity: "binary_sensor.starlink_camper_konnektivitat", name: "Camper" }],
+      ["Boden & Regen – Bananen zu trocken, Regensensor meldet Tau (nicht bestätigt)", { _soil: true, soil: [{ entity: "sensor.boden_bananen_soil_moisture", name: "Bananen" }],
+        rain: { entity: "sensor.regensensor_rainwater", confirmed: "binary_sensor.regensensor_plausibel", lock: "binary_sensor.smarte_bewasserung_regensperre",
+          rain_today: "sensor.smarte_bewasserung_regen_heute", rain_yesterday: "sensor.smarte_bewasserung_regen_gestern", forecast: "sensor.smarte_bewasserung_regenvorhersage_24_h",
+          probability: "sensor.smarte_bewasserung_regenwahrscheinlichkeit_24_h" }, note: "Regen zählt nur, wenn auch der Wetterdienst Regen meldet – Tau sperrt nicht." }],
       ["Mäher-Kurzbericht – mäht gerade (Fortschritt, heute gemäht, Messer)", { _mowsum: true, entity: "lawn_mower.goat_wiese", name: "GOAT Wiese" }],
       ["Mäher-Kurzbericht – lädt nach dem Lauf, Messer fast verbraucht, nächster Lauf morgen", { _mowsum: true, entity: "lawn_mower.leopard", next_run: "input_datetime.maher_nachster_lauf" }],
       ["Mähroboter – mäht gerade (Live-Karte, Fortschritt, Statistik, Wartung, Einstellungen)", { _mower: true, entity: "lawn_mower.goat_wiese", name: "GOAT Wiese" }],
@@ -1573,9 +1608,9 @@
         grid.appendChild(wrap);
         return;
       }
-      const { _overview, _light, _group, _cover, _coverGroup, _switchTime, _media, _room, _status, _vacuum, _presence, _alert, _energy, _irrigation, _pool, _camera, _cameraGroup, _select, _mower, _starlink, _llm, _hbat, _system, _weather, _agenda, _devstatus, _recipe, _scene, _sleep, _crooms, _eweek, _parcel, _router, _lock, _temp, _net, _plug, _grill, _poolCare, _solar, _mowsum, ...rest } = cfg;
+      const { _overview, _light, _group, _cover, _coverGroup, _switchTime, _media, _room, _status, _vacuum, _presence, _alert, _energy, _irrigation, _pool, _camera, _cameraGroup, _select, _mower, _starlink, _llm, _hbat, _system, _weather, _agenda, _devstatus, _recipe, _scene, _sleep, _crooms, _eweek, _parcel, _router, _lock, _temp, _net, _plug, _grill, _poolCare, _solar, _mowsum, _soil, ...rest } = cfg;
       const tag = _overview ? "ha-climate-overview-card" : _group ? "ha-light-group-card" : _light ? "ha-light-card"
-        : _cover ? "ha-cover-card" : _coverGroup ? "ha-cover-group-card" : _switchTime ? "ha-switch-time-card" : _media ? "ha-media-card" : _room ? "ha-room-card" : _status ? "ha-status-card" : _vacuum ? "ha-vacuum-card" : _presence ? "ha-presence-card" : _alert ? "ha-alert-card" : _energy ? "ha-energy-card" : _irrigation ? "ha-irrigation-card" : _pool ? "ha-pool-card" : _camera ? "ha-camera-card" : _cameraGroup ? "ha-camera-group-card" : _select ? "ha-select-card" : _mower ? "ha-mower-card" : _starlink ? "ha-starlink-card" : _llm ? "ha-llm-timeline-card" : _hbat ? "ha-home-battery-card" : _system ? "ha-system-card" : _weather ? "ha-weather-card" : _agenda ? "ha-agenda-card" : _devstatus ? "ha-device-status-card" : _recipe ? "ha-recipe-card" : _scene ? "ha-scene-card" : _sleep ? "ha-sleep-card" : _crooms ? "ha-climate-rooms-card" : _eweek ? "ha-energy-week-card" : _parcel ? "ha-parcel-card" : _router ? "ha-router-card" : _lock ? "ha-lock-card" : _temp ? "ha-temperature-card" : _net ? "ha-network-card" : _plug ? "ha-plug-card" : _grill ? "ha-grill-card" : _mowsum ? "ha-mower-summary-card" : _poolCare ? "ha-pool-care-card" : _solar ? "ha-solar-forecast-card" : "ha-climate-card";
+        : _cover ? "ha-cover-card" : _coverGroup ? "ha-cover-group-card" : _switchTime ? "ha-switch-time-card" : _media ? "ha-media-card" : _room ? "ha-room-card" : _status ? "ha-status-card" : _vacuum ? "ha-vacuum-card" : _presence ? "ha-presence-card" : _alert ? "ha-alert-card" : _energy ? "ha-energy-card" : _irrigation ? "ha-irrigation-card" : _pool ? "ha-pool-card" : _camera ? "ha-camera-card" : _cameraGroup ? "ha-camera-group-card" : _select ? "ha-select-card" : _mower ? "ha-mower-card" : _starlink ? "ha-starlink-card" : _llm ? "ha-llm-timeline-card" : _hbat ? "ha-home-battery-card" : _system ? "ha-system-card" : _weather ? "ha-weather-card" : _agenda ? "ha-agenda-card" : _devstatus ? "ha-device-status-card" : _recipe ? "ha-recipe-card" : _scene ? "ha-scene-card" : _sleep ? "ha-sleep-card" : _crooms ? "ha-climate-rooms-card" : _eweek ? "ha-energy-week-card" : _parcel ? "ha-parcel-card" : _router ? "ha-router-card" : _lock ? "ha-lock-card" : _temp ? "ha-temperature-card" : _net ? "ha-network-card" : _plug ? "ha-plug-card" : _grill ? "ha-grill-card" : _mowsum ? "ha-mower-summary-card" : _soil ? "ha-soil-rain-card" : _poolCare ? "ha-pool-care-card" : _solar ? "ha-solar-forecast-card" : "ha-climate-card";
       const card = document.createElement(tag);
       card.id = "card" + i;
       card.setConfig({ type: `custom:${tag}`, ...rest });

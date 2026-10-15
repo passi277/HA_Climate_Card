@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { HassEntity } from "../src/types";
 import {
-  batteryHoursLeft, consumerGrid, formatHours, integratePower, statsEnergy, flowLpm, timerInfo, formatRemaining, rangeStatus, phDose, poolRuntimeRecommendation, cameraFeatures, wifiQuality, optionStyle, musicModes, isMusicEffect, energyFlows, formatPower, powerWatts, alertActive, batteryShoppingList, clockMinutes, upcomingPickups, wasteStyle, batteryIcon, doorDevices, doorKind, initials, isCharging, phoneSensors, brightnessPct, contactType, calibrationTransform, roomsFromMap, roomIcon, areaBatteries, batteryInfo, batteryNotesFor, mowerFeatures, mowerPhase, mowerSummaryFeatures, nextRunTime, counterSince, mowerMood, mapGeometry, mowerAreas, polygonSize, extendTrail, presetActive, presetData, DEFAULT_LIGHT_PRESETS, activityIcon, activityLabel, guessControlDevice, guessVolumeDevice, coverIcon, datetimeParts, nextOccurrence, coverPosition, skyPhase, sunPlacement, weatherOverlay, editorOptions, isNoEffect, lightEditorOptions, segmentIds, detectDeviceType, kelvinToRgb, lightColor, relatedScenes, supportsColor, supportsColorTemp, dewPoint, nextSwitch, parseSchedule, scheduleTempAt, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
+  batteryHoursLeft, consumerGrid, formatHours, integratePower, statsEnergy, flowLpm, timerInfo, formatRemaining, rangeStatus, phDose, poolRuntimeRecommendation, cameraFeatures, wifiQuality, optionStyle, musicModes, isMusicEffect, energyFlows, formatPower, powerWatts, alertActive, batteryShoppingList, clockMinutes, upcomingPickups, wasteStyle, batteryIcon, doorDevices, doorKind, initials, isCharging, phoneSensors, brightnessPct, contactType, calibrationTransform, roomsFromMap, roomIcon, areaBatteries, batteryInfo, batteryNotesFor, mowerFeatures, mowerPhase, mowerSummaryFeatures, nextRunTime, counterSince, mowerMood, soilFeatures, rainFeatures, isRaining, stateSegments, mapGeometry, mowerAreas, polygonSize, extendTrail, presetActive, presetData, DEFAULT_LIGHT_PRESETS, activityIcon, activityLabel, guessControlDevice, guessVolumeDevice, coverIcon, datetimeParts, nextOccurrence, coverPosition, skyPhase, sunPlacement, weatherOverlay, editorOptions, isNoEffect, lightEditorOptions, segmentIds, detectDeviceType, kelvinToRgb, lightColor, relatedScenes, supportsColor, supportsColorTemp, dewPoint, nextSwitch, parseSchedule, scheduleTempAt, durationToSeconds, effectiveAction, etaMinutes, inferAction, isActive, modeColor,
   llmEvents, llmCategory, snapshotMediaId, dayGroups, homeBatteryFeatures, batteryEta, batteryStatusKey,
   nextPickups, eventStart, daysUntil, offlineDevices, platformName,
   routerFeatures, routerClients, clientIcon, formatKbit, wifiLabel,
@@ -1504,3 +1504,27 @@ describe("mower summary", () => {
     expect(mowerMood("unknown")).toBe("unknown");
   });
 });
+
+describe("soil & rain", () => {
+  const st = (id: string, state: string, attributes: Record<string, unknown> = {}) => ({ entity_id: id, state, attributes, last_changed: "", last_updated: "" });
+  const list: [string, string, Record<string, unknown>?][] = [
+    ["sensor.b_soil_moisture", "3", { device_class: "moisture" }], ["sensor.b_temperature", "9", { device_class: "temperature" }],
+    ["sensor.b_humidity", "89", { device_class: "humidity" }], ["sensor.b_battery", "100", { device_class: "battery" }],
+    ["binary_sensor.b_dry", "on"], ["number.b_soil_calibration", "0"], ["number.b_soil_warning", "20"],
+    ["sensor.r_rainwater", "none"], ["sensor.r_illuminance", "0", { device_class: "illuminance" }], ["sensor.r_battery", "75", { device_class: "battery" }],
+    ["number.r_sensitivity", "4"], ["number.r_illuminance_sampling", "10"],
+  ];
+  const states = Object.fromEntries(list.map(([id, s, a]) => [id, st(id, s, a)])) as any;
+  const entities = Object.fromEntries(list.map(([id]) => [id, { entity_id: id, device_id: id.split(".")[1]!.split("_")[0] }])) as any;
+  it("finds soil and rain sensor entities via the device", () => {
+    expect(soilFeatures(states, entities, "sensor.b_soil_moisture")).toEqual({ temperature: "sensor.b_temperature", humidity: "sensor.b_humidity",
+      battery: "sensor.b_battery", dry: "binary_sensor.b_dry", warning: "number.b_soil_warning" });
+    expect(rainFeatures(states, entities, "sensor.r_rainwater")).toEqual({ illuminance: "sensor.r_illuminance", battery: "sensor.r_battery", sensitivity: "number.r_sensitivity" });
+  });
+  it("maps rain states and builds segments", () => {
+    expect([isRaining("raining"), isRaining("none"), isRaining("on"), isRaining("unknown")]).toEqual([true, false, true, undefined]);
+    const pts = [{ t: 0, s: "none" }, { t: 10, s: "raining" }, { t: 20, s: "raining" }, { t: 30, s: "none" }, { t: 50, s: "raining" }];
+    expect(stateSegments(pts, 5, 60, (x) => isRaining(x) === true)).toEqual([{ from: 10, to: 30 }, { from: 50, to: 60 }]);
+  });
+});
+

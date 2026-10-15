@@ -829,6 +829,53 @@ export interface MowerSummaryCardConfig {
   [key: string]: unknown;
 }
 
+export interface SoilSensorConfig {
+  /** sensor.* Bodenfeuchte in % */
+  entity: string;
+  name?: string;
+  temperature?: string;
+  humidity?: string;
+  battery?: string;
+  dry?: string;
+  /** number.* Warnschwelle (wird per −/+ in der Karte eingestellt) */
+  warning?: string;
+  /** feste Warnschwelle, falls keine number-Entität */
+  warn_below?: number;
+}
+
+export interface RainSensorConfig {
+  /** Regensensor (sensor/binary_sensor) */
+  entity: string;
+  name?: string;
+  /** binary_sensor: Regen vom Wetterdienst bestätigt */
+  confirmed?: string;
+  /** binary_sensor: Bewässerung gesperrt */
+  lock?: string;
+  lock_reason?: string;
+  last_rain?: string;
+  rain_today?: string;
+  rain_yesterday?: string;
+  forecast?: string;
+  probability?: string;
+  illuminance?: string;
+  battery?: string;
+  sensitivity?: string;
+}
+
+export interface SoilRainCardConfig {
+  type: string;
+  title?: string;
+  soil?: (string | SoilSensorConfig)[];
+  rain?: string | RainSensorConfig;
+  /** Tage im Bodenfeuchte-Verlauf (Standard 7) */
+  days?: number;
+  /** Stunden in der Regen-Zeitleiste (Standard 48) */
+  rain_hours?: number;
+  note?: string;
+  animations?: "full" | "reduced" | "off";
+  [key: string]: unknown;
+}
+
 export interface StarlinkFeatures {
   online?: string;
   ping?: string;
