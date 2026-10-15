@@ -81,7 +81,7 @@ export class HaPoolCard extends LitElement {
   private _ids(): string[] {
     const c = this._config!;
     return [c.pump, c.pump_power, c.mode, c.start_time, c.target_runtime, c.recommended_runtime, c.runtime_today, c.temperature, c.ph, c.orp, c.guidance,
-      c.last_measurement, c.measurement_stale, c.quality, c.energy_today, c.cost_today, c.solar_power, c.solar_savings, c.auto_off,
+      c.last_measurement, c.measurement_stale, c.quality, c.energy_today, c.cost_today, c.solar_power, c.solar_savings, c.solar_forecast, c.auto_off,
       c.backwash?.due, c.backwash?.hours, c.backwash?.last, c.backwash?.timer, c.rinse?.timer].filter(Boolean) as string[];
   }
 
@@ -403,6 +403,85 @@ export class HaPoolCard extends LitElement {
     </div>`;
   }
 
+  private _hm(d: Date): string {
+    return d.toLocaleTimeString(getLanguage(this.hass), { hour: "2-digit", minute: "2-digit" });
+  }
+
+  private _renderSolar(mode?: string) {
+    const c = this._config!;
+    const st = this._st(c.solar_forecast);
+    if (!st || !Array.isArray(st.attributes.curve)) return nothing;
+    const a = st.attributes;
+    const date = (v: unknown) => (typeof v === "string" && v ? new Date(v) : undefined);
+    const now = Date.now();
+    const start = date(UNAVAILABLE.includes(st.state) ? undefined : st.state);
+    const end = date(a.end);
+    const tStart = date(a.tomorrow_start);
+    const hours = Number(a.hours_today ?? 0);
+    const tHours = Number(a.tomorrow_hours ?? 0);
+    const running = a.running === true;
+    const todayLeft = running || (a.today === true && start != null);
+    const h = (x: number) => `${this._fmt(x)} h`;
+    let main: string;
+    let sub: string;
+    if (running) {
+      main = this._t("solar_running");
+      sub = end ? `${this._t("solar_until")} ${this._hm(end)} · ~${h(hours)}` : `~${h(hours)}`;
+    } else if (todayLeft && start) {
+      main = `${this._t("solar_start")} ${this._hm(start)}`;
+      sub = `${end ? `${this._t("solar_until")} ${this._hm(end)} · ` : ""}~${h(hours)}`;
+    } else if (tStart) {
+      main = this._t("solar_none_today");
+      sub = `${this._t("solar_tomorrow")} ${this._hm(tStart)} · ~${h(tHours)}`;
+    } else {
+      main = this._t("solar_none");
+      sub = this._t("solar_none_sub");
+    }
+
+    // Kurve des angezeigten Tages (heute, sonst morgen)
+    const day = new Date(todayLeft || !tStart ? now : tStart.getTime());
+    const dayKey = day.toDateString();
+    const pts = (a.curve as [string, number][]).map(([t, w]) => ({ t: new Date(t).getTime(), w: Number(w) || 0 }))
+      .filter((p) => new Date(p.t).toDateString() === dayKey);
+    let first = pts.findIndex((p) => p.w > 0);
+    let last = pts.length - 1 - [...pts].reverse().findIndex((p) => p.w > 0);
+    const threshold = Number(a.threshold ?? 0);
+    let chart: unknown = nothing;
+    if (first >= 0 && last >= first) {
+      first = Math.max(0, first - 1);
+      last = Math.min(pts.length - 1, last + 1);
+      const shown = pts.slice(first, last + 1);
+      const step = shown.length > 1 ? shown[1]!.t - shown[0]!.t : 1800_000;
+      const t0 = shown[0]!.t;
+      const t1 = shown[shown.length - 1]!.t + step;
+      const max = Math.max(threshold * 1.6, ...shown.map((p) => p.w), 1);
+      const x = (t: number) => ((t - t0) / (t1 - t0)) * 200;
+      const y = (w: number) => 50 - (w / max) * 46;
+      const bw = (step / (t1 - t0)) * 200;
+      const wins: [Date, Date][] = todayLeft || !tStart
+        ? ((a.windows as [string, string][] | undefined) ?? []).map(([s1, e1]) => [new Date(s1), new Date(e1)])
+        : tStart && date(a.tomorrow_end) ? [[tStart, date(a.tomorrow_end)!]] : [];
+      const label = (t: number) => new Date(t).toLocaleTimeString(getLanguage(this.hass), { hour: "2-digit" });
+      chart = html`<svg class="sol-chart" viewBox="0 0 200 52" preserveAspectRatio="none" aria-hidden="true">
+          ${wins.map(([ws, we]) => svg`<rect class="sol-win" x=${x(Math.max(t0, ws.getTime())).toFixed(1)} y="0" height="52"
+            width=${Math.max(0, x(Math.min(t1, we.getTime())) - x(Math.max(t0, ws.getTime()))).toFixed(1)}></rect>`)}
+          ${shown.map((p) => svg`<rect class="sol-bar ${p.w >= threshold ? "hi" : ""} ${p.t + step <= now ? "past" : ""}"
+            x=${(x(p.t) + bw * 0.12).toFixed(1)} width=${(bw * 0.76).toFixed(1)} y=${y(p.w).toFixed(1)} height=${(50 - y(p.w)).toFixed(1)} rx="0.8"></rect>`)}
+          ${threshold ? svg`<line class="sol-thr" x1="0" x2="200" y1=${y(threshold).toFixed(1)} y2=${y(threshold).toFixed(1)}></line>` : nothing}
+          ${now > t0 && now < t1 ? svg`<line class="sol-now" x1=${x(now).toFixed(1)} x2=${x(now).toFixed(1)} y1="0" y2="52"></line>` : nothing}
+        </svg>
+        <span class="sol-axis"><span>${label(t0)}</span><span>${this._t(todayLeft || !tStart ? "solar_day_today" : "solar_day_tomorrow")} · ${this._t("solar_threshold").replace("{w}", String(Math.round(threshold)))}</span><span>${label(t1)}</span></span>`;
+    }
+    const isSolar = mode === "solar";
+    return html`<div class="solar ${isSolar ? "active" : ""}">
+      <button class="sol-head" @click=${() => this._moreInfo(c.solar_forecast)}>
+        <ha-icon .icon=${running ? "mdi:solar-power" : "mdi:weather-sunset-up"}></ha-icon>
+        <span class="sol-text"><b>${main}</b><span>${sub}${isSolar ? "" : ` · ${this._t("solar_not_active")}`}</span></span>
+      </button>
+      ${chart}
+    </div>`;
+  }
+
   private _renderTarget() {
     const c = this._config!;
     const st = this._st(c.target_runtime);
@@ -548,6 +627,7 @@ export class HaPoolCard extends LitElement {
       ${this._open && c[this._open] ? this._renderHistory(this._open) : nothing}
       ${this._renderGuidance()}
       ${this._renderRuntime(pumpOn)}
+      ${this._renderSolar(modeSt?.state)}
       ${modeSt && Array.isArray(modeSt.attributes.options) ? html`<div class="modes" role="radiogroup" aria-label=${this._t("mode")}>
         ${(modeSt.attributes.options as string[]).map((o) => html`<button class="mode ${modeSt.state === o ? "sel" : ""}" role="radio" aria-checked=${modeSt.state === o}
           @click=${() => this._selectMode(o)}>${o}</button>`)}</div>` : nothing}
@@ -661,6 +741,23 @@ export class HaPoolCard extends LitElement {
     .rt-stats { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 3px; }
     .rt-stat { display: inline-flex; align-items: center; gap: 3px; font-size: 12.5px; font-weight: 600; white-space: nowrap; }
     .rt-stat ha-icon { --mdc-icon-size: 15px; color: var(--sc); }
+
+    /* Solar-Prognose */
+    .solar { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: var(--hcc-inner-radius, 14px);
+      background: color-mix(in srgb, #ffa000 9%, transparent); }
+    .sol-head { display: flex; align-items: center; gap: 10px; border: none; background: none; padding: 0; cursor: pointer; text-align: left; color: inherit; }
+    .sol-head ha-icon { --mdc-icon-size: 22px; color: #ffa000; flex: none; }
+    .sol-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; font-size: 12.5px; color: var(--secondary-text-color); }
+    .sol-text b { font-size: 14px; color: var(--primary-text-color); }
+    .sol-chart { width: 100%; height: 52px; display: block; }
+    .sol-bar { fill: color-mix(in srgb, #ffa000 32%, transparent); }
+    .sol-bar.hi { fill: #ffa000; }
+    .sol-bar.past { opacity: 0.45; }
+    .sol-win { fill: color-mix(in srgb, #ffa000 13%, transparent); }
+    .sol-thr { stroke: var(--secondary-text-color); stroke-width: 0.6; stroke-dasharray: 2 2; vector-effect: non-scaling-stroke; }
+    .sol-now { stroke: var(--primary-text-color); stroke-width: 1; vector-effect: non-scaling-stroke; }
+    .sol-axis { display: flex; justify-content: space-between; font-size: 11px; color: var(--secondary-text-color); margin-top: -2px; }
+    .solar:not(.active) { opacity: 0.85; }
 
     /* Modus */
     .modes { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0 -4px; padding: 2px 4px; scroll-snap-type: x proximity; }

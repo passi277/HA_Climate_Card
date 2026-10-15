@@ -638,6 +638,8 @@ export interface PoolCardConfig {
   cost_today?: string;
   solar_power?: string;
   solar_savings?: string;
+  /** Smart Pool „Solar-Start Prognose“ (Attribute end, hours_today, tomorrow_start, curve …) */
+  solar_forecast?: string;
   /** Auto-Aus bei Störung (input_boolean) */
   auto_off?: string;
   backwash?: { due?: string; hours?: string; interval?: number; last?: string; done_button?: string; script?: string; timer?: string };

@@ -830,7 +830,18 @@
     "auto_off": "Auto-Aus bei Störung",
     "auto_off_hint": "schaltet ab, wenn die Pumpe nicht erreichbar ist",
     "temp_short": "Temp.",
-    "backwash_days": "{d} Tage seit Rückspülen (spätestens nach {m})"
+    "backwash_days": "{d} Tage seit Rückspülen (spätestens nach {m})",
+    "solar_running": "Läuft mit Sonne",
+    "solar_until": "bis ca.",
+    "solar_start": "Solar-Start ca.",
+    "solar_none_today": "Heute kein Solarstart mehr",
+    "solar_tomorrow": "Morgen ca.",
+    "solar_none": "Kein Solarstart in Sicht",
+    "solar_none_sub": "Prognose zu schwach für die Startschwelle",
+    "solar_threshold": "Schwelle {w} W",
+    "solar_not_active": "Solar-Modus nicht aktiv",
+    "solar_day_today": "Heute",
+    "solar_day_tomorrow": "Morgen"
   },
   "pool_editor": {
     "title": "Titel",

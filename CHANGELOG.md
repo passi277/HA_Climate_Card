@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.50.0 – Pool: Solar-Start-Prognose
+- Pool Card: neue Option `solar_forecast` (Smart Pool „Solar-Start Prognose“) – zeigt, wann der Solar-Modus voraussichtlich startet und stoppt, wie viele Stunden mit Sonne zusammenkommen, oder den Ausblick auf morgen; dazu die PV-Kurve des Tages mit Startschwelle, erwarteten Laufzeiten und Jetzt-Markierung
+
 ## 1.49.0 – Mäher-Kurzbericht
 - Neue **Modern Mower Summary** (`custom:ha-mower-summary-card`): Akkuring (pulsiert beim Laden), Status mit animierter Szene (mäht, fährt zur Station, lädt, parkt, Regenpause, pausiert, Fehler), heute gemähte Fläche mit Mähdauer und Läufen (aus den Gesamtzählern seit Mitternacht), Messer-Restlaufzeit mit Warnung „Bald tauschen“, nächster geplanter Lauf (Zeitstempel, input_datetime, Zeitplan oder Kalender), Fortschritt beim Mähen – alles automatisch über das Gerät
 - Mower Card: „Mähvorgänge“ und „Auftragsfläche“ (Ecovacs, deutsch) werden erkannt; die Messer-Restlaufzeit wird nicht mehr als Mähdauer des Laufs angezeigt

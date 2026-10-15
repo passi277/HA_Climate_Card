@@ -627,6 +627,14 @@
       "sensor.pool_energie": { state: "0.14", attributes: { friendly_name: "Pool Energie heute", unit_of_measurement: "kWh" } },
       "sensor.pool_kosten": { state: "0.04", attributes: { friendly_name: "Pool Kosten heute", unit_of_measurement: "EUR" } },
       "sensor.pool_solar": { state: "52", attributes: { friendly_name: "Pool Solar", unit_of_measurement: "W" } },
+      "sensor.pool_solar_prognose": (() => {
+        const d0 = new Date(); d0.setHours(0, 0, 0, 0);
+        const at = (day, h, m = 0) => new Date(d0.getTime() + day * 86400e3 + (h * 60 + m) * 60e3).toISOString();
+        const kw = { 18: 0.3, 19: 0.45, 20: 0.6, 21: 0.8, 22: 1.0, 23: 1.1, 24: 1.1, 25: 1.0, 26: 0.9, 27: 0.7, 28: 0.5, 29: 0.3 };
+        const curve = [0, 1].flatMap((day) => Array.from({ length: 48 }, (_, i) => [at(day, 0, i * 30), day ? Math.round((kw[i] ?? 0) * 1000) : 0]));
+        return { state: at(1, 9, 40), attributes: { friendly_name: "Pool Solar-Start Prognose", device_class: "timestamp", running: false, today: false,
+          end: null, hours_today: 0, tomorrow_start: at(1, 9, 40), tomorrow_end: at(1, 14, 40), tomorrow_hours: 5, windows: [], threshold: 400, factor: 0.92, curve } };
+      })(),
       "sensor.pool_ersparnis": { state: "0.02", attributes: { friendly_name: "Pool Ersparnis", unit_of_measurement: "€/h" } },
       "input_boolean.pool_auto_aus": { state: "on", attributes: { friendly_name: "Auto-Aus bei Störung" } },
       "binary_sensor.pool_rueckspuelen_faellig": { state: "off", attributes: { friendly_name: "Rückspülen fällig", device_class: "problem" } },
@@ -1460,7 +1468,7 @@
         temperature: "sensor.pool_wassertemperatur", ph: "sensor.pool_ph_wert", orp: "sensor.pool_redox", guidance: "sensor.pool_hinweis",
         last_measurement: "sensor.pool_messung", measurement_stale: "binary_sensor.pool_messung_alt", quality: "sensor.pool_qualitaet",
         energy_today: "sensor.pool_energie", cost_today: "sensor.pool_kosten", solar_power: "sensor.pool_solar", solar_savings: "sensor.pool_ersparnis",
-        auto_off: "input_boolean.pool_auto_aus",
+        solar_forecast: "sensor.pool_solar_prognose", auto_off: "input_boolean.pool_auto_aus",
         backwash: { due: "binary_sensor.pool_rueckspuelen_faellig", hours: "sensor.pool_stunden_seit_rueckspuelen", last: "sensor.pool_letztes_rueckspuelen",
           done_button: "button.pool_rueckgespuelt", script: "script.pool_rueckspuelen_start", timer: "timer.pool_rueckspuelen" },
         rinse: { script: "script.pool_nachspuelen_start", timer: "timer.pool_nachspuelen" } }],

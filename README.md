@@ -1115,6 +1115,7 @@ energy_today: sensor.pool_energie_heute
 cost_today: sensor.pool_stromkosten_heute
 solar_power: sensor.pool_solar_power
 solar_savings: sensor.pool_ersparnis
+solar_forecast: sensor.smart_pool_solar_start_prognose   # optional: Solar-Start-Prognose mit Kurve (Smart Pool)
 auto_off: input_boolean.pool_auto_aus
 backwash:
   due: binary_sensor.pool_ruckspulen_fallig

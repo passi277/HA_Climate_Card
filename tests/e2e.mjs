@@ -1124,7 +1124,9 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
   const r0 = await card.evaluate((c) => { const r = c.shadowRoot; const t = (s) => r.querySelector(s)?.textContent.replace(/\s+/g, " ").trim();
     return { sub: t(".h-sub"), q: t(".q"), basin: t(".b-temp"), pump: t(".b-pump"), bubbles: r.querySelectorAll(".bubbles span").length,
       metrics: [...r.querySelectorAll(".metric")].map((m) => `${m.querySelector(".m-val").textContent.trim()}|${m.querySelector(".m-status").textContent.trim()}`),
-      guide: r.querySelector(".guide")?.className, guideText: t(".g-text b"), runtime: t(".rt-goal"), ring: t(".ring-in") }; });
+      guide: r.querySelector(".guide")?.className, guideText: t(".g-text b"), runtime: t(".rt-goal"), ring: t(".ring-in"),
+      solMain: t(".sol-text b"), solSub: t(".sol-text span"), solBars: r.querySelectorAll(".sol-bar").length, solHi: r.querySelectorAll(".sol-bar.hi").length,
+      solThr: !!r.querySelector(".sol-thr"), solAxis: t(".sol-axis") }; });
   await card.evaluate((c) => c.shadowRoot.querySelector(".metric.m-ph").click());
   await p.waitForTimeout(500);
   const hist = await card.evaluate((c) => ({ title: c.shadowRoot.querySelector(".hist-head span")?.textContent.trim(), path: !!c.shadowRoot.querySelector(".hist .spark path"), band: !!c.shadowRoot.querySelector(".hist .spark .band") }));
@@ -1144,14 +1146,16 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
   const pump = await calls((c) => c.shadowRoot.querySelector(".b-pump").click());
   r0.sub === "Filter läuft · 64 W · Automatik" && r0.q === "prüfen" && r0.basin === "24,6°C perfekt" && r0.pump === "64 W" && r0.bubbles === 8
     && r0.metrics.join() === "24,6 °C|perfekt,6,92|ok,688 mV|optimal" && /bad/.test(r0.guide) && r0.guideText === "Handlungsbedarf"
-    && /^von 6 h/.test(r0.runtime) && r0.ring === "2,1h" && hist.title === "pH · 48 h" && hist.path && hist.band
+    && /^von 6 h/.test(r0.runtime) && r0.ring === "2,1h"
+    && r0.solMain === "Heute kein Solarstart mehr" && /^Morgen ca\. 09:40 · ~5 h · Solar-Modus nicht aktiv$/.test(r0.solSub)
+    && r0.solBars === 14 && r0.solHi === 10 && r0.solThr && /Morgen · Schwelle 400 W/.test(r0.solAxis) && hist.title === "pH · 48 h" && hist.path && hist.band
     && mode.join() === "input_select.select_option input_select.pool_modus Solar-Automatik"
     && target.join() === "input_number.set_value input_number.pool_ziel 8" && rec.join() === "input_number.set_value input_number.pool_ziel 9"
     && care[0] === "pH zu niedrig – 310 g pH-Plus" && care[1] === "Chlor / Redox optimal" && /^Heute 9 h laufen lassen/.test(care[2])
     && backwash.join() === "script.turn_on script.pool_rueckspuelen_start" && /^true\|noch [23]:\d\d$/.test(bwState)
     && done1.length === 0 && done2.join() === "button.press button.pool_rueckgespuelt" && autoOff.join() === "homeassistant.toggle input_boolean.pool_auto_aus"
     && pump.join() === "homeassistant.turn_off switch.poolpumpe"
-    ? ok("Pool: Becken + Pumpe, Wasserwerte mit Bereich, Hinweis, Laufzeit, 48-h-Verlauf, Modus, Ziel-Laufzeit, Pflege, Rückspülen mit Countdown, Rückgespült (Rückfrage), Auto-Aus")
+    ? ok("Pool: Becken + Pumpe, Wasserwerte mit Bereich, Hinweis, Laufzeit, Solar-Prognose mit Kurve, 48-h-Verlauf, Modus, Ziel-Laufzeit, Pflege, Rückspülen mit Countdown, Rückgespült (Rückfrage), Auto-Aus")
     : fail(`Pool: ${JSON.stringify({ r0, hist, mode, target, rec, care, backwash, bwState, done1, done2, autoOff, pump })}`);
 }
 

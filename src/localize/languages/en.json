@@ -813,7 +813,18 @@
     "auto_off": "Auto-off on failure",
     "auto_off_hint": "turns off when the pump is unreachable",
     "temp_short": "Temp.",
-    "backwash_days": "{d} days since backwash (at the latest after {m})"
+    "backwash_days": "{d} days since backwash (at the latest after {m})",
+    "solar_running": "Running on solar",
+    "solar_until": "until approx.",
+    "solar_start": "Solar start approx.",
+    "solar_none_today": "No solar start today",
+    "solar_tomorrow": "Tomorrow approx.",
+    "solar_none": "No solar start ahead",
+    "solar_none_sub": "Forecast too weak for the start threshold",
+    "solar_threshold": "threshold {w} W",
+    "solar_not_active": "solar mode not active",
+    "solar_day_today": "Today",
+    "solar_day_tomorrow": "Tomorrow"
   },
   "pool_editor": {
     "title": "Title",
