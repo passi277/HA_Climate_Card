@@ -472,7 +472,9 @@ export class HaPoolCard extends LitElement {
         </svg>
         <span class="sol-axis"><span>${label(t0)}</span><span>${this._t(todayLeft || !tStart ? "solar_day_today" : "solar_day_tomorrow")} · ${this._t("solar_threshold").replace("{w}", String(Math.round(threshold)))}</span><span>${label(t1)}</span></span>`;
     }
-    const isSolar = mode === "solar";
+    // Hinweis nur, wenn die Betriebsart bekannt ist (mode konfiguriert) und kein Solar-Modus läuft
+    const known = mode != null && !UNAVAILABLE.includes(mode);
+    const isSolar = !known || /solar/i.test(mode!);
     return html`<div class="solar ${isSolar ? "active" : ""}">
       <button class="sol-head" @click=${() => this._moreInfo(c.solar_forecast)}>
         <ha-icon .icon=${running ? "mdi:solar-power" : "mdi:weather-sunset-up"}></ha-icon>

@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.50.1
+- Pool Card: „Solar-Modus nicht aktiv“ erschien, wenn keine Betriebsart (`mode`) konfiguriert ist – der Hinweis kommt jetzt nur noch, wenn die Betriebsart bekannt ist und nicht auf Solar steht (auch „Solar-Automatik“ zählt als Solar)
+
 ## 1.50.0 – Pool: Solar-Start-Prognose
 - Pool Card: neue Option `solar_forecast` (Smart Pool „Solar-Start Prognose“) – zeigt, wann der Solar-Modus voraussichtlich startet und stoppt, wie viele Stunden mit Sonne zusammenkommen, oder den Ausblick auf morgen; dazu die PV-Kurve des Tages mit Startschwelle, erwarteten Laufzeiten und Jetzt-Markierung
 

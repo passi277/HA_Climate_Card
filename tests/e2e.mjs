@@ -1127,6 +1127,13 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
       guide: r.querySelector(".guide")?.className, guideText: t(".g-text b"), runtime: t(".rt-goal"), ring: t(".ring-in"),
       solMain: t(".sol-text b"), solSub: t(".sol-text span"), solBars: r.querySelectorAll(".sol-bar").length, solHi: r.querySelectorAll(".sol-bar.hi").length,
       solThr: !!r.querySelector(".sol-thr"), solAxis: t(".sol-axis") }; });
+  const solNoMode = await card.evaluate(async (c) => { const cfg = c._config; c.setConfig({ ...cfg, mode: undefined }); await c.updateComplete;
+    const t = c.shadowRoot.querySelector(".sol-text span")?.textContent.trim();
+    c.hass = { ...c.hass, states: { ...c.hass.states, "input_select.pool_modus": { ...c.hass.states["input_select.pool_modus"], state: "Solar-Automatik" } } };
+    c.setConfig(cfg); await c.updateComplete;
+    const t2 = c.shadowRoot.querySelector(".sol-text span")?.textContent.trim();
+    c.hass = { ...c.hass, states: { ...c.hass.states, "input_select.pool_modus": { ...c.hass.states["input_select.pool_modus"], state: "Automatik" } } };
+    await c.updateComplete; return [t, t2]; });
   await card.evaluate((c) => c.shadowRoot.querySelector(".metric.m-ph").click());
   await p.waitForTimeout(500);
   const hist = await card.evaluate((c) => ({ title: c.shadowRoot.querySelector(".hist-head span")?.textContent.trim(), path: !!c.shadowRoot.querySelector(".hist .spark path"), band: !!c.shadowRoot.querySelector(".hist .spark .band") }));
@@ -1148,6 +1155,7 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
     && r0.metrics.join() === "24,6 °C|perfekt,6,92|ok,688 mV|optimal" && /bad/.test(r0.guide) && r0.guideText === "Handlungsbedarf"
     && /^von 6 h/.test(r0.runtime) && r0.ring === "2,1h"
     && r0.solMain === "Heute kein Solarstart mehr" && /^Morgen ca\. 09:40 · ~5 h · Solar-Modus nicht aktiv$/.test(r0.solSub)
+    && solNoMode[0] === "Morgen ca. 09:40 · ~5 h" && solNoMode[1] === "Morgen ca. 09:40 · ~5 h"
     && r0.solBars === 14 && r0.solHi === 10 && r0.solThr && /Morgen · Schwelle 400 W/.test(r0.solAxis) && hist.title === "pH · 48 h" && hist.path && hist.band
     && mode.join() === "input_select.select_option input_select.pool_modus Solar-Automatik"
     && target.join() === "input_number.set_value input_number.pool_ziel 8" && rec.join() === "input_number.set_value input_number.pool_ziel 9"
@@ -1156,7 +1164,7 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
     && done1.length === 0 && done2.join() === "button.press button.pool_rueckgespuelt" && autoOff.join() === "homeassistant.toggle input_boolean.pool_auto_aus"
     && pump.join() === "homeassistant.turn_off switch.poolpumpe"
     ? ok("Pool: Becken + Pumpe, Wasserwerte mit Bereich, Hinweis, Laufzeit, Solar-Prognose mit Kurve, 48-h-Verlauf, Modus, Ziel-Laufzeit, Pflege, Rückspülen mit Countdown, Rückgespült (Rückfrage), Auto-Aus")
-    : fail(`Pool: ${JSON.stringify({ r0, hist, mode, target, rec, care, backwash, bwState, done1, done2, autoOff, pump })}`);
+    : fail(`Pool: ${JSON.stringify({ r0, solNoMode, hist, mode, target, rec, care, backwash, bwState, done1, done2, autoOff, pump })}`);
 }
 
 // Kameras: Einzelkarte (Reolink) und Gruppe (Blink)
