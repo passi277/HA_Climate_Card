@@ -1,6 +1,6 @@
 {
-  "name": "HA Climate Card",
-  "filename": "ha-climate-card.js",
+  "name": "HA Modern Home Cards",
+  "filename": "ha-modern-home-cards.js",
   "render_readme": true,
   "homeassistant": "2024.8.0"
 }
