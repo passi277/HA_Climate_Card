@@ -1070,7 +1070,13 @@
     "sleep_schedule": "Ruhezeiten-Zeitplan",
     "reboot": "Neu starten",
     "confirm_stow": "Nochmal tippen zum Verstauen",
-    "confirm_reboot": "Nochmal tippen zum Neustart"
+    "confirm_reboot": "Nochmal tippen zum Neustart",
+    "run_series": "Testserie",
+    "series_running": "Serie läuft…",
+    "log": "Protokoll",
+    "log_meta": "letzte {n} Tests",
+    "log_time": "Zeit",
+    "log_unit": "Mbit/s · Ping in ms"
   },
   "starlink_editor": {
     "entity": "Starlink (beliebige Entität der Schüssel)",
@@ -1082,7 +1088,9 @@
     "show_usage": "Verbrauch & Datenmenge",
     "show_controls": "Steuerung",
     "history_days": "Verlauf (Tage)",
-    "hint": "Ping, Durchsatz, Warnungen, Verstauen, Neustart und die Speedtest-Werte werden automatisch über die Geräte erkannt und lassen sich per YAML überschreiben (z.B. ping: sensor.xyz, speedtest_upload: sensor.xyz)."
+    "hint": "Ping, Durchsatz, Warnungen, Verstauen, Neustart und die Speedtest-Werte werden automatisch über die Geräte erkannt und lassen sich per YAML überschreiben (z.B. ping: sensor.xyz, speedtest_upload: sensor.xyz).",
+    "series": "Skript für Testserie (optional)",
+    "show_log": "Protokoll der Tests"
   },
   "llm": {
     "title": "KI-Timeline",
@@ -2002,5 +2010,45 @@
     "rain_hours": "Regen-Zeitleiste (Stunden)",
     "note": "Hinweis unter der Karte",
     "hint": "Temperatur, Luftfeuchte, Batterie, „trocken“ und Warnschwelle der Bodensensoren sowie Helligkeit, Batterie und Empfindlichkeit des Regensensors werden über das Gerät gefunden. Bestätigung, Regensperre und Regenmengen per YAML:"
+  },
+  "starlink_align": {
+    "title": "Ausrichtung",
+    "missing": "Entität nicht gefunden",
+    "compass": "Kompass mit Ist- und Soll-Richtung",
+    "no_azimuth": "Kein Azimut gemeldet",
+    "no_desired": "Soll-Richtung fehlt",
+    "no_desired_short": "Soll fehlt",
+    "level_good": "Gut ausgerichtet",
+    "level_fair": "Leicht verdreht",
+    "level_bad": "Falsch ausgerichtet",
+    "level_unknown": "Unbekannt",
+    "turn_cw": "Schüssel um {n}° im Uhrzeigersinn drehen (von oben gesehen, nach rechts)",
+    "turn_ccw": "Schüssel um {n}° gegen den Uhrzeigersinn drehen (von oben gesehen, nach links)",
+    "how_desired": "Soll-Richtung aus der Starlink-App eintragen (Ausrichtungs-Assistent bzw. Erweitert → Debug-Daten, „Desired boresight azimuth“) – dann zeigt die Karte die Abweichung.",
+    "actual": "Ist",
+    "desired": "Soll",
+    "deviation": "Abweichung",
+    "mean": "Mittel",
+    "spread": "Schwankung",
+    "obstructions": "Sichtbehinderung",
+    "elevation": "Neigung",
+    "days": "{n} Tage",
+    "loading": "wird geladen …",
+    "not_set": "nicht gesetzt",
+    "moved": "verschoben",
+    "obstructed_now": "Behindert",
+    "spread_legend": "Schwankung {n} T"
+  },
+  "starlink_align_editor": {
+    "entity": "Starlink (beliebige Entität der Schüssel)",
+    "desired_azimuth": "Soll-Azimut (Helfer, z.B. input_number)",
+    "name": "Name",
+    "tolerance": "Toleranz",
+    "warn": "Warnschwelle",
+    "history_days": "Zeitraum (Tage)",
+    "show_compass": "Kompass",
+    "show_stats": "Werte",
+    "show_tip": "Hinweis zur Drehrichtung",
+    "hint": "Ist-Azimut, Neigung und Sichtbehinderung kommen automatisch über das Gerät. Soll-Werte gehen auch als Zahl per YAML (desired_azimuth: 8, desired_elevation: …)."
   }
 }

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.52.0 – Starlink-Ausrichtung & Speedtest-Protokoll
+- Neue **Modern Starlink Alignment** (`custom:ha-starlink-alignment-card`): Kompass mit Ist- und Soll-Azimut, Toleranzbereich und Abweichung, Hinweis „um … ° im/gegen den Uhrzeigersinn drehen“ (kürzester Weg über Norden), Kacheln für Abweichung, Ist, Soll (−/+ über einen Helfer), Mittel und Schwankung der letzten Tage (Kreisstatistik, Neustart-Nullwerte ignoriert) und Sichtbehinderungen; Neigung, wenn die Schüssel sie meldet
+- Starlink Card: **Speedtest-Protokoll** (`show: { log: true }`) mit den letzten Tests einzeln, Spanne, Mittel und Schwankung; Knopf **„Testserie“** (`series: script.…`) startet ein Skript für mehrere Tests nacheinander
+
 ## 1.51.1 – Solarprognose eindeutiger
 - Solar Forecast Card: Ring zeigt „von … kWh Tagesprognose“, die Trefferquote „81 % – der Prognose bis jetzt · 3,1 statt 3,9 kWh“ (bisheriger Ertrag gegen die Prognose bis zu diesem Zeitpunkt, nicht gegen den ganzen Tag); Zusatzzeilen brechen bei schmaler Karte um statt abgeschnitten zu werden
 

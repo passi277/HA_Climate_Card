@@ -1528,3 +1528,52 @@ describe("soil & rain", () => {
   });
 });
 
+
+import { normDeg, angleDelta, compassPoint, alignmentLevel, circularStats, speedtestRuns, spreadStats } from "../src/utils";
+
+describe("Starlink-Ausrichtung", () => {
+  it("normalizes and diffs angles across north", () => {
+    expect(normDeg(-10)).toBe(350);
+    expect(angleDelta(8, 96)).toBe(-88);
+    expect(angleDelta(350, 10)).toBe(-20);
+    expect(angleDelta(10, 350)).toBe(20);
+    expect(angleDelta(180, 0)).toBe(180);
+  });
+  it("names compass points", () => {
+    expect(compassPoint(96)).toBe("O");
+    expect(compassPoint(96, "en")).toBe("E");
+    expect(compassPoint(350)).toBe("N");
+    expect(compassPoint(225)).toBe("SW");
+  });
+  it("rates the deviation", () => {
+    expect(alignmentLevel(3)).toBe("good");
+    expect(alignmentLevel(12)).toBe("fair");
+    expect(alignmentLevel(88)).toBe("bad");
+    expect(alignmentLevel(8, 10, 20)).toBe("good");
+  });
+  it("averages angles on the circle", () => {
+    const s = circularStats([359, 1, 3, 357])!;
+    expect(Math.min(s.mean, 360 - s.mean)).toBeLessThan(0.01);
+    expect(s.spread).toBeGreaterThan(1);
+    expect(s.spread).toBeLessThan(4);
+    expect(s.min).toBeCloseTo(357, 5);
+    expect(s.max).toBeCloseTo(3, 5);
+    expect(circularStats([95, 95, 95])!.spread).toBe(0);
+    expect(circularStats([])).toBeUndefined();
+  });
+});
+
+describe("Speedtest-Protokoll", () => {
+  it("merges download/upload/ping of one run", () => {
+    const runs = speedtestRuns([{ t: 1000, v: 70 }, { t: 200_000, v: 64 }], [{ t: 1500, v: 38 }, { t: 200_400, v: 39 }], [{ t: 900, v: 43 }]);
+    expect(runs).toEqual([{ t: 200_000, down: 64, up: 39 }, { t: 1000, down: 70, up: 38, ping: 43 }]);
+  });
+  it("computes spread", () => {
+    const s = spreadStats([48, 72, 65, 76])!;
+    expect(s.min).toBe(48);
+    expect(s.max).toBe(76);
+    expect(s.avg).toBeCloseTo(65.25, 2);
+    expect(s.cv).toBeGreaterThan(10);
+    expect(spreadStats([])).toBeUndefined();
+  });
+});

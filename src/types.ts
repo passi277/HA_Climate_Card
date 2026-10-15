@@ -916,6 +916,8 @@ export interface StarlinkShowConfig {
   history?: boolean;
   usage?: boolean;
   controls?: boolean;
+  /** Protokoll der einzelnen Speedtests mit Spanne (Standard aus) */
+  log?: boolean;
 }
 
 export interface StarlinkCardConfig extends StarlinkFeatures {
@@ -931,8 +933,40 @@ export interface StarlinkCardConfig extends StarlinkFeatures {
   show?: StarlinkShowConfig;
   /** Tage im Speedtest-Verlauf (Standard 7) */
   history_days?: number;
+  /** Zeilen im Speedtest-Protokoll (Standard 10) */
+  log_count?: number;
+  /** Skript für eine Testserie (z.B. script.starlink_speedtest_serie) – zeigt den Knopf „Testserie“ */
+  series?: string;
   animations?: "full" | "reduced" | "off";
   [key: string]: unknown;
+}
+
+export interface StarlinkAlignmentShowConfig {
+  compass?: boolean;
+  stats?: boolean;
+  tip?: boolean;
+}
+
+export interface StarlinkAlignmentCardConfig {
+  type: string;
+  /** Beliebige Entität der Starlink-Schüssel */
+  entity: string;
+  /** Soll-Azimut als Zahl (°) oder Entität (input_number/sensor) */
+  desired_azimuth?: number | string;
+  /** Soll-Neigung als Zahl (°) oder Entität – nur wenn die Schüssel eine Neigung meldet */
+  desired_elevation?: number | string;
+  /** Ist-Azimut/-Neigung überschreiben */
+  azimuth?: string;
+  elevation?: string;
+  /** Bis hierhin gilt die Schüssel als gut ausgerichtet (Standard 5°) */
+  tolerance?: number;
+  /** Ab hier gilt sie als falsch ausgerichtet (Standard 15°) */
+  warn?: number;
+  /** Tage für Mittelwert/Schwankung (Standard 7) */
+  history_days?: number;
+  name?: string;
+  show?: StarlinkAlignmentShowConfig;
+  animations?: "full" | "reduced" | "off";
 }
 
 export type LlmCategory = "person" | "vehicle" | "animal" | "package" | "nature" | "other" | "none";

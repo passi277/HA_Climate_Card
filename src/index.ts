@@ -21,6 +21,7 @@ import "./camera-group-card";
 import "./select-card";
 import "./mower-card";
 import "./starlink-card";
+import "./starlink-alignment-card";
 import "./llm-timeline-card";
 import "./home-battery-card";
 import "./solar-forecast-card";

@@ -3154,3 +3154,66 @@ export const stateSegments = (points: { t: number; s: string }[], start: number,
   }
   return out;
 };
+
+// ---------- Starlink-Ausrichtung & Speedtest-Protokoll ----------
+
+/** Winkel auf 0–360° bringen */
+export const normDeg = (d: number): number => ((d % 360) + 360) % 360;
+
+/** Kleinster Winkel von „ist“ nach „soll“ in (−180, 180] – positiv = im Uhrzeigersinn (von oben gesehen) */
+export const angleDelta = (target: number, actual: number): number => {
+  const d = normDeg(target - actual);
+  return d > 180 ? d - 360 : d;
+};
+
+/** Himmelsrichtung (8 Sektoren) zu einem Azimut */
+export const compassPoint = (deg: number, lang = "de"): string => {
+  const de = ["N", "NO", "O", "SO", "S", "SW", "W", "NW"];
+  const en = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+  return (lang === "de" ? de : en)[Math.round(normDeg(deg) / 45) % 8]!;
+};
+
+/** Bewertung der Abweichung: innerhalb der Toleranz gut, bis zur Warnschwelle leicht verdreht, darüber falsch */
+export const alignmentLevel = (absDelta: number, tolerance = 5, warn = 15): "good" | "fair" | "bad" =>
+  absDelta <= tolerance ? "good" : absDelta <= warn ? "fair" : "bad";
+
+/** Kreisstatistik für Winkel (Mittel über Vektoren, damit 359° und 1° → 0° statt 180°); spread = zirkuläre Standardabweichung in ° */
+export const circularStats = (values: number[]): { mean: number; spread: number; min: number; max: number } | undefined => {
+  const v = values.filter((x) => Number.isFinite(x));
+  if (!v.length) return undefined;
+  const rad = Math.PI / 180;
+  const s = v.reduce((a, x) => a + Math.sin(x * rad), 0) / v.length;
+  const c = v.reduce((a, x) => a + Math.cos(x * rad), 0) / v.length;
+  const mean = normDeg(Math.atan2(s, c) / rad);
+  const r = Math.min(1, Math.hypot(s, c));
+  const spread = r >= 1 ? 0 : Math.sqrt(-2 * Math.log(r)) / rad;
+  const deltas = v.map((x) => angleDelta(x, mean));
+  return { mean, spread, min: normDeg(mean + Math.min(...deltas)), max: normDeg(mean + Math.max(...deltas)) };
+};
+
+export interface SpeedtestRun { t: number; down?: number; up?: number; ping?: number }
+
+/** Speedtest-Verläufe (Download/Upload/Ping) zu einzelnen Testläufen zusammenführen – Werte eines Laufs liegen wenige Sekunden auseinander */
+export const speedtestRuns = (down: { t: number; v: number }[], up: { t: number; v: number }[] = [], ping: { t: number; v: number }[] = [],
+  windowMs = 90_000): SpeedtestRun[] => {
+  const runs: SpeedtestRun[] = [];
+  const add = (pts: { t: number; v: number }[], key: "down" | "up" | "ping") => {
+    for (const p of pts) {
+      const run = runs.find((r) => Math.abs(r.t - p.t) <= windowMs && r[key] == null);
+      if (run) run[key] = p.v; else runs.push({ t: p.t, [key]: p.v });
+    }
+  };
+  add(down, "down");
+  add(up, "up");
+  add(ping, "ping");
+  return runs.sort((a, b) => b.t - a.t);
+};
+
+/** Spanne einer Messreihe: Min, Max, Mittel und Schwankung (Variationskoeffizient in %) */
+export const spreadStats = (values: number[]): { min: number; max: number; avg: number; cv: number } | undefined => {
+  const v = values.filter((x) => Number.isFinite(x));
+  if (!v.length) return undefined;
+  const avg = v.reduce((a, x) => a + x, 0) / v.length;
+  const sd = Math.sqrt(v.reduce((a, x) => a + (x - avg) ** 2, 0) / v.length);
+  return { min: Math.min(...v), max: Math.max(...v), avg, cv: avg ? (sd / avg) * 100 : 0 };
+};

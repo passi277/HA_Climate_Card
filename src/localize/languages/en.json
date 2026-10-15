@@ -1053,7 +1053,13 @@
     "sleep_schedule": "Sleep schedule",
     "reboot": "Reboot",
     "confirm_stow": "Tap again to stow",
-    "confirm_reboot": "Tap again to reboot"
+    "confirm_reboot": "Tap again to reboot",
+    "run_series": "Test series",
+    "series_running": "Series running…",
+    "log": "Log",
+    "log_meta": "last {n} tests",
+    "log_time": "Time",
+    "log_unit": "Mbit/s · ping in ms"
   },
   "starlink_editor": {
     "entity": "Starlink (any entity of the dish)",
@@ -1065,7 +1071,9 @@
     "show_usage": "Usage & data",
     "show_controls": "Controls",
     "history_days": "History (days)",
-    "hint": "Ping, throughput, warnings, stow, reboot and speed test values are detected automatically via the devices and can be overridden in YAML (e.g. ping: sensor.xyz, speedtest_upload: sensor.xyz)."
+    "hint": "Ping, throughput, warnings, stow, reboot and speed test values are detected automatically via the devices and can be overridden in YAML (e.g. ping: sensor.xyz, speedtest_upload: sensor.xyz).",
+    "series": "Script for a test series (optional)",
+    "show_log": "Test log"
   },
   "llm": {
     "title": "AI timeline",
@@ -1957,5 +1965,45 @@
     "rain_hours": "Rain timeline (hours)",
     "note": "Note below the card",
     "hint": "Temperature, humidity, battery, dry flag and warning threshold of the soil sensors as well as illuminance, battery and sensitivity of the rain sensor are found via the device. Confirmation, rain lock and amounts via YAML:"
+  },
+  "starlink_align": {
+    "title": "Alignment",
+    "missing": "Entity not found",
+    "compass": "Compass with actual and desired direction",
+    "no_azimuth": "No azimuth reported",
+    "no_desired": "Desired direction missing",
+    "no_desired_short": "No target",
+    "level_good": "Well aligned",
+    "level_fair": "Slightly off",
+    "level_bad": "Misaligned",
+    "level_unknown": "Unknown",
+    "turn_cw": "Rotate the dish {n}° clockwise (seen from above, to the right)",
+    "turn_ccw": "Rotate the dish {n}° counter-clockwise (seen from above, to the left)",
+    "how_desired": "Enter the desired direction from the Starlink app (alignment tool or Advanced → Debug data, \"Desired boresight azimuth\") to see the deviation.",
+    "actual": "Actual",
+    "desired": "Target",
+    "deviation": "Deviation",
+    "mean": "Mean",
+    "spread": "Spread",
+    "obstructions": "Obstructions",
+    "elevation": "Tilt",
+    "days": "{n} days",
+    "loading": "loading …",
+    "not_set": "not set",
+    "moved": "moved",
+    "obstructed_now": "Obstructed",
+    "spread_legend": "Spread {n} d"
+  },
+  "starlink_align_editor": {
+    "entity": "Starlink (any entity of the dish)",
+    "desired_azimuth": "Desired azimuth (helper, e.g. input_number)",
+    "name": "Name",
+    "tolerance": "Tolerance",
+    "warn": "Warning threshold",
+    "history_days": "Period (days)",
+    "show_compass": "Compass",
+    "show_stats": "Values",
+    "show_tip": "Rotation hint",
+    "hint": "Actual azimuth, tilt and obstruction are detected via the device. Targets can also be numbers in YAML (desired_azimuth: 8, desired_elevation: …)."
   }
 }

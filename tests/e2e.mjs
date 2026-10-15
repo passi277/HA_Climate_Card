@@ -1441,6 +1441,33 @@ colorFails.length ? fail(`Farbe folgt nicht dem Modus: ${colorFails.join(", ")}`
   camper ? ok(`Camper-Warnung: ${camper}`) : fail("Sichtbehinderungs-Warnung fehlt");
 }
 
+// Starlink-Ausrichtung + Speedtest-Protokoll
+{
+  const root = () => document.querySelector("ha-starlink-alignment-card").shadowRoot;
+  const sub = await p.evaluate(() => document.querySelector("ha-starlink-alignment-card").shadowRoot.querySelector(".h-sub")?.textContent.trim());
+  /Falsch ausgerichtet · 87°/.test(sub) ? ok(`Ausrichtung: ${sub}`) : fail(`Ausrichtung: ${sub}`);
+  const turn = await p.evaluate(() => document.querySelector("ha-starlink-alignment-card").shadowRoot.querySelector(".turn")?.textContent.trim());
+  /87° gegen den Uhrzeigersinn/.test(turn) ? ok("Drehrichtung über Norden (gegen den Uhrzeigersinn)") : fail(`Drehrichtung: ${turn}`);
+  const spread = await p.evaluate(() => document.querySelector("ha-starlink-alignment-card").shadowRoot.querySelector('.tile[data-key="spread"] b')?.textContent.trim());
+  /± 1,\d°/.test(spread) ? ok(`Schwankung ohne Neustart-Ausreißer: ${spread}`) : fail(`Schwankung: ${spread}`);
+  const obs = await p.evaluate(() => document.querySelector("ha-starlink-alignment-card").shadowRoot.querySelector('.tile[data-key="obstructions"] b')?.textContent.trim());
+  obs === "2×" ? ok("Sichtbehinderungen gezählt") : fail(`Sichtbehinderungen: ${obs}`);
+  const n = await p.evaluate(() => window.serviceCalls.length);
+  await p.evaluate(() => document.querySelector("ha-starlink-alignment-card").shadowRoot.querySelectorAll('.tile[data-key="desired"] .step')[1].click());
+  await p.waitForTimeout(400);
+  const set = await p.evaluate((k) => window.serviceCalls.slice(k).find((c) => c.service === "set_value"), n);
+  set?.data.entity_id === "input_number.starlink_soll_azimut" && set.data.value === 9 ? ok("Soll-Azimut +1° über den Helfer") : fail(`Soll-Azimut: ${JSON.stringify(set)}`);
+  const good = await p.evaluate(() => document.querySelectorAll("ha-starlink-alignment-card")[1].shadowRoot.querySelector(".h-sub")?.textContent.trim());
+  /Gut ausgerichtet/.test(good) ? ok("Feste Soll-Zahl: gut ausgerichtet") : fail(`Soll als Zahl: ${good}`);
+  const log = await p.evaluate(() => document.querySelectorAll("ha-starlink-card")[2].shadowRoot.querySelectorAll(".log .lr:not(.head)").length);
+  log === 10 ? ok("Speedtest-Protokoll mit 10 Tests") : fail(`Protokoll: ${log} Zeilen`);
+  const m = await p.evaluate(() => window.serviceCalls.length);
+  await p.evaluate(() => document.querySelectorAll("ha-starlink-card")[2].shadowRoot.querySelector('[data-key="series"]').click());
+  await p.waitForTimeout(200);
+  const ser = await p.evaluate((k) => window.serviceCalls.slice(k).find((c) => c.domain === "script"), m);
+  ser?.service === "turn_on" && ser.data.entity_id === "script.starlink_speedtest_serie" ? ok("„Testserie“ startet das Skript") : fail(`Testserie: ${JSON.stringify(ser)}`);
+}
+
 // KI-Timeline (LLM Vision)
 {
   const q = (fn) => p.evaluate(fn);

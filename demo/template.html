@@ -531,6 +531,9 @@
         [`switch.${p}_zeitplan_fur_ruhezustand`, { state: "off", attributes: { friendly_name: `${n} Zeitplan für Ruhezustand`, device_class: "switch" } }],
         [`button.${p}_neu_starten`, { state: "unknown", attributes: { friendly_name: `${n} Neu starten`, device_class: "restart" } }],
       ])),
+      // Ausrichtung: Soll-Azimut als Helfer, Testserie als Skript
+      "input_number.starlink_soll_azimut": { state: "8", attributes: { friendly_name: "Starlink Soll-Azimut", min: 0, max: 359, step: 1, unit_of_measurement: "°", mode: "box" } },
+      "script.starlink_speedtest_serie": { state: "off", attributes: { friendly_name: "Starlink Speedtest-Serie" } },
       ...Object.fromEntries([["download", "147.47", "Mbit/s"], ["upload", "49.74", "Mbit/s"], ["ping", "56", "ms"]].map(([k, v, u]) => [`sensor.speedtest_${k}`, { state: v,
         last_updated: new Date(Date.now() - 25 * 60000).toISOString(),
         attributes: { friendly_name: `SpeedTest ${k[0].toUpperCase()}${k.slice(1)}`, unit_of_measurement: u, device_class: k === "ping" ? "duration" : "data_rate", server_name: "Neumünster", server_country: "Germany" } }])),
@@ -1296,6 +1299,15 @@
         if (msg.type === "config_entries/get" && msg.domain === "mealie") return [{ entry_id: "mealie_demo", domain: "mealie", state: "loaded", title: "Mealie" }];
         if (msg.type === "energy/get_prefs") return { energy_sources: [], device_consumption: [{ stat_consumption: "sensor.monitor_1_energy" }, { stat_consumption: "sensor.monitor_2_energy" }, { stat_consumption: "sensor.whirlpool_energy", name: "Whirlpool" }] };
         // Wochenrückblick: Tagesverbrauch (change) je Zähler, vorhersagbar je Tag
+        // Starlink-Azimut: Stundenmittel um 95,5° mit leichter Schwankung, ein Neustart (0°)
+        if (msg.type === "recorder/statistics_during_period" && msg.statistic_ids?.length === 1 && /starlink.*azimut/.test(msg.statistic_ids[0])) {
+          const now = Date.now();
+          return { [msg.statistic_ids[0]]: Array.from({ length: 168 }, (_, i) => ({ start: now - (168 - i) * 3600_000, mean: i === 100 ? 0 : 95.5 + 1.6 * Math.sin(i / 5) + (i % 11 === 0 ? 1.2 : 0) })) };
+        }
+        if (msg.type === "history/history_during_period" && msg.entity_ids?.length === 1 && /starlink.*beeintrachtigt/.test(msg.entity_ids[0])) {
+          const now = Date.now() / 1000;
+          return { [msg.entity_ids[0]]: [{ s: "off", lu: now - 7 * 86400 }, { s: "on", lu: now - 4 * 86400 }, { s: "off", lu: now - 4 * 86400 + 5 }, { s: "on", lu: now - 20 * 3600 }, { s: "off", lu: now - 20 * 3600 + 5 }] };
+        }
         if (msg.type === "recorder/statistics_during_period" && msg.types?.includes("change")) {
           const start = new Date(msg.start_time), end = Math.min(Date.now(), new Date(msg.end_time).getTime());
           const base = { "sensor.monitor_1_energy": 0.9, "sensor.monitor_2_energy": 0.6, "sensor.whirlpool_energy": 4.2 };
@@ -1360,7 +1372,7 @@
         if (msg.entity_ids.every((id) => id.startsWith("sensor.speedtest_"))) {
           const now = Date.now() / 1000;
           for (const id of msg.entity_ids) {
-            const base = id.endsWith("upload") ? 45 : 150;
+            const base = id.endsWith("upload") ? 45 : id.endsWith("ping") ? 40 : 150;
             out[id] = Array.from({ length: 56 }, (_, i) => ({ s: String(+(base * (0.82 + 0.18 * Math.sin(i / 2.6)) + (i % 7 === 3 ? -base * 0.35 : 0)).toFixed(2)), lu: now - (55 - i) * 3 * 3600 }));
           }
           return out;
@@ -1567,6 +1579,9 @@
       ["KI-Timeline – LLM Vision: neuestes Ereignis mit Bild, Filter, Zeitleiste nach Tagen, Detail beim Antippen", { _llm: true, entity: "calendar.llm_vision_timeline" }],
       ["Starlink + Speedtest – Live-Durchsatz, Ping, Speedtest mit Verlauf und „Jetzt testen“, Verstauen/Neustart", { _starlink: true, entity: "binary_sensor.starlink_konnektivitat", speedtest: "sensor.speedtest_download" }],
       ["Starlink – Camper mit Sichtbehinderung und Heizung (ohne Speedtest)", { _starlink: true, entity: "binary_sensor.starlink_camper_konnektivitat", name: "Camper" }],
+      ["Starlink-Ausrichtung – Schüssel zeigt nach Osten, Soll Norden (Helfer mit −/+), Mittel und Schwankung 7 Tage, Sichtbehinderungen", { _align: true, entity: "sensor.starlink_azimut", desired_azimuth: "input_number.starlink_soll_azimut" }],
+      ["Starlink-Ausrichtung – gut ausgerichtet (Soll als Zahl, Toleranz 5°)", { _align: true, entity: "sensor.starlink_camper_azimut", desired_azimuth: 93 }],
+      ["Speedtest-Protokoll – einzelne Tests mit Spanne, Testserie per Skript", { _starlink: true, speedtest: "sensor.speedtest_download", name: "Speedtest", series: "script.starlink_speedtest_serie", show: { log: true, history: false } }],
       ["Boden & Regen – Bananen zu trocken, Regensensor meldet Tau (nicht bestätigt)", { _soil: true, soil: [{ entity: "sensor.boden_bananen_soil_moisture", name: "Bananen" }],
         rain: { entity: "sensor.regensensor_rainwater", confirmed: "binary_sensor.regensensor_plausibel", lock: "binary_sensor.smarte_bewasserung_regensperre",
           rain_today: "sensor.smarte_bewasserung_regen_heute", rain_yesterday: "sensor.smarte_bewasserung_regen_gestern", forecast: "sensor.smarte_bewasserung_regenvorhersage_24_h",
@@ -1608,9 +1623,9 @@
         grid.appendChild(wrap);
         return;
       }
-      const { _overview, _light, _group, _cover, _coverGroup, _switchTime, _media, _room, _status, _vacuum, _presence, _alert, _energy, _irrigation, _pool, _camera, _cameraGroup, _select, _mower, _starlink, _llm, _hbat, _system, _weather, _agenda, _devstatus, _recipe, _scene, _sleep, _crooms, _eweek, _parcel, _router, _lock, _temp, _net, _plug, _grill, _poolCare, _solar, _mowsum, _soil, ...rest } = cfg;
+      const { _overview, _light, _group, _cover, _coverGroup, _switchTime, _media, _room, _status, _vacuum, _presence, _alert, _energy, _irrigation, _pool, _camera, _cameraGroup, _select, _mower, _starlink, _llm, _hbat, _system, _weather, _agenda, _devstatus, _recipe, _scene, _sleep, _crooms, _eweek, _parcel, _router, _lock, _temp, _net, _plug, _grill, _poolCare, _solar, _mowsum, _soil, _align, ...rest } = cfg;
       const tag = _overview ? "ha-climate-overview-card" : _group ? "ha-light-group-card" : _light ? "ha-light-card"
-        : _cover ? "ha-cover-card" : _coverGroup ? "ha-cover-group-card" : _switchTime ? "ha-switch-time-card" : _media ? "ha-media-card" : _room ? "ha-room-card" : _status ? "ha-status-card" : _vacuum ? "ha-vacuum-card" : _presence ? "ha-presence-card" : _alert ? "ha-alert-card" : _energy ? "ha-energy-card" : _irrigation ? "ha-irrigation-card" : _pool ? "ha-pool-card" : _camera ? "ha-camera-card" : _cameraGroup ? "ha-camera-group-card" : _select ? "ha-select-card" : _mower ? "ha-mower-card" : _starlink ? "ha-starlink-card" : _llm ? "ha-llm-timeline-card" : _hbat ? "ha-home-battery-card" : _system ? "ha-system-card" : _weather ? "ha-weather-card" : _agenda ? "ha-agenda-card" : _devstatus ? "ha-device-status-card" : _recipe ? "ha-recipe-card" : _scene ? "ha-scene-card" : _sleep ? "ha-sleep-card" : _crooms ? "ha-climate-rooms-card" : _eweek ? "ha-energy-week-card" : _parcel ? "ha-parcel-card" : _router ? "ha-router-card" : _lock ? "ha-lock-card" : _temp ? "ha-temperature-card" : _net ? "ha-network-card" : _plug ? "ha-plug-card" : _grill ? "ha-grill-card" : _mowsum ? "ha-mower-summary-card" : _soil ? "ha-soil-rain-card" : _poolCare ? "ha-pool-care-card" : _solar ? "ha-solar-forecast-card" : "ha-climate-card";
+        : _cover ? "ha-cover-card" : _coverGroup ? "ha-cover-group-card" : _switchTime ? "ha-switch-time-card" : _media ? "ha-media-card" : _room ? "ha-room-card" : _status ? "ha-status-card" : _vacuum ? "ha-vacuum-card" : _presence ? "ha-presence-card" : _alert ? "ha-alert-card" : _energy ? "ha-energy-card" : _irrigation ? "ha-irrigation-card" : _pool ? "ha-pool-card" : _camera ? "ha-camera-card" : _cameraGroup ? "ha-camera-group-card" : _select ? "ha-select-card" : _mower ? "ha-mower-card" : _starlink ? "ha-starlink-card" : _llm ? "ha-llm-timeline-card" : _hbat ? "ha-home-battery-card" : _system ? "ha-system-card" : _weather ? "ha-weather-card" : _agenda ? "ha-agenda-card" : _devstatus ? "ha-device-status-card" : _recipe ? "ha-recipe-card" : _scene ? "ha-scene-card" : _sleep ? "ha-sleep-card" : _crooms ? "ha-climate-rooms-card" : _eweek ? "ha-energy-week-card" : _parcel ? "ha-parcel-card" : _router ? "ha-router-card" : _lock ? "ha-lock-card" : _temp ? "ha-temperature-card" : _net ? "ha-network-card" : _plug ? "ha-plug-card" : _grill ? "ha-grill-card" : _mowsum ? "ha-mower-summary-card" : _soil ? "ha-soil-rain-card" : _align ? "ha-starlink-alignment-card" : _poolCare ? "ha-pool-care-card" : _solar ? "ha-solar-forecast-card" : "ha-climate-card";
       const card = document.createElement(tag);
       card.id = "card" + i;
       card.setConfig({ type: `custom:${tag}`, ...rest });

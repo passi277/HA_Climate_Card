@@ -5,7 +5,7 @@ import { getLanguage, localize } from "./localize/localize";
 import { cardStyles } from "./styles";
 import { DOCS_URL } from "./shared";
 import { relTime } from "./components/camera-view";
-import { formatBytes, formatRate, formatUptime, pingQuality, speedtestFeatures, starlinkFeatures, toMbit, UNAVAILABLE } from "./utils";
+import { formatBytes, formatRate, formatUptime, pingQuality, speedtestFeatures, speedtestRuns, spreadStats, starlinkFeatures, toMbit, UNAVAILABLE } from "./utils";
 import "./starlink-editor";
 
 (window as any).customCards = (window as any).customCards || [];
@@ -58,7 +58,7 @@ export class HaStarlinkCard extends LitElement {
   @state() private _confirm?: string;
   /** Speedtest läuft: Zeitpunkt des Starts und Stand von last_updated davor */
   @state() private _testing?: { at: number; before?: string };
-  @state() private _history: { down: Pt[]; up: Pt[] } = { down: [], up: [] };
+  @state() private _history: { down: Pt[]; up: Pt[]; ping: Pt[] } = { down: [], up: [], ping: [] };
   private _confirmTimer?: number;
   private _testTimer?: number;
   private _historyTimer?: number;
@@ -137,7 +137,7 @@ export class HaStarlinkCard extends LitElement {
 
   private _ids(): string[] {
     const { s, t } = this._features();
-    return [...Object.values(s), ...Object.values(t)].filter(Boolean) as string[];
+    return [...Object.values(s), ...Object.values(t), this._config?.series].filter(Boolean) as string[];
   }
 
   protected shouldUpdate(changed: PropertyValues): boolean {
@@ -270,9 +270,9 @@ export class HaStarlinkCard extends LitElement {
 
   private async _loadHistory(force = false): Promise<void> {
     const c = this._config;
-    if (!c || !this.hass?.callWS || c.show?.history === false || c.show?.speedtest === false) return;
+    if (!c || !this.hass?.callWS || c.show?.speedtest === false || (c.show?.history === false && !c.show?.log)) return;
     const { t } = this._features();
-    const ids = [t.download, t.upload].filter(Boolean) as string[];
+    const ids = [t.download, t.upload, c.show?.log ? t.ping : undefined].filter(Boolean) as string[];
     if (!ids.length) return;
     const key = `${ids.join(",")}|${c.history_days ?? 7}|${this.hass.states[ids[0]!]?.last_updated ?? ""}`;
     if (!force && key === this._historyKey) return;
@@ -286,10 +286,11 @@ export class HaStarlinkCard extends LitElement {
       const pts = (id?: string): Pt[] => {
         if (!id) return [];
         const unit = this.hass!.states[id]?.attributes.unit_of_measurement;
-        return (res?.[id] ?? []).map((p) => ({ t: (p.lu ?? p.lc ?? 0) * 1000, v: toMbit(Number(p.s), unit) }))
+        const conv = (v: number) => (id === t.ping ? v : toMbit(v, unit));
+        return (res?.[id] ?? []).map((p) => ({ t: (p.lu ?? p.lc ?? 0) * 1000, v: conv(Number(p.s)) }))
           .filter((p) => Number.isFinite(p.v) && p.t >= start.getTime() && p.v > 0);
       };
-      this._history = { down: pts(t.download), up: pts(t.upload) };
+      this._history = { down: pts(t.download), up: pts(t.upload), ping: c.show?.log ? pts(t.ping) : [] };
     } catch {
       /* Verlauf nicht verfügbar */
     }
@@ -380,9 +381,70 @@ export class HaStarlinkCard extends LitElement {
         <div class="sp-legend"><span class="l-down">${this._t("download")}</span>${hu.length > 1 ? html`<span class="l-up">${this._t("upload")}</span>` : nothing}
           <span class="l-avg">${this._t("history_days").replace("{n}", String(c.history_days ?? 7))}${avg != null ? ` · Ø ${formatRate(avg, lang).v} ${formatRate(avg, lang).unit}` : ""}</span></div>
       </div>` : nothing}
-      <button class="run" ?disabled=${testing} @click=${() => this._runTest()}>
-        <ha-icon class=${testing ? "spin" : ""} .icon=${testing ? "mdi:loading" : "mdi:play-speed"}></ha-icon><span>${this._t(testing ? "testing" : "run_test")}</span>
-      </button>
+      <div class="runs">
+        <button class="run" ?disabled=${testing} @click=${() => this._runTest()}>
+          <ha-icon class=${testing ? "spin" : ""} .icon=${testing ? "mdi:loading" : "mdi:play-speed"}></ha-icon><span>${this._t(testing ? "testing" : "run_test")}</span>
+        </button>
+        ${this._renderSeries()}
+      </div>
+    </div>`;
+  }
+
+  private _renderSeries() {
+    const id = this._config!.series;
+    if (!id || !this.hass!.states[id]) return nothing;
+    const running = this.hass!.states[id]!.state === "on";
+    return html`<button class="run series ${running ? "busy" : ""}" data-key="series" @click=${() => (running ? this._moreInfo(id) : this._runSeries(id))}>
+      <ha-icon class=${running ? "spin" : ""} .icon=${running ? "mdi:loading" : "mdi:playlist-play"}></ha-icon><span>${this._t(running ? "series_running" : "run_series")}</span>
+    </button>`;
+  }
+
+  private _runSeries(id: string): void {
+    this._haptic("medium");
+    this._call("script", "turn_on", { entity_id: id });
+  }
+
+  private _timeLabel(t: number): string {
+    const lang = getLanguage(this.hass);
+    const d = new Date(t);
+    const time = d.toLocaleTimeString(lang, { hour: "2-digit", minute: "2-digit" });
+    return new Date().toDateString() === d.toDateString() ? time : `${d.toLocaleDateString(lang, { weekday: "short" })} ${time}`;
+  }
+
+  private _renderLog() {
+    const c = this._config!;
+    const lang = getLanguage(this.hass);
+    const { down, up, ping } = this._history;
+    const runs = speedtestRuns(down, up, ping).slice(0, Math.max(1, c.log_count ?? 10));
+    if (!runs.length) return nothing;
+    const ds = spreadStats(runs.map((r) => r.down).filter((v): v is number => v != null));
+    const us = spreadStats(runs.map((r) => r.up).filter((v): v is number => v != null));
+    const ps = spreadStats(runs.map((r) => r.ping).filter((v): v is number => v != null));
+    const max = ds?.max ?? 1;
+    const rate = (v?: number) => (v != null ? formatRate(v, lang).v : "–");
+    return html`<div class="log">
+      <div class="sp-head">
+        <span class="sec-title"><ha-icon icon="mdi:format-list-bulleted"></ha-icon><span>${this._t("log")}</span></span>
+        <span class="sp-meta">${this._t("log_meta").replace("{n}", String(runs.length))}</span>
+      </div>
+      ${ds && runs.length > 1 ? html`<div class="log-sum">
+        <div class="ls"><small>${this._t("download")}</small><b>${rate(ds.min)}–${rate(ds.max)}</b><span>Ø ${rate(ds.avg)} · ± ${this._fmt(ds.cv, 0)} %</span></div>
+        ${us ? html`<div class="ls"><small>${this._t("upload")}</small><b>${rate(us.min)}–${rate(us.max)}</b><span>Ø ${rate(us.avg)} · ± ${this._fmt(us.cv, 0)} %</span></div>` : nothing}
+        ${ps ? html`<div class="ls"><small>${this._t("ping")}</small><b>${this._fmt(ps.min, 0)}–${this._fmt(ps.max, 0)}</b><span>Ø ${this._fmt(ps.avg, 0)} ms</span></div>` : nothing}
+      </div>` : nothing}
+      <div class="log-rows">
+        <div class="lr head"><span>${this._t("log_time")}</span><span>${this._t("download")}</span><span>${this._t("upload")}</span><span>${this._t("ping")}</span></div>
+        ${runs.map((r) => {
+          const low = ds && r.down != null && runs.length > 2 && r.down < ds.avg * 0.75;
+          return html`<div class="lr ${low ? "low" : ""}">
+            <span class="lr-t">${this._timeLabel(r.t)}</span>
+            <span class="lr-d"><i style="width:${r.down != null ? Math.max(4, (r.down / max) * 100) : 0}%"></i><b>${rate(r.down)}</b></span>
+            <span class="lr-u">${rate(r.up)}</span>
+            <span class="lr-p ${r.ping != null ? `q-${pingQuality(r.ping)}` : ""}">${r.ping != null ? this._fmt(r.ping, 0) : "–"}</span>
+          </div>`;
+        })}
+      </div>
+      <div class="log-unit">${this._t("log_unit")}</div>
     </div>`;
   }
 
@@ -431,7 +493,7 @@ export class HaStarlinkCard extends LitElement {
     if (c.entity && !this.hass.states[c.entity]) {
       return html`<ha-card class="starlink"><div class="missing">${this._t("missing")}: ${c.entity}</div></ha-card>`;
     }
-    const show = { live: true, speedtest: true, history: true, usage: true, controls: true, ...c.show };
+    const show = { live: true, speedtest: true, history: true, usage: true, controls: true, log: false, ...c.show };
     const phase = this._phase(s);
     const color = PHASE_COLOR[phase];
     const boot = this._st(s.boot);
@@ -457,6 +519,7 @@ export class HaStarlinkCard extends LitElement {
       ${this._renderAlerts(s, phase)}
       ${show.live ? this._renderLive(s, phase) : nothing}
       ${show.speedtest ? this._renderSpeedtest(t) : nothing}
+      ${show.speedtest && show.log ? this._renderLog() : nothing}
       ${show.usage ? this._renderUsage(s) : nothing}
       ${show.controls ? this._renderControls(s) : nothing}
     </ha-card>`;
@@ -545,6 +608,34 @@ export class HaStarlinkCard extends LitElement {
       font-size: 14px; font-weight: 700; color: #fff; background: var(--sc); transition: opacity 0.3s, transform 0.2s var(--ease-spring); }
     .run:active:not([disabled]) { transform: scale(0.98); }
     .run[disabled] { opacity: 0.6; cursor: default; }
+    .runs { display: flex; gap: 8px; }
+    .runs .run { flex: 1; min-width: 0; }
+    .runs .run span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .run.series { color: var(--sc); background: color-mix(in srgb, var(--sc) 16%, transparent); }
+    .run.series.busy { color: #7e57c2; background: color-mix(in srgb, #7e57c2 16%, transparent); }
+
+    /* Protokoll */
+    .log { --sc: #29b6f6; display: flex; flex-direction: column; gap: 10px; padding: 12px; border-radius: var(--hcc-inner-radius, 14px); background: rgba(127,127,127,0.07); }
+    .log-sum { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+    .ls { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+    .ls small { font-size: 11.5px; font-weight: 600; color: var(--secondary-text-color); }
+    .ls b { font-size: clamp(14px, 4.4cqi, 18px); white-space: nowrap; }
+    .ls span { font-size: 11.5px; color: var(--secondary-text-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .log-rows { display: flex; flex-direction: column; gap: 2px; }
+    .lr { display: grid; grid-template-columns: minmax(64px, 0.9fr) minmax(0, 2fr) minmax(0, 0.8fr) minmax(0, 0.6fr); align-items: center; gap: 8px;
+      padding: 5px 6px; border-radius: 8px; font-size: 13px; font-variant-numeric: tabular-nums; }
+    .lr.head { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; color: var(--secondary-text-color); padding-bottom: 2px; }
+    .lr:not(.head):nth-child(even) { background: rgba(127,127,127,0.06); }
+    .lr.low { background: color-mix(in srgb, #fb8c00 12%, transparent) !important; }
+    .lr.low .lr-d b { color: #fb8c00; }
+    .lr-t { color: var(--secondary-text-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .lr-d { position: relative; display: flex; align-items: center; min-width: 0; height: 20px; }
+    .lr-d i { position: absolute; left: 0; top: 3px; bottom: 3px; border-radius: 4px; background: color-mix(in srgb, var(--sc) 30%, transparent); }
+    .lr-d b { position: relative; padding-left: 6px; font-weight: 700; }
+    .lr-u, .lr-p { text-align: right; white-space: nowrap; }
+    .lr-u { color: #ab47bc; }
+    .lr-p { color: var(--qc, var(--primary-text-color)); }
+    .log-unit { font-size: 11px; color: var(--secondary-text-color); text-align: right; }
     .run ha-icon { --mdc-icon-size: 20px; }
     .spin { animation: spin 1s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }

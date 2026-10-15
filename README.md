@@ -547,8 +547,44 @@ entity: binary_sensor.starlink_konnektivitat   # beliebige Entität der Schüsse
 speedtest: sensor.speedtest_download           # beliebiger Speedtest-Sensor
 # name: Starlink
 # history_days: 7
-# show: { usage: false }   # live, speedtest, history, usage, controls
+# show: { usage: false }   # live, speedtest, history, usage, controls, log
 # ping: sensor.starlink_ping                    # Zuordnung überschreiben (auch speedtest_upload, speedtest_ping …)
+```
+
+**Speedtest-Protokoll und Testserie:** Mit `show: { log: true }` listet die Karte die letzten Tests einzeln (Uhrzeit, Download als
+Balken, Upload, Ping) mit Spanne, Mittel und Schwankung in % – deutlich schwächere Tests sind markiert. `series:` zeigt neben
+„Jetzt testen“ den Knopf **„Testserie“**, der ein Skript startet (z. B. mehrere Tests im Abstand von zwei Minuten); solange es läuft,
+steht dort „Serie läuft…“.
+
+```yaml
+type: custom:ha-starlink-card
+speedtest: sensor.speedtest_download
+series: script.starlink_speedtest_serie
+log_count: 10              # Zeilen im Protokoll
+show: { log: true, history: false }
+```
+
+## Modern Starlink Alignment (Ausrichtung der Schüssel)
+
+Zeigt, ob und wie weit die Schüssel falsch ausgerichtet ist: **Kompass** mit Ist-Richtung (Nadel), Soll-Richtung mit
+Toleranzbereich und der Abweichung als Bogen; Kopf und Kacheln färben sich grün (innerhalb `tolerance`), orange (bis `warn`) oder
+rot. Darunter der Hinweis, **um wie viel Grad und in welche Richtung** die Schüssel gedreht werden muss (kürzester Weg, auch über
+Norden), sowie Abweichung, Ist, Soll (mit −/+, wenn ein Helfer verwendet wird), **Mittel und Schwankung** der letzten Tage (aus der
+Langzeitstatistik, Neustart-Werte von 0° werden ignoriert; „verschoben“, wenn der aktuelle Wert deutlich vom Mittel abweicht) und
+die Zahl der **Sichtbehinderungen**. Meldet die Schüssel eine Neigung, kommt sie mit `desired_elevation` dazu.
+
+Die Starlink-Integration liefert nur die Ist-Richtung. Die **Soll-Richtung** steht in der Starlink-App (Ausrichtungs-Assistent bzw.
+Erweitert → Debug-Daten, „Desired boresight azimuth“) und wird als Zahl oder als Helfer (`input_number`) eingetragen.
+
+```yaml
+type: custom:ha-starlink-alignment-card
+entity: sensor.starlink_azimut                       # beliebige Entität der Schüssel
+desired_azimuth: input_number.starlink_soll_azimut   # oder eine Zahl, z.B. 8
+# desired_elevation: 25
+# tolerance: 5        # bis hier „Gut ausgerichtet“
+# warn: 15            # ab hier „Falsch ausgerichtet“
+# history_days: 7     # Mittel/Schwankung/Sichtbehinderungen
+# show: { tip: false }   # compass, stats, tip
 ```
 
 ## Modern LLM Vision Timeline (KI-Ereignisse)
@@ -1322,7 +1358,8 @@ glow, smooth color transitions, animations), shipped as a single HACS download:
 - `custom:ha-mower-card` – lawn mower with animated lawn or live map, controls, current run, statistics, blade wear and settings
 - `custom:ha-mower-summary-card` – mower at a glance: battery ring, animated status (mowing, charging, parked, rain pause), area mowed today, blade time left, next scheduled run
 - `custom:ha-soil-rain-card` – soil & rain: soil moisture column with adjustable warning threshold and 7-day history, rain sensor with weather-service confirmation (dew vs. rain), rain amounts, irrigation rain lock and 48 h timeline
-- `custom:ha-starlink-card` – Starlink dish (status, live throughput, ping, packet loss, warnings, stow/reboot) plus external speed test with history and "run test now"
+- `custom:ha-starlink-card` – Starlink dish (status, live throughput, ping, packet loss, warnings, stow/reboot) plus external speed test with history, "run test now", optional per-test log with spread and a "test series" script button
+- `custom:ha-starlink-alignment-card` – Starlink alignment: compass with actual vs. desired azimuth, deviation with rotation hint, mean and spread over several days, obstruction count
 - `custom:ha-llm-timeline-card` – LLM Vision timeline: latest event with snapshot, category/camera filters, day-grouped timeline and detail view
 - `custom:ha-home-battery-card` – home battery / solar storage (e.g. Anker Solarbank): charge ring with time left, animated solar → battery → home flow, PV strings, savings, history
 - `custom:ha-solar-forecast-card` – Solcast solar forecast: actual vs. forecast ring, day strip, daily curve with P10/P90 band and actual power, yesterday’s accuracy, API usage
