@@ -32,7 +32,7 @@ export class SensorRow extends LitElement {
   static styles = css`
     .row { display: grid; grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); gap: 8px; }
     .item {
-      display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: none; border-radius: 12px;
+      display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: none; border-radius: var(--hcc-inner-radius, 12px);
       background: var(--hcc-chip-bg, rgba(127,127,127,0.12)); color: var(--primary-text-color);
       font: inherit; text-align: left; cursor: pointer; min-width: 0;
     }

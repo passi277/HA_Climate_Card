@@ -1,0 +1,117 @@
+import { LitElement, css, html, nothing } from "lit";
+import { customElement, property, state } from "lit/decorators.js";
+import type { HomeAssistant, LightCardConfig } from "./types";
+import { CARD_VERSION } from "./const";
+import { localize } from "./localize/localize";
+import { lightEditorOptions } from "./utils";
+
+@customElement("ha-light-card-editor")
+export class HaLightCardEditor extends LitElement {
+  @property({ attribute: false }) hass?: HomeAssistant;
+  @state() private _config?: LightCardConfig;
+
+  public setConfig(config: LightCardConfig): void {
+    this._config = config;
+  }
+
+  private _t(key: string): string {
+    return localize(this.hass, `light_editor.${key}`);
+  }
+
+  private _schema() {
+    // Nur Bereiche anbieten, die die gewählte Lampe (bzw. Gruppe) auch kann
+    const opts = lightEditorOptions(this.hass?.states ?? {}, this._config?.entity, this._config);
+    return [
+      { name: "entity", required: true, selector: { entity: { domain: "light" } } },
+      { type: "grid", name: "", schema: [
+        { name: "name", selector: { text: {} } },
+        { name: "icon", selector: { icon: {} } },
+      ] },
+      { name: "layout", selector: { select: { mode: "box", options: [
+        { value: "full", label: this._t("layout_full") },
+        { value: "compact", label: this._t("layout_compact") },
+      ] } } },
+      { type: "expandable", name: "show", title: this._t("sections"), icon: "mdi:eye-outline", schema: [
+        { type: "grid", name: "", schema: opts.show.map((k) => ({ name: k, selector: { boolean: {} } })) },
+      ] },
+      { name: "default_presets", selector: { boolean: {} } },
+      { type: "expandable", name: "", flatten: true, title: this._t("room"), icon: "mdi:lightbulb-group", schema: [
+        { name: "auto_entities", selector: { boolean: {} } },
+        { name: "lights_layout", selector: { select: { mode: "box", options: [
+          { value: "rows", label: this._t("lights_rows") },
+          { value: "tiles", label: this._t("lights_tiles") },
+        ] } } },
+        { name: "entities", selector: { entity: { multiple: true, filter: { domain: "light" } } } },
+        { name: "auto_scenes", selector: { boolean: {} } },
+        { name: "scenes", selector: { entity: { multiple: true, filter: { domain: "scene" } } } },
+      ] },
+      { type: "expandable", name: "", flatten: true, title: this._t("device"), icon: "mdi:led-strip-variant", schema: [
+        // Auto-Erkennung nur, wenn Segmente gefunden wurden; eigene Liste bleibt immer möglich
+        ...(opts.segments ? [{ name: "auto_segments", selector: { boolean: {} } }] : []),
+        { name: "segments", selector: { entity: { multiple: true, filter: { domain: "light" } } } },
+        { name: "auto_shortcuts", selector: { boolean: {} } },
+        { name: "shortcuts", selector: { entity: { multiple: true, filter: { domain: ["switch", "button", "input_boolean", "script", "scene"] } } } },
+      ] },
+      { type: "expandable", name: "", flatten: true, title: this._t("sensors"), icon: "mdi:motion-sensor", schema: [
+        { name: "motion_sensor", selector: { entity: { filter: { domain: "binary_sensor" } } } },
+        { name: "illuminance_sensor", selector: { entity: { filter: [{ domain: "sensor", device_class: "illuminance" }, { domain: "sensor" }] } } },
+      ] },
+      { type: "expandable", name: "", flatten: true, title: this._t("appearance"), icon: "mdi:palette-outline", schema: [
+        { name: "expandable", selector: { boolean: {} } },
+        { name: "start_expanded", selector: { boolean: {} } },
+        { name: "animations", selector: { select: { mode: "dropdown", options: ["full", "reduced", "off"].map((v) => ({ value: v, label: localize(this.hass, `editor.anim_${v}`) })) } } },
+      ] },
+    ];
+  }
+
+  private _computeLabel = (s: { name: string }): string => this._t(s.name);
+
+  private _valueChanged(ev: CustomEvent): void {
+    const raw = { ...ev.detail.value } as LightCardConfig & { default_presets?: boolean };
+    // Schalter „Standard-Presets“ ↔ presets: default (eigene Preset-Listen aus YAML bleiben erhalten)
+    if (raw.default_presets) raw.presets = "default";
+    else if (raw.presets === "default") delete raw.presets;
+    delete raw.default_presets;
+    const config = raw as LightCardConfig;
+    if (Array.isArray(config.entities)) {
+      const previous = this._config?.entities ?? [];
+      config.entities = config.entities.map((e) => {
+        const id = typeof e === "string" ? e : e.entity;
+        return previous.find((p) => typeof p !== "string" && p.entity === id) ?? id;
+      });
+    }
+    if (Array.isArray(config.shortcuts)) {
+      const previous = this._config?.shortcuts ?? [];
+      config.shortcuts = config.shortcuts.map((e) => {
+        const id = typeof e === "string" ? e : e.entity;
+        return previous.find((p) => typeof p !== "string" && p.entity === id) ?? id;
+      });
+    }
+    for (const key of Object.keys(config) as (keyof LightCardConfig)[]) {
+      const v = config[key];
+      if (v === "" || v == null || (Array.isArray(v) && !v.length)) delete config[key];
+    }
+    this._config = config;
+    this.dispatchEvent(new CustomEvent("config-changed", { detail: { config }, bubbles: true, composed: true }));
+  }
+
+  protected render() {
+    if (!this.hass || !this._config) return nothing;
+    const data = {
+      default_presets: this._config.presets === "default",
+      layout: "full", lights_layout: "rows", auto_entities: true, auto_scenes: true, auto_segments: true, auto_shortcuts: true, expandable: true, animations: "full",
+      ...this._config,
+      entities: this._config.entities?.map((e) => (typeof e === "string" ? e : e.entity)),
+      shortcuts: this._config.shortcuts?.map((e) => (typeof e === "string" ? e : e.entity)),
+      show: { lights: true, scenes: true, color: true, temperature: true, effects: true, music: true, segments: true, shortcuts: true, ...(this._config.show ?? {}) },
+    };
+    return html`<ha-form .hass=${this.hass} .data=${data} .schema=${this._schema()}
+      .computeLabel=${this._computeLabel} @value-changed=${this._valueChanged}></ha-form>
+      <div class="version">HA Modern Home Cards v${CARD_VERSION}</div>`;
+  }
+
+  static styles = css`
+    :host { display: block; }
+    .version { margin-top: 12px; text-align: right; font-size: 11px; color: var(--secondary-text-color); opacity: 0.7; }
+  `;
+}
