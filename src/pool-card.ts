@@ -422,6 +422,12 @@ export class HaPoolCard extends LitElement {
     const running = a.running === true;
     const todayLeft = running || (a.today === true && start != null);
     const h = (x: number) => `${this._fmt(x)} h`;
+    const batWait = a.battery_waiting === true;
+    const batReady = date(a.battery_ready);
+    const batMin = Number(a.battery_min_soc ?? 0);
+    const batSoc = a.battery_soc != null ? Math.round(Number(a.battery_soc)) : undefined;
+    const batText = batWait ? this._t(batReady ? "solar_battery_at" : "solar_battery_not_today")
+      .replace("{soc}", batSoc != null ? `${batSoc} %` : "–").replace("{min}", `${Math.round(batMin)} %`).replace("{t}", batReady ? this._hm(batReady) : "") : "";
     let main: string;
     let sub: string;
     if (running) {
@@ -431,7 +437,7 @@ export class HaPoolCard extends LitElement {
       main = `${this._t("solar_start")} ${this._hm(start)}`;
       sub = `${end ? `${this._t("solar_until")} ${this._hm(end)} · ` : ""}~${h(hours)}`;
     } else if (tStart) {
-      main = this._t("solar_none_today");
+      main = this._t(batWait && !batReady ? "solar_battery_none_today" : "solar_none_today");
       sub = `${this._t("solar_tomorrow")} ${this._hm(tStart)} · ~${h(tHours)}`;
     } else {
       main = this._t("solar_none");
@@ -478,7 +484,8 @@ export class HaPoolCard extends LitElement {
     return html`<div class="solar ${isSolar ? "active" : ""}">
       <button class="sol-head" @click=${() => this._moreInfo(c.solar_forecast)}>
         <ha-icon .icon=${running ? "mdi:solar-power" : "mdi:weather-sunset-up"}></ha-icon>
-        <span class="sol-text"><b>${main}</b><span>${sub}${isSolar ? "" : ` · ${this._t("solar_not_active")}`}</span></span>
+        <span class="sol-text"><b>${main}</b><span>${sub}${isSolar ? "" : ` · ${this._t("solar_not_active")}`}</span>
+          ${batText ? html`<span class="sol-bat"><ha-icon icon="mdi:battery-charging-60"></ha-icon>${batText}</span>` : nothing}</span>
       </button>
       ${chart}
     </div>`;
@@ -751,6 +758,8 @@ export class HaPoolCard extends LitElement {
     .sol-head ha-icon { --mdc-icon-size: 22px; color: #ffa000; flex: none; }
     .sol-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; font-size: 12.5px; color: var(--secondary-text-color); }
     .sol-text b { font-size: 14px; color: var(--primary-text-color); }
+    .sol-bat { display: inline-flex; align-items: center; gap: 4px; color: var(--primary-text-color); }
+    .sol-bat ha-icon { --mdc-icon-size: 15px; color: #43a047; }
     .sol-chart { width: 100%; height: 52px; display: block; }
     .sol-bar { fill: color-mix(in srgb, #ffa000 32%, transparent); }
     .sol-bar.hi { fill: #ffa000; }

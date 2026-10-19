@@ -654,7 +654,7 @@
         const kw = { 18: 0.3, 19: 0.45, 20: 0.6, 21: 0.8, 22: 1.0, 23: 1.1, 24: 1.1, 25: 1.0, 26: 0.9, 27: 0.7, 28: 0.5, 29: 0.3 };
         const curve = [0, 1].flatMap((day) => Array.from({ length: 48 }, (_, i) => [at(day, 0, i * 30), day ? Math.round((kw[i] ?? 0) * 1000) : 0]));
         return { state: at(1, 9, 40), attributes: { friendly_name: "Pool Solar-Start Prognose", device_class: "timestamp", running: false, today: false,
-          end: null, hours_today: 0, tomorrow_start: at(1, 9, 40), tomorrow_end: at(1, 14, 40), tomorrow_hours: 5, windows: [], threshold: 400, factor: 0.92, curve } };
+          end: null, hours_today: 0, tomorrow_start: at(1, 9, 40), tomorrow_end: at(1, 14, 40), tomorrow_hours: 5, windows: [], threshold: 400, factor: 0.92, battery_waiting: true, battery_ready: null, battery_min_soc: 60, battery_soc: 16, curve } };
       })(),
       "sensor.pool_ersparnis": { state: "0.02", attributes: { friendly_name: "Pool Ersparnis", unit_of_measurement: "€/h" } },
       "input_boolean.pool_auto_aus": { state: "on", attributes: { friendly_name: "Auto-Aus bei Störung" } },

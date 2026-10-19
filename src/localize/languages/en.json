@@ -824,7 +824,10 @@
     "solar_threshold": "threshold {w} W",
     "solar_not_active": "solar mode not active",
     "solar_day_today": "Today",
-    "solar_day_tomorrow": "Tomorrow"
+    "solar_day_tomorrow": "Tomorrow",
+    "solar_battery_at": "Battery {soc} → {min} approx. {t}",
+    "solar_battery_not_today": "Battery {soc} – {min} not reached today",
+    "solar_battery_none_today": "No solar start today – battery too low"
   },
   "pool_editor": {
     "title": "Title",

@@ -841,7 +841,10 @@
     "solar_threshold": "Schwelle {w} W",
     "solar_not_active": "Solar-Modus nicht aktiv",
     "solar_day_today": "Heute",
-    "solar_day_tomorrow": "Morgen"
+    "solar_day_tomorrow": "Morgen",
+    "solar_battery_at": "Akku {soc} → {min} ca. {t}",
+    "solar_battery_not_today": "Akku {soc} – {min} heute nicht erreichbar",
+    "solar_battery_none_today": "Heute kein Solarstart – Akku zu leer"
   },
   "pool_editor": {
     "title": "Titel",

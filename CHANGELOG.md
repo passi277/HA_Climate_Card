@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.52.1
+- Pool Card: Solar-Prognose berücksichtigt den Mindest-Akkustand von Smart Pool – „Akku 16 % → 60 % ca. 11:40“ bzw. „Akku … heute nicht erreichbar“
+
 ## 1.52.0 – Starlink-Ausrichtung & Speedtest-Protokoll
 - Neue **Modern Starlink Alignment** (`custom:ha-starlink-alignment-card`): Kompass mit Ist- und Soll-Azimut, Toleranzbereich und Abweichung, Hinweis „um … ° im/gegen den Uhrzeigersinn drehen“ (kürzester Weg über Norden), Kacheln für Abweichung, Ist, Soll (−/+ über einen Helfer), Mittel und Schwankung der letzten Tage (Kreisstatistik, Neustart-Nullwerte ignoriert) und Sichtbehinderungen; Neigung, wenn die Schüssel sie meldet
 - Starlink Card: **Speedtest-Protokoll** (`show: { log: true }`) mit den letzten Tests einzeln, Spanne, Mittel und Schwankung; Knopf **„Testserie“** (`series: script.…`) startet ein Skript für mehrere Tests nacheinander
