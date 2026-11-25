@@ -18,7 +18,7 @@ weiche Farbübergänge und Animationen. Ein HACS-Download, mehrere Karten:
 | **Modern Status Card** | `custom:ha-status-card` | Batterien (automatisch je Bereich) und Tür-/Fensterkontakte |
 | **Modern Vacuum Card** | `custom:ha-vacuum-card` | Saugroboter mit Karte, Raumauswahl und Raumreinigung |
 | **Modern Presence Card** | `custom:ha-presence-card` | Personen mit Foto und Handy-Akku plus Haustür (Nuki Opener: Halten zum Öffnen, Ring to Open) |
-| **Modern Alert Card** | `custom:ha-alert-card` | Hinweise, die nur erscheinen, wenn etwas los ist („Fenster offen – Marcel“) |
+| **Modern Alert Card** | `custom:ha-alert-card` | Hinweise, die nur erscheinen, wenn etwas los ist („Fenster offen – Ben“) |
 | **Modern Energy Card** | `custom:ha-energy-card` | Energiefluss Solar / Batterie / Netz / Haus + einzelne Verbraucher (Konfiguration wie power-flow-card-plus) |
 | **Modern Irrigation Card** | `custom:ha-irrigation-card` | Hauswasserwerk / Pumpe mit parallelen Ventilen am Verteiler, Strang „Sonstiges“, Restzeit, Durchfluss |
 | **Modern Pool Card** | `custom:ha-pool-card` | Pool: animiertes Becken mit Filterpumpe, Temperatur / pH / Redox mit Bereich und 48-h-Verlauf, Filterlaufzeit, Modus, Pflege, Rückspülen |
@@ -291,14 +291,14 @@ entities:
   trotzdem flüssig zum Ziel gleiten (`travel_time`, Standard 20 s für ganz zu → ganz auf), Stopp hält ihn sanft an
 - **Blick aus dem Fenster nach Sonnenstand** (`sun.sun`): tagsüber Sonne (wandert mit Höhe und Himmelsrichtung),
   Abend-/Morgenrot in der Dämmerung, nachts Mond und Sterne; optional Wolken, Regen, Schnee, Nebel aus `weather_entity`
-- **Cover-Gruppen** (z.B. „Rollos Pascal“): alle Rollläden der Gruppe darunter als Kacheln nebeneinander
+- **Cover-Gruppen** (z.B. „Rollos Alex“): alle Rollläden der Gruppe darunter als Kacheln nebeneinander
 - **Lamellen** (Raffstore/Jalousie) nur, wenn unterstützt; **Fenster-/Türkontakte** als Hinweis
 - Nur was das Gerät kann: ohne Positionsangabe nur Auf/Ab, ohne Stopp kein Stopp-Button
 - `layout: compact` mit leuchtendem Positionsregler
 
 ```yaml
 type: custom:ha-cover-card
-entity: cover.rollos_pascal          # einzelner Rollladen oder Cover-Gruppe
+entity: cover.rollos_alex          # einzelner Rollladen oder Cover-Gruppe
 contact_sensors: [binary_sensor.fenster_wohnzimmer]
 # positions: [0, 30, 60, 100]       # eigene Schnellwahl (% offen)
 # travel_time: 25                   # Fahrzeit ganz zu → ganz auf (s)
@@ -322,7 +322,7 @@ title: Erdgeschoss
 entities:
   - cover.schreibtisch
   - cover.tv
-  - cover.mario
+  - cover.lena
 # collapsed: true          # Einzelne anfangs zugeklappt
 ```
 
@@ -387,7 +387,7 @@ läuft, erscheint ein Hinweis mit Button „Klima aus“ (zweimal tippen zum Bes
 
 ```yaml
 type: custom:ha-room-card
-title: Pascal
+title: Alex
 icon: mdi:account
 light: light.licht_mein_zimmer
 contacts:
@@ -395,12 +395,12 @@ contacts:
     name: Schreibtisch
 temperature: climate.heizung_mein_zimmer     # Sensor oder Klima-Entität
 humidity: climate.heizung_mein_zimmer
-climate: climate.klima_pascal
+climate: climate.klima_alex
 media: remote.harmony_schlafzimmer
-trash: calendar.abfallkalender_mannheim   # Müllabfuhr: „Restmüll · morgen“
+trash: calendar.abfallkalender   # Müllabfuhr: „Restmüll · morgen“
 # trash_days: 1               # 0 = nur heute, 1 = heute + morgen (Standard)
 # trash_today_until: "10:00"  # heutige Abholung danach ausblenden
-# navigation_path: /dashboard-final/pascal   # Tippen auf den Titel öffnet die Seite
+# navigation_path: /dashboard-final/alex   # Tippen auf den Titel öffnet die Seite
 # chips: [switch.monitore]
 ```
 
@@ -693,7 +693,7 @@ Darunter eine **Terminliste** aus beliebig vielen Kalendern (je eine Farbe), gru
 
 ```yaml
 type: custom:ha-agenda-card
-waste: calendar.abfallkalender_mannheim
+waste: calendar.abfallkalender
 calendars:
   - calendar.familie
   - { entity: calendar.arbeit, name: Arbeit, color: "#ab47bc" }
@@ -751,7 +751,7 @@ oben die ganze Gruppe mit Helligkeit, darunter aufklappbar jede einzelne Lampe.
 
 ```yaml
 type: custom:ha-scene-card
-rooms: [tv, Wohnzimmer, Küche, Zimmer, Marcel]
+rooms: [tv, Wohnzimmer, Küche, Zimmer, Ben]
 # favorites: [scene.tv_ambiente_kaminfeuer]
 # exclude: [Fick]
 ```
@@ -781,8 +781,8 @@ Lampen und Medien aus und den Schlafmodus an (zweimal tippen).
 ```yaml
 type: custom:ha-sleep-card
 persons:
-  - name: Pascal
-    sleep: input_boolean.schalter_schlafen_klima_pascal
+  - name: Alex
+    sleep: input_boolean.schalter_schlafen_klima_alex
     timers:
       - { name: TV aus, switch: input_boolean.schalter_tv, time: input_datetime.timer_tv }
       - { name: Klima aus, time: input_datetime.timer_klima }
@@ -1012,7 +1012,7 @@ entity: vacuum.roborock_s8_maxv_ultra
 # maintenance_sensors:                              # Station (eigenes Gerät) in die Wartung
 #   - sensor.roborock_s8_maxv_ultra_dock_schmutzfanger_verbleibend
 # rooms:                                              # eigene Auswahl/Namen
-#   - { id: 22, name: Pascal }
+#   - { id: 22, name: Alex }
 ```
 
 ## Modern Presence Card (Personen & Haustür)
@@ -1027,8 +1027,8 @@ entity: vacuum.roborock_s8_maxv_ultra
 ```yaml
 type: custom:ha-presence-card
 persons:
-  - person.pascal
-  - person.marcel
+  - person.alex
+  - person.ben
 lock: lock.klingel
 door_name: Klingel
 # open_action: script.klingel_offnen   # statt lock.open ein Skript/Button
@@ -1041,7 +1041,7 @@ door_name: Klingel
 Erscheint **nur, wenn etwas los ist** – sonst ist die Karte samt Platz ausgeblendet (wie eine bedingte Karte).
 Jeder aktive Hinweis ist eine farbige Zeile mit pulsierendem Symbol; Tippen öffnet die Details oder eine Seite.
 
-- `contacts`: „Fenster offen – Marcel“, bei mehreren „Fenster/Türen offen – Küche · Marcel“
+- `contacts`: „Fenster offen – Ben“, bei mehreren „Fenster/Türen offen – Küche · Ben“
 - `alerts`: beliebige Entitäten mit `state` / `state_not` / `above` / `below`, `severity` (info, warning, error, success)
 
 ```yaml
@@ -1049,8 +1049,8 @@ type: custom:ha-alert-card
 contacts:
   - entity: binary_sensor.fenster_kuche
     name: Küche
-  - entity: binary_sensor.fernster_marcel
-    name: Marcel
+  - entity: binary_sensor.fernster_ben
+    name: Ben
 alerts:
   - entity: vacuum.roborock_s8_maxv_ultra
     state: error
@@ -1267,7 +1267,7 @@ entities:
   - input_select.bewasserung_modus
   - entity: input_select.pool_betrieb_status
     confirm: [Aus]                       # Rückfrage
-  - entity: input_select.pascal_dashboard
+  - entity: input_select.alex_dashboard
     layout: tiles
     options:
       Garten: { icon: mdi:tree, color: "#2e7d32" }
@@ -1309,8 +1309,8 @@ title: Klimaanlagen
 entities:
   - climate.wohnzimmer
   - climate.schlafzimmer
-  - entity: climate.marcel
-    name: Marcel
+  - entity: climate.ben
+    name: Ben
 show_all_off: true     # „Alle aus“-Button
 show_controls: true    # Sollwert-Regler je Gerät
 ```

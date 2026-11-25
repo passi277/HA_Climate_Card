@@ -349,11 +349,11 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
     return { after, calls: window.serviceCalls.slice(n).map((c) => `${c.service}:${c.data.entity_id}:${c.data.position ?? ""}`), rows, groupCalls,
       tilt: [...compact.querySelectorAll("hcc-gradient-slider")].some((s) => s.icon === "mdi:angle-acute") };
   }, before);
-  res.calls.some((c) => /^set_cover_position:cover.rollos_pascal:7[0-9]$/.test(c)) ? ok("Rollladen: Tippen ins Fenster (oberes Viertel) → ~75 % offen")
+  res.calls.some((c) => /^set_cover_position:cover.rollos_alex:7[0-9]$/.test(c)) ? ok("Rollladen: Tippen ins Fenster (oberes Viertel) → ~75 % offen")
     : fail(`Fenster: ${res.calls}`);
   /opening/.test(moving.window) && moving.badge === "opening" ? ok("Rollladen: Fahrt-Animation (Lamellen laufen, Pfeil) nur während der Fahrt")
     : fail(`Fahrt: ${JSON.stringify(moving)}`);
-  res.calls.includes("set_cover_position:cover.rollos_pascal:0") ? ok("Rollladen: Schnellwahl „Zu“") : fail(`Schnellwahl: ${res.calls}`);
+  res.calls.includes("set_cover_position:cover.rollos_alex:0") ? ok("Rollladen: Schnellwahl „Zu“") : fail(`Schnellwahl: ${res.calls}`);
   const r = res.rows;
   r.schreibtisch?.slider && r.schreibtisch.buttons === 3 && !r.terrasse_markise?.slider && r.terrasse_markise.buttons === 2 && r.kuche?.buttons === 0
     && r.sideBySide
@@ -563,7 +563,7 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
     await wait(1200);
     return { timerLabel, timerCall, offToggle };
   });
-  res.timerLabel === "Sleeptimer" && /^homeassistant\.turn_(on|off):input_boolean\.timer_klima_pascal$/.test(res.timerCall ?? "")
+  res.timerLabel === "Sleeptimer" && /^homeassistant\.turn_(on|off):input_boolean\.timer_klima_alex$/.test(res.timerCall ?? "")
     ? ok("Medien: Sleeptimer (Schalter + Uhrzeit) in der Medienkarte") : fail(`Media-Sleeptimer: ${JSON.stringify(res)}`);
   res.offToggle ? ok("Medien: Fernbedienung auch bei ausgeschaltetem Hub ein-/ausklappbar") : fail("Fernbedienung fehlt bei Hub aus");
 }
@@ -628,7 +628,7 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
       selects: [...root.querySelectorAll(".settings hcc-attribute-select")].map((x) => x.label) };
   });
   const seg = res.calls.find((c) => c.s === "vacuum.send_command");
-  res.polys === 9 && res.chipsOn.join("|") === "Küche|Pascal" && seg?.d.command === "app_segment_clean"
+  res.polys === 9 && res.chipsOn.join("|") === "Küche|Alex" && seg?.d.command === "app_segment_clean"
     && JSON.stringify(seg.d.params) === JSON.stringify([{ segments: [22, 18], repeat: 2 }])
     ? ok("Saugroboter: 9 Räume auf der Karte, Auswahl per Karte + Chip, Raumreinigung (app_segment_clean, 2×)")
     : fail(`Saugroboter Räume: ${JSON.stringify(res)}`);
@@ -647,7 +647,7 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
     battery: t.querySelector(".battery")?.textContent.trim(), batteryCls: t.querySelector(".battery")?.className, avatar: t.querySelector(".avatar")?.textContent })));
   const [pa, ma] = persons;
   pa?.where === "Zuhause" && /home/.test(pa.cls) && pa.battery === "68 %" && /charging/.test(pa.batteryCls)
-    && ma?.where === "Unterwegs" && /away/.test(ma.cls) && ma.battery === "15 %" && /low/.test(ma.batteryCls) && ma.avatar === "M"
+    && ma?.where === "Unterwegs" && /away/.test(ma.cls) && ma.battery === "15 %" && /low/.test(ma.batteryCls) && ma.avatar === "B"
     ? ok("Personen: Zuhause/Unterwegs, Handy-Akku automatisch (lädt / schwach), Initialen ohne Foto") : fail(`Personen: ${JSON.stringify(persons)}`);
 
   const main = await card.evaluateHandle((c) => c.shadowRoot.querySelector(".door-main"));
@@ -704,23 +704,23 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
     const trash = [...header.shadowRoot.querySelectorAll('.chip[data-key^="trash-"]')].map((x) => x.textContent.trim());
     const tile = (t) => rooms.find((c) => c._config?.layout === "tile" && c._config.title === t).shadowRoot;
     const marks = (t) => [...tile(t).querySelectorAll(".mark")].map((m) => m.dataset.key.replace(/^trash-.*/, "trash"));
-    const out = { trash, pascal: marks("Pascal"), pascalLit: tile("Pascal").querySelector("ha-card").classList.contains("lit"),
-      wohn: marks("Wohnzimmer"), zuhause: marks("Zuhause"), sub: tile("Pascal").querySelector(".tile-sub").textContent.trim(),
+    const out = { trash, alex: marks("Alex"), pascalLit: tile("Alex").querySelector("ha-card").classList.contains("lit"),
+      wohn: marks("Wohnzimmer"), zuhause: marks("Zuhause"), sub: tile("Alex").querySelector(".tile-sub").textContent.trim(),
       robo: tile("Saugroboter").querySelector(".tile-sub").textContent.trim() };
     const center = (t) => { const r = tile(t); const card = r.querySelector("ha-card").getBoundingClientRect(); const ic = r.querySelector(".icon-badge").getBoundingClientRect();
       return Math.abs((ic.left + ic.width / 2) - (card.left + card.width / 2)); };
-    out.offCenter = Math.max(...["Pascal", "Wohnzimmer", "Bad", "Zuhause"].map(center));
+    out.offCenter = Math.max(...["Alex", "Wohnzimmer", "Bad", "Zuhause"].map(center));
     out.corners = Object.fromEntries([...tile("Wohnzimmer").querySelectorAll(".mark")].map((m) => [m.dataset.key, m.dataset.corner]));
     out.trashCorners = [...tile("Zuhause").querySelectorAll(".mark")].map((m) => m.dataset.corner);
-    tile("Pascal").querySelector("ha-card").click();
+    tile("Alex").querySelector("ha-card").click();
     await wait(50);
     out.hash = location.hash;
     return out;
   });
   JSON.stringify(res.trash) === JSON.stringify(["Altpapier · morgen", "Restmüll · morgen"])
     ? ok("Raum-Kopf: Müllabfuhr aus dem Kalender (heute/morgen)") : fail(`Müll-Chips: ${JSON.stringify(res.trash)}`);
-  res.pascalLit && res.pascal.includes("light") && res.wohn.includes("contacts") && res.wohn.includes("media")
-    && res.zuhause.join() === "trash,trash" && /°C/.test(res.sub) && res.robo.length > 0 && res.hash === "#pascal"
+  res.pascalLit && res.alex.includes("light") && res.wohn.includes("contacts") && res.wohn.includes("media")
+    && res.zuhause.join() === "trash,trash" && /°C/.test(res.sub) && res.robo.length > 0 && res.hash === "#alex"
     ? ok("Raumkacheln: Licht leuchtet, Symbole für Fenster/TV/Müll, Temperatur, Tippen navigiert") : fail(`Raumkacheln: ${JSON.stringify(res)}`);
   res.offCenter <= 2 && res.corners.contacts === "tr" && res.corners.climate === "bl" && res.corners.media === "br"
     && new Set(res.trashCorners).size === 2
@@ -1251,7 +1251,7 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
   r0.layouts.join() === "l-segment,l-chips,l-segment,l-tiles,l-segment" && r0.segSel === "Automatik" && r0.icons.join() === "mdi:power,mdi:robot,mdi:auto-fix" && r0.disabled
     && seg.join() === "input_select.select_option input_select.jahreszeit Winter" && segAfter === "Winter"
     && ask1.length === 0 && asked === "Sicher?" && ask2.join() === "input_select.select_option input_select.pool_modus Aus"
-    && tile.join() === "input_select.select_option input_select.pascal_dashboard Zuhause" && opened === 3
+    && tile.join() === "input_select.select_option input_select.alex_dashboard Zuhause" && opened === 3
     && pick.join() === "input_select.select_option input_select.bewaesserung_rasen_status gestartet" && !closed.list && closed.btn === "gestartet"
     ? ok("Auswahl: Leiste, Chips mit Rückfrage, Kacheln, Dropdown, Symbole automatisch, nicht verfügbar gesperrt")
     : fail(`Auswahl: ${JSON.stringify({ r0, seg, segAfter, ask1, asked, ask2, tile, opened, pick, closed })}`);
@@ -1272,7 +1272,7 @@ rendered >= 12 ? ok(`${rendered} Karten gerendert`) : fail(`nur ${rendered} Kart
   const pick = await p.evaluate((n) => window.serviceCalls.slice(n).map((c) => `${c.domain}.${c.service} ${c.data.entity_id} ${c.data.option}`), n0);
   const after = await up.evaluate((c) => ({ list: !!c.shadowRoot.querySelector(".list"), up: c.shadowRoot.querySelector(".dd").classList.contains("up") }));
   before.name === "Dashboard Auswahl" && before.chev && !before.list && open.up && open.order === "pop,dd-btn" && open.shown && open.above && !open.chev && open.items === 2
-    && pick.length === 1 && pick[0].startsWith("input_select.select_option input_select.pascal_dashboard") && !after.list && !after.up
+    && pick.length === 1 && pick[0].startsWith("input_select.select_option input_select.alex_dashboard") && !after.list && !after.up
     ? ok("Auswahl: Dropdown öffnet schwebend nach oben über dem Knopf, schließt nach Wahl")
     : fail(`Dropdown nach oben: ${JSON.stringify({ before, open, pick, after })}`);
 }
@@ -1475,7 +1475,7 @@ colorFails.length ? fail(`Farbe folgt nicht dem Modus: ${colorFails.join(", ")}`
     const r = document.querySelector("ha-llm-timeline-card").shadowRoot;
     return { items: r.querySelectorAll(".item").length, hero: r.querySelector(".hero-text b")?.textContent, img: !!r.querySelector("img.hero-img"), sub: r.querySelector(".h-sub")?.textContent };
   });
-  info.hero === "Marcels Auto" && info.img ? ok(`KI-Timeline: neuestes Ereignis mit Bild (${info.sub})`) : fail(`KI-Timeline Kopf: ${JSON.stringify(info)}`);
+  info.hero === "Bens Auto" && info.img ? ok(`KI-Timeline: neuestes Ereignis mit Bild (${info.sub})`) : fail(`KI-Timeline Kopf: ${JSON.stringify(info)}`);
   info.items === 6 ? ok("KI-Timeline: 6 weitere Ereignisse, „Keine Aktivität“ ausgeblendet") : fail(`KI-Timeline Einträge: ${info.items}`);
   await q(() => document.querySelector("ha-llm-timeline-card").shadowRoot.querySelector('.chip[data-cat="animal"]').click());
   await p.waitForTimeout(300);
@@ -1644,7 +1644,7 @@ colorFails.length ? fail(`Farbe folgt nicht dem Modus: ${colorFails.join(", ")}`
     return { asleep: r.querySelectorAll(".person.asleep").length, persons: r.querySelectorAll(".person").length,
       tv: r.querySelector('.timer[data-timer="input_datetime.timer_tv"] small')?.textContent.trim(), alarm: !!r.querySelector(".alarm") }; });
   info.asleep === 1 && info.persons === 2 && /aus in 1:[0-2]\d h/.test(info.tv) && info.alarm
-    ? ok(`Schlafen: Pascal schläft, TV ${info.tv}, Wecker`) : fail(`Schlafen: ${JSON.stringify(info)}`);
+    ? ok(`Schlafen: Alex schläft, TV ${info.tv}, Wecker`) : fail(`Schlafen: ${JSON.stringify(info)}`);
   const n = await p.evaluate(() => window.serviceCalls.length);
   await p.evaluate(() => document.querySelector("ha-sleep-card").shadowRoot.querySelectorAll('.timer[data-timer="input_datetime.timer_tv"] .step')[1].click());
   await p.evaluate(() => document.querySelector("ha-sleep-card").shadowRoot.querySelector('[data-person="1"] .gn').click());
@@ -1654,7 +1654,7 @@ colorFails.length ? fail(`Farbe folgt nicht dem Modus: ${colorFails.join(", ")}`
   await p.waitForTimeout(200);
   const calls = await p.evaluate((k) => window.serviceCalls.slice(k), n);
   const dt = calls.find((c) => c.service === "set_datetime");
-  first === 0 && dt?.data.entity_id === "input_datetime.timer_tv" && calls.some((c) => c.service === "turn_on" && c.data.entity_id === "input_boolean.schlafen_marcel")
+  first === 0 && dt?.data.entity_id === "input_datetime.timer_tv" && calls.some((c) => c.service === "turn_on" && c.data.entity_id === "input_boolean.schlafen_ben")
     && calls.some((c) => c.domain === "light" && c.service === "turn_off")
     ? ok(`Schlafen: +15 min (${dt.data.time}), „Gute Nacht“ erst nach Bestätigung`) : fail(`Schlafen Dienste: ${JSON.stringify(calls)}`);
 }
@@ -1663,20 +1663,20 @@ colorFails.length ? fail(`Farbe folgt nicht dem Modus: ${colorFails.join(", ")}`
 {
   const info = await p.evaluate(() => { const r = document.querySelector("ha-climate-rooms-card").shadowRoot;
     return { rooms: r.querySelectorAll(".room").length, win: r.querySelectorAll(".room.win").length, heat: r.querySelectorAll(".room.heating").length,
-      next: r.querySelector('.room[data-room="Pascal"] .r-text small')?.textContent.trim(), sum: [...r.querySelectorAll(".sc")].map((s) => s.textContent.trim()) }; });
+      next: r.querySelector('.room[data-room="Alex"] .r-text small')?.textContent.trim(), sum: [...r.querySelectorAll(".sc")].map((s) => s.textContent.trim()) }; });
   info.rooms === 4 && info.win === 1 && info.next
-    ? ok(`Klima 2.0: ${info.sum.join(", ")} · Pascal „${info.next}“`) : fail(`Klima 2.0: ${JSON.stringify(info)}`);
+    ? ok(`Klima 2.0: ${info.sum.join(", ")} · Alex „${info.next}“`) : fail(`Klima 2.0: ${JSON.stringify(info)}`);
   const n = await p.evaluate(() => window.serviceCalls.length);
   // Frühere Tests haben die Heizung evtl. ausgeschaltet: erst einschalten, dann Boost
   if (/Heizung aus/.test(info.next)) {
-    await p.evaluate(() => document.querySelector("ha-climate-rooms-card").shadowRoot.querySelector('.room[data-room="Pascal"] .pill[data-act="heat"]').click());
+    await p.evaluate(() => document.querySelector("ha-climate-rooms-card").shadowRoot.querySelector('.room[data-room="Alex"] .pill[data-act="heat"]').click());
     await p.waitForTimeout(400);
   }
-  await p.evaluate(() => document.querySelector("ha-climate-rooms-card").shadowRoot.querySelector('.room[data-room="Pascal"] .pill[data-act="boost"]').click());
+  await p.evaluate(() => document.querySelector("ha-climate-rooms-card").shadowRoot.querySelector('.room[data-room="Alex"] .pill[data-act="boost"]').click());
   await p.waitForTimeout(300);
   const calls = await p.evaluate((k) => window.serviceCalls.slice(k), n);
   const boost = calls.find((c) => c.service === "set_preset_mode");
-  const next = await p.evaluate(() => document.querySelector("ha-climate-rooms-card").shadowRoot.querySelector('.room[data-room="Pascal"] .r-text small')?.textContent.trim());
+  const next = await p.evaluate(() => document.querySelector("ha-climate-rooms-card").shadowRoot.querySelector('.room[data-room="Alex"] .r-text small')?.textContent.trim());
   boost?.data.entity_id === "climate.heizung_mein_zimmer" && (boost.data.preset_mode === "boost") === /Boost/.test(next)
     ? ok(`Klima 2.0: ${calls.length > 1 ? "Heizung an, " : ""}Boost umgeschaltet („${next}“)`) : fail(`Klima 2.0 Boost: ${JSON.stringify(calls)} ${next}`);
 }
@@ -1782,7 +1782,7 @@ colorFails.length ? fail(`Farbe folgt nicht dem Modus: ${colorFails.join(", ")}`
     return { opRow: ra.querySelector("[data-opener] .o-text b")?.textContent.trim() === "Haustür unten", sub: ra.querySelector(".h-sub")?.textContent.trim(), bat: ra.querySelector(".chip")?.textContent.trim(), door: ra.querySelector(".inf")?.textContent.trim(),
       ev: [...ra.querySelectorAll(".ev")].map((e) => e.dataset.kind), who: ra.querySelector(".ev-text small")?.textContent.trim(),
       opener: [...rb.querySelectorAll(".act")].map((x) => x.dataset.act), obat: rb.querySelector(".chip.warn")?.textContent.trim(), oev: [...rb.querySelectorAll(".ev")].map((e) => e.dataset.kind) }; });
-  /^Aufgeschlossen · Tür zu/.test(info.sub) && info.bat === "Akku schwach" && info.door === "Tür zu" && info.opRow && info.ev[0] === "unlocked" && info.who === "Pascal" && info.ev.length === 5
+  /^Aufgeschlossen · Tür zu/.test(info.sub) && info.bat === "Akku schwach" && info.door === "Tür zu" && info.opRow && info.ev[0] === "unlocked" && info.who === "Alex" && info.ev.length === 5
     && info.opener.join() === "rto,open" && info.obat === "Akku schwach" && info.oev.join() === "rto_off,ring,rto_on"
     ? ok(`Schloss: ${info.sub}, Verlauf ${info.ev.join(">")} (${info.who}); Opener ${info.oev.join(">")}`) : fail(`Schloss: ${JSON.stringify(info)}`);
   const n = await p.evaluate(() => window.serviceCalls.length);
@@ -1846,7 +1846,7 @@ colorFails.length ? fail(`Farbe folgt nicht dem Modus: ${colorFails.join(", ")}`
     r.querySelector(".more")?.click(); return new Promise((res) => setTimeout(() => res({ title: r.querySelector(".h-title")?.textContent.trim(), sub: r.querySelector(".h-sub")?.textContent.trim(),
       names: [...r.querySelectorAll(".d-name")].map((n) => n.textContent.trim()), awaySub: [...r.querySelectorAll(".dev")].find((d) => /Anker/.test(d.textContent))?.querySelector(".d-sub")?.textContent.trim() }), 200)); });
   wifi.title === "WLAN" && wifi.names.includes("Shelly Kühlschrank") && wifi.names.includes("goat") && wifi.names.includes("Tor") && !wifi.names.includes("Reolink")
-    && wifi.names.slice(-2).sort().join() === "Anker,S24-Ultra-von-Marcel" && /^nicht verbunden/.test(wifi.awaySub) && /verbunden/.test(wifi.sub)
+    && wifi.names.slice(-2).sort().join() === "Anker,S24-Ultra-von-Ben" && /^nicht verbunden/.test(wifi.awaySub) && /verbunden/.test(wifi.sub)
     ? ok(`Funknetz WLAN: ${wifi.names.length} Geräte (${wifi.sub}), Router-Clients + HA-Geräte, getrennte zuletzt`) : fail(`Funknetz WLAN: ${JSON.stringify(wifi)}`);
   const z = await p.evaluateHandle(() => document.querySelector("ha-network-card"));
   try { await p.evaluate(() => localStorage.removeItem("hcc-z2m-map:zigbee2mqtt")); } catch {}

@@ -403,7 +403,7 @@ describe("vacuum map", () => {
     expect(calibrationTransform(undefined)).toBeUndefined();
   });
   it("reads rooms from the map image", () => {
-    const rooms = roomsFromMap(entity("image.m", "x", { rooms: { 22: { number: 22, name: "Pascal", x0: 28950, y0: 23600, x1: 32800, y1: 27400 }, 18: { number: 18, name: "Küche" } } }));
+    const rooms = roomsFromMap(entity("image.m", "x", { rooms: { 22: { number: 22, name: "Alex", x0: 28950, y0: 23600, x1: 32800, y1: 27400 }, 18: { number: 18, name: "Küche" } } }));
     expect(rooms.map((r) => r.id).sort()).toEqual([18, 22]);
     expect(rooms.find((r) => r.id === 22)?.box).toEqual([28950, 23600, 32800, 27400]);
     expect(roomIcon("Küche")).toBe("mdi:silverware-fork-knife");
@@ -412,14 +412,14 @@ describe("vacuum map", () => {
 
 describe("presence", () => {
   const states = Object.fromEntries([
-    entity("device_tracker.marcels", "home"),
-    entity("sensor.marcel_s24_car_battery", "80", { device_class: "battery" }),
-    entity("sensor.marcel_s24_car_charging_status", "charging"),
-    entity("sensor.marcel_s24_battery_level", "15", { device_class: "battery", unit_of_measurement: "%" }),
-    entity("sensor.marcel_s24_charger_type", "ac", { device_class: "enum" }),
-    entity("device_tracker.pascal_handy", "home"),
-    entity("sensor.pascal_handy_battery_level", "40", { device_class: "battery" }),
-    entity("binary_sensor.pascal_handy_is_charging", "off", { device_class: "battery_charging" }),
+    entity("device_tracker.bens", "home"),
+    entity("sensor.ben_s24_car_battery", "80", { device_class: "battery" }),
+    entity("sensor.ben_s24_car_charging_status", "charging"),
+    entity("sensor.ben_s24_battery_level", "15", { device_class: "battery", unit_of_measurement: "%" }),
+    entity("sensor.ben_s24_charger_type", "ac", { device_class: "enum" }),
+    entity("device_tracker.alex_handy", "home"),
+    entity("sensor.alex_handy_battery_level", "40", { device_class: "battery" }),
+    entity("binary_sensor.alex_handy_is_charging", "off", { device_class: "battery_charging" }),
     entity("lock.klingel", "locked", { supported_features: 1 }),
     entity("binary_sensor.klingel_klingelaktion", "off"),
     entity("binary_sensor.klingel_ring_to_open", "off", { device_class: "lock" }),
@@ -427,24 +427,24 @@ describe("presence", () => {
   ].map((e) => [e.entity_id, e]));
   const reg = (id: string, device: string | null) => ({ entity_id: id, device_id: device });
   const entities = Object.fromEntries([
-    reg("device_tracker.marcels", "phone_m"), reg("sensor.marcel_s24_car_battery", "phone_m"), reg("sensor.marcel_s24_car_charging_status", "phone_m"), reg("sensor.marcel_s24_battery_level", "phone_m"), reg("sensor.marcel_s24_charger_type", "phone_m"),
+    reg("device_tracker.bens", "phone_m"), reg("sensor.ben_s24_car_battery", "phone_m"), reg("sensor.ben_s24_car_charging_status", "phone_m"), reg("sensor.ben_s24_battery_level", "phone_m"), reg("sensor.ben_s24_charger_type", "phone_m"),
     reg("lock.klingel", "opener"), reg("binary_sensor.klingel_klingelaktion", "opener"), reg("binary_sensor.klingel_ring_to_open", "opener"),
     reg("binary_sensor.klingel_batterie", "opener"),
   ].map((e) => [e.entity_id, e]));
   it("finds phone battery + charging via the tracker device or its name", () => {
-    expect(phoneSensors(states, entities, ["device_tracker.marcels"])).toEqual({ battery: "sensor.marcel_s24_battery_level", charging: "sensor.marcel_s24_charger_type" });
-    expect(phoneSensors(states, entities, ["device_tracker.pascal_handy"])).toEqual({ battery: "sensor.pascal_handy_battery_level", charging: "binary_sensor.pascal_handy_is_charging" });
+    expect(phoneSensors(states, entities, ["device_tracker.bens"])).toEqual({ battery: "sensor.ben_s24_battery_level", charging: "sensor.ben_s24_charger_type" });
+    expect(phoneSensors(states, entities, ["device_tracker.alex_handy"])).toEqual({ battery: "sensor.alex_handy_battery_level", charging: "binary_sensor.alex_handy_is_charging" });
     expect(phoneSensors(states, undefined, [])).toEqual({});
   });
   it("detects charging and picks battery icons", () => {
-    expect(isCharging(states["sensor.marcel_s24_charger_type"])).toBe(true);
+    expect(isCharging(states["sensor.ben_s24_charger_type"])).toBe(true);
     expect(isCharging(entity("sensor.x_charger_type", "none"))).toBe(false);
     expect(isCharging(entity("sensor.x_battery_state", "Charging"))).toBe(true);
-    expect(isCharging(states["binary_sensor.pascal_handy_is_charging"])).toBe(false);
+    expect(isCharging(states["binary_sensor.alex_handy_is_charging"])).toBe(false);
     expect(batteryIcon(43)).toBe("mdi:battery-40");
     expect(batteryIcon(100, true)).toBe("mdi:battery-charging-100");
     expect(batteryIcon(2)).toBe("mdi:battery-outline");
-    expect(initials("Pascal Schmitt")).toBe("PS");
+    expect(initials("Max Mustermann")).toBe("MM");
   });
   it("finds doorbell + battery of the lock device and the door kind", () => {
     expect(doorDevices(states, entities, "lock.klingel")).toEqual({ doorbell: "binary_sensor.klingel_klingelaktion", battery: "binary_sensor.klingel_batterie" });
@@ -504,11 +504,11 @@ describe("battery shopping list", () => {
   it("groups low batteries by type and sums quantities", () => {
     const list = batteryShoppingList([
       { entity: "a", name: "Schalter Küche", low: true, type: "CR2450", kind: "CR2450", quantity: 1 },
-      { entity: "b", name: "Heizkörper Pascal", low: true, type: "2× AA" },
+      { entity: "b", name: "Heizkörper Alex", low: true, type: "2× AA" },
       { entity: "c", name: "Heizkörper Bad", low: true, type: "2× AA" },
       { entity: "d", name: "Wandthermostat", low: false, type: "2× AAA" },
     ]);
-    expect(list).toEqual([{ kind: "AA", count: 4, names: ["Heizkörper Pascal", "Heizkörper Bad"] }, { kind: "CR2450", count: 1, names: ["Schalter Küche"] }]);
+    expect(list).toEqual([{ kind: "AA", count: 4, names: ["Heizkörper Alex", "Heizkörper Bad"] }, { kind: "CR2450", count: 1, names: ["Schalter Küche"] }]);
   });
 });
 
@@ -846,11 +846,11 @@ describe("starlinkFeatures / speedtestFeatures", () => {
 describe("LLM Vision Timeline", () => {
   it("liest llmvision.get_events (neueste zuerst)", () => {
     const ev = llmEvents({ events: [
-      { uid: "a", title: "Marcels Auto", start: "2026-10-04T11:43:04+02:00", end: "2026-10-04T11:44:07+02:00", description: "Auto steht", key_frame: "/media/llmvision/snapshots/a.jpg", camera_name: "camera.haus", category: "", label: "" },
+      { uid: "a", title: "Bens Auto", start: "2026-10-04T11:43:04+02:00", end: "2026-10-04T11:44:07+02:00", description: "Auto steht", key_frame: "/media/llmvision/snapshots/a.jpg", camera_name: "camera.haus", category: "", label: "" },
       { uid: "b", title: "Mann im Garten", start: "2026-10-07T07:55:52+02:00", description: "Eine Person geht", key_frame: "", camera_name: "camera.eingang" },
     ] });
     expect(ev.map((e) => e.id)).toEqual(["b", "a"]);
-    expect(ev[1]).toMatchObject({ title: "Marcels Auto", image: "/media/llmvision/snapshots/a.jpg", camera: "camera.haus", category: "vehicle" });
+    expect(ev[1]).toMatchObject({ title: "Bens Auto", image: "/media/llmvision/snapshots/a.jpg", camera: "camera.haus", category: "vehicle" });
     expect(ev[0]).toMatchObject({ image: undefined, category: "person" });
   });
 
@@ -1076,7 +1076,7 @@ describe("Szenen", () => {
       sc("scene.zimmer_hell", "Hell", "Zimmer"), sc("scene.wohnzimmer_hell", "Hell", "Wohnzimmer"), sc("scene.wohnzimmer_lesen", "Lesen", "Wohnzimmer_"),
       sc("scene.gastezimmer_hell", "Hell", "Gästezimmer"), sc("scene.party", "Party Zimmer"),
     ].map((s) => [s.entity_id, s]));
-    const g = sceneGroups(states, { groups: [{ name: "Pascal", match: "Zimmer" }, { name: "WZ", match: "Wohnzimmer" }, { name: "Party", match: "party" }] });
+    const g = sceneGroups(states, { groups: [{ name: "Alex", match: "Zimmer" }, { name: "WZ", match: "Wohnzimmer" }, { name: "Party", match: "party" }] });
     expect(g.map((x) => x.scenes.map((s) => s.entity_id))).toEqual([["scene.zimmer_hell"], ["scene.wohnzimmer_hell", "scene.wohnzimmer_lesen"], ["scene.party"]]);
   });
 });
@@ -1189,7 +1189,7 @@ describe("Router", () => {
       E("switch.fritz_box_7690_wi_fi_asgard_5ghz", "on", { friendly_name: "FRITZ!Box 7690 Wi-Fi Main 5Ghz" }),
       E("switch.fritz_box_7690_wi_fi_fritz_box_gastzugang", "off", { friendly_name: "FRITZ!Box 7690 Wi-Fi Guest" }),
       E("button.fritz_box_7690_neu_starten", "unknown"), E("button.fritz_box_7690_neu_verbinden", "unknown"), E("update.fritz_box_7690_fritz_os", "off"),
-      E("device_tracker.handy", "home", { host_name: "S26-Ultra", ip: "192.168.178.24", connection_type: "WLAN", connected_to: "orbi" }),
+      E("device_tracker.handy", "home", { host_name: "S26-Ultra", ip: "192.168.1.24", connection_type: "WLAN", connected_to: "orbi" }),
       E("device_tracker.nas", "not_home", { host_name: "NAS", connection_type: "LAN" }),
     ];
     const states = Object.fromEntries(list.map((e) => [e.entity_id, e]));
@@ -1219,7 +1219,7 @@ describe("Router", () => {
     expect(f.wifi.map((w) => w.label)).toEqual(["Gast 5 GHz", "WLAN 2,4 GHz"]);
   });
   it("Symbole, Raten, WLAN-Namen", () => {
-    expect([clientIcon("S26-Ultra-von-Pascal"), clientIcon("BRAVIA-KD-65X85L"), clientIcon("huebridge"), clientIcon("unbekannt", true)])
+    expect([clientIcon("S26-Ultra-von-Alex"), clientIcon("BRAVIA-KD-65X85L"), clientIcon("huebridge"), clientIcon("unbekannt", true)])
       .toEqual(["mdi:cellphone", "mdi:television", "mdi:hub", "mdi:lan"]);
     expect([formatKbit(299132), formatKbit(48534), formatKbit(800)]).toEqual(["299 Mbit/s", "48,5 Mbit/s", "800 kbit/s"]);
     expect(wifiLabel("Wi-Fi Main 2.4Ghz")).toMatchObject({ label: "WLAN 2,4 GHz", guest: false });
@@ -1244,8 +1244,8 @@ describe("Schloss, Temperatur, Funknetz", () => {
       { when: 201, entity_id: "binary_sensor.klingel_klingelaktion", state: "off" },
       { when: 300, entity_id: "lock.klingel", state: "locked", context_name: "Timer" },
       { when: 150, entity_id: "lock.klingel", state: "unlocking" },
-    ], { lock: "lock.klingel", doorbell: "binary_sensor.klingel_klingelaktion" }, { u1: "Pascal" }, true);
-    expect(h.map((e) => `${e.kind}:${e.who ?? ""}`)).toEqual(["rto_off:Timer", "ring:", "rto_on:Pascal"]);
+    ], { lock: "lock.klingel", doorbell: "binary_sensor.klingel_klingelaktion" }, { u1: "Alex" }, true);
+    expect(h.map((e) => `${e.kind}:${e.who ?? ""}`)).toEqual(["rto_off:Timer", "ring:", "rto_on:Alex"]);
     expect(lockHistory([{ when: 5, entity_id: "lock.x", state: "unlocked" }], { lock: "lock.x" })[0]!.kind).toBe("unlocked");
   });
   it("bewertet Temperaturen", () => {

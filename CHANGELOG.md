@@ -243,7 +243,7 @@
 - Licht-Gruppe: **Szenen** (`scenes: [scene.…]`) als Chips unter dem Gruppenregler – Raumname wird weggelassen („Gästezimmer Hell“ → „Hell“), auch im visuellen Editor
 
 ## 1.11.0 – Hinweise
-- Neu: **Modern Alert Card** (`custom:ha-alert-card`) – erscheint nur, wenn etwas los ist: „Fenster offen – Marcel“ (Kontakte, Tür/Fenster erkannt), beliebige Hinweise per `state`/`state_not`/`above`/`below` mit Farbe nach `severity`, Tippen öffnet Details oder Seite; ohne Hinweis ausgeblendet (optional „Alles in Ordnung“), visueller Editor
+- Neu: **Modern Alert Card** (`custom:ha-alert-card`) – erscheint nur, wenn etwas los ist: „Fenster offen – Ben“ (Kontakte, Tür/Fenster erkannt), beliebige Hinweise per `state`/`state_not`/`above`/`below` mit Farbe nach `severity`, Tippen öffnet Details oder Seite; ohne Hinweis ausgeblendet (optional „Alles in Ordnung“), visueller Editor
 
 ## 1.10.1
 - Raumkacheln: Raumsymbol und Name **mittig**, Info-Symbole in festen **Ecken** – oben links Licht, oben rechts Fenster/Tür, unten links Klima/Heizung bzw. Feuchte, unten rechts TV bzw. Müll (belegt → nächste freie Ecke)

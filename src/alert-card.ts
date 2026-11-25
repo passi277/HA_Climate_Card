@@ -12,7 +12,7 @@ import "./alert-editor";
 (window as any).customCards.push({
   type: "ha-alert-card",
   name: "Modern Alert Card",
-  description: "Hinweise, die nur erscheinen, wenn etwas los ist – z.B. „Fenster offen – Marcel“ oder „Saugroboter hat ein Problem“ (HA Modern Home Cards).",
+  description: "Hinweise, die nur erscheinen, wenn etwas los ist – z.B. „Fenster offen – Ben“ oder „Saugroboter hat ein Problem“ (HA Modern Home Cards).",
   preview: true,
   documentationURL: DOCS_URL,
 });

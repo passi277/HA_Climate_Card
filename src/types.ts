@@ -363,7 +363,7 @@ export interface RoomCardConfig {
   trash_today_until?: string;
   /** full = Kopfzeile mit Chips, tile = Raumkachel */
   layout?: "full" | "tile";
-  /** Tippen öffnet diese Seite (z.B. /dashboard-final/pascal) */
+  /** Tippen öffnet diese Seite (z.B. /dashboard-final/alex) */
   navigation_path?: string;
   /** Farbe des Symbols / der Kachel, wenn kein Licht an ist */
   color?: string;
@@ -446,7 +446,7 @@ export interface PresenceCardConfig {
 export interface AlertConfig {
   /** Entität, deren Zustand den Hinweis auslöst */
   entity?: string;
-  /** Fenster-/Türkontakte: Hinweis „Fenster offen – Marcel“, sobald einer offen ist */
+  /** Fenster-/Türkontakte: Hinweis „Fenster offen – Ben“, sobald einer offen ist */
   contacts?: (string | ContactConfig)[];
   /** Aktiv bei diesem Zustand / diesen Zuständen (ohne Angabe: „on“) */
   state?: string | string[];
