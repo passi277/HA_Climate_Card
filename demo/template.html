@@ -833,6 +833,38 @@
       "sensor.stecker_pumpe_switch_0_power": { state: "0", attributes: { friendly_name: "Stecker Pumpe Leistung", device_class: "power", unit_of_measurement: "W" } },
       "sensor.stecker_pumpe_switch_0_energy": { state: "35.0", attributes: { friendly_name: "Stecker Pumpe Energie", device_class: "energy", unit_of_measurement: "kWh", state_class: "total_increasing" } },
       // Grillthermometer: zweite Meater-Sonde gart gerade
+      "sensor.grill_p530e_garraumtemperatur": { state: "212", attributes: { friendly_name: "Grill Garraumtemperatur", device_class: "temperature", unit_of_measurement: "°C" } },
+      "sensor.grill_p530e_gasmenge": { state: "1.6", attributes: { friendly_name: "Grill Gasmenge", device_class: "weight", unit_of_measurement: "kg" } },
+      "sensor.grill_p530e_gasfullstand": { state: "53", attributes: { friendly_name: "Grill Gasfüllstand", unit_of_measurement: "%" } },
+      "sensor.grill_p530e_gewicht_waage": { state: "5.6", attributes: { friendly_name: "Grill Gewicht Waage", unit_of_measurement: "kg" } },
+      "number.grill_p530e_tara_gasflasche": { state: "4.0", attributes: { friendly_name: "Grill Tara", min: 4, max: 15, step: 0.1, unit_of_measurement: "kg" } },
+      "number.grill_p530e_gasflaschengrosse": { state: "3.0", attributes: { friendly_name: "Grill Flaschengröße", min: 3, max: 12, step: 0.5, unit_of_measurement: "kg" } },
+      "select.grill_p530e_grillmodus": { state: "direct", attributes: { friendly_name: "Grill Grillmodus", options: ["direct", "stage", "free", "low_slow", "indirect"] } },
+      "number.grill_p530e_zieltemperatur_direkt": { state: "230", attributes: { friendly_name: "Grill Zieltemperatur Direkt", min: 200, max: 360, step: 1, unit_of_measurement: "°C" } },
+      "number.grill_p530e_zieltemperatur_indirekt": { state: "160", attributes: { friendly_name: "Grill Zieltemperatur Indirekt", min: 120, max: 200, step: 1, unit_of_measurement: "°C" } },
+      "number.grill_p530e_zieltemperatur_low_slow": { state: "110", attributes: { friendly_name: "Grill Zieltemperatur Low & Slow", min: 95, max: 115, step: 1, unit_of_measurement: "°C" } },
+      "sensor.grill_p530e_temperatur_fuhler_f1": { state: "48", attributes: { friendly_name: "Grill Temperatur Fühler F1", device_class: "temperature", unit_of_measurement: "°C" } },
+      "sensor.grill_p530e_temperatur_fuhler_f2": { state: "57", attributes: { friendly_name: "Grill Temperatur Fühler F2", device_class: "temperature", unit_of_measurement: "°C" } },
+      "sensor.grill_p530e_temperatur_fuhler_f3": { state: "0", attributes: { friendly_name: "Grill Temperatur Fühler F3", device_class: "temperature", unit_of_measurement: "°C" } },
+      "sensor.grill_p530e_temperatur_fuhler_f4": { state: "0", attributes: { friendly_name: "Grill Temperatur Fühler F4", device_class: "temperature", unit_of_measurement: "°C" } },
+      "number.grill_p530e_zieltemperatur_fuhler_f1": { state: "56", attributes: { friendly_name: "Grill Zieltemperatur F1", min: 0, max: 200, step: 1, unit_of_measurement: "°C" } },
+      "number.grill_p530e_zieltemperatur_fuhler_f2": { state: "56", attributes: { friendly_name: "Grill Zieltemperatur F2", min: 0, max: 200, step: 1, unit_of_measurement: "°C" } },
+      "number.grill_p530e_zieltemperatur_fuhler_f3": { state: "70", attributes: { friendly_name: "Grill Zieltemperatur F3", min: 0, max: 200, step: 1, unit_of_measurement: "°C" } },
+      "number.grill_p530e_zieltemperatur_fuhler_f4": { state: "0", attributes: { friendly_name: "Grill Zieltemperatur F4", min: 0, max: 200, step: 1, unit_of_measurement: "°C" } },
+      "select.grill_p530e_garstufe_fuhler_f1": { state: "beef_medium", attributes: { friendly_name: "Grill Garstufe F1", options: ["beef_well_done", "beef_medium", "beef_rare", "pork_medium", "chicken", "fish"] } },
+      "select.grill_p530e_garstufe_fuhler_f2": { state: "unknown", attributes: { friendly_name: "Grill Garstufe F2", options: ["beef_well_done", "beef_medium", "beef_rare", "pork_medium", "chicken", "fish"] } },
+      "sensor.grill_p530e_timer": { state: "running", attributes: { friendly_name: "Grill Timer", device_class: "enum", options: ["stopped", "paused", "running", "idle"] } },
+      "sensor.grill_p530e_timer_restzeit": { state: "12", attributes: { friendly_name: "Grill Timer Restzeit", unit_of_measurement: "min" } },
+      "number.grill_p530e_timer_dauer": { state: "15", attributes: { friendly_name: "Grill Timer-Dauer", min: 0, max: 1439, step: 1, unit_of_measurement: "min" } },
+      "button.grill_p530e_timer_start": { state: "unknown", attributes: { friendly_name: "Grill Timer Start" } },
+      "button.grill_p530e_timer_pause": { state: "unknown", attributes: { friendly_name: "Grill Timer Pause" } },
+      "button.grill_p530e_timer_stop": { state: "unknown", attributes: { friendly_name: "Grill Timer Stop" } },
+      "switch.grill_p530e_garraumlicht": { state: "on", attributes: { friendly_name: "Grill Garraumlicht" } },
+      "switch.grill_p530e_logo_beleuchtung": { state: "on", attributes: { friendly_name: "Grill Logo" } },
+      "switch.grill_p530e_reglerbeleuchtung": { state: "on", attributes: { friendly_name: "Grill Reglerbeleuchtung" } },
+      "switch.grill_p530e_ton": { state: "off", attributes: { friendly_name: "Grill Ton" } },
+      "select.grill_p530e_reglerlicht_modus": { state: "individual", attributes: { friendly_name: "Grill Reglerlicht-Modus", options: ["off", "random", "temperature", "individual", "magic"] } },
+      "select.grill_p530e_reglerfarbe": { state: "deep_blue", attributes: { friendly_name: "Grill Reglerfarbe", options: ["red", "orange", "yellow", "green", "light_green", "deep_blue", "purple", "pink"] } },
       "sensor.meater_2_innentemperatur": { state: "48.6", attributes: { friendly_name: "Meater 2 Innentemperatur", device_class: "temperature", unit_of_measurement: "°C" } },
       "sensor.meater_2_umgebungstemperatur": { state: "142", attributes: { friendly_name: "Meater 2 Umgebungstemperatur", device_class: "temperature", unit_of_measurement: "°C" } },
       "sensor.meater_2_soll_temperatur": { state: "56", attributes: { friendly_name: "Meater 2 Soll-Temperatur", device_class: "temperature", unit_of_measurement: "°C" } },
@@ -898,6 +930,8 @@
       ...(/^device_tracker\.tp_/.test(id) ? { platform: "tplink_router" } : {}),
       ...(/^\w+\.stecker_pumpe_/.test(id) ? { device_id: "sh_pumpe", platform: "shelly" } : {}),
       ...(/^sensor\.meater_2_/.test(id) ? { device_id: "dev_meater2", platform: "meater" } : {}),
+      ...(/^\w+\.grill_p530e_/.test(id) ? { device_id: "dev_p530e", platform: "grillfuerst_p530e", translation_key: ({ garraumtemperatur: "chamber_temperature", gasmenge: "gas_remaining", gasfullstand: "gas_level", gewicht_waage: "scale_weight", tara_gasflasche: "cylinder_tare", gasflaschengrosse: "cylinder_size", grillmodus: "grill_mode", zieltemperatur_direkt: "target_direct", zieltemperatur_indirekt: "target_indirect", zieltemperatur_low_slow: "target_low_slow", timer: "timer_state", timer_restzeit: "timer_remaining", timer_dauer: "timer_duration", timer_start: "timer_start", timer_pause: "timer_pause", timer_stop: "timer_stop", garraumlicht: "chamber_light", logo_beleuchtung: "logo_light", reglerbeleuchtung: "knob_light", ton: "sound", reglerlicht_modus: "knob_light_mode", reglerfarbe: "knob_color" })[id.replace(/^\w+\.grill_p530e_/, "")]
+        ?? (/zieltemperatur_fuhler_f\d$/.test(id) ? "probe_target" : /temperatur_fuhler_f\d$/.test(id) ? "probe_temperature" : /garstufe_fuhler_f\d$/.test(id) ? "probe_preset" : undefined) } : {}),
       ...(/^\w+\.gm_plus_/.test(id) ? { device_id: "dev_gm_plus", platform: "garten" } : {}),
       ...(/^\w+\.shelly_(kuhlschrank|hutte_ausensteckdosen|licht)/.test(id) ? { device_id: "sh_" + id.match(/shelly_(kuhlschrank|hutte_ausensteckdosen|licht)/)[1], platform: "shelly",
         ...(/_(rssi|uptime|reboot|firmware|restart_required|overheating|device_temperature)$/.test(id) ? { entity_category: "diagnostic" } : {}) } : {}),
@@ -1566,6 +1600,7 @@
         { entity: "switch.shelly_kuhlschrank", name: "Kühlschrank", alert_below: 5, alert_minutes: 90 }, { entity: "switch.shelly_hutte_ausensteckdosen_switch_0", name: "Außensteckdosen" },
         { entity: "switch.stecker_pumpe_switch_0", name: "Pumpe" }] }],
       ["Grillthermometer – Meater: aktive Sonde mit Ring, Restzeit, Verlauf; zweite Sonde im Ladegerät", { _grill: true }],
+      ["Gasgrill – Grillfürst P530E: gezeichneter Grill mit Licht, Logo und Reglerfarbe, Modus mit Zieltemperatur, Fühler F1–F4, Timer, Gasflasche", { _gasGrill: true }],
       ["Pool-Pflege – Smart Pool: Chemie-Tagebuch mit Empfehlung, Vorräte, Metall-Ex, Wartung mit Aufgaben, Statistik (alles über das Gerät)", { _poolCare: true }],
       ["Funknetz – WLAN: alle Geräte über den Router (per MAC mit HA-Geräten verknüpft) + Kameras mit WLAN-Signal", { _net: true, integration: "wifi", max_items: 6 }],
       ["Wochenrückblick Energie – diese gegen letzte Woche, Kosten, Spitzentag, Anteil je Verbraucher", { _eweek: true, price: 0.3 }],
@@ -1623,9 +1658,9 @@
         grid.appendChild(wrap);
         return;
       }
-      const { _overview, _light, _group, _cover, _coverGroup, _switchTime, _media, _room, _status, _vacuum, _presence, _alert, _energy, _irrigation, _pool, _camera, _cameraGroup, _select, _mower, _starlink, _llm, _hbat, _system, _weather, _agenda, _devstatus, _recipe, _scene, _sleep, _crooms, _eweek, _parcel, _router, _lock, _temp, _net, _plug, _grill, _poolCare, _solar, _mowsum, _soil, _align, ...rest } = cfg;
+      const { _overview, _light, _group, _cover, _coverGroup, _switchTime, _media, _room, _status, _vacuum, _presence, _alert, _energy, _irrigation, _pool, _camera, _cameraGroup, _select, _mower, _starlink, _llm, _hbat, _system, _weather, _agenda, _devstatus, _recipe, _scene, _sleep, _crooms, _eweek, _parcel, _router, _lock, _temp, _net, _plug, _grill, _gasGrill, _poolCare, _solar, _mowsum, _soil, _align, ...rest } = cfg;
       const tag = _overview ? "ha-climate-overview-card" : _group ? "ha-light-group-card" : _light ? "ha-light-card"
-        : _cover ? "ha-cover-card" : _coverGroup ? "ha-cover-group-card" : _switchTime ? "ha-switch-time-card" : _media ? "ha-media-card" : _room ? "ha-room-card" : _status ? "ha-status-card" : _vacuum ? "ha-vacuum-card" : _presence ? "ha-presence-card" : _alert ? "ha-alert-card" : _energy ? "ha-energy-card" : _irrigation ? "ha-irrigation-card" : _pool ? "ha-pool-card" : _camera ? "ha-camera-card" : _cameraGroup ? "ha-camera-group-card" : _select ? "ha-select-card" : _mower ? "ha-mower-card" : _starlink ? "ha-starlink-card" : _llm ? "ha-llm-timeline-card" : _hbat ? "ha-home-battery-card" : _system ? "ha-system-card" : _weather ? "ha-weather-card" : _agenda ? "ha-agenda-card" : _devstatus ? "ha-device-status-card" : _recipe ? "ha-recipe-card" : _scene ? "ha-scene-card" : _sleep ? "ha-sleep-card" : _crooms ? "ha-climate-rooms-card" : _eweek ? "ha-energy-week-card" : _parcel ? "ha-parcel-card" : _router ? "ha-router-card" : _lock ? "ha-lock-card" : _temp ? "ha-temperature-card" : _net ? "ha-network-card" : _plug ? "ha-plug-card" : _grill ? "ha-grill-card" : _mowsum ? "ha-mower-summary-card" : _soil ? "ha-soil-rain-card" : _align ? "ha-starlink-alignment-card" : _poolCare ? "ha-pool-care-card" : _solar ? "ha-solar-forecast-card" : "ha-climate-card";
+        : _cover ? "ha-cover-card" : _coverGroup ? "ha-cover-group-card" : _switchTime ? "ha-switch-time-card" : _media ? "ha-media-card" : _room ? "ha-room-card" : _status ? "ha-status-card" : _vacuum ? "ha-vacuum-card" : _presence ? "ha-presence-card" : _alert ? "ha-alert-card" : _energy ? "ha-energy-card" : _irrigation ? "ha-irrigation-card" : _pool ? "ha-pool-card" : _camera ? "ha-camera-card" : _cameraGroup ? "ha-camera-group-card" : _select ? "ha-select-card" : _mower ? "ha-mower-card" : _starlink ? "ha-starlink-card" : _llm ? "ha-llm-timeline-card" : _hbat ? "ha-home-battery-card" : _system ? "ha-system-card" : _weather ? "ha-weather-card" : _agenda ? "ha-agenda-card" : _devstatus ? "ha-device-status-card" : _recipe ? "ha-recipe-card" : _scene ? "ha-scene-card" : _sleep ? "ha-sleep-card" : _crooms ? "ha-climate-rooms-card" : _eweek ? "ha-energy-week-card" : _parcel ? "ha-parcel-card" : _router ? "ha-router-card" : _lock ? "ha-lock-card" : _temp ? "ha-temperature-card" : _net ? "ha-network-card" : _plug ? "ha-plug-card" : _grill ? "ha-grill-card" : _gasGrill ? "ha-gas-grill-card" : _mowsum ? "ha-mower-summary-card" : _soil ? "ha-soil-rain-card" : _align ? "ha-starlink-alignment-card" : _poolCare ? "ha-pool-care-card" : _solar ? "ha-solar-forecast-card" : "ha-climate-card";
       const card = document.createElement(tag);
       card.id = "card" + i;
       card.setConfig({ type: `custom:${tag}`, ...rest });

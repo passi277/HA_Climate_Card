@@ -12,6 +12,7 @@ import {
   starlinkFeatures, speedtestFeatures, formatRate, formatBytes, formatUptime, toMbit, pingQuality,
   openContactsKey, powerOf, poolCareEntities, formatAmount, amountStep, maintenanceDue, stockLevel, resolveContacts, secondsToDuration, stateIcon, temperatureOf, temperatureTint, trendSlope,
 } from "../src/utils";
+import { gasGrillEntities, gasPercent, probeProgress, GRILL_KNOB_COLORS } from "../src/utils";
 import { daylightRange, forecastAccuracy, forecastAt, forecastDay, forecastEnergy, forecastPeak, solarForecastEntities } from "../src/utils";
 import { formatAttribute, localize } from "../src/localize/localize";
 import type { HomeAssistant } from "../src/types";
@@ -1575,5 +1576,51 @@ describe("Speedtest-Protokoll", () => {
     expect(s.avg).toBeCloseTo(65.25, 2);
     expect(s.cv).toBeGreaterThan(10);
     expect(spreadStats([])).toBeUndefined();
+  });
+});
+
+describe("gasGrillEntities", () => {
+  const reg = (entity_id: string, translation_key: string, device_id = "dev1", platform = "grillfuerst_p530e") =>
+    [entity_id, { entity_id, translation_key, device_id, platform }] as const;
+  const entities = Object.fromEntries([
+    reg("sensor.grill_gasmenge", "gas_remaining"),
+    reg("select.grill_grillmodus", "grill_mode"),
+    reg("switch.grill_ton", "sound"),
+    reg("sensor.grill_temperatur_fuhler_f2", "probe_temperature"),
+    reg("sensor.grill_temperatur_fuhler_f1", "probe_temperature"),
+    reg("number.grill_zieltemperatur_fuhler_f1", "probe_target"),
+    reg("select.grill_garstufe_fuhler_f1", "probe_preset"),
+    reg("sensor.other_gas", "gas_remaining", "dev9", "other"),
+  ]);
+  it("finds keys and probes via the device", () => {
+    const r = gasGrillEntities(entities);
+    expect(r.device).toBe("dev1");
+    expect(r.e.gas_remaining).toBe("sensor.grill_gasmenge");
+    expect(r.e.grill_mode).toBe("select.grill_grillmodus");
+    expect(r.probes.map((p) => p.index)).toEqual([1, 2]);
+    expect(r.probes[0]).toEqual({ index: 1, temp: "sensor.grill_temperatur_fuhler_f1", target: "number.grill_zieltemperatur_fuhler_f1", preset: "select.grill_garstufe_fuhler_f1" });
+  });
+  it("applies overrides and returns nothing for other devices", () => {
+    expect(gasGrillEntities(entities, undefined, { sound: "switch.x" }).e.sound).toBe("switch.x");
+    expect(gasGrillEntities(entities, "nope").probes).toEqual([]);
+  });
+});
+
+describe("gas grill helpers", () => {
+  it("computes cylinder percent", () => {
+    expect(gasPercent(1.6, 3)).toBe(53);
+    expect(gasPercent(5, 3)).toBe(100);
+    expect(gasPercent(undefined, 3)).toBeUndefined();
+    expect(gasPercent(1, 0)).toBeUndefined();
+    expect(gasPercent(1, 3, 40)).toBe(40);
+  });
+  it("computes probe progress", () => {
+    expect(probeProgress(38, 56)).toBe(50);
+    expect(probeProgress(0, 56)).toBe(0);
+    expect(probeProgress(70, 56)).toBe(100);
+    expect(probeProgress(30, undefined)).toBeUndefined();
+  });
+  it("has a colour for every app colour", () => {
+    expect(Object.keys(GRILL_KNOB_COLORS)).toEqual(["red", "orange", "yellow", "green", "light_green", "deep_blue", "purple", "pink"]);
   });
 });

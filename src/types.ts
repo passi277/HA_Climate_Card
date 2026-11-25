@@ -1437,6 +1437,25 @@ export interface GrillCardConfig {
   hide_idle?: boolean;
 }
 
+export interface GasGrillCardConfig {
+  type: string;
+  title?: string;
+  /** Gerät der Integration grillfuerst_p530e (sonst das erste gefundene) */
+  device?: string;
+  /** Bereiche ein-/ausblenden (Standard: alle an) */
+  show_scene?: boolean;
+  show_modes?: boolean;
+  show_probes?: boolean;
+  show_timer?: boolean;
+  show_lights?: boolean;
+  show_gas?: boolean;
+  /** Warnung, wenn die Gasflasche unter diesen Füllstand (%) fällt (Standard 20) */
+  gas_warning?: number;
+  /** Einzelne Entitäten überschreiben, Schlüssel = translation_key (z. B. gas_remaining) */
+  entities?: Record<string, string>;
+  animations?: "full" | "reduced" | "off";
+}
+
 /** Pool-Pflege (Smart Pool): Chemie-Tagebuch, Vorräte, Metall-Ex, Wartung, Statistik */
 export type PoolCareTab = "chemistry" | "stock" | "metal" | "maintenance" | "stats";
 

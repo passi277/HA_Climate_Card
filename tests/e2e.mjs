@@ -1902,6 +1902,29 @@ colorFails.length ? fail(`Farbe folgt nicht dem Modus: ${colorFails.join(", ")}`
   const plan2 = await g.evaluate((c) => c.shadowRoot.querySelector('.i-row[data-probe="dev_gm_plus"] small')?.textContent.trim());
   plan === "Rehkeule · Ziel 62°" && gcalls.join() === "number.set_value:63,select.select_option:pulled_pork" && plan2 === "Pulled Pork · Ziel 63°"
     ? ok(`Grillthermometer: Sonde vorab einstellen (${plan} → ${plan2})`) : fail(`Grill einstellen: ${JSON.stringify({ plan, gcalls, plan2 })}`);
+  // Gasgrill: Szene, Modus, Fühler, Timer, Licht
+  {
+    const gg = await p.evaluateHandle(() => document.querySelector("ha-gas-grill-card"));
+    const info = await gg.evaluate((c) => { const r = c.shadowRoot;
+      return { sub: r.querySelector(".h-sub")?.textContent.trim(), on: r.querySelector(".mode.on")?.dataset.mode, target: r.querySelector(".t-big")?.textContent.trim(),
+        probes: [...r.querySelectorAll(".probe")].map((x) => x.querySelector(".p-in b").textContent.trim()), done: !!r.querySelector('.probe.done[data-probe="2"]'),
+        gas: r.querySelector(".g-pct")?.textContent.replace(/\s+/g, " ").trim(), logo: !!r.querySelector(".logo.on"), knobs: r.querySelectorAll(".knobs .knob.lit").length,
+        preset: r.querySelector('.probe[data-probe="1"] .preset')?.selectedOptions[0]?.textContent.trim() }; });
+    info.sub === "Direkt · Garraum 212 °C · Ziel 230 °C" && info.on === "direct" && info.target === "230°C" && info.probes.join() === "48°,57°,–,–" && info.done
+      && info.gas === "53 % von 3,0 kg" && info.logo && info.knobs === 6 && info.preset === "Rind – Medium (56 °C)"
+      ? ok(`Gasgrill: ${info.sub}, Fühler ${info.probes.join(" ")}, Gas ${info.gas}`) : fail(`Gasgrill: ${JSON.stringify(info)}`);
+    const k = await p.evaluate(() => window.serviceCalls.length);
+    await gg.evaluate((c) => c.shadowRoot.querySelector('.mode[data-mode="indirect"]').click());
+    await gg.evaluate((c) => c.shadowRoot.querySelector('[data-act="target-up"]').click());
+    await gg.evaluate((c) => c.shadowRoot.querySelector('.probe[data-probe="1"] [data-act="probe-up"]').click());
+    await gg.evaluate((c) => c.shadowRoot.querySelector('[data-act="timer-pause"]').click());
+    await gg.evaluate((c) => c.shadowRoot.querySelector(".logo").dispatchEvent(new MouseEvent("click", { bubbles: true })));
+    await gg.evaluate((c) => c.shadowRoot.querySelector('.sw[data-color="green"]').click());
+    await p.waitForTimeout(300);
+    const calls = await p.evaluate((k) => window.serviceCalls.slice(k).map((c) => `${c.domain}.${c.service}:${c.data.option ?? c.data.value ?? c.data.entity_id}`), k);
+    calls.join() === "select.select_option:indirect,number.set_value:235,number.set_value:57,button.press:button.grill_p530e_timer_pause,switch.turn_off:switch.grill_p530e_logo_beleuchtung,select.select_option:green"
+      ? ok("Gasgrill: Modus, Zieltemperatur +5, Fühler +1, Timer-Pause, Logo per Tipp, Reglerfarbe") : fail(`Gasgrill Bedienung: ${JSON.stringify(calls)}`);
+  }
   // Boden & Regen: Bananen zu trocken, Regensensor nass aber nicht bestätigt (Tau), Warnschwelle per +
   const sr = await p.evaluate(() => { const r = document.querySelector("ha-soil-rain-card").shadowRoot; const t = (sel) => r.querySelector(sel)?.textContent.replace(/\s+/g, " ").trim();
     return { sub: t(".h-sub"), val: t(".s-val"), pill: t(".s-pill"), sky: t(".sky-txt b"), dew: !!r.querySelector(".rain-box.r-dew"), facts: [...r.querySelectorAll(".fact b")].map((x) => x.textContent.trim()),

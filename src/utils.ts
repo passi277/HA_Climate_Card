@@ -3217,3 +3217,64 @@ export const spreadStats = (values: number[]): { min: number; max: number; avg: 
   const sd = Math.sqrt(v.reduce((a, x) => a + (x - avg) ** 2, 0) / v.length);
   return { min: Math.min(...v), max: Math.max(...v), avg, cv: avg ? (sd / avg) * 100 : 0 };
 };
+
+/* ---------- Gasgrill (Grillfürst Independence P530E, Integration grillfuerst_p530e) ---------- */
+
+export const GAS_GRILL_PLATFORM = "grillfuerst_p530e";
+
+export interface GasGrillProbe { index: number; temp?: string; target?: string; preset?: string }
+
+export interface GasGrillEntities {
+  device?: string;
+  /** translation_key → entity_id (ohne Fühler) */
+  e: Record<string, string>;
+  /** Fühler F1–F4 mit Ist-Temperatur, Ziel und Garstufe */
+  probes: GasGrillProbe[];
+}
+
+/** Alle Entitäten des Gasgrills über das Gerät der Integration finden; Fühler F1–F4 über die Endung der entity_id (…_f1) */
+export const gasGrillEntities = (entities: Record<string, EntityRegistryEntry> | undefined, device?: string,
+  overrides: Record<string, string> = {}): GasGrillEntities => {
+  const all = Object.values(entities ?? {}).filter((x) => x.platform === GAS_GRILL_PLATFORM);
+  const dev = device ?? all.find((x) => x.device_id)?.device_id ?? undefined;
+  const list = all.filter((x) => !dev || x.device_id === dev);
+  const e: Record<string, string> = {};
+  const probes = new Map<number, GasGrillProbe>();
+  const probeKeys: Record<string, keyof Omit<GasGrillProbe, "index">> = { probe_temperature: "temp", probe_target: "target", probe_preset: "preset" };
+  const byKey = new Map<string, EntityRegistryEntry[]>();
+  for (const x of list) {
+    if (!x.translation_key) continue;
+    byKey.set(x.translation_key, [...(byKey.get(x.translation_key) ?? []), x]);
+  }
+  for (const [key, xs] of byKey) {
+    const field = probeKeys[key];
+    if (!field) { e[key] = xs[0]!.entity_id; continue; }
+    const sorted = [...xs].sort((a, b) => a.entity_id.localeCompare(b.entity_id));
+    sorted.forEach((x, i) => {
+      const n = Number(/_f(\d)$/.exec(x.entity_id)?.[1] ?? i + 1);
+      const p = probes.get(n) ?? { index: n };
+      p[field] = x.entity_id;
+      probes.set(n, p);
+    });
+  }
+  return { device: dev, e: { ...e, ...overrides }, probes: [...probes.values()].sort((a, b) => a.index - b.index) };
+};
+
+/** Reglerfarben der App → CSS-Farbe */
+export const GRILL_KNOB_COLORS: Record<string, string> = {
+  red: "#e53935", orange: "#fb8c00", yellow: "#fdd835", green: "#43a047",
+  light_green: "#26c6da", deep_blue: "#2f4fe0", purple: "#8e24aa", pink: "#ec407a",
+};
+
+/** Füllstand der Gasflasche in % (aus Gasmenge und Flaschengröße, sonst aus dem Sensor) */
+export const gasPercent = (kg?: number, size?: number, pct?: number): number | undefined => {
+  if (pct != null && Number.isFinite(pct)) return Math.max(0, Math.min(100, Math.round(pct)));
+  if (kg == null || size == null || !(size > 0)) return undefined;
+  return Math.max(0, Math.min(100, Math.round((kg / size) * 100)));
+};
+
+/** Fortschritt Kerntemperatur → Ziel in % (Start bei 20 °C, nie unter 0) */
+export const probeProgress = (temp?: number, target?: number, start = 20): number | undefined => {
+  if (temp == null || target == null || !(target > start)) return undefined;
+  return Math.max(0, Math.min(100, Math.round(((temp - start) / (target - start)) * 100)));
+};

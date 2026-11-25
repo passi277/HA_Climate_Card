@@ -41,6 +41,7 @@ import "./temperature-card";
 import "./network-card";
 import "./plug-card";
 import "./grill-card";
+import "./gas-grill-card";
 import "./pool-care-card";
 import "./mower-summary-card";
 import "./soil-rain-card";

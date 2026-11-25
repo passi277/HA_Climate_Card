@@ -35,6 +35,7 @@ weiche Farbübergänge und Animationen. Ein HACS-Download, mehrere Karten:
 | **Modern Temperature Card** | `custom:ha-temperature-card` | Temperatur-Überwachung: Kacheln mit Trend, Min/Max, Grenzwert-Warnung, gemeinsamer Verlauf |
 | **Modern Plug Card** | `custom:ha-plug-card` | Steckdosen: An/Aus mit Rückfrage, Leistung, Verbrauch und Kosten heute/Monat, Verlauf, Überlast und „läuft nicht“ |
 | **Modern Grill Card** | `custom:ha-grill-card` | Grillthermometer (Meater): Kern gegen Ziel als Ring, Garraum, Restzeit, Kochstatus, Verlauf |
+| **Modern Gas Grill Card** | `custom:ha-gas-grill-card` | Gasgrill Grillfürst P530E: gezeichneter Grill mit Licht/Logo/Reglerfarbe, Modus mit Zieltemperatur, Fühler F1–F4, Timer, Gasflasche |
 | **Modern Mower Summary** | `custom:ha-mower-summary-card` | Mäher-Kurzbericht: Akkuring, animierter Status (mäht, lädt, parkt), heute gemäht, Messer, nächster Lauf |
 | **Modern Soil & Rain Card** | `custom:ha-soil-rain-card` | Boden & Regen: Bodenfeuchte mit Warnschwelle, Regensensor mit Bestätigung, Regensperre, Zeitleiste |
 | **Modern Pool Care Card** | `custom:ha-pool-care-card` | Pool-Pflege zur Smart-Pool-Integration: Chemie-Tagebuch, Vorräte, Metall-Ex, Wartung & Aufgaben, Statistik |
@@ -962,6 +963,24 @@ type: custom:ha-grill-card
 # show_graph: false
 ```
 
+## Modern Gas Grill Card (Gasgrill)
+
+Für den **Grillfürst Independence P530E** mit der lokalen Integration [`grillfuerst_p530e`](https://github.com/passi277/Independence-P530E-).
+Oben ein **gezeichneter Grill**: Garraumlicht als Lichtschein an der Deckelfuge, beleuchtetes **Logo**, **Drehregler** in der eingestellten Farbe
+(Zufällig und Magic animiert, „Temperatur“ färbt nach der Garraumtemperatur), Deckelthermometer, Display und die **Gasflasche mit Füllstand** im Schrank;
+ist der Grill heiß, flimmert die Luft über dem Deckel. Deckel, Logo oder Regler antippen schaltet das jeweilige Licht.
+Darunter **Grillmodus** mit Zieltemperatur −/+, **Fühler F1–F4** als Ringe (Ist gegen Ziel, „Ziel erreicht!“) mit Ziel −/+ und **Garstufe**,
+**Timer** mit Schnellwahl und Start/Pause/Stop, **Gasflasche** mit Warnung unter `gas_warning` % sowie Tara und Flaschengröße (Zahnrad) und **Licht & Ton**
+mit Reglerlicht-Modus und Farbpalette. Alle Entitäten werden über das Gerät gefunden.
+
+```yaml
+type: custom:ha-gas-grill-card
+# device: 0123456789abcdef        # sonst der erste gefundene Grill
+# gas_warning: 20                  # Warnung unter … % Gas
+# show_scene: false                # Bereiche: show_scene, show_modes, show_probes, show_timer, show_gas, show_lights
+# entities: { sound: switch.mein_ton }   # Schlüssel = translation key
+```
+
 ## Modern Energy Week Card (Wochenrückblick Energie)
 
 Verbrauch **dieser Woche gegen die Vorwoche** – fair bis zum gleichen Wochentag – mit Kosten, Ø pro Tag und Spitzentag, Balken Mo–So
@@ -1376,6 +1395,7 @@ glow, smooth color transitions, animations), shipped as a single HACS download:
 - `custom:ha-temperature-card` – temperature monitor: tiles with trend, min/max and limit warnings (device temperatures from 60 °C), shared history chart
 - `custom:ha-plug-card` – plugs/consumers: switch with confirmation, power, energy and cost today/month, 24 h power history, overpower/overheat and “not running” warnings
 - `custom:ha-grill-card` – meat thermometer (Meater): internal vs. target ring, ambient, time left and ready time, cook state, history
+- `custom:ha-gas-grill-card` – gas grill Grillfürst Independence P530E: drawn grill with chamber light, logo and knob colour, grill mode with target temperature, probes F1–F4 with doneness, timer, gas cylinder
 - `custom:ha-pool-care-card` – pool care for the Smart Pool integration: chemical log with recommendation, stock, metal remover, maintenance & tasks, statistics (found via the device)
 - `custom:ha-network-card` – radio network (Zigbee2MQTT, ZHA, Shelly): signal, battery, last seen, warnings, firmware updates, restart
 - `custom:ha-router-card` – router (FRITZ!Box, TP-Link …): online state, throughput, line, CPU/RAM, Wi-Fi switches with guest QR, devices on the network, reconnect/restart, firmware update
