@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.53.1
+- Gas Grill Card: ist der Grill ohne Strom/WLAN, steht oben „Grill offline – letzter Stand“ mit Hinweis; Gasmenge und Füllstand zeigen weiter den letzten Messwert (Integration ab 0.10.0)
+
 ## 1.53.0 – Gasgrill
 - Neue **Modern Gas Grill Card** (`custom:ha-gas-grill-card`) für den Grillfürst Independence P530E (Integration `grillfuerst_p530e`): gezeichneter Grill mit Garraumlicht, beleuchtetem Logo und Drehreglern in der eingestellten Farbe (Zufällig/Magic animiert, Temperatur nach Garraum), Deckelthermometer, Display und Gasflasche mit Füllstand im Schrank – Deckel, Logo und Regler antippen schaltet das Licht; Grillmodus (Direkt, Indirekt, Low & Slow, Stufen, Frei) mit Zieltemperatur −/+, Fühler F1–F4 als Ringe mit Ziel −/+ und Garstufe, Timer mit Schnellwahl, Start/Pause/Stop, Gasflasche mit Warnung, Tara und Flaschengröße, Licht & Ton – alles automatisch über das Gerät
 

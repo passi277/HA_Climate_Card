@@ -418,14 +418,16 @@ export class HaGasGrillCard extends LitElement {
     const sub = [mode && !UNAVAILABLE.includes(mode) ? this._label(modeSt, mode, `gas_grill.mode_${mode}`) : "",
       chamber != null ? `${this._t("chamber")} ${this._fmt(chamber)} °C` : "", target != null ? `${this._t("target")} ${this._fmt(target)} °C` : ""].filter(Boolean).join(" · ");
     const sound = r.e.sound;
+    const offline = this._st("connection")?.state === "off";
     return html`<ha-card class="gas-grill anim-${c.animations ?? "full"} ${hot ? "hot" : ""}" style="--hcc-accent-c:${accent}">
       <div class="glow"><div class="blob b1"></div><div class="blob b2"></div></div>
       <div class="header">
         <span class="h-icon"><ha-icon .icon=${hot ? "mdi:grill" : "mdi:grill-outline"}></ha-icon></span>
-        <span class="head-text"><span class="h-title">${c.title ?? this._t("title")}</span><span class="h-sub">${sub || this._t("ready")}</span></span>
+        <span class="head-text"><span class="h-title">${c.title ?? this._t("title")}</span><span class="h-sub">${offline ? this._t("offline") : sub || this._t("ready")}</span></span>
         ${sound ? html`<button class="snd ${this._on("sound") ? "on" : ""}" data-act="sound" title=${this._t("sound")} @click=${() => this._toggle("sound")}>
           <ha-icon .icon=${this._on("sound") ? "mdi:volume-high" : "mdi:volume-off"}></ha-icon></button>` : nothing}
       </div>
+      ${offline ? html`<div class="banner offline" data-offline><ha-icon icon="mdi:power-plug-off-outline"></ha-icon><div>${this._t("offline_hint")}</div></div>` : nothing}
       ${c.show_scene === false ? nothing : this._scene()}
       ${c.show_modes === false ? nothing : this._modes()}
       ${c.show_probes === false ? nothing : this._probes()}
@@ -562,6 +564,8 @@ export class HaGasGrillCard extends LitElement {
     .g-set { display: flex; align-items: center; gap: 8px; font-size: 13px; }
     .g-set span { flex: 1; color: var(--secondary-text-color); }
     .g-set b { min-width: 56px; text-align: center; }
+    .banner.offline { cursor: default; background: rgba(127,127,127,0.14); }
+    .banner.offline ha-icon { color: var(--secondary-text-color); }
     ha-card.anim-reduced *, ha-card.anim-off * { animation: none !important; }
   `];
 }

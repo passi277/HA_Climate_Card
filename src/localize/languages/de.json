@@ -2129,7 +2129,9 @@
     "color_light_green": "Türkis",
     "color_deep_blue": "Dunkelblau",
     "color_purple": "Lila",
-    "color_pink": "Pink"
+    "color_pink": "Pink",
+    "offline": "Grill offline – letzter Stand",
+    "offline_hint": "Der Grill ist nicht erreichbar (kein Strom oder WLAN). Gasmenge und Füllstand zeigen den letzten gemessenen Wert, schalten geht erst wieder, wenn er online ist."
   },
   "gas_grill_editor": {
     "title": "Titel",

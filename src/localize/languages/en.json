@@ -2084,7 +2084,9 @@
     "color_light_green": "Turquoise",
     "color_deep_blue": "Deep blue",
     "color_purple": "Purple",
-    "color_pink": "Pink"
+    "color_pink": "Pink",
+    "offline": "Grill offline – last known values",
+    "offline_hint": "The grill is not reachable (no power or Wi‑Fi). Gas amount and level show the last measured value; controls work again once it is online."
   },
   "gas_grill_editor": {
     "title": "Title",
