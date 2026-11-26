@@ -2086,7 +2086,16 @@
     "color_purple": "Purple",
     "color_pink": "Pink",
     "offline": "Grill offline – last known values",
-    "offline_hint": "The grill is not reachable (no power or Wi‑Fi). Gas amount and level show the last measured value; controls work again once it is online."
+    "offline_hint": "The grill is not reachable (no power or Wi‑Fi). Gas amount and level show the last measured value; controls work again once it is online.",
+    "preheated": "Preheated – ready to grill",
+    "preheated_at": "preheated at",
+    "ready_at": "ready at",
+    "runtime_left": "lasts",
+    "runtime_learning": "learning runtime",
+    "used_total": "used",
+    "session_live": "Grill session running",
+    "session_last": "Last grill session",
+    "since": "since"
   },
   "gas_grill_editor": {
     "title": "Title",
@@ -2098,6 +2107,11 @@
     "show_gas": "Gas cylinder",
     "show_lights": "Light & sound",
     "gas_warning": "Warn when gas below",
-    "hint": "All values are found automatically from the “Grillfürst Independence P530E” integration."
+    "hint": "All values are found automatically from the “Grillfürst Independence P530E” integration.",
+    "show_session": "Grill session & history",
+    "show_graph": "Temperature history",
+    "layout": "Layout",
+    "layout_full": "Full",
+    "layout_compact": "Compact (expandable)"
   }
 }

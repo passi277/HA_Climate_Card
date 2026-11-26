@@ -29,6 +29,7 @@ const KNOB_MODE_ICON: Record<string, string> = {
 const TIMER_QUICK = [5, 10, 15, 30, 60];
 const KNOB_X = [128, 157, 186, 215, 244, 273];
 const PALETTE = Object.values(GRILL_KNOB_COLORS);
+const PROBE_COLORS = ["#e53935", "#1e88e5", "#43a047", "#8e24aa"];
 
 /** Farbe nach Temperatur (kalt blau → heiß rot) */
 const heatColor = (t?: number): string => {
@@ -45,7 +46,70 @@ export class HaGasGrillCard extends LitElement {
   @property({ attribute: false }) hass?: HomeAssistant;
   @state() private _config?: GasGrillCardConfig;
   @state() private _gasOpen = false;
+  @state() private _expanded = false;
+  @state() private _hist: Record<string, { t: number; v: number }[]> = {};
   private _cache?: { key: unknown; device?: string; r: GasGrillEntities };
+  private _interval?: number;
+  private _loadedKey?: string;
+
+  public connectedCallback(): void {
+    super.connectedCallback();
+    this._interval = window.setInterval(() => { this._loadedKey = undefined; this.requestUpdate(); }, 120_000);
+  }
+
+  public disconnectedCallback(): void {
+    super.disconnectedCallback();
+    window.clearInterval(this._interval);
+  }
+
+  /** Temperaturen fürs Diagramm: Garraum + eingesteckte Fühler */
+  private _graphIds(): string[] {
+    const r = this._r();
+    const probes = r.probes.filter((p) => (this._numOf(p.temp ? this.hass!.states[p.temp] : undefined) ?? 0) > 0).map((p) => p.temp!);
+    return [r.e.chamber_temperature, ...probes].filter((x): x is string => !!x);
+  }
+
+  protected updated(): void {
+    if (!this.hass?.callWS || this._config?.show_graph === false || (this._config?.layout === "compact" && !this._expanded)) return;
+    const ids = this._graphIds();
+    const key = ids.join(",");
+    if (!ids.length || this._loadedKey === key) return;
+    this._loadedKey = key;
+    this._loadHistory(ids);
+  }
+
+  /** Verlauf seit Beginn der Grillsession (sonst 3 h, höchstens 8 h) */
+  private async _loadHistory(ids: string[]): Promise<void> {
+    const startSt = this._st("session_start");
+    const sessionStart = startSt && !UNAVAILABLE.includes(startSt.state) ? Date.parse(startSt.state) : NaN;
+    const now = Date.now();
+    const start = Number.isFinite(sessionStart) && this._on("grilling") ? Math.max(now - 8 * 3_600_000, sessionStart - 600_000) : now - 3 * 3_600_000;
+    try {
+      const res = await this.hass!.callWS<Record<string, any[]>>({ type: "history/history_during_period", start_time: new Date(start).toISOString(),
+        end_time: new Date(now).toISOString(), entity_ids: ids, minimal_response: true, no_attributes: true, significant_changes_only: false });
+      const hist: Record<string, { t: number; v: number }[]> = {};
+      for (const id of ids) hist[id] = (res?.[id] ?? []).map((q) => ({ t: q.lu != null ? q.lu * 1000 : Date.parse(q.last_updated ?? q.last_changed), v: Number(q.s ?? q.state) }))
+        .filter((q) => Number.isFinite(q.v) && Number.isFinite(q.t) && q.v > 0);
+      this._hist = hist;
+    } catch { /* ohne Verlauf */ }
+  }
+
+  /** Zeitstempel-Sensor → ms (nur Zukunft) */
+  private _at(id?: string): number | undefined {
+    const st = id ? this.hass!.states[id] : undefined;
+    if (!st || UNAVAILABLE.includes(st.state)) return undefined;
+    const t = Date.parse(st.state);
+    return Number.isFinite(t) && t > Date.now() ? t : undefined;
+  }
+
+  private _time(ms: number): string {
+    return new Date(ms).toLocaleTimeString(getLanguage(this.hass), { hour: "2-digit", minute: "2-digit" });
+  }
+
+  private _dur(min: number): string {
+    const m = Math.max(0, Math.round(min));
+    return m >= 60 ? `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, "0")} min` : `${m} min`;
+  }
 
   public static getConfigElement(): HTMLElement {
     return document.createElement("ha-gas-grill-card-editor");
@@ -275,8 +339,22 @@ export class HaGasGrillCard extends LitElement {
         <div class="t-val" style="--tc:${heatColor(target)}"><span class="t-big">${target != null ? this._fmt(target) : "–"}<sup>°C</sup></span>
           <span class="t-sub">${this._t("target_temp")}</span></div>
         <button class="pm" data-act="target-up" @click=${() => this._step(targetId, 5)}><ha-icon icon="mdi:plus"></ha-icon></button>
-      </div>` : mode && !UNAVAILABLE.includes(mode) ? html`<div class="hint">${this._t("manual_hint")}</div>` : nothing}
+      </div>${this._preheat(target)}` : mode && !UNAVAILABLE.includes(mode) ? html`<div class="hint">${this._t("manual_hint")}</div>` : nothing}
     </section>`;
+  }
+
+  /** Aufheizen: Garraum gegen Ziel mit Prognose */
+  private _preheat(target?: number) {
+    const chamber = this._num("chamber_temperature");
+    if (chamber == null || target == null || target <= 0 || chamber < 40) return nothing;
+    const ready = this._st("preheated")?.state === "on" || chamber >= target - 5;
+    const pct = Math.max(0, Math.min(100, Math.round((chamber / target) * 100)));
+    const eta = this._at(this._r().e.preheat_eta);
+    return html`<div class="preheat ${ready ? "ready" : ""}" data-preheat>
+      <span class="ph-bar"><i style="width:${pct}%"></i></span>
+      <span class="ph-text"><ha-icon .icon=${ready ? "mdi:check-circle" : "mdi:fire"}></ha-icon>
+        ${ready ? this._t("preheated") : html`${this._t("chamber")} <b>${this._fmt(chamber)} °C</b>${eta ? html` · ${this._t("preheated_at")} <b>${this._time(eta)}</b>` : nothing}`}</span>
+    </div>`;
   }
 
   private _probe(p: GasGrillProbe) {
@@ -285,7 +363,8 @@ export class HaGasGrillCard extends LitElement {
     const target = this._numOf(p.target ? s[p.target] : undefined);
     const plugged = temp != null && temp > 0;
     const pct = plugged ? probeProgress(temp, target) : undefined;
-    const done = plugged && target != null && target > 0 && temp! >= target;
+    const done = p.done && s[p.done] && !UNAVAILABLE.includes(s[p.done]!.state) ? s[p.done]!.state === "on" : plugged && target != null && target > 0 && temp! >= target;
+    const eta = plugged && !done ? this._at(p.eta) : undefined;
     const color = done ? "#e53935" : plugged ? "#fb8c00" : "#9e9e9e";
     const presetSt = p.preset ? s[p.preset] : undefined;
     const r = 30, c = 2 * Math.PI * r;
@@ -296,7 +375,8 @@ export class HaGasGrillCard extends LitElement {
         <span class="p-in"><b>${plugged ? `${this._fmt(temp!)}°` : "–"}</b><small>F${p.index}</small></span>
       </button>
       <div class="p-side">
-        <span class="p-state">${done ? this._t("probe_done") : plugged ? this._t("probe_cooking") : this._t("probe_unplugged")}</span>
+        <span class="p-state">${done ? this._t("probe_done") : plugged ? this._t("probe_cooking") : this._t("probe_unplugged")}
+          ${eta ? html`<span class="p-eta" data-eta>· ${this._t("ready_at")} ${this._time(eta)} (${this._dur((eta - Date.now()) / 60000)})</span>` : nothing}</span>
         ${p.target ? html`<span class="p-tgt">
           <button class="mini" data-act="probe-down" @click=${() => this._step(p.target, -1)}><ha-icon icon="mdi:minus"></ha-icon></button>
           <span>${this._t("target")} <b>${target != null ? `${this._fmt(target)}°` : "–"}</b></span>
@@ -393,12 +473,85 @@ export class HaGasGrillCard extends LitElement {
         <span class="g-bar"><i style="width:${pct ?? 0}%"></i></span>
         <span class="g-pct">${pct != null ? `${pct} %` : "–"}${size != null ? html` <small>${this._t("of")} ${this._fmt(size, 1)} kg</small>` : nothing}</span>
       </button>
+      ${this._gasStats(kg)}
       ${this._gasOpen ? html`<div class="g-settings">
         ${row("cylinder_tare", this._t("tare"), 0.1)}
         ${row("cylinder_size", this._t("cylinder_size"), 0.5)}
         ${this._num("scale_weight") != null ? html`<div class="g-set"><span>${this._t("scale")}</span><b>${this._fmt(this._num("scale_weight")!, 1)} kg</b></div>` : nothing}
       </div>` : nothing}
     </section>`;
+  }
+
+  private _gasStats(kg?: number) {
+    const runtime = this._num("gas_runtime"), rate = this._num("gas_rate"), used = this._num("gas_consumed");
+    if (runtime == null && rate == null && used == null) return nothing;
+    return html`<div class="g-stats">
+      ${runtime != null ? html`<span class="chip" data-runtime><ha-icon icon="mdi:timer-sand"></ha-icon>${this._t("runtime_left")} ${this._dur(runtime * 60)}</span>` : kg != null ? html`<span class="chip muted"><ha-icon icon="mdi:timer-sand"></ha-icon>${this._t("runtime_learning")}</span>` : nothing}
+      ${rate != null ? html`<span class="chip"><ha-icon icon="mdi:speedometer"></ha-icon>${this._fmt(rate, 2)} kg/h</span>` : nothing}
+      ${used != null ? html`<span class="chip"><ha-icon icon="mdi:sigma"></ha-icon>${this._fmt(used, 1)} kg ${this._t("used_total")}</span>` : nothing}
+    </div>`;
+  }
+
+  /** Grillsession + Temperaturverlauf */
+  private _session() {
+    const grilling = this._on("grilling");
+    const dur = this._num("session_duration"), gas = this._num("session_gas"), max = this._num("session_max_temp");
+    const startSt = this._st("session_start");
+    const start = startSt && !UNAVAILABLE.includes(startSt.state) ? Date.parse(startSt.state) : NaN;
+    const chart = this._config?.show_graph === false ? nothing : this._chart();
+    if (!Number.isFinite(start) && chart === nothing) return nothing;
+    const lang = getLanguage(this.hass);
+    const when = Number.isFinite(start) ? new Date(start).toLocaleString(lang, { weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "";
+    return html`<section class="sec session ${grilling ? "live" : ""}">
+      <div class="sec-h"><ha-icon icon="mdi:chart-bell-curve-cumulative"></ha-icon><span>${grilling ? this._t("session_live") : this._t("session_last")}</span>
+        ${when ? html`<small>${grilling ? `${this._t("since")} ${this._time(start)}` : when}</small>` : nothing}</div>
+      ${Number.isFinite(start) ? html`<div class="s-stats">
+        ${dur != null ? html`<span><ha-icon icon="mdi:timer-outline"></ha-icon><b>${this._dur(dur)}</b></span>` : nothing}
+        ${gas != null ? html`<span><ha-icon icon="mdi:gas-cylinder"></ha-icon><b>${this._fmt(gas, 1)} kg</b></span>` : nothing}
+        ${max != null && max > 0 ? html`<span><ha-icon icon="mdi:thermometer-high"></ha-icon><b>${this._fmt(max)} °C</b></span>` : nothing}
+      </div>` : nothing}
+      ${chart}
+    </section>`;
+  }
+
+  private _chart() {
+    const r = this._r();
+    const ids = this._graphIds();
+    const lines = ids.map((id) => ({ id, pts: this._hist[id] ?? [] })).filter((l) => l.pts.length > 1);
+    if (!lines.length) return nothing;
+    const now = Date.now();
+    const t0 = Math.min(...lines.map((l) => l.pts[0]!.t));
+    const targets = r.probes.filter((p) => ids.includes(p.temp!)).map((p) => this._numOf(p.target ? this.hass!.states[p.target] : undefined)).filter((x): x is number => x != null && x > 0);
+    const vs = lines.flatMap((l) => l.pts.map((q) => q.v)).concat(targets);
+    const hi = Math.max(...vs) * 1.08 || 1;
+    const x = (t: number) => ((t - t0) / Math.max(1, now - t0)) * 300;
+    const y = (v: number) => 80 - (v / hi) * 76;
+    const path = (pts: { t: number; v: number }[]) => pts.map((q, i) => `${i ? "L" : "M"}${x(q.t).toFixed(1)},${y(q.v).toFixed(1)}`).join(" ");
+    const colorOf = (id: string) => id === r.e.chamber_temperature ? "#fb8c00" : PROBE_COLORS[(r.probes.find((p) => p.temp === id)?.index ?? 1) - 1]!;
+    const labelOf = (id: string) => id === r.e.chamber_temperature ? this._t("chamber") : `F${r.probes.find((p) => p.temp === id)?.index ?? ""}`;
+    return html`<svg class="chart" viewBox="0 0 300 82" preserveAspectRatio="none" aria-hidden="true">
+      ${targets.map((tv) => svg`<line class="tgt" x1="0" x2="300" y1=${y(tv)} y2=${y(tv)}></line>`)}
+      ${lines.map((l) => svg`<path class="ln" style="--lc:${colorOf(l.id)}" d=${path(l.pts)}></path>`)}
+    </svg>
+    <div class="legend">${lines.map((l) => html`<span><i style="background:${colorOf(l.id)}"></i>${labelOf(l.id)}</span>`)}
+      ${targets.length ? html`<span><i class="tgt"></i>${this._t("target")}</span>` : nothing}</div>`;
+  }
+
+  /** Kompakte Kachel: Garraum, Fühler, Gas, Timer – Antippen klappt die volle Karte auf */
+  private _compact() {
+    const chamber = this._num("chamber_temperature");
+    const r = this._r();
+    const probes = r.probes.map((p) => ({ p, t: this._numOf(p.temp ? this.hass!.states[p.temp] : undefined), g: this._numOf(p.target ? this.hass!.states[p.target] : undefined) }))
+      .filter((x) => (x.t ?? 0) > 0);
+    const pct = gasPercent(this._num("gas_remaining"), this._num("cylinder_size"), this._num("gas_level"));
+    const timer = this._st("timer_state")?.state === "running" ? this._num("timer_remaining") : undefined;
+    return html`<button class="compact-row" data-compact @click=${() => { this._expanded = !this._expanded; }}>
+      ${chamber != null ? html`<span class="cp big" style="--tc:${heatColor(chamber)}"><ha-icon icon="mdi:thermometer"></ha-icon>${this._fmt(chamber)}°</span>` : nothing}
+      ${probes.map((x) => html`<span class="cp"><small>F${x.p.index}</small>${this._fmt(x.t!)}°${x.g ? html`<small>/${this._fmt(x.g)}°</small>` : nothing}</span>`)}
+      ${timer != null ? html`<span class="cp"><ha-icon icon="mdi:timer-outline"></ha-icon>${timer} min</span>` : nothing}
+      ${pct != null ? html`<span class="cp"><ha-icon icon="mdi:gas-cylinder"></ha-icon>${pct} %</span>` : nothing}
+      <ha-icon class="chev" .icon=${this._expanded ? "mdi:chevron-up" : "mdi:chevron-down"}></ha-icon>
+    </button>`;
   }
 
   protected render() {
@@ -419,7 +572,8 @@ export class HaGasGrillCard extends LitElement {
       chamber != null ? `${this._t("chamber")} ${this._fmt(chamber)} °C` : "", target != null ? `${this._t("target")} ${this._fmt(target)} °C` : ""].filter(Boolean).join(" · ");
     const sound = r.e.sound;
     const offline = this._st("connection")?.state === "off";
-    return html`<ha-card class="gas-grill anim-${c.animations ?? "full"} ${hot ? "hot" : ""}" style="--hcc-accent-c:${accent}">
+    const compact = c.layout === "compact";
+    return html`<ha-card class="gas-grill anim-${c.animations ?? "full"} ${hot ? "hot" : ""} ${compact ? "compact-card" : ""}" style="--hcc-accent-c:${accent}">
       <div class="glow"><div class="blob b1"></div><div class="blob b2"></div></div>
       <div class="header">
         <span class="h-icon"><ha-icon .icon=${hot ? "mdi:grill" : "mdi:grill-outline"}></ha-icon></span>
@@ -428,12 +582,15 @@ export class HaGasGrillCard extends LitElement {
           <ha-icon .icon=${this._on("sound") ? "mdi:volume-high" : "mdi:volume-off"}></ha-icon></button>` : nothing}
       </div>
       ${offline ? html`<div class="banner offline" data-offline><ha-icon icon="mdi:power-plug-off-outline"></ha-icon><div>${this._t("offline_hint")}</div></div>` : nothing}
-      ${c.show_scene === false ? nothing : this._scene()}
-      ${c.show_modes === false ? nothing : this._modes()}
-      ${c.show_probes === false ? nothing : this._probes()}
-      ${c.show_timer === false ? nothing : this._timer()}
-      ${c.show_gas === false ? nothing : this._gas()}
-      ${c.show_lights === false ? nothing : this._lights()}
+      ${compact ? this._compact() : nothing}
+      ${compact && !this._expanded ? nothing : html`
+        ${c.show_scene === false ? nothing : this._scene()}
+        ${c.show_modes === false ? nothing : this._modes()}
+        ${c.show_probes === false ? nothing : this._probes()}
+        ${c.show_session === false ? nothing : this._session()}
+        ${c.show_timer === false ? nothing : this._timer()}
+        ${c.show_gas === false ? nothing : this._gas()}
+        ${c.show_lights === false ? nothing : this._lights()}`}
     </ha-card>`;
   }
 
@@ -565,6 +722,33 @@ export class HaGasGrillCard extends LitElement {
     .g-set span { flex: 1; color: var(--secondary-text-color); }
     .g-set b { min-width: 56px; text-align: center; }
     .banner.offline { cursor: default; background: rgba(127,127,127,0.14); }
+    .preheat { display: flex; flex-direction: column; gap: 5px; }
+    .ph-bar { height: 8px; border-radius: 4px; background: rgba(127,127,127,0.16); overflow: hidden; }
+    .ph-bar i { display: block; height: 100%; border-radius: 4px; background: linear-gradient(90deg, #ffb74d, var(--accent)); transition: width 0.8s var(--ease-out); }
+    .preheat.ready .ph-bar i { background: #43a047; }
+    .ph-text { display: flex; align-items: center; justify-content: center; gap: 5px; font-size: 12.5px; color: var(--secondary-text-color); }
+    .ph-text ha-icon { --mdc-icon-size: 16px; color: var(--accent); }
+    .preheat.ready .ph-text { color: #43a047; font-weight: 700; } .preheat.ready .ph-text ha-icon { color: #43a047; }
+    .p-eta { font-weight: 600; color: var(--secondary-text-color); }
+    .g-stats { display: flex; flex-wrap: wrap; gap: 6px; }
+    .g-stats .chip { cursor: default; }
+    .chip.muted { color: var(--secondary-text-color); font-weight: 500; }
+    .s-stats { display: flex; flex-wrap: wrap; gap: 14px; font-size: 13px; }
+    .s-stats span { display: inline-flex; align-items: center; gap: 4px; }
+    .s-stats ha-icon { --mdc-icon-size: 16px; color: var(--accent); }
+    .session.live .sec-h ha-icon { animation: flicker 1.8s ease-in-out infinite; }
+    .chart { width: 100%; height: 82px; overflow: visible; }
+    .chart .ln { fill: none; stroke: var(--lc); stroke-width: 2.2; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+    .chart .tgt { stroke: #43a047; stroke-width: 1.1; stroke-dasharray: 5 4; vector-effect: non-scaling-stroke; }
+    .legend { display: flex; flex-wrap: wrap; gap: 10px; font-size: 11px; color: var(--secondary-text-color); }
+    .legend span { display: inline-flex; align-items: center; gap: 4px; }
+    .legend i { width: 12px; height: 3px; border-radius: 2px; } .legend i.tgt { background: #43a047; }
+    .compact-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 0; border: none; background: none; cursor: pointer; text-align: left; }
+    .cp { display: inline-flex; align-items: center; gap: 3px; padding: 5px 10px; border-radius: 999px; font-size: 13px; font-weight: 700; background: rgba(127,127,127,0.12); }
+    .cp small { font-size: 10.5px; font-weight: 600; color: var(--secondary-text-color); }
+    .cp ha-icon { --mdc-icon-size: 15px; color: var(--accent); }
+    .cp.big { font-size: 16px; color: var(--tc); }
+    .compact-row .chev { margin-left: auto; color: var(--secondary-text-color); }
     .banner.offline ha-icon { color: var(--secondary-text-color); }
     ha-card.anim-reduced *, ha-card.anim-off * { animation: none !important; }
   `];

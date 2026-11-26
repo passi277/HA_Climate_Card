@@ -1449,6 +1449,12 @@ export interface GasGrillCardConfig {
   show_timer?: boolean;
   show_lights?: boolean;
   show_gas?: boolean;
+  /** Grillsession mit Temperaturverlauf (Standard an) */
+  show_session?: boolean;
+  /** Temperaturverlauf in der Session (Standard an) */
+  show_graph?: boolean;
+  /** compact = kleine Kachel, Antippen klappt die volle Karte auf */
+  layout?: "full" | "compact";
   /** Warnung, wenn die Gasflasche unter diesen Füllstand (%) fällt (Standard 20) */
   gas_warning?: number;
   /** Einzelne Entitäten überschreiben, Schlüssel = translation_key (z. B. gas_remaining) */

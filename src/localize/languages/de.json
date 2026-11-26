@@ -2131,7 +2131,16 @@
     "color_purple": "Lila",
     "color_pink": "Pink",
     "offline": "Grill offline – letzter Stand",
-    "offline_hint": "Der Grill ist nicht erreichbar (kein Strom oder WLAN). Gasmenge und Füllstand zeigen den letzten gemessenen Wert, schalten geht erst wieder, wenn er online ist."
+    "offline_hint": "Der Grill ist nicht erreichbar (kein Strom oder WLAN). Gasmenge und Füllstand zeigen den letzten gemessenen Wert, schalten geht erst wieder, wenn er online ist.",
+    "preheated": "Aufgeheizt – du kannst auflegen",
+    "preheated_at": "aufgeheizt um",
+    "ready_at": "fertig um",
+    "runtime_left": "reicht noch",
+    "runtime_learning": "Restlaufzeit wird gelernt",
+    "used_total": "verbraucht",
+    "session_live": "Grillsession läuft",
+    "session_last": "Letzte Grillsession",
+    "since": "seit"
   },
   "gas_grill_editor": {
     "title": "Titel",
@@ -2143,6 +2152,11 @@
     "show_gas": "Gasflasche",
     "show_lights": "Licht & Ton",
     "gas_warning": "Warnung bei Gas unter",
-    "hint": "Alle Werte kommen automatisch aus der Integration „Grillfürst Independence P530E“."
+    "hint": "Alle Werte kommen automatisch aus der Integration „Grillfürst Independence P530E“.",
+    "show_session": "Grillsession & Verlauf",
+    "show_graph": "Temperaturverlauf",
+    "layout": "Darstellung",
+    "layout_full": "Voll",
+    "layout_compact": "Kompakt (aufklappbar)"
   }
 }

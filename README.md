@@ -971,13 +971,17 @@ Oben ein **gezeichneter Grill**: Garraumlicht als Lichtschein an der Deckelfuge,
 ist der Grill heiß, flimmert die Luft über dem Deckel. Deckel, Logo oder Regler antippen schaltet das jeweilige Licht.
 Darunter **Grillmodus** mit Zieltemperatur −/+, **Fühler F1–F4** als Ringe (Ist gegen Ziel, „Ziel erreicht!“) mit Ziel −/+ und **Garstufe**,
 **Timer** mit Schnellwahl und Start/Pause/Stop, **Gasflasche** mit Warnung unter `gas_warning` % sowie Tara und Flaschengröße (Zahnrad) und **Licht & Ton**
-mit Reglerlicht-Modus und Farbpalette. Alle Entitäten werden über das Gerät gefunden.
+mit Reglerlicht-Modus und Farbpalette. Mit der Integration ab 0.11.0 zusätzlich: **Aufheiz-Balken mit „aufgeheizt um“**,
+**„fertig um“ je Fühler**, **Grillsession** (Dauer, Gas, Höchsttemperatur) mit **Temperaturverlauf** sowie Gas-**Restlaufzeit** und Verbrauch.
+Mit `layout: compact` erscheint eine kleine Kachel (Garraum, Fühler, Timer, Gas), die sich per Tipp zur vollen Karte aufklappt.
+Alle Entitäten werden über das Gerät gefunden.
 
 ```yaml
 type: custom:ha-gas-grill-card
 # device: 0123456789abcdef        # sonst der erste gefundene Grill
 # gas_warning: 20                  # Warnung unter … % Gas
-# show_scene: false                # Bereiche: show_scene, show_modes, show_probes, show_timer, show_gas, show_lights
+# layout: compact                  # kleine Kachel, Antippen klappt die volle Karte auf
+# show_scene: false                # Bereiche: show_scene, show_modes, show_probes, show_session, show_graph, show_timer, show_gas, show_lights
 # entities: { sound: switch.mein_ton }   # Schlüssel = translation key
 ```
 

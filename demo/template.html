@@ -865,6 +865,19 @@
       "switch.grill_p530e_ton": { state: "off", attributes: { friendly_name: "Grill Ton" } },
       "select.grill_p530e_reglerlicht_modus": { state: "individual", attributes: { friendly_name: "Grill Reglerlicht-Modus", options: ["off", "random", "temperature", "individual", "magic"] } },
       "select.grill_p530e_reglerfarbe": { state: "deep_blue", attributes: { friendly_name: "Grill Reglerfarbe", options: ["red", "orange", "yellow", "green", "light_green", "deep_blue", "purple", "pink"] } },
+      "binary_sensor.grill_p530e_verbindung": { state: "on", attributes: { friendly_name: "Grill Verbindung", device_class: "connectivity" } },
+      "binary_sensor.grill_p530e_grillt": { state: "on", attributes: { friendly_name: "Grill Grillt", device_class: "running" } },
+      "binary_sensor.grill_p530e_aufgeheizt": { state: "off", attributes: { friendly_name: "Grill Aufgeheizt" } },
+      "binary_sensor.grill_p530e_fuhler_f2_fertig": { state: "on", attributes: { friendly_name: "Grill Fühler F2 fertig" } },
+      "sensor.grill_p530e_aufgeheizt_um": { state: new Date(Date.now() + 4 * 60000).toISOString(), attributes: { friendly_name: "Grill Aufgeheizt um", device_class: "timestamp" } },
+      "sensor.grill_p530e_fuhler_f1_fertig_um": { state: new Date(Date.now() + 14 * 60000).toISOString(), attributes: { friendly_name: "Grill Fühler F1 fertig um", device_class: "timestamp" } },
+      "sensor.grill_p530e_gas_verbraucht": { state: "7.4", attributes: { friendly_name: "Grill Gas verbraucht", unit_of_measurement: "kg" } },
+      "sensor.grill_p530e_gasverbrauch_pro_stunde": { state: "0.46", attributes: { friendly_name: "Grill Gasverbrauch pro Stunde", unit_of_measurement: "kg/h" } },
+      "sensor.grill_p530e_gas_restlaufzeit": { state: "3.48", attributes: { friendly_name: "Grill Gas-Restlaufzeit", unit_of_measurement: "h", device_class: "duration" } },
+      "sensor.grill_p530e_grillsession_start": { state: new Date(Date.now() - 72 * 60000).toISOString(), attributes: { friendly_name: "Grill Grillsession Start", device_class: "timestamp" } },
+      "sensor.grill_p530e_grillsession_dauer": { state: "72", attributes: { friendly_name: "Grill Grillsession Dauer", unit_of_measurement: "min" } },
+      "sensor.grill_p530e_grillsession_gas": { state: "0.5", attributes: { friendly_name: "Grill Grillsession Gas", unit_of_measurement: "kg" } },
+      "sensor.grill_p530e_grillsession_hochsttemperatur": { state: "214", attributes: { friendly_name: "Grill Grillsession Höchsttemperatur", unit_of_measurement: "°C" } },
       "sensor.meater_2_innentemperatur": { state: "48.6", attributes: { friendly_name: "Meater 2 Innentemperatur", device_class: "temperature", unit_of_measurement: "°C" } },
       "sensor.meater_2_umgebungstemperatur": { state: "142", attributes: { friendly_name: "Meater 2 Umgebungstemperatur", device_class: "temperature", unit_of_measurement: "°C" } },
       "sensor.meater_2_soll_temperatur": { state: "56", attributes: { friendly_name: "Meater 2 Soll-Temperatur", device_class: "temperature", unit_of_measurement: "°C" } },
@@ -930,8 +943,8 @@
       ...(/^device_tracker\.tp_/.test(id) ? { platform: "tplink_router" } : {}),
       ...(/^\w+\.stecker_pumpe_/.test(id) ? { device_id: "sh_pumpe", platform: "shelly" } : {}),
       ...(/^sensor\.meater_2_/.test(id) ? { device_id: "dev_meater2", platform: "meater" } : {}),
-      ...(/^\w+\.grill_p530e_/.test(id) ? { device_id: "dev_p530e", platform: "grillfuerst_p530e", translation_key: ({ garraumtemperatur: "chamber_temperature", gasmenge: "gas_remaining", gasfullstand: "gas_level", gewicht_waage: "scale_weight", tara_gasflasche: "cylinder_tare", gasflaschengrosse: "cylinder_size", grillmodus: "grill_mode", zieltemperatur_direkt: "target_direct", zieltemperatur_indirekt: "target_indirect", zieltemperatur_low_slow: "target_low_slow", timer: "timer_state", timer_restzeit: "timer_remaining", timer_dauer: "timer_duration", timer_start: "timer_start", timer_pause: "timer_pause", timer_stop: "timer_stop", garraumlicht: "chamber_light", logo_beleuchtung: "logo_light", reglerbeleuchtung: "knob_light", ton: "sound", reglerlicht_modus: "knob_light_mode", reglerfarbe: "knob_color" })[id.replace(/^\w+\.grill_p530e_/, "")]
-        ?? (/zieltemperatur_fuhler_f\d$/.test(id) ? "probe_target" : /temperatur_fuhler_f\d$/.test(id) ? "probe_temperature" : /garstufe_fuhler_f\d$/.test(id) ? "probe_preset" : undefined) } : {}),
+      ...(/^\w+\.grill_p530e_/.test(id) ? { device_id: "dev_p530e", platform: "grillfuerst_p530e", translation_key: ({ garraumtemperatur: "chamber_temperature", gasmenge: "gas_remaining", gasfullstand: "gas_level", gewicht_waage: "scale_weight", tara_gasflasche: "cylinder_tare", gasflaschengrosse: "cylinder_size", grillmodus: "grill_mode", zieltemperatur_direkt: "target_direct", zieltemperatur_indirekt: "target_indirect", zieltemperatur_low_slow: "target_low_slow", timer: "timer_state", timer_restzeit: "timer_remaining", timer_dauer: "timer_duration", timer_start: "timer_start", timer_pause: "timer_pause", timer_stop: "timer_stop", verbindung: "connection", grillt: "grilling", aufgeheizt: "preheated", aufgeheizt_um: "preheat_eta", gas_verbraucht: "gas_consumed", gasverbrauch_pro_stunde: "gas_rate", gas_restlaufzeit: "gas_runtime", grillsession_start: "session_start", grillsession_dauer: "session_duration", grillsession_gas: "session_gas", grillsession_hochsttemperatur: "session_max_temp", garraumlicht: "chamber_light", logo_beleuchtung: "logo_light", reglerbeleuchtung: "knob_light", ton: "sound", reglerlicht_modus: "knob_light_mode", reglerfarbe: "knob_color" })[id.replace(/^\w+\.grill_p530e_/, "")]
+        ?? (/_fuhler_f\d_fertig_um$/.test(id) ? "probe_eta" : /_fuhler_f\d_fertig$/.test(id) ? "probe_done" : /zieltemperatur_fuhler_f\d$/.test(id) ? "probe_target" : /temperatur_fuhler_f\d$/.test(id) ? "probe_temperature" : /garstufe_fuhler_f\d$/.test(id) ? "probe_preset" : undefined) } : {}),
       ...(/^\w+\.gm_plus_/.test(id) ? { device_id: "dev_gm_plus", platform: "garten" } : {}),
       ...(/^\w+\.shelly_(kuhlschrank|hutte_ausensteckdosen|licht)/.test(id) ? { device_id: "sh_" + id.match(/shelly_(kuhlschrank|hutte_ausensteckdosen|licht)/)[1], platform: "shelly",
         ...(/_(rssi|uptime|reboot|firmware|restart_required|overheating|device_temperature)$/.test(id) ? { entity_category: "diagnostic" } : {}) } : {}),
@@ -1378,6 +1391,17 @@
           });
           return out;
         }
+        // Gasgrill: Garraum heizt auf 212 °C, F1 und F2 steigen seit 70 min
+        if (msg.entity_ids.some((id) => /^sensor\.grill_p530e_/.test(id))) {
+          const now = Date.now() / 1000;
+          for (const id of msg.entity_ids) out[id] = Array.from({ length: 36 }, (_, i) => {
+            const t = now - (35 - i) * 120, f = i / 35;
+            const v = id.endsWith("garraumtemperatur") ? 20 + 192 * Math.min(1, f * 2.2) - (f > 0.6 ? 6 * Math.sin(i) : 0)
+              : id.endsWith("_f1") ? 8 + 40 * Math.pow(f, 0.85) : 8 + 49 * Math.pow(f, 0.7);
+            return { s: String(+v.toFixed(1)), lu: t };
+          });
+          return out;
+        }
         // Grillthermometer: Kern steigt seit 72 min, Garraum um 140 °C
         if (msg.entity_ids.some((id) => /^sensor\.meater_2_/.test(id))) {
           const now = Date.now() / 1000;
@@ -1601,6 +1625,7 @@
         { entity: "switch.stecker_pumpe_switch_0", name: "Pumpe" }] }],
       ["Grillthermometer – Meater: aktive Sonde mit Ring, Restzeit, Verlauf; zweite Sonde im Ladegerät", { _grill: true }],
       ["Gasgrill – Grillfürst P530E: gezeichneter Grill mit Licht, Logo und Reglerfarbe, Modus mit Zieltemperatur, Fühler F1–F4, Timer, Gasflasche", { _gasGrill: true }],
+      ["Gasgrill kompakt – kleine Kachel mit Garraum, Fühlern, Gas; Antippen klappt die volle Karte auf", { _gasGrill: true, layout: "compact", title: "Grill" }],
       ["Pool-Pflege – Smart Pool: Chemie-Tagebuch mit Empfehlung, Vorräte, Metall-Ex, Wartung mit Aufgaben, Statistik (alles über das Gerät)", { _poolCare: true }],
       ["Funknetz – WLAN: alle Geräte über den Router (per MAC mit HA-Geräten verknüpft) + Kameras mit WLAN-Signal", { _net: true, integration: "wifi", max_items: 6 }],
       ["Wochenrückblick Energie – diese gegen letzte Woche, Kosten, Spitzentag, Anteil je Verbraucher", { _eweek: true, price: 0.3 }],

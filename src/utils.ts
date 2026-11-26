@@ -3222,7 +3222,7 @@ export const spreadStats = (values: number[]): { min: number; max: number; avg: 
 
 export const GAS_GRILL_PLATFORM = "grillfuerst_p530e";
 
-export interface GasGrillProbe { index: number; temp?: string; target?: string; preset?: string }
+export interface GasGrillProbe { index: number; temp?: string; target?: string; preset?: string; eta?: string; done?: string }
 
 export interface GasGrillEntities {
   device?: string;
@@ -3240,7 +3240,8 @@ export const gasGrillEntities = (entities: Record<string, EntityRegistryEntry> |
   const list = all.filter((x) => !dev || x.device_id === dev);
   const e: Record<string, string> = {};
   const probes = new Map<number, GasGrillProbe>();
-  const probeKeys: Record<string, keyof Omit<GasGrillProbe, "index">> = { probe_temperature: "temp", probe_target: "target", probe_preset: "preset" };
+  const probeKeys: Record<string, keyof Omit<GasGrillProbe, "index">> = { probe_temperature: "temp", probe_target: "target", probe_preset: "preset",
+    probe_eta: "eta", probe_done: "done" };
   const byKey = new Map<string, EntityRegistryEntry[]>();
   for (const x of list) {
     if (!x.translation_key) continue;
@@ -3251,7 +3252,7 @@ export const gasGrillEntities = (entities: Record<string, EntityRegistryEntry> |
     if (!field) { e[key] = xs[0]!.entity_id; continue; }
     const sorted = [...xs].sort((a, b) => a.entity_id.localeCompare(b.entity_id));
     sorted.forEach((x, i) => {
-      const n = Number(/_f(\d)$/.exec(x.entity_id)?.[1] ?? i + 1);
+      const n = Number([...x.entity_id.matchAll(/_f(\d)(?=_|$)/g)].pop()?.[1] ?? i + 1);
       const p = probes.get(n) ?? { index: n };
       p[field] = x.entity_id;
       probes.set(n, p);

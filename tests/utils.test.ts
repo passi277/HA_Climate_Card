@@ -1590,6 +1590,8 @@ describe("gasGrillEntities", () => {
     reg("sensor.grill_temperatur_fuhler_f1", "probe_temperature"),
     reg("number.grill_zieltemperatur_fuhler_f1", "probe_target"),
     reg("select.grill_garstufe_fuhler_f1", "probe_preset"),
+    reg("sensor.grill_fuhler_f1_fertig_um", "probe_eta"),
+    reg("binary_sensor.grill_fuhler_f2_fertig", "probe_done"),
     reg("sensor.other_gas", "gas_remaining", "dev9", "other"),
   ]);
   it("finds keys and probes via the device", () => {
@@ -1598,7 +1600,9 @@ describe("gasGrillEntities", () => {
     expect(r.e.gas_remaining).toBe("sensor.grill_gasmenge");
     expect(r.e.grill_mode).toBe("select.grill_grillmodus");
     expect(r.probes.map((p) => p.index)).toEqual([1, 2]);
-    expect(r.probes[0]).toEqual({ index: 1, temp: "sensor.grill_temperatur_fuhler_f1", target: "number.grill_zieltemperatur_fuhler_f1", preset: "select.grill_garstufe_fuhler_f1" });
+    expect(r.probes[0]).toEqual({ index: 1, temp: "sensor.grill_temperatur_fuhler_f1", target: "number.grill_zieltemperatur_fuhler_f1", preset: "select.grill_garstufe_fuhler_f1",
+      eta: "sensor.grill_fuhler_f1_fertig_um" });
+    expect(r.probes[1]!.done).toBe("binary_sensor.grill_fuhler_f2_fertig");
   });
   it("applies overrides and returns nothing for other devices", () => {
     expect(gasGrillEntities(entities, undefined, { sound: "switch.x" }).e.sound).toBe("switch.x");

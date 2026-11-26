@@ -1925,6 +1925,25 @@ colorFails.length ? fail(`Farbe folgt nicht dem Modus: ${colorFails.join(", ")}`
     calls.join() === "select.select_option:indirect,number.set_value:235,number.set_value:57,button.press:button.grill_p530e_timer_pause,switch.turn_off:switch.grill_p530e_logo_beleuchtung,select.select_option:green"
       ? ok("Gasgrill: Modus, Zieltemperatur +5, Fühler +1, Timer-Pause, Logo per Tipp, Reglerfarbe") : fail(`Gasgrill Bedienung: ${JSON.stringify(calls)}`);
   }
+  // Gasgrill: Aufheizen, Fertig-um, Session mit Verlauf, Gas-Restlaufzeit, kompakte Kachel
+  {
+    const gg = await p.evaluateHandle(() => document.querySelector("ha-gas-grill-card"));
+    await p.waitForTimeout(300);
+    const info = await gg.evaluate((c) => { const r = c.shadowRoot; const t = (sel) => r.querySelector(sel)?.textContent.replace(/\s+/g, " ").trim();
+      return { preheat: t("[data-preheat] .ph-text"), eta: t('.probe[data-probe="1"] [data-eta]'), session: t(".session .s-stats"), chart: r.querySelectorAll(".session .chart .ln").length,
+        runtime: t("[data-runtime]") }; });
+    // vorher auf „Indirekt“ (Ziel 165 °C) umgestellt → Garraum 212 °C ist aufgeheizt
+    info.preheat === "Aufgeheizt – du kannst auflegen" && /^· fertig um \d{2}:\d{2} \(1[0-4] min\)$/.test(info.eta ?? "")
+      && info.session === "1 h 12 min 0,5 kg 214 °C" && info.chart === 3 && info.runtime === "reicht noch 3 h 29 min"
+      ? ok(`Gasgrill: ${info.preheat}, F1 ${info.eta}, Session ${info.session}, ${info.runtime}`) : fail(`Gasgrill Auswertung: ${JSON.stringify(info)}`);
+    const cg = await p.evaluateHandle(() => [...document.querySelectorAll("ha-gas-grill-card")][1]);
+    const before = await cg.evaluate((c) => ({ chips: [...c.shadowRoot.querySelectorAll(".cp")].map((x) => x.textContent.replace(/\s+/g, "").trim()), modes: !!c.shadowRoot.querySelector(".modes") }));
+    await cg.evaluate((c) => c.shadowRoot.querySelector("[data-compact]").click());
+    await p.waitForTimeout(200);
+    const after = await cg.evaluate((c) => !!c.shadowRoot.querySelector(".modes"));
+    before.chips.join("|") === "212°|F148°/57°|F257°/56°|12min|53%" && !before.modes && after
+      ? ok(`Gasgrill kompakt: ${before.chips.join(" ")}, aufklappbar`) : fail(`Gasgrill kompakt: ${JSON.stringify({ before, after })}`);
+  }
   // Boden & Regen: Bananen zu trocken, Regensensor nass aber nicht bestätigt (Tau), Warnschwelle per +
   const sr = await p.evaluate(() => { const r = document.querySelector("ha-soil-rain-card").shadowRoot; const t = (sel) => r.querySelector(sel)?.textContent.replace(/\s+/g, " ").trim();
     return { sub: t(".h-sub"), val: t(".s-val"), pill: t(".s-pill"), sky: t(".sky-txt b"), dew: !!r.querySelector(".rain-box.r-dew"), facts: [...r.querySelectorAll(".fact b")].map((x) => x.textContent.trim()),

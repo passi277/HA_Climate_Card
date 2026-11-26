@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.54.0 – Gasgrill: Auswertungen
+- Gas Grill Card: **Aufheiz-Balken** „Garraum 180 °C · aufgeheizt um 18:42“ bzw. „Aufgeheizt – du kannst auflegen“, **Fertig-um** je Fühler („fertig um 18:55 (14 min)“), **Grillsession** mit Dauer, Gas und Höchsttemperatur samt **Temperaturverlauf** (Garraum + Fühler, Ziel-Linie), Gas-**Restlaufzeit**, Verbrauch pro Stunde und Gesamtverbrauch
+- Neue **kompakte Darstellung** (`layout: compact`): kleine Kachel mit Garraum, Fühlern, Timer und Gas – Antippen klappt die volle Karte auf
+- Optionen `show_session`, `show_graph`, `layout` (auch im visuellen Editor); benötigt die Integration `grillfuerst_p530e` ab 0.11.0 für die Auswertungen
+
 ## 1.53.1
 - Gas Grill Card: ist der Grill ohne Strom/WLAN, steht oben „Grill offline – letzter Stand“ mit Hinweis; Gasmenge und Füllstand zeigen weiter den letzten Messwert (Integration ab 0.10.0)
 
