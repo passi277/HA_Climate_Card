@@ -1943,6 +1943,17 @@ colorFails.length ? fail(`Farbe folgt nicht dem Modus: ${colorFails.join(", ")}`
     const after = await cg.evaluate((c) => !!c.shadowRoot.querySelector(".modes"));
     before.chips.join("|") === "212°|F148°/57°|F257°/56°|12min|53%" && !before.modes && after
       ? ok(`Gasgrill kompakt: ${before.chips.join(" ")}, aufklappbar`) : fail(`Gasgrill kompakt: ${JSON.stringify({ before, after })}`);
+    // Stufenmodus: 5 Flammen, Stufe 3 aktiv, Tipp auf 5 setzt die Stufe
+    await gg.evaluate((c) => c.shadowRoot.querySelector('.mode[data-mode="stage"]').click());
+    await p.waitForTimeout(300);
+    const st = await gg.evaluate((c) => { const r = c.shadowRoot; return { flames: r.querySelectorAll("[data-stage] .flame").length, lit: r.querySelectorAll("[data-stage] .flame.on").length,
+      sub: r.querySelector(".h-sub")?.textContent.trim() }; });
+    const k3 = await p.evaluate(() => window.serviceCalls.length);
+    await gg.evaluate((c) => c.shadowRoot.querySelector('[data-stage] .flame[data-level="5"]').click());
+    await p.waitForTimeout(200);
+    const stCall = await p.evaluate((k) => window.serviceCalls.slice(k).map((c) => `${c.domain}.${c.service}:${c.data.value}`).join(), k3);
+    st.flames === 5 && st.lit === 3 && st.sub?.startsWith("Stufen · Stufe 3") && stCall === "number.set_value:5"
+      ? ok(`Gasgrill Stufenmodus: ${st.sub}, Flamme 5 → Stufe 5`) : fail(`Gasgrill Stufenmodus: ${JSON.stringify({ ...st, stCall })}`);
   }
   // Boden & Regen: Bananen zu trocken, Regensensor nass aber nicht bestätigt (Tau), Warnschwelle per +
   const sr = await p.evaluate(() => { const r = document.querySelector("ha-soil-rain-card").shadowRoot; const t = (sel) => r.querySelector(sel)?.textContent.replace(/\s+/g, " ").trim();

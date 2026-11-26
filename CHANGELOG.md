@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.55.0 – Gasgrill: Stufenmodus
+- Gas Grill Card: im **Stufenmodus** fünf Flammen wie in der App – aktive Stufe leuchtet, Antippen setzt die Stufe; Kopfzeile zeigt „Stufen · Stufe 3“ (Integration `grillfuerst_p530e` ab 0.13.0)
+
 ## 1.54.0 – Gasgrill: Auswertungen
 - Gas Grill Card: **Aufheiz-Balken** „Garraum 180 °C · aufgeheizt um 18:42“ bzw. „Aufgeheizt – du kannst auflegen“, **Fertig-um** je Fühler („fertig um 18:55 (14 min)“), **Grillsession** mit Dauer, Gas und Höchsttemperatur samt **Temperaturverlauf** (Garraum + Fühler, Ziel-Linie), Gas-**Restlaufzeit**, Verbrauch pro Stunde und Gesamtverbrauch
 - Neue **kompakte Darstellung** (`layout: compact`): kleine Kachel mit Garraum, Fühlern, Timer und Gas – Antippen klappt die volle Karte auf

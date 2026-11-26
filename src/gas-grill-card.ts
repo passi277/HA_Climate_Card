@@ -321,6 +321,18 @@ export class HaGasGrillCard extends LitElement {
 
   /* ---------------- Bereiche ---------------- */
 
+  /** Stufenmodus: 5 Flammen wie in der App, Tippen setzt die Stufe */
+  private _stage() {
+    const id = this._r().e.stage_level;
+    const level = this._num("stage_level");
+    return html`<div class="stage" data-stage>
+      <div class="flames">${[1, 2, 3, 4, 5].map((n) => html`<button class="flame ${level != null && n <= level ? "on" : ""}" data-level=${n}
+        title="${this._t("stage_level")} ${n}" @click=${() => this._step(id, 0, n)}>
+        <ha-icon icon="mdi:fire"></ha-icon><span>${n}</span></button>`)}</div>
+      <div class="t-sub">${this._t("stage_level")} ${level != null ? this._fmt(level) : "–"} · ${this._t("stage_hint")}</div>
+    </div>`;
+  }
+
   private _modes() {
     const modeSt = this._st("grill_mode");
     const mode = modeSt?.state;
@@ -339,7 +351,8 @@ export class HaGasGrillCard extends LitElement {
         <div class="t-val" style="--tc:${heatColor(target)}"><span class="t-big">${target != null ? this._fmt(target) : "–"}<sup>°C</sup></span>
           <span class="t-sub">${this._t("target_temp")}</span></div>
         <button class="pm" data-act="target-up" @click=${() => this._step(targetId, 5)}><ha-icon icon="mdi:plus"></ha-icon></button>
-      </div>${this._preheat(target)}` : mode && !UNAVAILABLE.includes(mode) ? html`<div class="hint">${this._t("manual_hint")}</div>` : nothing}
+      </div>${this._preheat(target)}` : mode === "stage" && this._r().e.stage_level ? this._stage()
+        : mode && !UNAVAILABLE.includes(mode) ? html`<div class="hint">${this._t("manual_hint")}</div>` : nothing}
     </section>`;
   }
 
@@ -569,6 +582,7 @@ export class HaGasGrillCard extends LitElement {
     const hot = chamber != null && chamber >= 60;
     const accent = hot ? heatColor(chamber) : "#fb8c00";
     const sub = [mode && !UNAVAILABLE.includes(mode) ? this._label(modeSt, mode, `gas_grill.mode_${mode}`) : "",
+      mode === "stage" && this._num("stage_level") != null ? `${this._t("stage_level")} ${this._fmt(this._num("stage_level")!)}` : "",
       chamber != null ? `${this._t("chamber")} ${this._fmt(chamber)} °C` : "", target != null ? `${this._t("target")} ${this._fmt(target)} °C` : ""].filter(Boolean).join(" · ");
     const sound = r.e.sound;
     const offline = this._st("connection")?.state === "off";
@@ -653,6 +667,13 @@ export class HaGasGrillCard extends LitElement {
     .mode.on { color: #fff; background: var(--accent); box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 40%, transparent); }
     .mode:active { transform: scale(0.94); }
     @container (max-width: 360px) { .mode span { font-size: 10px; } }
+    .stage { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+    .flames { display: flex; gap: 8px; justify-content: center; }
+    .flame { width: 46px; border: none; border-radius: 14px; padding: 6px 0 4px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px;
+      color: var(--secondary-text-color); background: rgba(127,127,127,0.12); font-weight: 700; font-size: 12px; transition: color 0.3s, background 0.3s; }
+    .flame ha-icon { --mdc-icon-size: 24px; }
+    .flame.on { color: #e53935; background: color-mix(in srgb, #e53935 16%, transparent); }
+    .flame.on ha-icon { filter: drop-shadow(0 0 3px #ff7043); }
     .target { display: flex; align-items: center; justify-content: center; gap: 18px; }
     .t-val { display: flex; flex-direction: column; align-items: center; }
     .t-big { font-size: 40px; font-weight: 300; line-height: 1; color: var(--tc); transition: color 0.5s; }

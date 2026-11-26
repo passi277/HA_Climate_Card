@@ -2063,6 +2063,8 @@
     "target_temp": "Zieltemperatur",
     "target": "Ziel",
     "chamber": "Garraum",
+    "stage_level": "Stufe",
+    "stage_hint": "Steuerung über den Fühler unter dem Grillrost",
     "manual_hint": "In diesem Modus regelst du die Flammen über die Drehregler.",
     "mode_direct": "Direkt",
     "mode_indirect": "Indirekt",

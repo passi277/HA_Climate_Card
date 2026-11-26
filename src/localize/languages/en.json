@@ -2018,6 +2018,8 @@
     "target_temp": "Target temperature",
     "target": "Target",
     "chamber": "Chamber",
+    "stage_level": "Level",
+    "stage_hint": "controlled by the sensor below the grate",
     "manual_hint": "In this mode you control the flames with the knobs.",
     "mode_direct": "Direct",
     "mode_indirect": "Indirect",
