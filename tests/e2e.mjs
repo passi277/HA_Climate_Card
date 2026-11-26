@@ -1932,6 +1932,10 @@ colorFails.length ? fail(`Farbe folgt nicht dem Modus: ${colorFails.join(", ")}`
     const info = await gg.evaluate((c) => { const r = c.shadowRoot; const t = (sel) => r.querySelector(sel)?.textContent.replace(/\s+/g, " ").trim();
       return { preheat: t("[data-preheat] .ph-text"), eta: t('.probe[data-probe="1"] [data-eta]'), session: t(".session .s-stats"), chart: r.querySelectorAll(".session .chart .ln").length,
         runtime: t("[data-runtime]") }; });
+    const ctl = await gg.evaluate((c) => { const r = c.shadowRoot; return { f4: r.querySelector('.probe.ctl[data-probe="4"] .p-state')?.textContent.trim(),
+      hint: r.querySelector('[data-hint="indirect"]')?.textContent.trim() }; });
+    ctl.f4 === "Garraumfühler" && ctl.hint?.startsWith("Brenner 1 und 5 auf Max")
+      ? ok(`Gasgrill Indirekt: F4 als ${ctl.f4}, Hinweis „${ctl.hint.slice(0, 30)}…“`) : fail(`Gasgrill F4/Hinweis: ${JSON.stringify(ctl)}`);
     // vorher auf „Indirekt“ (Ziel 165 °C) umgestellt → Garraum 212 °C ist aufgeheizt
     info.preheat === "Aufgeheizt – du kannst auflegen" && /^· fertig um \d{2}:\d{2} \(1[0-4] min\)$/.test(info.eta ?? "")
       && info.session === "1 h 12 min 0,5 kg 214 °C" && info.chart === 3 && info.runtime === "reicht noch 3 h 29 min"

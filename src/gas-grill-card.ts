@@ -22,6 +22,9 @@ const MODE_ICON: Record<string, string> = {
 };
 /** Zieltemperatur je Modus (Stufen- und freier Modus regeln über die Drehregler) */
 const MODE_TARGET: Record<string, string> = { direct: "target_direct", indirect: "target_indirect", low_slow: "target_low_slow" };
+const CHAMBER = "chamber_temperature";
+const F4_CONTROL_MODES = ["indirect", "low_slow"];
+const MODE_HINT: Record<string, string> = { direct: "hint_direct", indirect: "hint_indirect", low_slow: "hint_low_slow", stage: "hint_stage", free: "manual_hint" };
 const KNOB_MODES = ["off", "individual", "random", "temperature", "magic"] as const;
 const KNOB_MODE_ICON: Record<string, string> = {
   off: "mdi:lightbulb-off-outline", individual: "mdi:palette", random: "mdi:dice-multiple", temperature: "mdi:thermometer", magic: "mdi:auto-fix",
@@ -66,7 +69,7 @@ export class HaGasGrillCard extends LitElement {
   private _graphIds(): string[] {
     const r = this._r();
     const probes = r.probes.filter((p) => (this._numOf(p.temp ? this.hass!.states[p.temp] : undefined) ?? 0) > 0).map((p) => p.temp!);
-    return [r.e.chamber_temperature, ...probes].filter((x): x is string => !!x);
+    return [r.e[CHAMBER], ...probes].filter((x): x is string => !!x);
   }
 
   protected updated(): void {
@@ -232,19 +235,39 @@ export class HaGasGrillCard extends LitElement {
 
   /* ---------------- Grill-Zeichnung ---------------- */
 
+  /** Ist-Temperatur: wonach der Grill im Modus regelt (Integration ab 0.15.0), sonst Garraumfühler */
+  private _actual(): number | undefined {
+    return this._num("control_temperature") ?? this._num(CHAMBER);
+  }
+
+  /** In Indirekt und Low & Slow ist F4 der Garraumfühler (Bedienungsanleitung) */
+  private _f4Control(): boolean {
+    return F4_CONTROL_MODES.includes(this._st("grill_mode")?.state ?? "");
+  }
+
+  /** Magic: Farbe folgt F1 im Verhältnis zum Ziel – Blau, Pink, Rot, Orange, Gelb, Grün kurz vor dem Ziel */
+  private _magicColor(): string | undefined {
+    const p = this._r().probes.find((x) => x.index === 1);
+    const s = this.hass!.states;
+    const temp = this._numOf(p?.temp ? s[p.temp] : undefined), target = this._numOf(p?.target ? s[p.target] : undefined);
+    if (temp == null || temp <= 0 || target == null || target <= 0) return undefined;
+    const f = temp / target;
+    return f >= 0.95 ? "#43a047" : f >= 0.8 ? "#fdd835" : f >= 0.6 ? "#fb8c00" : f >= 0.4 ? "#e53935" : f >= 0.2 ? "#ec407a" : "#1e88e5";
+  }
+
   private _knobColors(mode: string, chamber?: number): string[] {
     const color = GRILL_KNOB_COLORS[this._st("knob_color")?.state ?? ""] ?? GRILL_KNOB_COLORS.red!;
     if (mode === "off") return KNOB_X.map(() => "");
     if (mode === "random") return KNOB_X.map((_, i) => PALETTE[(i * 3) % PALETTE.length]!);
     if (mode === "temperature") return KNOB_X.map(() => heatColor(chamber));
-    if (mode === "magic") return KNOB_X.map((_, i) => PALETTE[i % PALETTE.length]!);
+    if (mode === "magic") { const m = this._magicColor(); return KNOB_X.map((_, i) => m ?? PALETTE[i % PALETTE.length]!); }
     return KNOB_X.map(() => color);
   }
 
   private _scene() {
     const chamberLight = this._on("chamber_light");
     const logo = this._on("logo_light");
-    const chamber = this._num("chamber_temperature");
+    const chamber = this._actual();
     const knobMode = this._st("knob_light_mode")?.state ?? (this._on("knob_light") ? "individual" : "off");
     const knobs = this._knobColors(UNAVAILABLE.includes(knobMode) ? "off" : knobMode, chamber);
     const hot = chamber != null && chamber >= 60;
@@ -256,7 +279,8 @@ export class HaGasGrillCard extends LitElement {
     const ang = -120 + (Math.min(400, Math.max(0, chamber ?? 0)) / 400) * 240;
     const rad = (ang - 90) * (Math.PI / 180);
     const has = (k: string) => !!this._r().e[k];
-    return html`<div class="scene ${hot ? "hot" : ""} knob-${knobMode}">
+    const knobClass = knobMode === "magic" && this._magicColor() ? "individual" : knobMode;
+    return html`<div class="scene ${hot ? "hot" : ""} knob-${knobClass}">
       <svg viewBox="0 0 400 200" role="img" aria-label=${this._t("title")}>
         <defs>
           <linearGradient id="hood" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5b5f66"></stop><stop offset="1" stop-color="#2f3237"></stop></linearGradient>
@@ -351,14 +375,14 @@ export class HaGasGrillCard extends LitElement {
         <div class="t-val" style="--tc:${heatColor(target)}"><span class="t-big">${target != null ? this._fmt(target) : "–"}<sup>°C</sup></span>
           <span class="t-sub">${this._t("target_temp")}</span></div>
         <button class="pm" data-act="target-up" @click=${() => this._step(targetId, 5)}><ha-icon icon="mdi:plus"></ha-icon></button>
-      </div>${this._preheat(target)}` : mode === "stage" && this._r().e.stage_level ? this._stage()
-        : mode && !UNAVAILABLE.includes(mode) ? html`<div class="hint">${this._t("manual_hint")}</div>` : nothing}
+      </div>${this._preheat(target)}` : mode === "stage" && this._r().e.stage_level ? this._stage() : nothing}
+      ${mode && MODE_HINT[mode] ? html`<div class="hint" data-hint=${mode}><ha-icon icon="mdi:information-outline"></ha-icon>${this._t(MODE_HINT[mode]!)}</div>` : nothing}
     </section>`;
   }
 
   /** Aufheizen: Garraum gegen Ziel mit Prognose */
   private _preheat(target?: number) {
-    const chamber = this._num("chamber_temperature");
+    const chamber = this._actual();
     if (chamber == null || target == null || target <= 0 || chamber < 40) return nothing;
     const ready = this._st("preheated")?.state === "on" || chamber >= target - 5;
     const pct = Math.max(0, Math.min(100, Math.round((chamber / target) * 100)));
@@ -381,6 +405,16 @@ export class HaGasGrillCard extends LitElement {
     const color = done ? "#e53935" : plugged ? "#fb8c00" : "#9e9e9e";
     const presetSt = p.preset ? s[p.preset] : undefined;
     const r = 30, c = 2 * Math.PI * r;
+    if (p.index === 4 && this._f4Control()) {
+      return html`<div class="probe ctl ${plugged ? "plugged" : ""}" style="--pc:#fb8c00" data-probe=${p.index}>
+        <button class="p-ring" @click=${() => this._moreInfo(p.temp)}>
+          <svg viewBox="0 0 72 72" aria-hidden="true"><circle class="track" cx="36" cy="36" r=${r}></circle></svg>
+          <span class="p-in"><b>${plugged ? `${this._fmt(temp!)}°` : "–"}</b><small>F4</small></span>
+        </button>
+        <div class="p-side"><span class="p-state">${this._t("probe_control")}</span>
+          <span class="p-note">${plugged ? this._t("probe_control_hint") : this._t("probe_control_missing")}</span></div>
+      </div>`;
+    }
     return html`<div class="probe ${plugged ? "plugged" : ""} ${done ? "done" : ""}" style="--pc:${color}" data-probe=${p.index}>
       <button class="p-ring" @click=${() => this._moreInfo(p.temp)}>
         <svg viewBox="0 0 72 72" aria-hidden="true"><circle class="track" cx="36" cy="36" r=${r}></circle>
@@ -425,7 +459,7 @@ export class HaGasGrillCard extends LitElement {
     const h = Math.floor(shown / 60), m = shown % 60;
     return html`<section class="sec timer ${status}">
       <div class="sec-h"><ha-icon icon="mdi:timer-outline"></ha-icon><span>${this._t("timer")}</span>
-        <small class="badge">${this._label(stSt, status, `gas_grill.timer_${status}`)}</small></div>
+        <small class="badge ${this._on("timer_finished") ? "alarm" : ""}">${this._on("timer_finished") ? this._t("timer_finished") : this._label(stSt, status, `gas_grill.timer_${status}`)}</small></div>
       <div class="t-row">
         ${!running && !paused && durId ? html`<button class="pm" data-act="timer-down" @click=${() => this._step(durId, -1)}><ha-icon icon="mdi:minus"></ha-icon></button>` : nothing}
         <span class="clock">${h ? html`${h}<small>h</small> ` : nothing}${String(m).padStart(h ? 2 : 1, "0")}<small>min</small></span>
@@ -540,8 +574,8 @@ export class HaGasGrillCard extends LitElement {
     const x = (t: number) => ((t - t0) / Math.max(1, now - t0)) * 300;
     const y = (v: number) => 80 - (v / hi) * 76;
     const path = (pts: { t: number; v: number }[]) => pts.map((q, i) => `${i ? "L" : "M"}${x(q.t).toFixed(1)},${y(q.v).toFixed(1)}`).join(" ");
-    const colorOf = (id: string) => id === r.e.chamber_temperature ? "#fb8c00" : PROBE_COLORS[(r.probes.find((p) => p.temp === id)?.index ?? 1) - 1]!;
-    const labelOf = (id: string) => id === r.e.chamber_temperature ? this._t("chamber") : `F${r.probes.find((p) => p.temp === id)?.index ?? ""}`;
+    const colorOf = (id: string) => id === r.e[CHAMBER] ? "#fb8c00" : PROBE_COLORS[(r.probes.find((p) => p.temp === id)?.index ?? 1) - 1]!;
+    const labelOf = (id: string) => id === r.e[CHAMBER] ? this._t("chamber") : `F${r.probes.find((p) => p.temp === id)?.index ?? ""}`;
     return html`<svg class="chart" viewBox="0 0 300 82" preserveAspectRatio="none" aria-hidden="true">
       ${targets.map((tv) => svg`<line class="tgt" x1="0" x2="300" y1=${y(tv)} y2=${y(tv)}></line>`)}
       ${lines.map((l) => svg`<path class="ln" style="--lc:${colorOf(l.id)}" d=${path(l.pts)}></path>`)}
@@ -552,7 +586,7 @@ export class HaGasGrillCard extends LitElement {
 
   /** Kompakte Kachel: Garraum, Fühler, Gas, Timer – Antippen klappt die volle Karte auf */
   private _compact() {
-    const chamber = this._num("chamber_temperature");
+    const chamber = this._actual();
     const r = this._r();
     const probes = r.probes.map((p) => ({ p, t: this._numOf(p.temp ? this.hass!.states[p.temp] : undefined), g: this._numOf(p.target ? this.hass!.states[p.target] : undefined) }))
       .filter((x) => (x.t ?? 0) > 0);
@@ -574,7 +608,7 @@ export class HaGasGrillCard extends LitElement {
     if (!Object.keys(r.e).length) {
       return html`<ha-card class="gas-grill"><div class="empty"><ha-icon icon="mdi:grill-outline"></ha-icon>${this._t("not_found")}</div></ha-card>`;
     }
-    const chamber = this._num("chamber_temperature");
+    const chamber = this._actual();
     const modeSt = this._st("grill_mode");
     const mode = modeSt?.state;
     const targetKey = mode ? MODE_TARGET[mode] : undefined;
@@ -658,7 +692,6 @@ export class HaGasGrillCard extends LitElement {
     .sec-h span { flex: 1; }
     .sec-h small { font-size: 11.5px; font-weight: 600; color: var(--secondary-text-color); }
     .badge { padding: 2px 8px; border-radius: 999px; background: rgba(127,127,127,0.14); }
-    .hint { font-size: 12.5px; color: var(--secondary-text-color); }
     .modes { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
     .mode { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 8px 2px; border: none; border-radius: 12px; cursor: pointer;
       font-size: 11px; font-weight: 600; line-height: 1.15; text-align: center; color: var(--secondary-text-color); background: rgba(127,127,127,0.1);
@@ -667,6 +700,10 @@ export class HaGasGrillCard extends LitElement {
     .mode.on { color: #fff; background: var(--accent); box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 40%, transparent); }
     .mode:active { transform: scale(0.94); }
     @container (max-width: 360px) { .mode span { font-size: 10px; } }
+    .hint { display: flex; gap: 6px; align-items: flex-start; font-size: 12px; color: var(--secondary-text-color); line-height: 1.35; }
+    .hint ha-icon { --mdc-icon-size: 16px; flex: none; margin-top: 1px; }
+    .p-note { font-size: 11.5px; color: var(--secondary-text-color); line-height: 1.3; }
+    .badge.alarm { color: #fff; background: #e53935; animation: flicker 1.2s ease-in-out infinite; }
     .stage { display: flex; flex-direction: column; align-items: center; gap: 6px; }
     .flames { display: flex; gap: 8px; justify-content: center; }
     .flame { width: 46px; border: none; border-radius: 14px; padding: 6px 0 4px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px;

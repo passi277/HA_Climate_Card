@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.56.0 – Gasgrill: Wissen aus der Bedienungsanleitung
+- Gas Grill Card: zeigt die **Ist-Temperatur**, nach der der Grill regelt – bei Indirekt und Low & Slow ist das Fühler F4 (Integration ab 0.15.0, sonst Garraumfühler)
+- In Indirekt und Low & Slow erscheint **F4 als „Garraumfühler“** statt als Kerntemperaturfühler, mit Hinweis zur Platzierung
+- **Brenner-Hinweis je Modus** (z. B. „Brenner 1 und 5 auf Max, 2 und 4 auf Min, 3 aus“)
+- Reglerlicht **„magic“**: Farbe folgt Fühler F1 im Verhältnis zum Ziel (Blau → Pink → Rot → Orange → Gelb → Grün)
+- Timer zeigt **„Abgelaufen“**, wenn der Grill-Timer abgelaufen ist (Integration ab 0.14.0)
+
 ## 1.55.0 – Gasgrill: Stufenmodus
 - Gas Grill Card: im **Stufenmodus** fünf Flammen wie in der App – aktive Stufe leuchtet, Antippen setzt die Stufe; Kopfzeile zeigt „Stufen · Stufe 3“ (Integration `grillfuerst_p530e` ab 0.13.0)
 
