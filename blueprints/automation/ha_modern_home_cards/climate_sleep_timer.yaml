@@ -1,0 +1,61 @@
+blueprint:
+  name: Klima-Sleeptimer (HA Modern Home Cards)
+  description: >-
+    Schaltet eine Klimaanlage zur eingestellten Uhrzeit aus, wenn der Sleeptimer
+    scharf geschaltet ist. Passt zu den Optionen `timer_switch` und `timer_time`
+    der Modern Climate Card. Optional wird der Timer danach automatisch entschärft.
+  domain: automation
+  source_url: https://github.com/passi277/HA-Modern-Home-Cards/blob/main/blueprints/automation/ha_modern_home_cards/climate_sleep_timer.yaml
+  input:
+    climate_entity:
+      name: Klimaanlage
+      selector:
+        entity:
+          filter:
+            - domain: climate
+          multiple: true
+    timer_switch:
+      name: Schalter zum Scharfschalten
+      description: z.B. ein Helfer „Schalter“ (input_boolean)
+      selector:
+        entity:
+          filter:
+            - domain:
+                - input_boolean
+                - switch
+    timer_time:
+      name: Ausschaltzeit
+      description: Helfer „Datum und/oder Uhrzeit“ (input_datetime)
+      selector:
+        entity:
+          filter:
+            - domain: input_datetime
+    disarm_after:
+      name: Timer danach entschärfen
+      description: Schalter nach dem Ausschalten wieder auf „aus“ setzen (einmaliger Timer).
+      default: true
+      selector:
+        boolean: {}
+
+mode: single
+
+triggers:
+  - trigger: time
+    at: !input timer_time
+
+conditions:
+  - condition: state
+    entity_id: !input timer_switch
+    state: "on"
+
+actions:
+  - action: climate.turn_off
+    target:
+      entity_id: !input climate_entity
+  - if:
+      - condition: template
+        value_template: !input disarm_after
+    then:
+      - action: homeassistant.turn_off
+        target:
+          entity_id: !input timer_switch

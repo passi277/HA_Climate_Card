@@ -1,3 +1,4 @@
 node_modules/
 demo/screenshots/
 *.log
+undefined/

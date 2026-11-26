@@ -41,10 +41,13 @@ export const formatAttribute = (
     const formatted = hass.formatEntityAttributeValue(entity, attribute, value);
     if (formatted && formatted !== value) return formatted;
   }
+  const lang = getLanguage(hass);
   if (attribute === "hvac_action") {
-    return lookup(getLanguage(hass), `hvac_action.${value}`) ?? prettify(value);
+    return lookup(lang, `hvac_action.${value}`) ?? prettify(value);
   }
-  return prettify(value);
+  // Eigene Übersetzungen für gängige Lüfter-/Lamellen-/Preset-Werte (z.B. Gree: "medium low", "fixed_upper")
+  const key = `values.${String(value).trim().toLowerCase().replace(/[\s-]+/g, "_")}`;
+  return lookup(lang, key) ?? prettify(value);
 };
 
 export const formatMode = (hass: HomeAssistant, entity: HassEntity, mode: string): string => {
